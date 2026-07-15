@@ -1,0 +1,7 @@
+name = "dmg-calc-cache"
+main = "src/index.js"
+compatibility_date = "2026-05-03"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "59a793af70824bac985a6365138e5005"
