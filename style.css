@@ -1,0 +1,258 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: sans-serif;
+  background: #303030;
+  color: #eee;
+  padding: 16px;
+}
+
+.topbar {
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.topbar h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.data-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.data-controls button {
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* Weapon picker: 8-wide responsive grid, each card scales with its column */
+.weapons-wrapper {
+  width: 100%;
+  max-width: 700px;
+}
+
+.search-bar {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+#weapon-search {
+  width: 100%;
+  font-size: 14px;
+  padding: 8px 10px;
+  background: #1f1f1f;
+  color: #eee;
+  border: 1px solid #555;
+}
+
+.search-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #1f1f1f;
+  border: 1px solid #555;
+  border-top: none;
+}
+
+.search-dropdown.open {
+  display: block;
+}
+
+.search-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.search-dropdown-item:hover,
+.search-dropdown-item.active {
+  background: #3a3a3a;
+}
+
+.search-dropdown-item img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.search-dropdown-empty {
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #999;
+}
+
+#weapons-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.weapon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 1 / 1;
+  background: #8b8b8b;
+  border: 1px solid #4d4d4d;
+  padding: 6px 4px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.weapon-card:hover {
+  background: #a0a0a0;
+}
+
+.weapon-icon {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.weapon-name {
+  width: 100%;
+  font-size: clamp(7px, 1.3vw, 11px);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Horizontal scroll container so the grid never gets crushed on narrow screens */
+.grid-wrapper {
+  width: 100%;
+  max-width: 700px;
+  overflow-x: auto;
+}
+
+.hex-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 2px;
+  width: 100%;
+  min-width: 380px;
+  aspect-ratio: 9 / 6;
+  background: #555;
+  border: 2px solid #777;
+  padding: 4px;
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(14px, 3.5vw, 26px);
+  background: #8b8b8b;
+  border: 1px solid #4d4d4d;
+}
+
+.slot.filler {
+  background: #a355d9;
+}
+
+.slot.weapon {
+  background: #8b8b8b;
+  font-size: clamp(20px, 5vw, 34px);
+}
+
+.slot.icon {
+  background: #c6c6c6;
+  cursor: pointer;
+}
+
+.slot.icon:hover {
+  background: #dcdcdc;
+}
+
+.slot.barrier {
+  background: #c6c6c6;
+  cursor: pointer;
+}
+
+.slot.barrier:hover {
+  background: #dcdcdc;
+}
+
+.slot.enchant {
+  background: #c6c6c6;
+  cursor: pointer;
+}
+
+.slot.enchant:hover {
+  background: #dcdcdc;
+}
+
+.slot.enchant.selected {
+  background: #7fd97f;
+}
+
+.enchants-context {
+  width: 100%;
+  max-width: 700px;
+  font-size: 13px;
+  color: #ccc;
+  margin-bottom: 10px;
+}
+
+.weapon-slot-icon {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* Minecraft/Skyblock tooltip (see mc-tooltip.js). Background/border
+   approximate the game's dark-purple tooltip panel (matches
+   MinecraftTooltipGenerator's defaults, #140314 / #25005e). */
+#mc-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  max-width: 300px;
+  background: #140314;
+  border: 2px solid #25005e;
+  padding: 6px 8px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+  pointer-events: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+#mc-tooltip.visible {
+  display: block;
+}
