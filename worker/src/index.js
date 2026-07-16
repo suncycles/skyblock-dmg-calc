@@ -1,9 +1,19 @@
 /* =========================================================
    THE HEX — shared cache Worker
-   Single source of truth for weapons/armor/pets/enchants data.
-   All clients hit this Worker instead of calling Hypixel/GitHub
-   directly, so the fetch+parse happens once per TTL window,
-   not once per visitor.
+   Single source of truth for weapons/armor/enchants data, all
+   sourced from NotEnoughUpdates-REPO (community-maintained,
+   MIT licensed) — no Hypixel API usage.
+
+   Weapons/armor are NOT fetched live: NEU-REPO's item catalog
+   has no structured rarity/category field (only the last line
+   of each item's `lore`, e.g. "§6§lLEGENDARY SWORD"), and it's
+   8000+ individual files — well past what a single Worker
+   invocation's subrequest/CPU budget can parse. Those are
+   pre-parsed offline by scripts/build-item-data.mjs into
+   src/data/{weapons,armor}.json and bundled at deploy time;
+   re-run that script + redeploy to pick up NEU-REPO updates.
+
+   Enchant data is small (one file) and still fetched live here.
 
    Routes:
      GET  /api/items    -> returns cached data, refreshing first if stale
@@ -12,13 +22,12 @@
    Requires a KV namespace bound as CACHE (see wrangler.toml).
    ========================================================= */
 
-const HYPIXEL_ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
+import weapons from "./data/weapons.json";
+import armor from "./data/armor.json";
+
 // Community-maintained source (not the official Hypixel API) —
 // the wiki has no API and blocks scraping.
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
-
-const WEAPON_CATEGORIES = ["SWORD", "BOW", "LONGSWORD", "WAND"];
-const ARMOR_CATEGORIES = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"];
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — adjust as needed
@@ -78,20 +87,10 @@ async function handleRefresh(env) {
 }
 
 async function buildFreshData() {
-  const [itemsRes, enchantsRes] = await Promise.all([
-    fetch(HYPIXEL_ITEMS_URL),
-    fetch(NEU_ENCHANTS_URL)
-  ]);
-
-  const itemsData = await itemsRes.json();
+  const enchantsRes = await fetch(NEU_ENCHANTS_URL);
   const enchants = await enchantsRes.json();
-  const items = itemsData.items || [];
 
-  const weapons = items.filter(i => WEAPON_CATEGORIES.includes(i.category));
-  const armor = items.filter(i => ARMOR_CATEGORIES.includes(i.category));
-  const pets = items.filter(i => i.category === "PET");
-
-  return { weapons, armor, pets, enchants, lastFetched: Date.now() };
+  return { weapons, armor, enchants, lastFetched: Date.now() };
 }
 
 function jsonResponse(obj, status = 200) {
