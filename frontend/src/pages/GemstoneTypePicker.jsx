@@ -2,10 +2,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { GEMSTONES, GEMSTONE_IDS } from '../lib/gemstoneData';
-import { MC_COLORS } from '../lib/mcText';
+import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
 
-const slotBase = 'border border-neutral-700';
-const navSlot = `${slotBase} flex items-center justify-center bg-neutral-300 cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200`;
+const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
+const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
+const slotFillImg = 'w-full h-full object-cover pixelated';
 
 // Step 1 of applying a gemstone: pick which of the 6 supported gem types
 // goes in this slot. Spec allows any gem in any slot for now, so this
@@ -33,22 +35,28 @@ export default function GemstoneTypePicker() {
           cells.push(
             <div
               key={key}
-              className={`${slotBase} flex items-center justify-center cursor-pointer text-xl hover:bg-neutral-200 ${
-                current?.gem === gemId ? 'bg-green-400' : 'bg-neutral-300'
-              }`}
+              className={`${slotBase} cursor-pointer hover:brightness-110 ${current?.gem === gemId ? 'bg-green-400' : ''}`}
               title={`${gem.label} (${gem.statLabel})`}
               onClick={() => navigate(`/gemstones/${idx}/${gemId}`)}
               onMouseEnter={(e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget)}
               onMouseLeave={hideTooltip}
             >
-              <span style={{ color: MC_COLORS[gem.colorCode] }}>{gem.symbol}</span>
+              <img src={getGemstoneIcon(gemId, 'rough')} alt={gem.label} className={iconImg} />
             </div>,
           );
         } else {
-          cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+          cells.push(
+            <div key={key} className={slotBase}>
+              <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+            </div>,
+          );
         }
       } else if (isInteriorRow && !isInteriorCol) {
-        cells.push(<div key={key} className={`${slotBase} bg-purple-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
+          </div>,
+        );
       } else if (row === 5 && col === 3 && current) {
         cells.push(
           <div
@@ -66,11 +74,15 @@ export default function GemstoneTypePicker() {
       } else if (row === 5 && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Close" onClick={() => navigate('/gemstones')}>
-            ⛔
+            <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
           </div>,
         );
       } else {
-        cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.empty} alt="" className={iconImg} />
+          </div>,
+        );
       }
     }
   }
@@ -82,7 +94,7 @@ export default function GemstoneTypePicker() {
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-0.5 w-full min-w-[380px] aspect-[9/6] bg-neutral-600 border-2 border-neutral-500 p-1">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
           {cells}
         </div>
       </div>

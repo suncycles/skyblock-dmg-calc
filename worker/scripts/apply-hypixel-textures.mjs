@@ -43,14 +43,20 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, copyFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, copyFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, '..', '..', 'frontend', 'public', 'images', 'skyblock');
+const GEMSTONE_OUT_DIR = path.join(__dirname, '..', '..', 'frontend', 'public', 'images', 'gemstones');
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
+
+// The 6 gemstone types the calculator's Gemstone slots feature supports —
+// see frontend/src/lib/gemstoneData.js.
+const GEMSTONE_IDS = ['RUBY', 'JASPER', 'SAPPHIRE', 'AMETHYST', 'ONYX', 'OPAL'];
+const GEMSTONE_TIERS = ['rough', 'flawed', 'fine', 'flawless', 'perfect'];
 
 function slugify(name) {
   return name
@@ -170,11 +176,30 @@ async function main() {
     tally[tier]++;
   }
 
+  // The pack also has real per-gem, per-tier item art for the Gemstones
+  // collection at a fixed, well-known path — read directly from there
+  // rather than through byBasename, which dedupes by basename alone and
+  // would drop these: some gems (e.g. Opal) have a same-named but visually
+  // different reskinned texture elsewhere in the pack (a Blaze Slayer
+  // drop), which is a real ambiguity for the general id/name matching
+  // above but not here, since we know exactly which path we want.
+  mkdirSync(GEMSTONE_OUT_DIR, { recursive: true });
+  let gemstoneCopied = 0;
+  for (const gemId of GEMSTONE_IDS) {
+    for (const tier of GEMSTONE_TIERS) {
+      const src = path.join(itemTexturesDir, 'collections', 'gemstone', gemId.toLowerCase(), `${tier}_${gemId.toLowerCase()}_gem.png`);
+      if (!existsSync(src)) continue;
+      copyFileSync(src, path.join(GEMSTONE_OUT_DIR, `${gemId}_${tier.toUpperCase()}.png`));
+      gemstoneCopied++;
+    }
+  }
+
   rmSync(workDir, { recursive: true, force: true });
   const copied = tally.id + tally.name + tally.fuzzy;
   console.log(`Copied ${copied} item-specific textures into ${path.relative(process.cwd(), OUT_DIR)}`);
   console.log(`  (id match: ${tally.id}, name match: ${tally.name}, fuzzy match: ${tally.fuzzy})`);
   console.log(`(dropped ${dupes.size} ambiguous basenames shared by multiple pack files)`);
+  console.log(`Copied ${gemstoneCopied} gemstone tier textures into ${path.relative(process.cwd(), GEMSTONE_OUT_DIR)}`);
 }
 
 main().catch((err) => {

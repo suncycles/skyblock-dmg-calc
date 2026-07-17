@@ -4,10 +4,13 @@ import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { countGemstoneSlots, gemstoneSlotColumnOffsets, applyGemstonesToLore } from '../lib/gemstones';
 import { GEMSTONES } from '../lib/gemstoneData';
+import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 
-const slotBase = 'border border-neutral-700';
-const navSlot = `${slotBase} flex items-center justify-center bg-neutral-300 cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200`;
+const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
+const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
+const slotFillImg = 'w-full h-full object-cover pixelated';
 
 // Item sits at B3, gemstone slots are centered on column F (index 5),
 // both on the grid's 3rd row (index 2) — see lib/gemstones.js for how the
@@ -42,13 +45,8 @@ export default function GemstoneSlots() {
 
       if (row === ITEM_ROW && col === ITEM_COL) {
         cells.push(
-          <div
-            key={key}
-            className={`${slotBase} flex items-center justify-center bg-neutral-500 text-[clamp(20px,5vw,34px)]`}
-            onMouseEnter={handleWeaponHover}
-            onMouseLeave={hideTooltip}
-          >
-            {weapon && <WeaponIcon id={weapon.id} material={weapon.material} alt={weapon.name} className="w-[70%] h-[70%] object-contain pixelated" />}
+          <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleWeaponHover} onMouseLeave={hideTooltip}>
+            {weapon && <WeaponIcon id={weapon.id} material={weapon.material} alt={weapon.name} className={iconImg} />}
           </div>,
         );
         continue;
@@ -61,13 +59,15 @@ export default function GemstoneSlots() {
         cells.push(
           <div
             key={key}
-            className={`${slotBase} flex items-center justify-center cursor-pointer text-xl hover:bg-neutral-200 ${
-              gem ? 'bg-green-400' : 'bg-neutral-300'
-            }`}
+            className={`${slotBase} cursor-pointer hover:brightness-110 ${gem ? 'bg-green-400' : ''}`}
             title={gem ? `${entry.tier[0].toUpperCase()}${entry.tier.slice(1)} ${gem.label}` : 'Empty gemstone slot'}
             onClick={() => navigate(`/gemstones/${slotIdx}`)}
           >
-            {gem ? gem.symbol : ''}
+            {gem ? (
+              <img src={getGemstoneIcon(entry.gem, entry.tier)} alt={gem.label} className={iconImg} />
+            ) : (
+              <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+            )}
           </div>,
         );
         continue;
@@ -76,11 +76,15 @@ export default function GemstoneSlots() {
       if (row === 4 && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Close" onClick={() => navigate('/hex')}>
-            ⛔
+            <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
           </div>,
         );
       } else {
-        cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+          </div>,
+        );
       }
     }
   }
@@ -100,7 +104,7 @@ export default function GemstoneSlots() {
       </div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-0.5 w-full min-w-[380px] aspect-[9/6] bg-neutral-600 border-2 border-neutral-500 p-1">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
           {cells}
         </div>
       </div>

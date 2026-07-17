@@ -5,6 +5,7 @@ import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { titleCaseEnchantId, toRoman } from '../lib/enchantEffects';
 import { hasGemstoneSlots, applyGemstonesToLore } from '../lib/gemstones';
+import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 
 // Applied enchants, formatted for the tooltip: ultimate first (always bold
@@ -43,11 +44,11 @@ function insertEnchantLines(lore, enchantLines) {
 // type: "empty" | "filler" | "weapon" | "icon" | "barrier"
 const GRID_LAYOUT = [
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
-  ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:📖:Enchantments', 'icon:📝:Ultimate Enchantments', 'icon:💎:Gemstones'],
-  ['empty', 'empty', 'empty', 'filler', 'weapon', 'filler', 'icon:📔:Books', 'icon:🗳:Modifiers', 'empty'],
-  ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:🔷:Reforges', 'icon:🔥:Item Upgrades', 'empty'],
+  ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Enchantments', 'icon:Ultimate Enchantments', 'icon:Gemstones'],
+  ['empty', 'empty', 'empty', 'filler', 'weapon', 'filler', 'icon:Books', 'icon:Modifiers', 'empty'],
+  ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Reforges', 'icon:Item Upgrades', 'empty'],
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
-  ['empty', 'empty', 'empty', 'empty', 'barrier:⛔:Close', 'empty', 'empty', 'empty', 'empty'],
+  ['empty', 'empty', 'empty', 'empty', 'barrier:Close', 'empty', 'empty', 'empty', 'empty'],
 ];
 
 // Dummy handler for every interactive slot without real behavior yet.
@@ -55,8 +56,12 @@ function handleSlotClick(label) {
   console.log(`[The Hex] "${label}" clicked — not yet implemented.`);
 }
 
-const slotBase = 'flex items-center justify-center border border-neutral-700';
-const interactiveIcon = `${slotBase} bg-neutral-300 cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200`;
+const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+const interactiveIcon = `${slotBase} cursor-pointer hover:brightness-110`;
+const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
+// Glass panes stand in for the slot's own background, not a held item, so
+// they fill the slot edge-to-edge instead of sitting inset like item icons.
+const slotFillImg = 'w-full h-full object-cover pixelated';
 
 export default function Hex() {
   const navigate = useNavigate();
@@ -86,30 +91,27 @@ export default function Hex() {
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-0.5 w-full min-w-[380px] aspect-[9/6] bg-neutral-600 border-2 border-neutral-500 p-1">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
           {GRID_LAYOUT.flatMap((row, rowIdx) =>
             row.map((cellDef, colIdx) => {
-              const [type, glyph, label] = cellDef.split(':');
+              const [type, label] = cellDef.split(':');
               const key = `${rowIdx}-${colIdx}`;
 
               if (type === 'weapon') {
                 return (
                   <div
                     key={key}
-                    className={`${slotBase} bg-neutral-500 cursor-pointer text-[clamp(20px,5vw,34px)]`}
+                    className={`${slotBase} cursor-pointer`}
                     onClick={() => navigate('/')}
                     onMouseEnter={handleWeaponHover}
                     onMouseLeave={hideTooltip}
                   >
                     {weapon ? (
-                      <WeaponIcon
-                        id={weapon.id}
-                        material={weapon.material}
-                        alt={weapon.name}
-                        className="w-[70%] h-[70%] object-contain pixelated"
-                      />
+                      <WeaponIcon id={weapon.id} material={weapon.material} alt={weapon.name} className={iconImg} />
                     ) : (
-                      <span title="No weapon selected — click to choose one">⚔️</span>
+                      <span title="No weapon selected — click to choose one" className="text-2xl">
+                        ⚔️
+                      </span>
                     )}
                   </div>
                 );
@@ -132,11 +134,11 @@ export default function Hex() {
                   return (
                     <div
                       key={key}
-                      className={enabled ? interactiveIcon : `${slotBase} bg-neutral-600 text-[clamp(14px,3.5vw,26px)] opacity-40 cursor-not-allowed`}
+                      className={enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`}
                       title={enabled ? label : `${label} — this item has no Gemstone Slots`}
                       onClick={() => enabled && navigate(dest)}
                     >
-                      {glyph}
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
                     </div>
                   );
                 }
@@ -148,7 +150,7 @@ export default function Hex() {
                     title={label}
                     onClick={() => (dest ? navigate(dest) : handleSlotClick(label))}
                   >
-                    {glyph}
+                    <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
                   </div>
                 );
               }
@@ -156,16 +158,24 @@ export default function Hex() {
               if (type === 'barrier') {
                 return (
                   <div key={key} className={interactiveIcon} title={label} onClick={() => navigate('/')}>
-                    {glyph}
+                    <img src={SLOT_TEXTURES.close} alt={label} className={iconImg} />
                   </div>
                 );
               }
 
               if (type === 'filler') {
-                return <div key={key} className={`${slotBase} bg-purple-500`} />;
+                return (
+                  <div key={key} className={slotBase}>
+                    <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
+                  </div>
+                );
               }
 
-              return <div key={key} className={`${slotBase} bg-neutral-500`} />;
+              return (
+                <div key={key} className={slotBase}>
+                  <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+                </div>
+              );
             }),
           )}
         </div>

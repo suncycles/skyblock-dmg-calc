@@ -36,6 +36,7 @@ export function BuildProvider({ children }) {
   const selectWeapon = useCallback((weapon) => {
     const next = {
       weapon: {
+        id: weapon.id,
         name: weapon.name,
         material: weapon.material,
         category: weapon.category,
