@@ -11,11 +11,14 @@ import {
   isHiddenEnchant,
   computeConflictWarnings,
 } from '../lib/enchantEffects';
+import { SLOT_TEXTURES, ENCHANTED_BOOK_ICON } from '../lib/icons';
 
 const PAGE_SIZE = 28; // 4 rows x 7 cols of interior slots
 
-const slotBase = 'border border-neutral-700';
-const navSlot = `${slotBase} flex items-center justify-center bg-neutral-300 cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200`;
+const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
+const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
+const slotFillImg = 'w-full h-full object-cover pixelated';
 
 // Shared by /enchants and /ultimate-enchants — same chest-GUI layout,
 // filtered by whether the enchant id has the "ultimate_" prefix. Clicking a
@@ -99,21 +102,27 @@ export default function EnchantList({ ultimate }) {
           cells.push(
             <div
               key={key}
-              className={`${slotBase} flex items-center justify-center cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200 ${
-                appliedIds.has(id) ? 'bg-green-400' : 'bg-neutral-300'
-              }`}
+              className={`${slotBase} cursor-pointer hover:brightness-110 ${appliedIds.has(id) ? 'bg-green-400' : ''}`}
               onClick={() => navigate(`/enchant-levels/${encodeURIComponent(id)}`)}
               onMouseEnter={(e) => handleEnchantHover(id, e)}
               onMouseLeave={handleEnchantLeave}
             >
-              📗
+              <img src={ENCHANTED_BOOK_ICON} alt={titleCaseEnchantId(id)} className={iconImg} />
             </div>,
           );
         } else {
-          cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+          cells.push(
+            <div key={key} className={slotBase}>
+              <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+            </div>,
+          );
         }
       } else if (isInteriorRow && !isInteriorCol) {
-        cells.push(<div key={key} className={`${slotBase} bg-purple-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
+          </div>,
+        );
       } else if (isNavRow && col === 3) {
         cells.push(
           <div key={key} className={navSlot} title="Previous Page" onClick={() => page > 0 && setPage(page - 1)}>
@@ -123,7 +132,7 @@ export default function EnchantList({ ultimate }) {
       } else if (isNavRow && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Close" onClick={() => navigate('/hex')}>
-            ⛔
+            <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
           </div>,
         );
       } else if (isNavRow && col === 5) {
@@ -138,7 +147,11 @@ export default function EnchantList({ ultimate }) {
           </div>,
         );
       } else {
-        cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+          </div>,
+        );
       }
     }
   }
@@ -152,7 +165,7 @@ export default function EnchantList({ ultimate }) {
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{contextText}</div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-0.5 w-full min-w-[380px] aspect-[9/6] bg-neutral-600 border-2 border-neutral-500 p-1">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
           {cells}
         </div>
       </div>

@@ -3,9 +3,12 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { GEMSTONES, GEMSTONE_TIERS, TIER_TO_RARITY, getGemstoneBoost, formatGemstoneBoost } from '../lib/gemstoneData';
 import { rarityColorCode } from '../lib/mcText';
+import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
 
-const slotBase = 'border border-neutral-700';
-const navSlot = `${slotBase} flex items-center justify-center bg-neutral-300 cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200`;
+const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
+const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
+const slotFillImg = 'w-full h-full object-cover pixelated';
 
 function titleCase(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
@@ -47,8 +50,8 @@ export default function GemstoneTierPicker() {
           cells.push(
             <div
               key={key}
-              className={`${slotBase} flex flex-col items-center justify-center cursor-pointer text-sm hover:bg-neutral-200 ${
-                current?.gem === gemId && current?.tier === tier ? 'bg-green-400' : 'bg-neutral-300'
+              className={`${slotBase} relative flex-col cursor-pointer hover:brightness-110 ${
+                current?.gem === gemId && current?.tier === tier ? 'bg-green-400' : ''
               }`}
               title={`${titleCase(tier)} ${gem.label}: ${formatGemstoneBoost(gemId, boost)} ${gem.statLabel}`}
               onClick={() => handleSelect(tier)}
@@ -60,23 +63,37 @@ export default function GemstoneTierPicker() {
               }
               onMouseLeave={hideTooltip}
             >
-              <span>{titleCase(tier)}</span>
-              <span className="text-xs">{formatGemstoneBoost(gemId, boost)}</span>
+              <img src={getGemstoneIcon(gemId, tier)} alt={`${titleCase(tier)} ${gem.label}`} className={iconImg} />
+              <span className="absolute bottom-0.5 right-1 text-[10px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+                {formatGemstoneBoost(gemId, boost)}
+              </span>
             </div>,
           );
         } else {
-          cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+          cells.push(
+            <div key={key} className={slotBase}>
+              <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+            </div>,
+          );
         }
       } else if (isInteriorRow && !isInteriorCol) {
-        cells.push(<div key={key} className={`${slotBase} bg-purple-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
+          </div>,
+        );
       } else if (row === 5 && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Back" onClick={() => navigate(-1)}>
-            ⛔
+            <img src={SLOT_TEXTURES.close} alt="Back" className={iconImg} />
           </div>,
         );
       } else {
-        cells.push(<div key={key} className={`${slotBase} bg-neutral-500`} />);
+        cells.push(
+          <div key={key} className={slotBase}>
+            <img src={SLOT_TEXTURES.empty} alt="" className={iconImg} />
+          </div>,
+        );
       }
     }
   }
@@ -88,7 +105,7 @@ export default function GemstoneTierPicker() {
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-0.5 w-full min-w-[380px] aspect-[9/6] bg-neutral-600 border-2 border-neutral-500 p-1">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
           {cells}
         </div>
       </div>
