@@ -1,93 +1,87 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
+import {
+  fetchEnchantLevels,
+  buildEffectLines,
+  titleCaseEnchantId,
+  isUltimateEnchant,
+  isHiddenEnchant,
+  computeConflictWarnings,
+} from '../lib/enchantEffects';
 
 const PAGE_SIZE = 28; // 4 rows x 7 cols of interior slots
-
-function titleCaseId(id) {
-  return id
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-// NEU-REPO has no per-enchant lore/description text (only per-item lore) —
-// the tooltip is limited to what's actually available: name + XP-per-level
-// costs. Some category-list ids are legacy names; enchant_mapping_item/
-// enchant_mapping_id translate those to the id used in enchants_xp_cost.
-// The pairing isn't consistently ordered (old->new either way), so check both.
-function getEnchantXpCosts(enchants, id) {
-  const xpCostMap = enchants.enchants_xp_cost || {};
-  const key = id.toLowerCase();
-  if (xpCostMap[key]) return xpCostMap[key];
-
-  const mapItem = enchants.enchant_mapping_item || [];
-  const mapId = enchants.enchant_mapping_id || [];
-  for (let i = 0; i < mapId.length; i++) {
-    if (mapId[i].toLowerCase() === key && xpCostMap[mapItem[i].toLowerCase()]) {
-      return xpCostMap[mapItem[i].toLowerCase()];
-    }
-    if (mapItem[i].toLowerCase() === key && xpCostMap[mapId[i].toLowerCase()]) {
-      return xpCostMap[mapId[i].toLowerCase()];
-    }
-  }
-  return null;
-}
 
 const slotBase = 'border border-neutral-700';
 const navSlot = `${slotBase} flex items-center justify-center bg-neutral-300 cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200`;
 
-export default function Enchants() {
+// Shared by /enchants and /ultimate-enchants — same chest-GUI layout,
+// filtered by whether the enchant id has the "ultimate_" prefix. Clicking a
+// slot opens the level-picker (/enchant-levels/:id) instead of toggling a
+// local selection; the applied enchant (if any) is read from BuildContext
+// so it stays highlighted after coming back from the picker.
+export default function EnchantList({ ultimate }) {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { build } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState(() => new Set());
+  const hoveredIdRef = useRef(null);
 
   const category = build && build.weapon && build.weapon.category;
 
   const enchantIds = useMemo(() => {
     const byCategory = (itemData.enchants && itemData.enchants.enchants) || {};
-    return category && byCategory[category] ? byCategory[category] : [];
-  }, [itemData.enchants, category]);
+    const all = category && byCategory[category] ? byCategory[category] : [];
+    return all.filter((id) => isUltimateEnchant(id) === ultimate && !isHiddenEnchant(id));
+  }, [itemData.enchants, category, ultimate]);
+
+  const appliedIds = useMemo(() => {
+    const set = new Set();
+    if (build && build.modifiers && build.modifiers.ultimateEnchantment) {
+      set.add(build.modifiers.ultimateEnchantment.id);
+    }
+    ((build && build.modifiers && build.modifiers.hexEnchantments) || []).forEach((e) => set.add(e.id));
+    return set;
+  }, [build]);
 
   const totalPages = Math.max(1, Math.ceil(enchantIds.length / PAGE_SIZE));
   const pageIds = enchantIds.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
+  const noun = ultimate ? 'ultimate enchants' : 'enchants';
   const contextText = !build || !build.weapon
     ? 'No weapon selected — go back and pick one to see applicable enchants.'
     : enchantIds.length === 0
-      ? `Enchanting: ${build.weapon.name} — no cached enchant data for category "${category}".`
-      : `Enchanting: ${build.weapon.name} (${enchantIds.length} enchants available)`;
+      ? `Enchanting: ${build.weapon.name} — no cached ${noun} for category "${category}".`
+      : `Enchanting: ${build.weapon.name} (${enchantIds.length} ${noun} available)`;
 
-  function toggleEnchant(id) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+  function handleEnchantHover(id, e) {
+    hoveredIdRef.current = id;
+    const anchor = e.currentTarget;
+    const displayName = titleCaseEnchantId(id);
+    showTooltip([`§b§l${displayName}`, '', '§7Loading effect...'], anchor);
+
+    fetchEnchantLevels(id, itemData.enchants).then((levels) => {
+      if (hoveredIdRef.current !== id) return; // moved on before this resolved
+      const effect = buildEffectLines(levels);
+      const lines = [`§b§l${displayName}`, '', ...(effect || ['§7No effect data available.'])];
+
+      if (levels.length > 0) {
+        const warnings = computeConflictWarnings(id, levels[0].lore, build && build.modifiers);
+        if (warnings.length > 0) {
+          lines.push('', ...warnings.map((name) => `§c${name} will be removed`));
+        }
       }
-      console.log(`[The Hex] Enchant "${id}" ${next.has(id) ? 'selected' : 'deselected'} — not yet applied to build.`);
-      return next;
+
+      showTooltip(lines, anchor);
     });
   }
 
-  function handleEnchantHover(id, e) {
-    const displayName = titleCaseId(id);
-    const costs = getEnchantXpCosts(itemData.enchants || {}, id);
-    const lines = [`§b§l${displayName}`, ''];
-    if (costs && costs.length) {
-      lines.push(`§7Max Level: §f${costs.length}`);
-      costs.forEach((xp, i) => lines.push(`§7Level ${i + 1}: §a${xp} XP`));
-    } else {
-      lines.push('§7No cost data available.');
-    }
-    showTooltip(lines, e.currentTarget);
+  function handleEnchantLeave() {
+    hoveredIdRef.current = null;
+    hideTooltip();
   }
 
   const cells = [];
@@ -106,11 +100,11 @@ export default function Enchants() {
             <div
               key={key}
               className={`${slotBase} flex items-center justify-center cursor-pointer text-[clamp(14px,3.5vw,26px)] hover:bg-neutral-200 ${
-                selected.has(id) ? 'bg-green-400' : 'bg-neutral-300'
+                appliedIds.has(id) ? 'bg-green-400' : 'bg-neutral-300'
               }`}
-              onClick={() => toggleEnchant(id)}
+              onClick={() => navigate(`/enchant-levels/${encodeURIComponent(id)}`)}
               onMouseEnter={(e) => handleEnchantHover(id, e)}
-              onMouseLeave={hideTooltip}
+              onMouseLeave={handleEnchantLeave}
             >
               📗
             </div>,
@@ -152,7 +146,7 @@ export default function Enchants() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">The Hex — Enchantments</h1>
+        <h1 className="text-xl font-bold">The Hex — {ultimate ? 'Ultimate Enchantments' : 'Enchantments'}</h1>
       </header>
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{contextText}</div>
