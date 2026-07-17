@@ -15,7 +15,8 @@ import { SLOT_TEXTURES, ENCHANTED_BOOK_ICON } from '../lib/icons';
 
 const PAGE_SIZE = 28; // 4 rows x 7 cols of interior slots
 
-const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+const slotBase =
+  'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
 const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
@@ -165,7 +166,7 @@ export default function EnchantList({ ultimate }) {
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{contextText}</div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
         </div>
       </div>

@@ -56,7 +56,11 @@ function handleSlotClick(label) {
   console.log(`[The Hex] "${label}" clicked — not yet implemented.`);
 }
 
-const slotBase = 'flex items-center justify-center border border-black/40 bg-[#8b8b8b]';
+// Real Minecraft slots are a recessed bevel (dark shadow top-left, light
+// highlight bottom-right), not a flat border — matches the reference at
+// https://codepen.io/isd-crew/pen/qBMprNv.
+const slotBase =
+  'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
 const interactiveIcon = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 // Glass panes stand in for the slot's own background, not a held item, so
@@ -91,7 +95,7 @@ export default function Hex() {
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] p-2">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {GRID_LAYOUT.flatMap((row, rowIdx) =>
             row.map((cellDef, colIdx) => {
               const [type, label] = cellDef.split(':');
