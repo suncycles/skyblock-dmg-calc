@@ -4,6 +4,14 @@ import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import WeaponIcon from '../components/WeaponIcon';
 
+// Starred (max-reforge-stat) items carry a leading Hypixel custom-font glyph
+// before the name (e.g. " Daedalus Blade" for the starred variant of
+// "Daedalus Blade") — strip any such leading non-alphanumeric run so search
+// still matches on the real first letter of the name.
+function stripLeadingSymbol(name) {
+  return name.replace(/^[^A-Za-z0-9]+/, '');
+}
+
 export default function WeaponPicker() {
   const { itemData, loading, error } = useItemData();
   const { selectWeapon } = useBuild();
@@ -14,7 +22,9 @@ export default function WeaponPicker() {
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return itemData.weapons.filter((w) => w.name && w.name.toLowerCase().startsWith(q)).slice(0, 8);
+    return itemData.weapons
+      .filter((w) => w.name && stripLeadingSymbol(w.name).toLowerCase().startsWith(q))
+      .slice(0, 8);
   }, [query, itemData.weapons]);
 
   function handleSelect(weapon) {

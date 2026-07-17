@@ -14,12 +14,30 @@
  * vanilla item textures per unique item via 1.21.4+ item-model predicates
  * (assets/hypixel_skyblock/items/item/**.json -> models -> textures), not
  * by vanilla material, and only a fraction of items (mostly higher-rarity
- * or otherwise distinctive gear) get one. The item-model basenames happen
- * to match NEU-REPO's internal item id lowercased (e.g. the model for
- * "ASPECT_OF_THE_VOID" is textures/item/.../aspect_of_the_void.png), which
- * is a far more reliable join key than fuzzy-matching display names.
- * Everything without a match here is expected to fall back to the generic
- * vanilla-material icon (see frontend/src/lib/icons.js) — not a bug.
+ * or otherwise distinctive gear) get one. Everything without a match here
+ * is expected to fall back to the generic vanilla-material icon (see
+ * frontend/src/lib/icons.js) — not a bug.
+ *
+ * Matching is tiered, cheapest/most-precise first:
+ *  1. Exact: item id lowercased == texture basename (e.g. "ASPECT_OF_THE_VOID"
+ *     -> aspect_of_the_void.png). Works when the id and the in-pack name
+ *     agree, which is most items.
+ *  2. Exact: slugified display name == texture basename. The pack is
+ *     actually keyed by in-game display name, not internal id, so renamed/
+ *     nicknamed items (id "DAEDALUS_AXE", texture "daedalus_blade.png",
+ *     because the item is really called "Daedalus Blade") only resolve this
+ *     way. Starred (max-stat reforge) items carry a leading Hypixel-font
+ *     glyph before the name — strip it before slugifying, same fix as the
+ *     weapon-search box.
+ *  3. Fuzzy: slugified display name within Levenshtein distance 1 of a
+ *     texture basename, e.g. "hunter_knife" -> "hunters_knife" (the real
+ *     name has a possessive the slug drops) or "bouquet_of_lies" ->
+ *     "bouqet_of_lies" (a typo in Hypixel's own filename). Gated to names
+ *     >=6 chars with a *unique* closest match — short names produce
+ *     coincidental one-edit collisions with unrelated items (e.g. "bow" is
+ *     distance 2 from the unrelated "wob", "iron_sword" is distance 3 from
+ *     "broken_sword"), so this is intentionally conservative rather than a
+ *     general fuzzy search.
  *
  * Usage: node apply-hypixel-textures.mjs
  */
@@ -33,6 +51,46 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, '..', '..', 'frontend', 'public', 'images', 'skyblock');
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
+
+function slugify(name) {
+  return name
+    .replace(/^[^A-Za-z0-9]+/, '') // leading starred-reforge glyph
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function levenshtein(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+// Closest basename to `key` at edit distance exactly 1, only if it's the
+// unique closest one (no ties) — see module doc for why this is gated.
+function findFuzzyMatch(key, basenames) {
+  if (key.length < 6) return null;
+  let best = null;
+  let bestDist = Infinity;
+  let tie = false;
+  for (const base of basenames) {
+    if (Math.abs(base.length - key.length) > 1) continue;
+    const d = levenshtein(key, base);
+    if (d < bestDist) {
+      bestDist = d;
+      best = base;
+      tie = false;
+    } else if (d === bestDist) {
+      tie = true;
+    }
+  }
+  return bestDist === 1 && !tie ? best : null;
+}
 
 async function fetchJson(url) {
   const res = await fetch(url);
@@ -85,18 +143,37 @@ async function main() {
 
   const weapons = JSON.parse(readFileSync(path.join(DATA_DIR, 'weapons.json'), 'utf8'));
   const armor = JSON.parse(readFileSync(path.join(DATA_DIR, 'armor.json'), 'utf8'));
+  const basenames = [...byBasename.keys()];
 
   mkdirSync(OUT_DIR, { recursive: true });
-  let copied = 0;
+  const tally = { id: 0, name: 0, fuzzy: 0 };
   for (const item of [...weapons, ...armor]) {
-    const src = byBasename.get(item.id.toLowerCase());
+    const idKey = item.id.toLowerCase();
+    const nameKey = slugify(item.name);
+
+    let src = byBasename.get(idKey);
+    let tier = 'id';
+    if (!src) {
+      src = byBasename.get(nameKey);
+      tier = 'name';
+    }
+    if (!src) {
+      const fuzzyBase = findFuzzyMatch(nameKey, basenames);
+      if (fuzzyBase) {
+        src = byBasename.get(fuzzyBase);
+        tier = 'fuzzy';
+      }
+    }
     if (!src) continue;
+
     copyFileSync(src, path.join(OUT_DIR, `${item.id}.png`));
-    copied++;
+    tally[tier]++;
   }
 
   rmSync(workDir, { recursive: true, force: true });
+  const copied = tally.id + tally.name + tally.fuzzy;
   console.log(`Copied ${copied} item-specific textures into ${path.relative(process.cwd(), OUT_DIR)}`);
+  console.log(`  (id match: ${tally.id}, name match: ${tally.name}, fuzzy match: ${tally.fuzzy})`);
   console.log(`(dropped ${dupes.size} ambiguous basenames shared by multiple pack files)`);
 }
 
