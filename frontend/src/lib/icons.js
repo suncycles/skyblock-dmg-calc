@@ -23,3 +23,13 @@ export function getWeaponIcon(material) {
     .join('_');
   return `/images/${titleCased}.png`;
 }
+
+// A subset of items have bespoke SkyBlock art in Hypixel's official resource
+// pack (https://api.hypixel.net/v2/resources/packs), keyed by the item's
+// internal id (e.g. "ASPECT_OF_THE_VOID") rather than its vanilla material —
+// most items don't have one and should fall back to getWeaponIcon(material).
+// See worker/scripts/apply-hypixel-textures.mjs for how these were extracted.
+export function getSkyblockIcon(id) {
+  if (!id) return null;
+  return `/images/skyblock/${id.toUpperCase()}.png`;
+}

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react';
+import { isUltimateEnchant } from '../lib/enchantEffects';
 
 const STORAGE_KEY = 'currentlyModifying';
 
@@ -15,7 +16,12 @@ function loadInitial() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return null;
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    // Discard builds saved under an older schema (hexEnchantments used to be
+    // a fixed {damage_boosts,utility,defense} object, not a list) rather
+    // than risk operating on a shape applyEnchant doesn't expect.
+    if (!Array.isArray(parsed?.modifiers?.hexEnchantments)) return null;
+    return parsed;
   } catch (err) {
     console.error('Failed to parse saved weapon build:', err);
     return null;
@@ -38,8 +44,8 @@ export function BuildProvider({ children }) {
       },
       item_type: mapItemType(weapon.category),
       modifiers: {
-        hexEnchantments: { damage_boosts: [], utility: [], defense: [] },
-        ultimateEnchantment: null,
+        hexEnchantments: [], // [{id, level, maxLevel}], normal enchants
+        ultimateEnchantment: null, // {id, level, maxLevel} | null — only one allowed
         gemstones: [],
         books: [],
         modifiers: [],
@@ -51,7 +57,39 @@ export function BuildProvider({ children }) {
     setBuild(next);
   }, []);
 
-  return <BuildContext.Provider value={{ build, selectWeapon }}>{children}</BuildContext.Provider>;
+  // Applies (or replaces) a chosen level for one enchant. Ultimate enchants
+  // occupy their own single slot (an item can only hold one); normal
+  // enchants upsert into the list by id. removeIds (from
+  // computeConflictingEntries) are dropped first, so the "X will be removed"
+  // warning shown on hover is never a broken promise.
+  const applyEnchant = useCallback((id, level, maxLevel, removeIds = []) => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const entry = { id, level, maxLevel };
+      const next = { ...prev, modifiers: { ...prev.modifiers } };
+
+      let hexEnchantments = prev.modifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id));
+      let ultimateEnchantment =
+        prev.modifiers.ultimateEnchantment && removeIds.includes(prev.modifiers.ultimateEnchantment.id)
+          ? null
+          : prev.modifiers.ultimateEnchantment;
+
+      if (isUltimateEnchant(id)) {
+        next.modifiers.ultimateEnchantment = entry;
+        next.modifiers.hexEnchantments = hexEnchantments;
+      } else {
+        next.modifiers.hexEnchantments = [...hexEnchantments.filter((e) => e.id !== id), entry];
+        next.modifiers.ultimateEnchantment = ultimateEnchantment;
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  return (
+    <BuildContext.Provider value={{ build, selectWeapon, applyEnchant }}>{children}</BuildContext.Provider>
+  );
 }
 
 export function useBuild() {

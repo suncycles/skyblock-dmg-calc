@@ -3,7 +3,40 @@ import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
+import { titleCaseEnchantId, toRoman } from '../lib/enchantEffects';
 import WeaponIcon from '../components/WeaponIcon';
+
+// Applied enchants, formatted for the tooltip: ultimate first (always bold
+// pink, matching its real in-game color regardless of level), then normal
+// enchants alphabetically, gold if at max level else grey.
+function buildAppliedEnchantLines(modifiers) {
+  if (!modifiers) return [];
+  const entries = [];
+  if (modifiers.ultimateEnchantment) {
+    entries.push({ ...modifiers.ultimateEnchantment, isUltimate: true });
+  }
+  const normals = (modifiers.hexEnchantments || [])
+    .slice()
+    .sort((a, b) => titleCaseEnchantId(a.id).localeCompare(titleCaseEnchantId(b.id)));
+  entries.push(...normals.map((e) => ({ ...e, isUltimate: false })));
+
+  return entries.map((e) => {
+    const name = `${titleCaseEnchantId(e.id)} ${toRoman(e.level)}`;
+    if (e.isUltimate) return `§d§l${name}`;
+    return e.level === e.maxLevel ? `§6${name}` : `§7${name}`;
+  });
+}
+
+// Real Skyblock tooltips show applied enchants right after the stat block
+// (Damage/Strength/.../Gemstones) and before the Ability section — i.e. at
+// the first blank line in the lore. Splice them in there rather than at the
+// very top, so the tooltip reads exactly like the real item would.
+function insertEnchantLines(lore, enchantLines) {
+  if (enchantLines.length === 0) return lore;
+  const blankIdx = lore.indexOf('');
+  if (blankIdx === -1) return [...lore, '', ...enchantLines];
+  return [...lore.slice(0, blankIdx + 1), ...enchantLines, '', ...lore.slice(blankIdx + 1)];
+}
 
 // 6 rows x 9 columns, matching the reference screenshot.
 // type: "empty" | "filler" | "weapon" | "icon" | "barrier"
@@ -33,7 +66,9 @@ export default function Hex() {
 
   function handleWeaponHover(e) {
     if (!weapon) return;
-    showTooltip([`§${rarityColorCode(weapon.tier)}§l${weapon.name}`, ...(weapon.lore || [])], e.currentTarget);
+    const enchantLines = buildAppliedEnchantLines(build.modifiers);
+    const lore = insertEnchantLines(weapon.lore || [], enchantLines);
+    showTooltip([`§${rarityColorCode(weapon.tier)}§l${weapon.name}`, ...lore], e.currentTarget);
   }
 
   return (
@@ -66,6 +101,7 @@ export default function Hex() {
                   >
                     {weapon ? (
                       <WeaponIcon
+                        id={weapon.id}
                         material={weapon.material}
                         alt={weapon.name}
                         className="w-[70%] h-[70%] object-contain pixelated"
@@ -78,12 +114,14 @@ export default function Hex() {
               }
 
               if (type === 'icon') {
+                const dest =
+                  label === 'Enchantments' ? '/enchants' : label === 'Ultimate Enchantments' ? '/ultimate-enchants' : null;
                 return (
                   <div
                     key={key}
                     className={interactiveIcon}
                     title={label}
-                    onClick={() => (label === 'Enchantments' ? navigate('/enchants') : handleSlotClick(label))}
+                    onClick={() => (dest ? navigate(dest) : handleSlotClick(label))}
                   >
                     {glyph}
                   </div>
