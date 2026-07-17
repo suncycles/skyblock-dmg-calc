@@ -6,6 +6,9 @@ import WeaponPicker from './pages/WeaponPicker';
 import Hex from './pages/Hex';
 import EnchantList from './pages/EnchantList';
 import EnchantLevels from './pages/EnchantLevels';
+import GemstoneSlots from './pages/GemstoneSlots';
+import GemstoneTypePicker from './pages/GemstoneTypePicker';
+import GemstoneTierPicker from './pages/GemstoneTierPicker';
 
 export default function App() {
   return (
@@ -18,6 +21,9 @@ export default function App() {
             <Route path="/enchants" element={<EnchantList ultimate={false} />} />
             <Route path="/ultimate-enchants" element={<EnchantList ultimate />} />
             <Route path="/enchant-levels/:enchantId" element={<EnchantLevels />} />
+            <Route path="/gemstones" element={<GemstoneSlots />} />
+            <Route path="/gemstones/:slotIndex" element={<GemstoneTypePicker />} />
+            <Route path="/gemstones/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
           </Routes>
         </TooltipProvider>
       </BuildProvider>
