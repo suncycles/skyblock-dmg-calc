@@ -87,8 +87,35 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Sets (or replaces) the gemstone in one slot. gemstones is a sparse
+  // array indexed by slot position, matching the order slots are laid out
+  // in on the Gemstones screen.
+  const applyGemstone = useCallback((slotIndex, gemId, tier) => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const gemstones = (prev.modifiers.gemstones || []).slice();
+      gemstones[slotIndex] = { gem: gemId, tier };
+      const next = { ...prev, modifiers: { ...prev.modifiers, gemstones } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const removeGemstone = useCallback((slotIndex) => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const gemstones = (prev.modifiers.gemstones || []).slice();
+      gemstones[slotIndex] = null;
+      const next = { ...prev, modifiers: { ...prev.modifiers, gemstones } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
-    <BuildContext.Provider value={{ build, selectWeapon, applyEnchant }}>{children}</BuildContext.Provider>
+    <BuildContext.Provider value={{ build, selectWeapon, applyEnchant, applyGemstone, removeGemstone }}>
+      {children}
+    </BuildContext.Provider>
   );
 }
 

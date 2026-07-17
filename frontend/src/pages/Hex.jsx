@@ -4,6 +4,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { titleCaseEnchantId, toRoman } from '../lib/enchantEffects';
+import { hasGemstoneSlots, applyGemstonesToLore } from '../lib/gemstones';
 import WeaponIcon from '../components/WeaponIcon';
 
 // Applied enchants, formatted for the tooltip: ultimate first (always bold
@@ -66,8 +67,9 @@ export default function Hex() {
 
   function handleWeaponHover(e) {
     if (!weapon) return;
+    const gemLore = applyGemstonesToLore(weapon.lore || [], build.modifiers.gemstones, weapon.tier);
     const enchantLines = buildAppliedEnchantLines(build.modifiers);
-    const lore = insertEnchantLines(weapon.lore || [], enchantLines);
+    const lore = insertEnchantLines(gemLore, enchantLines);
     showTooltip([`§${rarityColorCode(weapon.tier)}§l${weapon.name}`, ...lore], e.currentTarget);
   }
 
@@ -115,7 +117,30 @@ export default function Hex() {
 
               if (type === 'icon') {
                 const dest =
-                  label === 'Enchantments' ? '/enchants' : label === 'Ultimate Enchantments' ? '/ultimate-enchants' : null;
+                  label === 'Enchantments'
+                    ? '/enchants'
+                    : label === 'Ultimate Enchantments'
+                      ? '/ultimate-enchants'
+                      : label === 'Gemstones'
+                        ? '/gemstones'
+                        : null;
+
+                // Gemstones only opens for items that actually have slots —
+                // everything else on the grid is a dummy placeholder still.
+                if (label === 'Gemstones') {
+                  const enabled = weapon && hasGemstoneSlots(weapon.lore);
+                  return (
+                    <div
+                      key={key}
+                      className={enabled ? interactiveIcon : `${slotBase} bg-neutral-600 text-[clamp(14px,3.5vw,26px)] opacity-40 cursor-not-allowed`}
+                      title={enabled ? label : `${label} — this item has no Gemstone Slots`}
+                      onClick={() => enabled && navigate(dest)}
+                    >
+                      {glyph}
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={key}
