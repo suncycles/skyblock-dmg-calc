@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+body {
+  background: #303030;
+  color: #eee;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* Minecraft/Skyblock tooltip. Background/border approximate the game's
+   dark-purple tooltip panel (matches MinecraftTooltipGenerator's
+   defaults, #140314 / #25005e). */
+.mc-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 300px;
+  background: #140314;
+  border: 2px solid #25005e;
+  padding: 6px 8px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
