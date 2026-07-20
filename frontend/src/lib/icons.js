@@ -72,3 +72,8 @@ export const CATEGORY_ICONS = {
 };
 
 export const ENCHANTED_BOOK_ICON = '/images/Enchanted_Book.png';
+
+// Opens the Reforge Stones sub-screen from the Reforges page — the real
+// game applies these stone items at an anvil too, so it doubles as that
+// screen's own icon.
+export const ANVIL_ICON = '/images/Anvil.png';

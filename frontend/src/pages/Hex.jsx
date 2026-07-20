@@ -88,7 +88,12 @@ export default function Hex() {
     const displayTier = modifiers.recombobulated ? bumpRarity(weapon.tier) : weapon.tier;
 
     let lore = applyGemstonesToLore(weapon.lore || [], modifiers.gemstones, weapon.tier);
-    const reforge = modifiers.reforge ? itemData.reforges?.[modifiers.reforge] : null;
+    // Applied reforge could be either a free blacksmith one or a
+    // stone-exclusive one — the two live in separate maps (see
+    // worker/src/index.js), so check both.
+    const reforge = modifiers.reforge
+      ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
+      : null;
     lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
     lore = applyBooksToLore(lore, modifiers.books, lore.indexOf(''));
     lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
@@ -185,7 +190,10 @@ export default function Hex() {
                 }
 
                 if (label === 'Reforges') {
-                  const enabled = weapon && getApplicableReforges(itemData.reforges, weapon).length > 0;
+                  const enabled =
+                    weapon &&
+                    (getApplicableReforges(itemData.reforges, weapon).length > 0 ||
+                      getApplicableReforges(itemData.reforgeStones, weapon).length > 0);
                   const applied = Boolean(build?.modifiers?.reforge);
                   return (
                     <div

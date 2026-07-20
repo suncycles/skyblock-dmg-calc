@@ -5,7 +5,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { getApplicableReforges, getReforgeStatBonus, formatStatValue, STAT_LABELS } from '../lib/reforgeData';
-import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
+import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON } from '../lib/icons';
 
 const PAGE_SIZE = 28;
 
@@ -15,23 +15,33 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Every applicable reforge for the current weapon, one apply-and-close
+// Shared by /reforges and /reforge-stones — the real game splits reforges
+// into two mechanically distinct sources: the ~50 the blacksmith NPC can
+// roll for free, and the ~81 that instead need a specific reforge-stone
+// item (Dragon Claw -> "Fabled", Wither Blood -> "Withered", etc.) applied
+// at an anvil. worker/src/index.js keeps them as two separate maps
+// (itemData.reforges / itemData.reforgeStones) for exactly this split;
+// the anvil slot on the free-reforges screen opens the stone one.
+//
+// Every applicable reforge for the current weapon is one apply-and-close
 // step (unlike Enchants' list-then-level split, a reforge has no further
 // choice to make once picked) — same chest-GUI list/pagination shape as
 // EnchantList.jsx, reusing one icon for every slot since there's no
 // per-reforge art, just like that page reuses the enchanted book icon.
-export default function ReforgesPicker() {
+export default function ReforgesPicker({ stones }) {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { build, applyReforge } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
   const weapon = build && build.weapon;
+  const reforgeSource = stones ? itemData.reforgeStones : itemData.reforges;
+  const noun = stones ? 'reforge stones' : 'reforges';
 
   const applicable = useMemo(() => {
     if (!weapon) return [];
-    return getApplicableReforges(itemData.reforges, weapon);
-  }, [itemData.reforges, weapon]);
+    return getApplicableReforges(reforgeSource, weapon);
+  }, [reforgeSource, weapon]);
 
   const totalPages = Math.max(1, Math.ceil(applicable.length / PAGE_SIZE));
   const pageReforges = applicable.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -54,10 +64,10 @@ export default function ReforgesPicker() {
   }
 
   const contextText = !weapon
-    ? 'No weapon selected — go back and pick one to see applicable reforges.'
+    ? `No weapon selected — go back and pick one to see applicable ${noun}.`
     : applicable.length === 0
-      ? `Reforging: ${weapon.name} — no applicable reforges found.`
-      : `Reforging: ${weapon.name} (${applicable.length} reforge${applicable.length === 1 ? '' : 's'} available)`;
+      ? `Reforging: ${weapon.name} — no applicable ${noun} found.`
+      : `Reforging: ${weapon.name} (${applicable.length} ${noun} available)`;
 
   const cells = [];
   for (let row = 0; row < 6; row++) {
@@ -95,6 +105,12 @@ export default function ReforgesPicker() {
             <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
           </div>,
         );
+      } else if (isNavRow && col === 1 && !stones) {
+        cells.push(
+          <div key={key} className={navSlot} title="Reforge Stones" onClick={() => navigate('/reforge-stones')}>
+            <img src={ANVIL_ICON} alt="Reforge Stones" className={iconImg} />
+          </div>,
+        );
       } else if (isNavRow && col === 2 && current) {
         cells.push(
           <div key={key} className={navSlot} title="Remove Reforge" onClick={() => handleSelect(null)}>
@@ -109,8 +125,13 @@ export default function ReforgesPicker() {
         );
       } else if (isNavRow && col === 4) {
         cells.push(
-          <div key={key} className={navSlot} title="Close" onClick={() => navigate('/hex')}>
-            <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
+          <div
+            key={key}
+            className={navSlot}
+            title={stones ? 'Back' : 'Close'}
+            onClick={() => (stones ? navigate(-1) : navigate('/hex'))}
+          >
+            <img src={SLOT_TEXTURES.close} alt={stones ? 'Back' : 'Close'} className={iconImg} />
           </div>,
         );
       } else if (isNavRow && col === 5) {
@@ -137,7 +158,7 @@ export default function ReforgesPicker() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">The Hex — Reforges</h1>
+        <h1 className="text-xl font-bold">The Hex — {stones ? 'Reforge Stones' : 'Reforges'}</h1>
       </header>
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{contextText}</div>

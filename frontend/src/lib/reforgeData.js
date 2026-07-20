@@ -1,27 +1,34 @@
 /* Reforge stat tables come from NEU-REPO's constants/reforges.json (the
-   ~50 "free" reforges any anvil can roll) and constants/reforgestones.json
-   (the ~81 that need a specific reforge-stone item), merged server-side by
-   worker/src/index.js into one { [reforgeName]: {itemTypes,
-   requiredRarities, reforgeStats} } map — see that file for why the merge
-   is safe (no name collides between the two sources).
+   ~50 "free" reforges the blacksmith NPC can roll) and constants/
+   reforgestones.json (the ~81 that instead need a specific reforge-stone
+   item applied, e.g. Dragon Claw -> "Fabled") — worker/src/index.js keeps
+   these as two separate {[reforgeName]: {itemTypes, requiredRarities,
+   reforgeStats}} maps (`reforges` and `reforgeStones`) rather than
+   merging them, matching the real game's UI split; both have the same
+   shape, so every helper here takes whichever map the caller wants
+   filtered.
 
-   itemTypes is usually a plain string like "SWORD/ROD" or "BOW", but for a
-   handful of item-exclusive reforges (e.g. "Entropy Suppressor", only for
-   the Blaze Slayer daggers) it's instead {internalName: [...ids]} or
-   {itemId: [...minecraft ids]} — both are handled in getApplicableReforges. */
+   itemTypes is usually a plain string, but the two sources don't agree on
+   its exact spelling for the same weapon type: reforges.json uses
+   "SWORD/ROD" (rods share the sword table), reforgestones.json just uses
+   "SWORD" — getApplicableReforges checks a category against every
+   spelling it might show up as, not one fixed string. For a handful of
+   item-exclusive reforges (e.g. "Entropy Suppressor", only for the Blaze
+   Slayer daggers) itemTypes is instead {internalName: [...ids]} or
+   {itemId: [...minecraft ids]} — also handled there. */
 
-// Maps our weapons.json `category` values to the reforge-table itemTypes
-// they draw from. Every category also implicitly gets "EQUIPMENT" (the
-// universal armor+weapon reforge pool) — added in getApplicableReforges
-// rather than repeated here.
-const CATEGORY_TO_REFORGE_TYPE = {
-  SWORD: 'SWORD/ROD',
-  'DUNGEON SWORD': 'SWORD/ROD',
-  'DUNGEON LONGSWORD': 'SWORD/ROD',
-  'THE WYLD SWORD': 'SWORD/ROD',
-  WAND: 'SWORD/ROD', // Wands/Staffs reforge off the same table as swords in the real game
-  BOW: 'BOW',
-  'DUNGEON BOW': 'BOW',
+// Maps our weapons.json `category` values to every reforge-table itemTypes
+// spelling that should match it. Every category also implicitly gets
+// "EQUIPMENT" (the universal armor+weapon reforge pool) — added in
+// getApplicableReforges rather than repeated here.
+const CATEGORY_TO_REFORGE_TYPES = {
+  SWORD: ['SWORD/ROD', 'SWORD'],
+  'DUNGEON SWORD': ['SWORD/ROD', 'SWORD'],
+  'DUNGEON LONGSWORD': ['SWORD/ROD', 'SWORD'],
+  'THE WYLD SWORD': ['SWORD/ROD', 'SWORD'],
+  WAND: ['SWORD/ROD', 'SWORD'], // Wands/Staffs reforge off the same table as swords in the real game
+  BOW: ['BOW'],
+  'DUNGEON BOW': ['BOW'],
 };
 
 // Stat-line label + color a reforge bonus should render with when
@@ -58,7 +65,7 @@ export function formatStatValue(statKey, value) {
 // for item-exclusive reforges) and requiring a rarity the item actually has.
 export function getApplicableReforges(reforges, item) {
   if (!reforges || !item) return [];
-  const categoryType = CATEGORY_TO_REFORGE_TYPE[item.category];
+  const categoryTypes = CATEGORY_TO_REFORGE_TYPES[item.category] || [];
   const rarity = (item.tier || '').toUpperCase();
   // No recognized rarity (e.g. quest-NPC items with tier: null, or
   // "SPECIAL" one-offs outside the normal common..mythic scale) means we
@@ -73,7 +80,7 @@ export function getApplicableReforges(reforges, item) {
       const types = r.itemTypes;
       let matchesType;
       if (typeof types === 'string') {
-        matchesType = types === 'EQUIPMENT' || types === categoryType;
+        matchesType = types === 'EQUIPMENT' || categoryTypes.includes(types);
       } else if (types && typeof types === 'object') {
         const ids = types.internalName || types.itemId || [];
         matchesType = ids.includes(item.id) || (materialId && ids.includes(materialId));
