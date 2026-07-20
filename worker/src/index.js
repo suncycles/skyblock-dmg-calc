@@ -13,7 +13,8 @@
    src/data/{weapons,armor}.json and bundled at deploy time;
    re-run that script + redeploy to pick up NEU-REPO updates.
 
-   Enchant data is small (one file) and still fetched live here.
+   Enchant and reforge data are small (one file each) and still fetched
+   live here.
 
    Routes:
      GET  /api/items    -> returns cached data, refreshing first if stale
@@ -28,6 +29,16 @@ import armor from "./data/armor.json";
 // Community-maintained source (not the official Hypixel API) —
 // the wiki has no API and blocks scraping.
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
+
+// Two files, both keyed differently but describing the same underlying
+// game concept: reforges.json is the ~50 "free" reforges (obtainable by
+// right-clicking any anvil, no item needed), keyed directly by reforge
+// name. reforgestones.json is the larger set (~81) that need a specific
+// physical reforge-stone item (drops/shop purchases), keyed by that stone
+// item's id instead — merged below into one name-keyed map so the
+// frontend doesn't need to know about the two-source split.
+const NEU_REFORGES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforges.json";
+const NEU_REFORGESTONES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforgestones.json";
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — adjust as needed
@@ -89,8 +100,31 @@ async function handleRefresh(env) {
 async function buildFreshData() {
   const enchantsRes = await fetch(NEU_ENCHANTS_URL);
   const enchants = await enchantsRes.json();
+  const reforges = await buildReforges();
 
-  return { weapons, armor, enchants, lastFetched: Date.now() };
+  return { weapons, armor, enchants, reforges, lastFetched: Date.now() };
+}
+
+// Merges the two reforge sources into one { [reforgeName]: {itemTypes,
+// requiredRarities, reforgeStats} } map. No reforgeName collides between
+// the two files (verified against a snapshot of both), so this is a
+// plain union, reforges.json's ~50 free reforges first.
+async function buildReforges() {
+  const [freeRes, stoneRes] = await Promise.all([fetch(NEU_REFORGES_URL), fetch(NEU_REFORGESTONES_URL)]);
+  const free = await freeRes.json();
+  const stones = await stoneRes.json();
+
+  const merged = { ...free };
+  for (const stone of Object.values(stones)) {
+    if (stone.reforgeName && !merged[stone.reforgeName]) {
+      merged[stone.reforgeName] = {
+        itemTypes: stone.itemTypes,
+        requiredRarities: stone.requiredRarities,
+        reforgeStats: stone.reforgeStats,
+      };
+    }
+  }
+  return merged;
 }
 
 function jsonResponse(obj, status = 200) {

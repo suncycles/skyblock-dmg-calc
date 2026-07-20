@@ -12,6 +12,7 @@ import {
   computeConflictWarnings,
 } from '../lib/enchantEffects';
 import { SLOT_TEXTURES, ENCHANTED_BOOK_ICON } from '../lib/icons';
+import { formatItemName } from '../lib/mcText';
 
 const PAGE_SIZE = 28; // 4 rows x 7 cols of interior slots
 
@@ -58,8 +59,8 @@ export default function EnchantList({ ultimate }) {
   const contextText = !build || !build.weapon
     ? 'No weapon selected — go back and pick one to see applicable enchants.'
     : enchantIds.length === 0
-      ? `Enchanting: ${build.weapon.name} — no cached ${noun} for category "${category}".`
-      : `Enchanting: ${build.weapon.name} (${enchantIds.length} ${noun} available)`;
+      ? `Enchanting: ${formatItemName(build.weapon.name)} — no cached ${noun} for category "${category}".`
+      : `Enchanting: ${formatItemName(build.weapon.name)} (${enchantIds.length} ${noun} available)`;
 
   function handleEnchantHover(id, e) {
     hoveredIdRef.current = id;

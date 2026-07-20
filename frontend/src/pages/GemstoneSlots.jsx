@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
-import { rarityColorCode } from '../lib/mcText';
+import { rarityColorCode, formatItemName } from '../lib/mcText';
 import { countGemstoneSlots, gemstoneSlotColumnOffsets, applyGemstonesToLore } from '../lib/gemstones';
 import { GEMSTONES } from '../lib/gemstoneData';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
@@ -36,7 +36,7 @@ export default function GemstoneSlots() {
   function handleWeaponHover(e) {
     if (!weapon) return;
     const lore = applyGemstonesToLore(weapon.lore || [], gemstones, weapon.tier);
-    showTooltip([`§${rarityColorCode(weapon.tier)}§l${weapon.name}`, ...lore], e.currentTarget);
+    showTooltip([`§${rarityColorCode(weapon.tier)}§l${formatItemName(weapon.name)}`, ...lore], e.currentTarget);
   }
 
   const cells = [];
@@ -67,7 +67,7 @@ export default function GemstoneSlots() {
             {gem ? (
               <img src={getGemstoneIcon(entry.gem, entry.tier)} alt={gem.label} className={iconImg} />
             ) : (
-              <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
+              <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
             )}
           </div>,
         );
@@ -101,7 +101,7 @@ export default function GemstoneSlots() {
           ? 'No weapon selected — go back and pick one.'
           : slotCount === 0
             ? 'This item has no Gemstone Slots.'
-            : `${weapon.name} — ${slotCount} Gemstone Slot${slotCount === 1 ? '' : 's'}`}
+            : `${formatItemName(weapon.name)} — ${slotCount} Gemstone Slot${slotCount === 1 ? '' : 's'}`}
       </div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">

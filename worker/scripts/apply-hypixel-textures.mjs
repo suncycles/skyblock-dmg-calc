@@ -19,17 +19,37 @@
  * frontend/src/lib/icons.js) — not a bug.
  *
  * Matching is tiered, cheapest/most-precise first:
- *  1. Exact: item id lowercased == texture basename (e.g. "ASPECT_OF_THE_VOID"
+ *  1. Item-definition resolution: look up items/item/**\/{slug}.json — the
+ *     pack's actual item-identity keying, matched by slugified display name
+ *     first and internal id second (see below for why name wins), then walk
+ *     its item-model predicate tree (condition/select/range_dispatch/
+ *     composite, recursively) down to a leaf model, then read that model's
+ *     texture. This is the only tier that gets skin-variant items right:
+ *     e.g. id "BURSTFIRE_DAGGER" (displayed as "Kindlebane Dagger") has no
+ *     "burstfire_dagger.png" *or* "kindlebane_dagger.png" — the real files
+ *     are "kindlebane_dagger_ashen.png"/"_auric.png" (powder-track skins),
+ *     and only items/item/slayer/blaze/swords/kindlebane_dagger.json says
+ *     which one is the default. For items whose id is "STARRED_"-prefixed
+ *     (our weapons.json entry for the max-stat variant), this tier first
+ *     tries "{slug}_fragged" — Hypixel's internal name for what players
+ *     call "starred" — before falling back to the un-starred "{slug}". It's
+ *     a *separate* top-level item-def file with its own distinct texture
+ *     (e.g. "daedalus_blade_fragged.json"/.png next to "daedalus_blade"),
+ *     not a condition inside the base item's def, and only about a
+ *     quarter of starred items in our data actually have one — the rest
+ *     share their base item's texture, which is correct (no fragged file
+ *     exists for them in the pack either).
+ *  2. Exact: item id lowercased == texture basename (e.g. "ASPECT_OF_THE_VOID"
  *     -> aspect_of_the_void.png). Works when the id and the in-pack name
  *     agree, which is most items.
- *  2. Exact: slugified display name == texture basename. The pack is
+ *  3. Exact: slugified display name == texture basename. The pack is
  *     actually keyed by in-game display name, not internal id, so renamed/
  *     nicknamed items (id "DAEDALUS_AXE", texture "daedalus_blade.png",
  *     because the item is really called "Daedalus Blade") only resolve this
  *     way. Starred (max-stat reforge) items carry a leading Hypixel-font
  *     glyph before the name — strip it before slugifying, same fix as the
  *     weapon-search box.
- *  3. Fuzzy: slugified display name within Levenshtein distance 1 of a
+ *  4. Fuzzy: slugified display name within Levenshtein distance 1 of a
  *     texture basename, e.g. "hunter_knife" -> "hunters_knife" (the real
  *     name has a possessive the slug drops) or "bouquet_of_lies" ->
  *     "bouqet_of_lies" (a typo in Hypixel's own filename). Gated to names
@@ -38,6 +58,12 @@
  *     distance 2 from the unrelated "wob", "iron_sword" is distance 3 from
  *     "broken_sword"), so this is intentionally conservative rather than a
  *     general fuzzy search.
+ *
+ * Tiers 2-4 are a basename-guessing fallback for items with no
+ * items/item/**.json entry at all. Empirically, matching weapons.json/
+ * armor.json entries against items/item/**.json basenames hits on name 45x
+ * more than on id alone (992 items: 45 name-only, 8 id-only, 123 both) —
+ * name is checked first in tier 1 for the same reason.
  *
  * Usage: node apply-hypixel-textures.mjs
  */
@@ -62,6 +88,7 @@ function slugify(name) {
   return name
     .replace(/^[^A-Za-z0-9]+/, '') // leading starred-reforge glyph
     .toLowerCase()
+    .replace(/['’]/g, '') // possessives are squashed together in the pack's own slugs, e.g. "Bonzo's Staff" -> "bonzos_staff", not "bonzo_s_staff"
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 }
@@ -111,13 +138,85 @@ async function downloadTo(url, destPath) {
   writeFileSync(destPath, buf);
 }
 
-function walkPngs(dir, acc = []) {
+function walkFiles(dir, ext, acc = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, entry.name);
-    if (entry.isDirectory()) walkPngs(p, acc);
-    else if (entry.name.endsWith('.png')) acc.push(p);
+    if (entry.isDirectory()) walkFiles(p, ext, acc);
+    else if (entry.name.endsWith(ext)) acc.push(p);
   }
   return acc;
+}
+
+// Strips the "hypixel_skyblock:" (or any) resource-location namespace off a
+// model/texture reference, leaving the path relative to models/ or textures/.
+function stripNamespace(ref) {
+  const idx = ref.indexOf(':');
+  return idx === -1 ? ref : ref.slice(idx + 1);
+}
+
+// Walks an item-model predicate node (the "model" field of an
+// items/item/**.json file, or any nested model within it) down to a single
+// leaf model reference string. Handles the predicate types actually seen in
+// the pack: minecraft:model (leaf), condition (take on_false, the
+// non-special-cased default state), minecraft:select keyed on
+// minecraft:display_context (take the "gui" case — that's what's shown in
+// an inventory slot, which is what we're rendering), range_dispatch (take
+// fallback, i.e. no special property active), and composite (take the
+// first layer, e.g. a drill's head). Falls back to a best-effort deep
+// search for any nested "model" string so unrecognized/future predicate
+// shapes degrade gracefully instead of throwing.
+function resolveModelRef(node, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 8) return null;
+  const type = node.type;
+  if (type === 'model' || type === 'minecraft:model') {
+    return typeof node.model === 'string' ? node.model : null;
+  }
+  if (type === 'condition' || type === 'minecraft:condition') {
+    return resolveModelRef(node.on_false, depth + 1) || resolveModelRef(node.on_true, depth + 1);
+  }
+  if (type === 'minecraft:select') {
+    const guiCase = (node.cases || []).find((c) => Array.isArray(c.when) && c.when.includes('gui'));
+    if (guiCase) return resolveModelRef(guiCase.model, depth + 1);
+    if (node.fallback) return resolveModelRef(node.fallback, depth + 1);
+    if (node.cases && node.cases[0]) return resolveModelRef(node.cases[0].model, depth + 1);
+    return null;
+  }
+  if (type === 'range_dispatch') {
+    if (node.fallback) return resolveModelRef(node.fallback, depth + 1);
+    if (node.entries && node.entries[0]) return resolveModelRef(node.entries[0].model, depth + 1);
+    return null;
+  }
+  if (type === 'composite') {
+    return node.models && node.models[0] ? resolveModelRef(node.models[0], depth + 1) : null;
+  }
+  if (typeof node.model === 'string') return node.model;
+  for (const value of Object.values(node)) {
+    if (value && typeof value === 'object') {
+      const found = resolveModelRef(Array.isArray(value) ? value[0] : value, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// Resolves a leaf model reference (e.g.
+// "hypixel_skyblock:item/slayer/blaze/swords/kindlebane_dagger_ashen") to
+// its texture PNG on disk, by reading the model json's layer0 texture (or
+// walking up its parent chain if it has none of its own).
+function resolveTexturePath(modelRef, extractDir, depth = 0) {
+  if (!modelRef || depth > 8) return null;
+  const modelJsonPath = path.join(extractDir, 'assets', 'hypixel_skyblock', 'models', `${stripNamespace(modelRef)}.json`);
+  if (!existsSync(modelJsonPath)) return null;
+  const modelJson = JSON.parse(readFileSync(modelJsonPath, 'utf8'));
+  const texRef = modelJson.textures && (modelJson.textures.layer0 || Object.values(modelJson.textures)[0]);
+  if (texRef) {
+    const texPath = path.join(extractDir, 'assets', 'hypixel_skyblock', 'textures', `${stripNamespace(texRef)}.png`);
+    if (existsSync(texPath)) return texPath;
+  }
+  if (typeof modelJson.parent === 'string' && modelJson.parent.startsWith('hypixel_skyblock:')) {
+    return resolveTexturePath(modelJson.parent, extractDir, depth + 1);
+  }
+  return null;
 }
 
 async function main() {
@@ -136,7 +235,7 @@ async function main() {
   execFileSync('unzip', ['-q', zipPath, '-d', extractDir]);
 
   const itemTexturesDir = path.join(extractDir, 'assets', 'hypixel_skyblock', 'textures', 'item');
-  const pngPaths = walkPngs(itemTexturesDir);
+  const pngPaths = walkFiles(itemTexturesDir, '.png');
 
   const byBasename = new Map();
   const dupes = new Set();
@@ -147,18 +246,57 @@ async function main() {
   }
   dupes.forEach((base) => byBasename.delete(base)); // ambiguous — don't guess
 
+  const itemDefsDir = path.join(extractDir, 'assets', 'hypixel_skyblock', 'items', 'item');
+  const itemDefPaths = walkFiles(itemDefsDir, '.json');
+  const itemDefByBasename = new Map();
+  const itemDefDupes = new Set();
+  for (const p of itemDefPaths) {
+    const base = path.basename(p, '.json').toLowerCase();
+    if (itemDefByBasename.has(base)) itemDefDupes.add(base);
+    else itemDefByBasename.set(base, p);
+  }
+  itemDefDupes.forEach((base) => itemDefByBasename.delete(base)); // ambiguous — don't guess
+
   const weapons = JSON.parse(readFileSync(path.join(DATA_DIR, 'weapons.json'), 'utf8'));
   const armor = JSON.parse(readFileSync(path.join(DATA_DIR, 'armor.json'), 'utf8'));
   const basenames = [...byBasename.keys()];
 
   mkdirSync(OUT_DIR, { recursive: true });
-  const tally = { id: 0, name: 0, fuzzy: 0 };
+  const tally = { itemdefStarred: 0, itemdef: 0, id: 0, name: 0, fuzzy: 0 };
   for (const item of [...weapons, ...armor]) {
     const idKey = item.id.toLowerCase();
     const nameKey = slugify(item.name);
+    const starred = item.id.startsWith('STARRED_');
 
-    let src = byBasename.get(idKey);
-    let tier = 'id';
+    let src = null;
+    let tier = null;
+
+    // Starred (max-stat) items get a genuinely different texture in the
+    // pack, keyed as a *separate* top-level item-def basename suffixed
+    // "_fragged" (Hypixel's internal name for what players call
+    // "starred") — e.g. "daedalus_blade" (base) vs
+    // "daedalus_blade_fragged" (starred), two unrelated files, not a
+    // condition/select inside one. Only ~7 of 27 starred items in our
+    // data actually have one; the rest fall through to the shared base
+    // texture same as before. Name checked before id — see module doc for
+    // why the pack's own item-identity keying favors display name.
+    const candidateKeys = starred ? [`${nameKey}_fragged`, `${idKey}_fragged`, nameKey, idKey] : [nameKey, idKey];
+    for (const key of candidateKeys) {
+      const defPath = itemDefByBasename.get(key);
+      if (!defPath) continue;
+      const def = JSON.parse(readFileSync(defPath, 'utf8'));
+      const texPath = resolveTexturePath(resolveModelRef(def.model), extractDir);
+      if (texPath) {
+        src = texPath;
+        tier = key.endsWith('_fragged') ? 'itemdefStarred' : 'itemdef';
+        break;
+      }
+    }
+
+    if (!src) {
+      src = byBasename.get(idKey);
+      tier = 'id';
+    }
     if (!src) {
       src = byBasename.get(nameKey);
       tier = 'name';
@@ -195,10 +333,12 @@ async function main() {
   }
 
   rmSync(workDir, { recursive: true, force: true });
-  const copied = tally.id + tally.name + tally.fuzzy;
+  const copied = tally.itemdefStarred + tally.itemdef + tally.id + tally.name + tally.fuzzy;
   console.log(`Copied ${copied} item-specific textures into ${path.relative(process.cwd(), OUT_DIR)}`);
-  console.log(`  (id match: ${tally.id}, name match: ${tally.name}, fuzzy match: ${tally.fuzzy})`);
-  console.log(`(dropped ${dupes.size} ambiguous basenames shared by multiple pack files)`);
+  console.log(
+    `  (itemdef-starred match: ${tally.itemdefStarred}, itemdef match: ${tally.itemdef}, id match: ${tally.id}, name match: ${tally.name}, fuzzy match: ${tally.fuzzy})`,
+  );
+  console.log(`(dropped ${dupes.size} ambiguous texture basenames, ${itemDefDupes.size} ambiguous item-def basenames)`);
   console.log(`Copied ${gemstoneCopied} gemstone tier textures into ${path.relative(process.cwd(), GEMSTONE_OUT_DIR)}`);
 }
 

@@ -9,6 +9,8 @@ import EnchantLevels from './pages/EnchantLevels';
 import GemstoneSlots from './pages/GemstoneSlots';
 import GemstoneTypePicker from './pages/GemstoneTypePicker';
 import GemstoneTierPicker from './pages/GemstoneTierPicker';
+import BooksPicker from './pages/BooksPicker';
+import ReforgesPicker from './pages/ReforgesPicker';
 
 export default function App() {
   return (
@@ -24,6 +26,8 @@ export default function App() {
             <Route path="/gemstones" element={<GemstoneSlots />} />
             <Route path="/gemstones/:slotIndex" element={<GemstoneTypePicker />} />
             <Route path="/gemstones/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
+            <Route path="/books" element={<BooksPicker />} />
+            <Route path="/reforges" element={<ReforgesPicker />} />
           </Routes>
         </TooltipProvider>
       </BuildProvider>
