@@ -12,6 +12,11 @@ import GemstoneTierPicker from './pages/GemstoneTierPicker';
 import BooksPicker from './pages/BooksPicker';
 import ReforgesPicker from './pages/ReforgesPicker';
 
+// __BUILD_TIME__ is injected by vite.config.js's `define` at build time —
+// a fixed instant, not "now", so this reads the same on every page load
+// until the next deploy.
+const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 export default function App() {
   return (
     <ItemDataProvider>
@@ -30,6 +35,9 @@ export default function App() {
             <Route path="/reforges" element={<ReforgesPicker blacksmith={false} />} />
             <Route path="/reforges/blacksmith" element={<ReforgesPicker blacksmith />} />
           </Routes>
+          <div className="fixed bottom-1 right-2 text-[10px] text-neutral-500 pointer-events-none select-none">
+            Latest deploy: {deployTime}
+          </div>
         </TooltipProvider>
       </BuildProvider>
     </ItemDataProvider>
