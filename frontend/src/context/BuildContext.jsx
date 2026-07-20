@@ -18,9 +18,11 @@ function loadInitial() {
   try {
     const parsed = JSON.parse(stored);
     // Discard builds saved under an older schema (hexEnchantments used to be
-    // a fixed {damage_boosts,utility,defense} object, not a list) rather
-    // than risk operating on a shape applyEnchant doesn't expect.
+    // a fixed {damage_boosts,utility,defense} object, not a list; books used
+    // to be a list too, not a plain count) rather than risk operating on a
+    // shape the setters below don't expect.
     if (!Array.isArray(parsed?.modifiers?.hexEnchantments)) return null;
+    if (typeof parsed?.modifiers?.books !== 'number') return null;
     return parsed;
   } catch (err) {
     console.error('Failed to parse saved weapon build:', err);
@@ -48,10 +50,9 @@ export function BuildProvider({ children }) {
         hexEnchantments: [], // [{id, level, maxLevel}], normal enchants
         ultimateEnchantment: null, // {id, level, maxLevel} | null — only one allowed
         gemstones: [],
-        books: [],
-        modifiers: [],
-        reforge: null,
-        itemUpgrades: [],
+        books: 0, // Hot/Fuming Potato Book count, 0-15
+        recombobulated: false,
+        reforge: null, // reforge name string | null
       },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -113,8 +114,53 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Hot/Fuming Potato Book count — a single combined counter since both
+  // grant the same bonus per application and share one limit in the real
+  // game (Hot Potato Books alone cap at 10; Fuming Potato Books are what
+  // let that limit go up to 15). See lib/reforgeData.js's STAT_LABELS for
+  // the bonus itself.
+  const setBookCount = useCallback((count) => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, modifiers: { ...prev.modifiers, books: count } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const toggleRecombobulated = useCallback(() => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, modifiers: { ...prev.modifiers, recombobulated: !prev.modifiers.recombobulated } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // name === null clears the reforge (used by a "Remove Reforge" slot,
+  // matching removeGemstone's pattern).
+  const applyReforge = useCallback((name) => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, modifiers: { ...prev.modifiers, reforge: name } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
-    <BuildContext.Provider value={{ build, selectWeapon, applyEnchant, applyGemstone, removeGemstone }}>
+    <BuildContext.Provider
+      value={{
+        build,
+        selectWeapon,
+        applyEnchant,
+        applyGemstone,
+        removeGemstone,
+        setBookCount,
+        toggleRecombobulated,
+        applyReforge,
+      }}
+    >
       {children}
     </BuildContext.Provider>
   );

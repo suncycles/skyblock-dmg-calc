@@ -19,6 +19,16 @@ export function rarityColorCode(tier) {
   return RARITY_COLORS[(tier || 'common').toLowerCase()] || 'f';
 }
 
+// Hypixel renders max-stat "starred" items with a leading glyph from its own
+// bundled font (U+E068, Private Use Area) — without that font it shows as
+// tofu/nothing in a browser, so swap it for a real, renderable symbol
+// wherever an item name is displayed as plain text.
+const STARRED_GLYPH = '';
+export function formatItemName(name) {
+  if (!name) return name;
+  return name.replace(STARRED_GLYPH, '⚕');
+}
+
 // Parses a single line of real Minecraft §-formatted text (colors 0-9a-f,
 // plus l/o/n/m for bold/italic/underline/strikethrough, r to reset) into
 // an array of {text, color, bold, italic, underline, strikethrough}

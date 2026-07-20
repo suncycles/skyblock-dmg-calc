@@ -92,7 +92,7 @@ export default function GemstoneTierPicker() {
       } else {
         cells.push(
           <div key={key} className={slotBase}>
-            <img src={SLOT_TEXTURES.empty} alt="" className={iconImg} />
+            <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
           </div>,
         );
       }

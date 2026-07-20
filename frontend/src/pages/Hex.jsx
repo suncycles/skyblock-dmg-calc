@@ -2,9 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
-import { rarityColorCode } from '../lib/mcText';
+import { rarityColorCode, formatItemName } from '../lib/mcText';
 import { titleCaseEnchantId, toRoman } from '../lib/enchantEffects';
 import { hasGemstoneSlots, applyGemstonesToLore } from '../lib/gemstones';
+import { getApplicableReforges } from '../lib/reforgeData';
+import { applyReforgeToLore } from '../lib/reforges';
+import { applyBooksToLore } from '../lib/books';
+import { canRecombobulate, bumpRarity, applyRecombToLore } from '../lib/recombobulator';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 
@@ -69,17 +73,30 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 
 export default function Hex() {
   const navigate = useNavigate();
-  const { status, refresh } = useItemData();
-  const { build } = useBuild();
+  const { status, refresh, itemData } = useItemData();
+  const { build, toggleRecombobulated } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const weapon = build && build.weapon;
 
   function handleWeaponHover(e) {
     if (!weapon) return;
-    const gemLore = applyGemstonesToLore(weapon.lore || [], build.modifiers.gemstones, weapon.tier);
-    const enchantLines = buildAppliedEnchantLines(build.modifiers);
-    const lore = insertEnchantLines(gemLore, enchantLines);
-    showTooltip([`§${rarityColorCode(weapon.tier)}§l${weapon.name}`, ...lore], e.currentTarget);
+    const modifiers = build.modifiers;
+    // Reforge bonuses scale off the item's *current* rarity, not the one
+    // it was reforged at — recombobulating an already-reforged item is a
+    // known real-game trick to bump the reforge's own bonus too — so this
+    // has to be resolved before the reforge lookup below uses it.
+    const displayTier = modifiers.recombobulated ? bumpRarity(weapon.tier) : weapon.tier;
+
+    let lore = applyGemstonesToLore(weapon.lore || [], modifiers.gemstones, weapon.tier);
+    const reforge = modifiers.reforge ? itemData.reforges?.[modifiers.reforge] : null;
+    lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
+    lore = applyBooksToLore(lore, modifiers.books, lore.indexOf(''));
+    lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
+    if (modifiers.recombobulated) lore = applyRecombToLore(lore, weapon.tier);
+
+    const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
+    const title = `§${rarityColorCode(displayTier)}§l${reforgePrefix}${formatItemName(weapon.name)}`;
+    showTooltip([title, ...lore], e.currentTarget);
   }
 
   return (
@@ -129,10 +146,15 @@ export default function Hex() {
                       ? '/ultimate-enchants'
                       : label === 'Gemstones'
                         ? '/gemstones'
-                        : null;
+                        : label === 'Books'
+                          ? '/books'
+                          : label === 'Reforges'
+                            ? '/reforges'
+                            : null;
 
-                // Gemstones only opens for items that actually have slots —
-                // everything else on the grid is a dummy placeholder still.
+                // Gemstones/Books/Reforges only open for items that can
+                // actually use them — everything else (Item Upgrades) is
+                // still a dummy placeholder.
                 if (label === 'Gemstones') {
                   const enabled = weapon && hasGemstoneSlots(weapon.lore);
                   return (
@@ -141,6 +163,51 @@ export default function Hex() {
                       className={enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`}
                       title={enabled ? label : `${label} — this item has no Gemstone Slots`}
                       onClick={() => enabled && navigate(dest)}
+                    >
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
+                    </div>
+                  );
+                }
+
+                if (label === 'Books') {
+                  const enabled = Boolean(weapon);
+                  const applied = build?.modifiers?.books > 0;
+                  return (
+                    <div
+                      key={key}
+                      className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
+                      title={enabled ? label : `${label} — select a weapon first`}
+                      onClick={() => enabled && navigate(dest)}
+                    >
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
+                    </div>
+                  );
+                }
+
+                if (label === 'Reforges') {
+                  const enabled = weapon && getApplicableReforges(itemData.reforges, weapon).length > 0;
+                  const applied = Boolean(build?.modifiers?.reforge);
+                  return (
+                    <div
+                      key={key}
+                      className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
+                      title={enabled ? label : `${label} — no reforges available for this item`}
+                      onClick={() => enabled && navigate(dest)}
+                    >
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
+                    </div>
+                  );
+                }
+
+                if (label === 'Modifiers') {
+                  const enabled = weapon && canRecombobulate(weapon.tier);
+                  const applied = Boolean(build?.modifiers?.recombobulated);
+                  return (
+                    <div
+                      key={key}
+                      className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
+                      title={enabled ? 'Recombobulator 3000 — click to toggle' : `${label} — this item can't be recombobulated`}
+                      onClick={() => enabled && toggleRecombobulated()}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
                     </div>

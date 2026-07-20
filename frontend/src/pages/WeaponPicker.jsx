@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import WeaponIcon from '../components/WeaponIcon';
+import { formatItemName } from '../lib/mcText';
 
 // Starred (max-reforge-stat) items carry a leading Hypixel custom-font glyph
 // before the name (e.g. " Daedalus Blade" for the starred variant of
@@ -65,7 +66,7 @@ export default function WeaponPicker() {
                     onMouseDown={() => handleSelect(w)}
                   >
                     <WeaponIcon id={w.id} material={w.material} alt={w.name} className="w-5 h-5 object-contain pixelated" />
-                    <span>{w.name}</span>
+                    <span>{formatItemName(w.name)}</span>
                   </div>
                 ))
               )}
@@ -91,7 +92,7 @@ export default function WeaponPicker() {
                 onClick={() => handleSelect(w)}
               >
                 <WeaponIcon id={w.id} material={w.material} alt={w.name} className="w-[60%] h-[60%] object-contain pixelated" />
-                <div className="w-full text-center text-[10px] truncate">{w.name}</div>
+                <div className="w-full text-center text-[10px] truncate">{formatItemName(w.name)}</div>
               </div>
             ))}
           </div>

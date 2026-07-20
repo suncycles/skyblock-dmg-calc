@@ -49,6 +49,9 @@ export const SLOT_TEXTURES = {
   empty: '/images/Gray_Stained_Glass_Pane.png',
   filler: '/images/Magenta_Stained_Glass_Pane.png',
   close: '/images/Barrier.png',
+  // Lighter than the inert `empty` background pane — marks a real,
+  // clickable "add a gemstone here" slot on the Gemstones page.
+  emptyGemSlot: '/images/Light_Gray_Stained_Glass_Pane.png',
 };
 
 // Icons for the Hex screen's category buttons. Recombobulator 3000 and
