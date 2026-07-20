@@ -115,9 +115,11 @@ async function fetchReforges() {
 // reforgestones.json is keyed by the stone item's own id (e.g.
 // "DRAGON_CLAW"), not the reforge name it grants — re-keyed by
 // reforgeName here (dropping the cost/ability/reforgeType fields the
-// frontend doesn't need) so it has the same {name: {itemTypes,
-// requiredRarities, reforgeStats}} shape as the free-reforges map. No two
-// stones grant the same reforgeName (verified against a snapshot).
+// frontend doesn't need, but keeping stoneId so it can look up that
+// item's own icon, e.g. /images/reforgestones/dragon_claw.png) so it has
+// the same {name: {itemTypes, requiredRarities, reforgeStats}} shape as
+// the free-reforges map plus one extra field. No two stones grant the
+// same reforgeName (verified against a snapshot).
 async function fetchReforgeStones() {
   const res = await fetch(NEU_REFORGESTONES_URL);
   const stones = await res.json();
@@ -126,6 +128,7 @@ async function fetchReforgeStones() {
   for (const stone of Object.values(stones)) {
     if (!stone.reforgeName) continue;
     byName[stone.reforgeName] = {
+      stoneId: stone.internalName,
       itemTypes: stone.itemTypes,
       requiredRarities: stone.requiredRarities,
       reforgeStats: stone.reforgeStats,

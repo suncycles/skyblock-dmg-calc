@@ -42,6 +42,17 @@ export function getGemstoneIcon(gemId, tier) {
   return `/images/gemstones/${gemId.toUpperCase()}_${tier.toUpperCase()}.png`;
 }
 
+// Each reforge STONE item (Dragon Claw, Wither Blood, etc. — see
+// worker/src/index.js's fetchReforgeStones) gets its own icon here, keyed
+// by its internal id lowercased (e.g. "DRAGON_CLAW" -> dragon_claw.png).
+// These aren't in the Hypixel resource pack subset this project bundles,
+// so they're added manually rather than extracted — callers should fall
+// back to CATEGORY_ICONS.Reforges (onError) for any not yet added.
+export function getReforgeStoneIcon(stoneId) {
+  if (!stoneId) return null;
+  return `/images/reforgestones/${stoneId.toLowerCase()}.png`;
+}
+
 // Chest-inventory chrome shared by every grid page (Hex, enchant/gemstone
 // pickers): vanilla glass panes standing in for "empty"/"filler" slots and
 // a Barrier for "close", styled to read as a real Minecraft chest GUI.
@@ -73,7 +84,6 @@ export const CATEGORY_ICONS = {
 
 export const ENCHANTED_BOOK_ICON = '/images/Enchanted_Book.png';
 
-// Opens the Reforge Stones sub-screen from the Reforges page — the real
-// game applies these stone items at an anvil too, so it doubles as that
-// screen's own icon.
+// Opens the Blacksmith sub-screen from the Reforges (stones) page — an
+// anvil is the blacksmith's tool, not a reforge stone's.
 export const ANVIL_ICON = '/images/Anvil.png';

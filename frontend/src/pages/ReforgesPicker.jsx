@@ -5,7 +5,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { getApplicableReforges, getReforgeStatBonus, formatStatValue, STAT_LABELS } from '../lib/reforgeData';
-import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON } from '../lib/icons';
+import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON, getReforgeStoneIcon } from '../lib/icons';
 
 const PAGE_SIZE = 28;
 
@@ -15,28 +15,33 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Shared by /reforges and /reforge-stones — the real game splits reforges
-// into two mechanically distinct sources: the ~50 the blacksmith NPC can
-// roll for free, and the ~81 that instead need a specific reforge-stone
-// item (Dragon Claw -> "Fabled", Wither Blood -> "Withered", etc.) applied
-// at an anvil. worker/src/index.js keeps them as two separate maps
-// (itemData.reforges / itemData.reforgeStones) for exactly this split;
-// the anvil slot on the free-reforges screen opens the stone one.
+// Shared by /reforges and /reforges/blacksmith — the real game splits
+// reforges into two mechanically distinct sources: reforge STONE items
+// (Dragon Claw -> "Fabled", Wither Blood -> "Withered", etc.), applied
+// directly to the weapon, and the ~50 the Blacksmith NPC can instead roll
+// for free at an anvil. worker/src/index.js keeps them as two separate
+// maps (itemData.reforgeStones / itemData.reforges) for exactly this
+// split. Reforge stones are the base access point (this is what "Reforges"
+// on the Hex screen opens); the anvil slot — a blacksmith's tool, not a
+// stone's — opens the Blacksmith sub-screen instead.
 //
 // Every applicable reforge for the current weapon is one apply-and-close
 // step (unlike Enchants' list-then-level split, a reforge has no further
 // choice to make once picked) — same chest-GUI list/pagination shape as
-// EnchantList.jsx, reusing one icon for every slot since there's no
-// per-reforge art, just like that page reuses the enchanted book icon.
-export default function ReforgesPicker({ stones }) {
+// EnchantList.jsx. Stone slots show that stone's own icon (getReforgeStoneIcon,
+// added manually per stone — see icons.js) falling back to the generic
+// Reforges icon for any not added yet; blacksmith reforges have no
+// physical item, so they always use the generic icon, same as EnchantList
+// reuses one icon for every enchant slot.
+export default function ReforgesPicker({ blacksmith }) {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { build, applyReforge } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
   const weapon = build && build.weapon;
-  const reforgeSource = stones ? itemData.reforgeStones : itemData.reforges;
-  const noun = stones ? 'reforge stones' : 'reforges';
+  const reforgeSource = blacksmith ? itemData.reforges : itemData.reforgeStones;
+  const noun = blacksmith ? 'blacksmith reforges' : 'reforge stones';
 
   const applicable = useMemo(() => {
     if (!weapon) return [];
@@ -89,7 +94,15 @@ export default function ReforgesPicker({ stones }) {
               onMouseEnter={(e) => handleHover(reforge, e)}
               onMouseLeave={hideTooltip}
             >
-              <img src={CATEGORY_ICONS.Reforges} alt={reforge.name} className={iconImg} />
+              <img
+                src={blacksmith ? CATEGORY_ICONS.Reforges : getReforgeStoneIcon(reforge.stoneId) || CATEGORY_ICONS.Reforges}
+                alt={reforge.name}
+                className={iconImg}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = CATEGORY_ICONS.Reforges;
+                }}
+              />
             </div>,
           );
         } else {
@@ -105,10 +118,10 @@ export default function ReforgesPicker({ stones }) {
             <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
           </div>,
         );
-      } else if (isNavRow && col === 1 && !stones) {
+      } else if (isNavRow && col === 1 && !blacksmith) {
         cells.push(
-          <div key={key} className={navSlot} title="Reforge Stones" onClick={() => navigate('/reforge-stones')}>
-            <img src={ANVIL_ICON} alt="Reforge Stones" className={iconImg} />
+          <div key={key} className={navSlot} title="Blacksmith" onClick={() => navigate('/reforges/blacksmith')}>
+            <img src={ANVIL_ICON} alt="Blacksmith" className={iconImg} />
           </div>,
         );
       } else if (isNavRow && col === 2 && current) {
@@ -128,10 +141,10 @@ export default function ReforgesPicker({ stones }) {
           <div
             key={key}
             className={navSlot}
-            title={stones ? 'Back' : 'Close'}
-            onClick={() => (stones ? navigate(-1) : navigate('/hex'))}
+            title={blacksmith ? 'Back' : 'Close'}
+            onClick={() => (blacksmith ? navigate(-1) : navigate('/hex'))}
           >
-            <img src={SLOT_TEXTURES.close} alt={stones ? 'Back' : 'Close'} className={iconImg} />
+            <img src={SLOT_TEXTURES.close} alt={blacksmith ? 'Back' : 'Close'} className={iconImg} />
           </div>,
         );
       } else if (isNavRow && col === 5) {
@@ -158,7 +171,7 @@ export default function ReforgesPicker({ stones }) {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">The Hex — {stones ? 'Reforge Stones' : 'Reforges'}</h1>
+        <h1 className="text-xl font-bold">The Hex — {blacksmith ? 'Blacksmith' : 'Reforges'}</h1>
       </header>
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{contextText}</div>
