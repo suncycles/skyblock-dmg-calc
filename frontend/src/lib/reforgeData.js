@@ -14,8 +14,20 @@
    "SWORD" — getApplicableReforges checks a category against every
    spelling it might show up as, not one fixed string. For a handful of
    item-exclusive reforges (e.g. "Entropy Suppressor", only for the Blaze
-   Slayer daggers) itemTypes is instead {internalName: [...ids]} or
-   {itemId: [...minecraft ids]} — also handled there. */
+   Slayer daggers) itemTypes is instead {internalName: [...ids]} — also
+   handled there, matched against our own item.id.
+
+   A few of these object-shaped restrictions use {itemId: [...]} instead
+   (raw "minecraft:x" ids, e.g. "Fanged" -> ["minecraft:iron_sword"]).
+   That's deliberately NOT matched against item.material: material is
+   just this project's icon-fallback field (which vanilla block/item icon
+   to show when there's no bespoke texture) and is shared by dozens of
+   unrelated named legendary/epic weapons — matching on it produced false
+   positives (e.g. every IRON_SWORD-icon weapon "qualifying" for a reforge
+   meant for one specific unmodified vanilla Iron Sword). None of our
+   catalogued weapons are actually that plain vanilla item, so itemId
+   restrictions correctly resolve to zero matches here rather than being
+   approximated. */
 
 // Maps our weapons.json `category` values to every reforge-table itemTypes
 // spelling that should match it. Every category also implicitly gets
@@ -73,7 +85,6 @@ export function getApplicableReforges(reforges, item) {
   // not-reforgeable rather than incorrectly showing every reforge as
   // applicable.
   if (!rarity) return [];
-  const materialId = item.material ? `minecraft:${item.material.toLowerCase()}` : null;
 
   return Object.entries(reforges)
     .filter(([, r]) => {
@@ -83,7 +94,7 @@ export function getApplicableReforges(reforges, item) {
         matchesType = types === 'EQUIPMENT' || categoryTypes.includes(types);
       } else if (types && typeof types === 'object') {
         const ids = types.internalName || types.itemId || [];
-        matchesType = ids.includes(item.id) || (materialId && ids.includes(materialId));
+        matchesType = ids.includes(item.id);
       } else {
         matchesType = false;
       }

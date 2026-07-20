@@ -125,17 +125,11 @@ export default function Hex() {
 
               if (type === 'weapon') {
                 return (
-                  <div
-                    key={key}
-                    className={`${slotBase} cursor-pointer`}
-                    onClick={() => navigate('/')}
-                    onMouseEnter={handleWeaponHover}
-                    onMouseLeave={hideTooltip}
-                  >
+                  <div key={key} className={slotBase} onMouseEnter={handleWeaponHover} onMouseLeave={hideTooltip}>
                     {weapon ? (
                       <WeaponIcon id={weapon.id} material={weapon.material} alt={weapon.name} className={iconImg} />
                     ) : (
-                      <span title="No weapon selected — click to choose one" className="text-2xl">
+                      <span title="No weapon selected — use Close to pick one" className="text-2xl">
                         ⚔️
                       </span>
                     )}
