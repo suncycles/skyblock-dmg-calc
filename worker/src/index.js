@@ -30,13 +30,15 @@ import armor from "./data/armor.json";
 // the wiki has no API and blocks scraping.
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
 
-// Two files, both keyed differently but describing the same underlying
-// game concept: reforges.json is the ~50 "free" reforges (obtainable by
-// right-clicking any anvil, no item needed), keyed directly by reforge
-// name. reforgestones.json is the larger set (~81) that need a specific
-// physical reforge-stone item (drops/shop purchases), keyed by that stone
-// item's id instead — merged below into one name-keyed map so the
-// frontend doesn't need to know about the two-source split.
+// Two files, both keyed differently but describing two genuinely distinct
+// in-game mechanics: reforges.json is the ~50 "free" reforges the
+// blacksmith NPC can roll (no item needed), keyed directly by reforge
+// name. reforgestones.json is the larger set (~81) that instead need a
+// specific physical reforge-stone item (drops/shop purchases, e.g. Dragon
+// Claw -> "Fabled", Wither Blood -> "Withered") applied directly to the
+// item — kept as its own map (reforgeStones) rather than merged into the
+// same list, matching the real game's UI split and this project's
+// Reforges page having a separate "reforge stones" sub-screen for them.
 const NEU_REFORGES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforges.json";
 const NEU_REFORGESTONES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforgestones.json";
 
@@ -100,31 +102,36 @@ async function handleRefresh(env) {
 async function buildFreshData() {
   const enchantsRes = await fetch(NEU_ENCHANTS_URL);
   const enchants = await enchantsRes.json();
-  const reforges = await buildReforges();
+  const [reforges, reforgeStones] = await Promise.all([fetchReforges(), fetchReforgeStones()]);
 
-  return { weapons, armor, enchants, reforges, lastFetched: Date.now() };
+  return { weapons, armor, enchants, reforges, reforgeStones, lastFetched: Date.now() };
 }
 
-// Merges the two reforge sources into one { [reforgeName]: {itemTypes,
-// requiredRarities, reforgeStats} } map. No reforgeName collides between
-// the two files (verified against a snapshot of both), so this is a
-// plain union, reforges.json's ~50 free reforges first.
-async function buildReforges() {
-  const [freeRes, stoneRes] = await Promise.all([fetch(NEU_REFORGES_URL), fetch(NEU_REFORGESTONES_URL)]);
-  const free = await freeRes.json();
-  const stones = await stoneRes.json();
+async function fetchReforges() {
+  const res = await fetch(NEU_REFORGES_URL);
+  return res.json();
+}
 
-  const merged = { ...free };
+// reforgestones.json is keyed by the stone item's own id (e.g.
+// "DRAGON_CLAW"), not the reforge name it grants — re-keyed by
+// reforgeName here (dropping the cost/ability/reforgeType fields the
+// frontend doesn't need) so it has the same {name: {itemTypes,
+// requiredRarities, reforgeStats}} shape as the free-reforges map. No two
+// stones grant the same reforgeName (verified against a snapshot).
+async function fetchReforgeStones() {
+  const res = await fetch(NEU_REFORGESTONES_URL);
+  const stones = await res.json();
+
+  const byName = {};
   for (const stone of Object.values(stones)) {
-    if (stone.reforgeName && !merged[stone.reforgeName]) {
-      merged[stone.reforgeName] = {
-        itemTypes: stone.itemTypes,
-        requiredRarities: stone.requiredRarities,
-        reforgeStats: stone.reforgeStats,
-      };
-    }
+    if (!stone.reforgeName) continue;
+    byName[stone.reforgeName] = {
+      itemTypes: stone.itemTypes,
+      requiredRarities: stone.requiredRarities,
+      reforgeStats: stone.reforgeStats,
+    };
   }
-  return merged;
+  return byName;
 }
 
 function jsonResponse(obj, status = 200) {

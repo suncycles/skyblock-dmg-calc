@@ -27,7 +27,8 @@ export default function App() {
             <Route path="/gemstones/:slotIndex" element={<GemstoneTypePicker />} />
             <Route path="/gemstones/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
             <Route path="/books" element={<BooksPicker />} />
-            <Route path="/reforges" element={<ReforgesPicker />} />
+            <Route path="/reforges" element={<ReforgesPicker stones={false} />} />
+            <Route path="/reforge-stones" element={<ReforgesPicker stones />} />
           </Routes>
         </TooltipProvider>
       </BuildProvider>
