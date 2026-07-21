@@ -27,7 +27,7 @@ export default function ArmorItemPicker() {
       loading={loading}
       error={error}
       onSelect={handleSelect}
-      onBack={() => navigate('/armor')}
+      onBack={() => navigate('/')}
     />
   );
 }

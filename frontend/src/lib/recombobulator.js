@@ -25,6 +25,11 @@ export function bumpRarity(tier) {
 // avoid false-positive matches of the rarity word elsewhere in ability
 // text and because it's the one line real Recombobulated items actually
 // show updated.
+//
+// The "$ ... $" flanking and trailing "Rarity Upgraded" note are purely a
+// calculator-UI visual marker (not a real Hypixel convention) so a
+// recombobulated item's rarity tag is instantly distinguishable at a
+// glance from an item that's naturally that rarity.
 export function applyRecombToLore(lore, originalTier) {
   if (!lore || lore.length === 0) return lore;
   const newTier = bumpRarity(originalTier);
@@ -36,6 +41,7 @@ export function applyRecombToLore(lore, originalTier) {
 
   const updated = lore[lastIdx]
     .replace(oldWord, newTier.toUpperCase())
-    .replace(/§[0-9a-f](§l)/, `§${rarityColorCode(newTier)}$1`);
-  return [...lore.slice(0, lastIdx), updated];
+    .replace(/§[0-9a-f](§l)/, `§${rarityColorCode(newTier)}$1`)
+    .replace(/^(§[0-9a-f]§l)(.+)$/, '$1$ $2 $');
+  return [...lore.slice(0, lastIdx), updated, '§8Rarity Upgraded'];
 }

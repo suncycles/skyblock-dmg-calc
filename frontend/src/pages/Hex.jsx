@@ -49,7 +49,10 @@ export default function Hex() {
   const { showTooltip, hideTooltip } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || slot;
-  const closeTo = slot === 'weapon' ? '/weapon' : '/armor';
+  // Both weapon and armor now live on the single merged home screen (see
+  // Landing.jsx) rather than separate hub pages, so Close always returns
+  // there.
+  const closeTo = '/';
 
   function handleItemHover(e) {
     if (!item) return;
