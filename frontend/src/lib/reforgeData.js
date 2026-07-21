@@ -30,9 +30,12 @@
    approximated. */
 
 // Maps our weapons.json `category` values to every reforge-table itemTypes
-// spelling that should match it. Every category also implicitly gets
-// "EQUIPMENT" (the universal armor+weapon reforge pool) — added in
-// getApplicableReforges rather than repeated here.
+// spelling that should match it. "EQUIPMENT" is deliberately NOT added
+// automatically here: despite the name, Hypixel's "Equipment" is a
+// separate gear category (Necklace/Cloak/Belt/Gloves — effectively a
+// second armor set), not a universal weapon+armor pool. This project
+// doesn't model Equipment slots yet, so weapons should never match
+// EQUIPMENT-typed reforges at all.
 const CATEGORY_TO_REFORGE_TYPES = {
   SWORD: ['SWORD/ROD', 'SWORD'],
   'DUNGEON SWORD': ['SWORD/ROD', 'SWORD'],
@@ -73,8 +76,8 @@ export function formatStatValue(statKey, value) {
 }
 
 // Reforges applicable to a given weapon: matching itemTypes (its category's
-// table, or the universal EQUIPMENT pool, or an explicit item-id allowlist
-// for item-exclusive reforges) and requiring a rarity the item actually has.
+// table, or an explicit item-id allowlist for item-exclusive reforges) and
+// requiring a rarity the item actually has.
 export function getApplicableReforges(reforges, item) {
   if (!reforges || !item) return [];
   const categoryTypes = CATEGORY_TO_REFORGE_TYPES[item.category] || [];
@@ -91,7 +94,7 @@ export function getApplicableReforges(reforges, item) {
       const types = r.itemTypes;
       let matchesType;
       if (typeof types === 'string') {
-        matchesType = types === 'EQUIPMENT' || categoryTypes.includes(types);
+        matchesType = categoryTypes.includes(types);
       } else if (types && typeof types === 'object') {
         const ids = types.internalName || types.itemId || [];
         matchesType = ids.includes(item.id);

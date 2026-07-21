@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { getApplicableReforges, getReforgeStatBonus, formatStatValue, STAT_LABELS } from '../lib/reforgeData';
+import { fetchReforgeStoneItem } from '../lib/reforgeStoneItems';
 import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON, getReforgeStoneIcon } from '../lib/icons';
 
 const PAGE_SIZE = 28;
@@ -39,6 +40,7 @@ export default function ReforgesPicker({ blacksmith }) {
   const { build, applyReforge } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
+  const hoveredNameRef = useRef(null);
   const weapon = build && build.weapon;
   const reforgeSource = blacksmith ? itemData.reforges : itemData.reforgeStones;
   const noun = blacksmith ? 'blacksmith reforges' : 'reforge stones';
@@ -57,7 +59,11 @@ export default function ReforgesPicker({ blacksmith }) {
     navigate('/hex');
   }
 
-  function handleHover(reforge, e) {
+  // Fallback shown for blacksmith reforges (no physical item to fetch lore
+  // for) and if a stone's own item fetch below fails: the reforge's own
+  // name/stat table, synthesized into stat lines the same way the Hex
+  // tooltip's reforge annotations are colored (see reforgeData.js).
+  function synthesizedLines(reforge) {
     const tierColor = rarityColorCode(weapon.tier);
     const bonus = getReforgeStatBonus(reforge, weapon.tier);
     const statLines = bonus
@@ -65,7 +71,33 @@ export default function ReforgesPicker({ blacksmith }) {
           .filter(([statKey]) => STAT_LABELS[statKey])
           .map(([statKey, value]) => `§7${STAT_LABELS[statKey].label}: §${STAT_LABELS[statKey].color}${formatStatValue(statKey, value)}`)
       : [];
-    showTooltip([`§${tierColor}§l${reforge.name}`, '', ...statLines], e.currentTarget);
+    return [`§${tierColor}§l${reforge.name}`, '', ...statLines];
+  }
+
+  // Stone slots show the real physical item's own lore (ability
+  // description, flavor text, level requirement — everything, not just
+  // the stat table) fetched live from NEU-REPO and matched by stoneId,
+  // the stone's real internal item id — see reforgeStoneItems.js.
+  // Blacksmith reforges have no physical item, so they always use the
+  // synthesized fallback.
+  function handleHover(reforge, e) {
+    const anchor = e.currentTarget;
+    hoveredNameRef.current = reforge.name;
+
+    if (blacksmith || !reforge.stoneId) {
+      showTooltip(synthesizedLines(reforge), anchor);
+      return;
+    }
+
+    showTooltip([`§${rarityColorCode(weapon.tier)}§l${reforge.name}`, '', '§7Loading...'], anchor);
+    fetchReforgeStoneItem(reforge.stoneId).then((data) => {
+      if (hoveredNameRef.current !== reforge.name) return; // moved on before this resolved
+      if (data && data.lore && data.lore.length > 0) {
+        showTooltip([data.displayname || reforge.name, ...data.lore], anchor);
+      } else {
+        showTooltip(synthesizedLines(reforge), anchor);
+      }
+    });
   }
 
   const contextText = !weapon
@@ -92,7 +124,10 @@ export default function ReforgesPicker({ blacksmith }) {
               className={`${slotBase} cursor-pointer hover:brightness-110 ${current === reforge.name ? 'bg-green-400' : ''}`}
               onClick={() => handleSelect(reforge.name)}
               onMouseEnter={(e) => handleHover(reforge, e)}
-              onMouseLeave={hideTooltip}
+              onMouseLeave={() => {
+                hoveredNameRef.current = null;
+                hideTooltip();
+              }}
             >
               <img
                 src={blacksmith ? CATEGORY_ICONS.Reforges : getReforgeStoneIcon(reforge.stoneId) || CATEGORY_ICONS.Reforges}
