@@ -4,7 +4,6 @@ import { BuildProvider } from './context/BuildContext';
 import { TooltipProvider } from './context/TooltipContext';
 import Landing from './pages/Landing';
 import WeaponPicker from './pages/WeaponPicker';
-import ArmorSlotPicker from './pages/ArmorSlotPicker';
 import ArmorItemPicker from './pages/ArmorItemPicker';
 import PetPicker from './pages/PetPicker';
 import PetRarityPicker from './pages/PetRarityPicker';
@@ -33,7 +32,6 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/weapon" element={<WeaponPicker />} />
-            <Route path="/armor" element={<ArmorSlotPicker />} />
             <Route path="/armor/:slot" element={<ArmorItemPicker />} />
             <Route path="/pet" element={<PetPicker />} />
             <Route path="/pet/detail" element={<PetDetail />} />
