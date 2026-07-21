@@ -126,11 +126,12 @@ async function main() {
   const weapons = JSON.parse(readFileSync(path.join(DATA_DIR, 'weapons.json'), 'utf8'));
   const armor = JSON.parse(readFileSync(path.join(DATA_DIR, 'armor.json'), 'utf8'));
   const equipment = JSON.parse(readFileSync(path.join(DATA_DIR, 'equipment.json'), 'utf8'));
+  const petItems = JSON.parse(readFileSync(path.join(DATA_DIR, 'petItems.json'), 'utf8'));
 
-  const skullItems = [...weapons, ...armor, ...equipment].filter(
+  const skullItems = [...weapons, ...armor, ...equipment, ...petItems].filter(
     (item) => item.material === 'SKULL' && !existsSync(path.join(OUT_DIR, `${item.id}.png`)),
   );
-  console.log(`${skullItems.length} skull-based weapon/armor/equipment items missing an icon...`);
+  console.log(`${skullItems.length} skull-based weapon/armor/equipment/pet-item items missing an icon...`);
   const itemResult = await runBatched(skullItems, async (item) => {
     const hash = await fetchSkinTextureHash(item.id);
     if (!hash) return false;

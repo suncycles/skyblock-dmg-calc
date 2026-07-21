@@ -46,6 +46,16 @@ const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 // Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) — a
 // second, parallel armor-like slot set, not variants of HELMET etc.
 const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES'];
+// Pet items (the one held item a summoned pet can equip) — their tag line
+// is just "<TIER> PET ITEM" with no further category word, unlike the
+// others above. Previously hand-maintained as a ~34-entry hardcoded list
+// fetched live by the Worker (see worker/src/index.js's old
+// PET_ITEM_IDS), sourced from constants/pets.json's
+// pet_item_display_name_to_id map — which turned out to only cover 34 of
+// the real ~80, missing e.g. Antique Remedies/Minos Relic/Hephaestus
+// Remedies entirely. Scanning the full items/ catalog like every other
+// category here instead finds all of them and can't silently drift stale.
+const PET_ITEM_CATEGORY = 'PET ITEM';
 
 // Items that parse as a weapon/armor category but aren't real
 // player-obtainable gear: Rift NPC "items" (their tier is always null —
@@ -90,6 +100,7 @@ function materialFromItemId(itemid) {
 const weapons = [];
 const armor = [];
 const equipment = [];
+const petItems = [];
 let skippedNoLore = 0;
 let parseErrors = 0;
 
@@ -124,7 +135,22 @@ for (const file of files) {
   // and would otherwise false-positive as a BELT. A real equipment item
   // always has a parsed tier; dialogue text doesn't.
   const isEquipment = !isWeapon && !isArmor && tier && EQUIPMENT_TYPES.some((t) => category.endsWith(t));
-  if (!isWeapon && !isArmor && !isEquipment) continue;
+  const isPetItem = !isWeapon && !isArmor && !isEquipment && tier && category === PET_ITEM_CATEGORY;
+  if (!isWeapon && !isArmor && !isEquipment && !isPetItem) continue;
+
+  if (isPetItem) {
+    // Pet items have no slot-matching `category` concept (there's only
+    // ever one pet-item slot) and no consumer needs one — matches the
+    // shape the old live-fetch code produced.
+    petItems.push({
+      id: raw.internalname,
+      name: stripColorCodes(raw.displayname || raw.internalname || ''),
+      material: materialFromItemId(raw.itemid),
+      tier,
+      lore: raw.lore,
+    });
+    continue;
+  }
 
   const item = {
     id: raw.internalname,
@@ -143,6 +169,7 @@ for (const file of files) {
 console.log(`weapons: ${weapons.length}`);
 console.log(`armor: ${armor.length}`);
 console.log(`equipment: ${equipment.length}`);
+console.log(`pet items: ${petItems.length}`);
 console.log(`skipped (no lore): ${skippedNoLore}`);
 console.log(`parse errors: ${parseErrors}`);
 
@@ -150,4 +177,5 @@ const outDir = path.join(__dirname, '..', 'src', 'data');
 writeFileSync(path.join(outDir, 'weapons.json'), JSON.stringify(weapons));
 writeFileSync(path.join(outDir, 'armor.json'), JSON.stringify(armor));
 writeFileSync(path.join(outDir, 'equipment.json'), JSON.stringify(equipment));
-console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, and equipment.json`);
+writeFileSync(path.join(outDir, 'petItems.json'), JSON.stringify(petItems));
+console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, equipment.json, and petItems.json`);
