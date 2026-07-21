@@ -4,14 +4,16 @@
    sourced from NotEnoughUpdates-REPO (community-maintained,
    MIT licensed) — no Hypixel API usage.
 
-   Weapons/armor are NOT fetched live: NEU-REPO's item catalog
-   has no structured rarity/category field (only the last line
-   of each item's `lore`, e.g. "§6§lLEGENDARY SWORD"), and it's
-   8000+ individual files — well past what a single Worker
+   Weapons/armor/equipment (Necklace/Cloak/Belt/Gloves) are NOT
+   fetched live: NEU-REPO's item catalog has no structured
+   rarity/category field (only the last line of each item's
+   `lore`, e.g. "§6§lLEGENDARY SWORD"), and it's 8000+
+   individual files — well past what a single Worker
    invocation's subrequest/CPU budget can parse. Those are
    pre-parsed offline by scripts/build-item-data.mjs into
-   src/data/{weapons,armor}.json and bundled at deploy time;
-   re-run that script + redeploy to pick up NEU-REPO updates.
+   src/data/{weapons,armor,equipment}.json and bundled at
+   deploy time; re-run that script + redeploy to pick up
+   NEU-REPO updates.
 
    Enchant and reforge data are small (one file each) and still fetched
    live here.
@@ -25,6 +27,7 @@
 
 import weapons from "./data/weapons.json";
 import armor from "./data/armor.json";
+import equipment from "./data/equipment.json";
 
 // Community-maintained source (not the official Hypixel API) —
 // the wiki has no API and blocks scraping.
@@ -160,7 +163,7 @@ async function buildFreshData() {
     fetchPetItems(),
   ]);
 
-  return { weapons, armor, enchants, reforges, reforgeStones, pets, petItems, lastFetched: Date.now() };
+  return { weapons, armor, equipment, enchants, reforges, reforgeStones, pets, petItems, lastFetched: Date.now() };
 }
 
 async function fetchPetNums() {

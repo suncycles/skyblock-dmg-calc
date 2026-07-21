@@ -6,6 +6,10 @@
  * (custom player-head) item — plus every pet, which has no bundled
  * weapons.json/armor.json-equivalent to match against at all.
  *
+ * Equipment (equipment.json — Necklace/Cloak/Belt/Gloves) is 100% skull
+ * items with no Hypixel-resource-pack entries at all (verified directly),
+ * so every one of them goes through this pass.
+ *
  * The pack has no render for these because they're custom third-party
  * skins (a real Mojang skin texture referenced via SkullOwner in the
  * item's own NBT), not a resource-pack-overridden vanilla texture — but
@@ -121,11 +125,12 @@ async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const weapons = JSON.parse(readFileSync(path.join(DATA_DIR, 'weapons.json'), 'utf8'));
   const armor = JSON.parse(readFileSync(path.join(DATA_DIR, 'armor.json'), 'utf8'));
+  const equipment = JSON.parse(readFileSync(path.join(DATA_DIR, 'equipment.json'), 'utf8'));
 
-  const skullItems = [...weapons, ...armor].filter(
+  const skullItems = [...weapons, ...armor, ...equipment].filter(
     (item) => item.material === 'SKULL' && !existsSync(path.join(OUT_DIR, `${item.id}.png`)),
   );
-  console.log(`${skullItems.length} skull-based weapon/armor items missing an icon...`);
+  console.log(`${skullItems.length} skull-based weapon/armor/equipment items missing an icon...`);
   const itemResult = await runBatched(skullItems, async (item) => {
     const hash = await fetchSkinTextureHash(item.id);
     if (!hash) return false;

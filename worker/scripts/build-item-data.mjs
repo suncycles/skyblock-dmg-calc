@@ -43,6 +43,9 @@ const TIER_NAMES = Object.keys(misc.tier_colors)
 
 const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND'];
 const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
+// Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) — a
+// second, parallel armor-like slot set, not variants of HELMET etc.
+const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES'];
 
 // Items that parse as a weapon/armor category but aren't real
 // player-obtainable gear: Rift NPC "items" (their tier is always null —
@@ -86,6 +89,7 @@ function materialFromItemId(itemid) {
 
 const weapons = [];
 const armor = [];
+const equipment = [];
 let skippedNoLore = 0;
 let parseErrors = 0;
 
@@ -113,7 +117,14 @@ for (const file of files) {
 
   const isWeapon = WEAPON_TYPES.some((t) => category.endsWith(t));
   const isArmor = !isWeapon && ARMOR_TYPES.some((t) => category.endsWith(t));
-  if (!isWeapon && !isArmor) continue;
+  // Equipment additionally requires a real tier: unlike weapon/armor
+  // (where every category-matching file so far has genuinely been real
+  // gear), one Rift NPC dialogue item's last lore line happens to end in
+  // "...AND THE SILKRIDER SAFETY BELT" — a sentence, not a rarity tag —
+  // and would otherwise false-positive as a BELT. A real equipment item
+  // always has a parsed tier; dialogue text doesn't.
+  const isEquipment = !isWeapon && !isArmor && tier && EQUIPMENT_TYPES.some((t) => category.endsWith(t));
+  if (!isWeapon && !isArmor && !isEquipment) continue;
 
   const item = {
     id: raw.internalname,
@@ -124,15 +135,19 @@ for (const file of files) {
     lore: raw.lore,
   };
 
-  (isWeapon ? weapons : armor).push(item);
+  if (isWeapon) weapons.push(item);
+  else if (isArmor) armor.push(item);
+  else equipment.push(item);
 }
 
 console.log(`weapons: ${weapons.length}`);
 console.log(`armor: ${armor.length}`);
+console.log(`equipment: ${equipment.length}`);
 console.log(`skipped (no lore): ${skippedNoLore}`);
 console.log(`parse errors: ${parseErrors}`);
 
 const outDir = path.join(__dirname, '..', 'src', 'data');
 writeFileSync(path.join(outDir, 'weapons.json'), JSON.stringify(weapons));
 writeFileSync(path.join(outDir, 'armor.json'), JSON.stringify(armor));
-console.log(`Wrote ${path.join(outDir, 'weapons.json')} and armor.json`);
+writeFileSync(path.join(outDir, 'equipment.json'), JSON.stringify(equipment));
+console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, and equipment.json`);

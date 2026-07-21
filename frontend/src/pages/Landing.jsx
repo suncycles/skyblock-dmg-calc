@@ -3,6 +3,7 @@ import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { useTooltip } from '../context/TooltipContext';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
+import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { formatItemName, rarityColorCode } from '../lib/mcText';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -13,40 +14,38 @@ const slotBase =
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Real Hypixel SkyBlock equipment slots (Necklace/Cloak/Belt/Gloves) — no
-// NEU-REPO data or picker built for these yet, so they're a visual-only
-// placeholder column: they render and label like a real slot but aren't
-// clickable, same treatment Hex.jsx gives a not-yet-wired-up category icon
-// (dim + "not implemented" rather than pretending to work).
-const EQUIPMENT_LABELS = ['Necklace', 'Cloak', 'Belt', 'Gloves'];
-
 // One-page character screen: 6 rows x 9 columns, real chest-GUI styling.
-// Column B: the 4 (placeholder) equipment slots. Column C: the 4 armor
-// slots (was ArmorSlotPicker's own page — folded in here). Column D:
-// weapon (row 4) and pet (row 5). Columns F/G/H: decorative mob-head
-// filler with no function, purely to balance out the grid. Everything
-// else is an inert dark-grey glass pane, same "empty" texture used
-// elsewhere in the app.
+// Column B: the 4 equipment slots (Necklace/Cloak/Belt/Gloves — a second,
+// parallel gear set alongside armor, same enchant/reforge/gemstone/book
+// eligibility, see lib/equipmentSlots.js). Column C: the 4 armor slots
+// (was ArmorSlotPicker's own page — folded in here). Column D: weapon
+// (row 4) and pet (row 5). Columns F/G/H: decorative mob-head filler with
+// no function, purely to balance out the grid. Everything else is an
+// inert dark-grey glass pane, same "empty" texture used elsewhere in the
+// app.
 export default function Landing() {
   const navigate = useNavigate();
   const { loadout, removeSlot } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
-  function handleArmorClick(slot) {
-    navigate(loadout[slot] ? `/hex/${slot}` : `/armor/${slot}`);
+  // Shared by both the armor and equipment columns — they're two
+  // functionally identical gear sets (enchants/reforges/gemstones/books
+  // all apply the same way), just filtered from different item lists.
+  function handleGearClick(slot, pickerPath) {
+    navigate(loadout[slot] ? `/hex/${slot}` : pickerPath);
   }
 
-  function handleArmorHover(slot, e) {
+  function handleGearHover(slot, label, e) {
     const equipped = loadout[slot];
     if (!equipped) {
-      showTooltip([`§7${ARMOR_SLOT_LABELS[slot]}`, '§8Empty — click to pick one'], e.currentTarget);
+      showTooltip([`§7${label}`, '§8Empty — click to pick one'], e.currentTarget);
       return;
     }
     showTooltip(buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData), e.currentTarget);
   }
 
-  function handleArmorRemove(slot, e) {
+  function handleGearRemove(slot, e) {
     e.stopPropagation();
     hideTooltip();
     removeSlot(slot);
@@ -73,56 +72,56 @@ export default function Landing() {
     showTooltip([`§${rarityColorCode(item.tier)}${formatItemName(item.name)}`, `§7Level ${modifiers.level}`], e.currentTarget);
   }
 
+  // One small helper covers both gear columns — same slot cell shape
+  // (icon + bottom label + remove button when equipped), just a
+  // different slot list/label map/picker route per column.
+  function renderGearSlot(key, slot, label, pickerPath) {
+    const equipped = loadout[slot];
+    return (
+      <div
+        key={key}
+        className={`${slotBase} relative cursor-pointer hover:brightness-110 ${equipped ? 'bg-green-400' : ''}`}
+        onClick={() => handleGearClick(slot, pickerPath)}
+        onMouseEnter={(e) => handleGearHover(slot, label, e)}
+        onMouseLeave={hideTooltip}
+      >
+        {equipped ? (
+          <WeaponIcon id={equipped.item.id} material={equipped.item.material} alt={equipped.item.name} className={iconImg} />
+        ) : (
+          <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
+        )}
+        {equipped && (
+          <span
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+            title={`Remove ${label}`}
+            onClick={(e) => handleGearRemove(slot, e)}
+          >
+            🗑️
+          </span>
+        )}
+        <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+          {label}
+        </span>
+      </div>
+    );
+  }
+
   const cells = [];
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 9; col++) {
       const key = `${row}-${col}`;
 
-      // Column B (index 1): equipment placeholders, rows 2-5 (index 1-4).
+      // Column B (index 1): the 4 equipment slots, rows 2-5 (index 1-4).
       if (col === 1 && row >= 1 && row <= 4) {
-        const label = EQUIPMENT_LABELS[row - 1];
-        cells.push(
-          <div key={key} className={`${slotBase} relative opacity-50`} title={`${label} — not yet available`}>
-            <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-              {label}
-            </span>
-          </div>,
-        );
+        const slot = EQUIPMENT_SLOTS[row - 1];
+        cells.push(renderGearSlot(key, slot, EQUIPMENT_SLOT_LABELS[slot], `/equipment/${slot}`));
         continue;
       }
 
       // Column C (index 2): the 4 armor slots, rows 2-5 (index 1-4).
       if (col === 2 && row >= 1 && row <= 4) {
         const slot = ARMOR_SLOTS[row - 1];
-        const equipped = loadout[slot];
-        cells.push(
-          <div
-            key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${equipped ? 'bg-green-400' : ''}`}
-            onClick={() => handleArmorClick(slot)}
-            onMouseEnter={(e) => handleArmorHover(slot, e)}
-            onMouseLeave={hideTooltip}
-          >
-            {equipped ? (
-              <WeaponIcon id={equipped.item.id} material={equipped.item.material} alt={equipped.item.name} className={iconImg} />
-            ) : (
-              <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
-            )}
-            {equipped && (
-              <span
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
-                title={`Remove ${ARMOR_SLOT_LABELS[slot]}`}
-                onClick={(e) => handleArmorRemove(slot, e)}
-              >
-                🗑️
-              </span>
-            )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-              {ARMOR_SLOT_LABELS[slot]}
-            </span>
-          </div>,
-        );
+        cells.push(renderGearSlot(key, slot, ARMOR_SLOT_LABELS[slot], `/armor/${slot}`));
         continue;
       }
 

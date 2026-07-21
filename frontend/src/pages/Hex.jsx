@@ -7,6 +7,7 @@ import { getApplicableReforges } from '../lib/reforgeData';
 import { getSpecialConfig } from '../lib/specialWeapons';
 import { canRecombobulate } from '../lib/recombobulator';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
+import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import WeaponIcon from '../components/WeaponIcon';
@@ -38,9 +39,10 @@ const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 // they fill the slot edge-to-edge instead of sitting inset like item icons.
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Opened per-slot (weapon or one of the 4 armor pieces — see
-// lib/armorSlots.js) via /hex/:slot; everything here operates on
-// loadout[slot] rather than "the" single equipped item.
+// Opened per-slot (weapon, one of the 4 armor pieces, or one of the 4
+// equipment pieces — see lib/armorSlots.js and lib/equipmentSlots.js) via
+// /hex/:slot; everything here operates on loadout[slot] rather than "the"
+// single equipped item.
 export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
@@ -48,7 +50,7 @@ export default function Hex() {
   const { loadout, toggleRecombobulated } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
-  const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || slot;
+  const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || EQUIPMENT_SLOT_LABELS[slot] || slot;
   // Both weapon and armor now live on the single merged home screen (see
   // Landing.jsx) rather than separate hub pages, so Close always returns
   // there.
