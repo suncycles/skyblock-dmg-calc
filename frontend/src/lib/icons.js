@@ -80,9 +80,19 @@ export const CATEGORY_ICONS = {
   Modifiers: '/images/Recombobulator_3000.png',
   Reforges: '/images/Luxurious_Spool.png',
   'Item Upgrades': '/images/Dragon_Essence.png',
+  // Weapon-specific ability mechanics (Daedalus Blade, Midas' Sword/Staff,
+  // Emerald Blade) — only shown for the handful of weapons that have one.
+  Special: '/images/Nether_Star.png',
 };
 
 export const ENCHANTED_BOOK_ICON = '/images/Enchanted_Book.png';
+
+// The Art of War's own NEU item material is "minecraft:book" — same as the
+// Hot/Fuming Potato Book slots it sits alongside on the Books screen — so
+// Book_and_Quill.png (already bundled, used elsewhere for Ultimate
+// Enchantments) stands in here instead, purely so the one-time toggle
+// reads as visually distinct from the 15 numbered Potato Book slots.
+export const ART_OF_WAR_ICON = '/images/Book_and_Quill.png';
 
 // Opens the Blacksmith sub-screen from the Reforges (stones) page — an
 // anvil is the blacksmith's tool, not a reforge stone's.

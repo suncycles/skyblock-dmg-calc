@@ -4,6 +4,7 @@ import { useTooltip } from '../context/TooltipContext';
 import { GEMSTONES, GEMSTONE_TIERS, TIER_TO_RARITY, getGemstoneBoost, formatGemstoneBoost } from '../lib/gemstoneData';
 import { rarityColorCode } from '../lib/mcText';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
+import { bumpRarity } from '../lib/recombobulator';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -27,7 +28,8 @@ export default function GemstoneTierPicker() {
   const idx = Number(slotIndex);
   const gemId = gemType.toUpperCase();
   const gem = GEMSTONES[gemId];
-  const itemRarity = build?.weapon?.tier || 'common';
+  const baseTier = build?.weapon?.tier || 'common';
+  const itemRarity = build?.modifiers?.recombobulated ? bumpRarity(baseTier) : baseTier;
   const current = build?.modifiers?.gemstones?.[idx];
 
   function handleSelect(tier) {

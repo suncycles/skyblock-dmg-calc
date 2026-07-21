@@ -5,7 +5,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { getApplicableReforges, getReforgeStatBonus, formatStatValue, STAT_LABELS } from '../lib/reforgeData';
-import { fetchReforgeStoneItem } from '../lib/reforgeStoneItems';
+import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON, getReforgeStoneIcon } from '../lib/icons';
 
 const PAGE_SIZE = 28;
@@ -90,7 +90,7 @@ export default function ReforgesPicker({ blacksmith }) {
     }
 
     showTooltip([`§${rarityColorCode(weapon.tier)}§l${reforge.name}`, '', '§7Loading...'], anchor);
-    fetchReforgeStoneItem(reforge.stoneId).then((data) => {
+    fetchNeuItem(reforge.stoneId).then((data) => {
       if (hoveredNameRef.current !== reforge.name) return; // moved on before this resolved
       if (data && data.lore && data.lore.length > 0) {
         showTooltip([data.displayname || reforge.name, ...data.lore], anchor);

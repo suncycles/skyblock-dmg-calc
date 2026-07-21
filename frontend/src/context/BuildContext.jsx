@@ -51,6 +51,8 @@ export function BuildProvider({ children }) {
         ultimateEnchantment: null, // {id, level, maxLevel} | null — only one allowed
         gemstones: [],
         books: 0, // Hot/Fuming Potato Book count, 0-15
+        artOfWar: false, // The Art of War — one-time-use, +5 Strength
+        special: 0, // weapon-specific ability input — see lib/specialWeapons.js
         recombobulated: false,
         reforge: null, // reforge name string | null
       },
@@ -128,6 +130,24 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  const setSpecialValue = useCallback((value) => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, modifiers: { ...prev.modifiers, special: value } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const toggleArtOfWar = useCallback(() => {
+    setBuild((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, modifiers: { ...prev.modifiers, artOfWar: !prev.modifiers.artOfWar } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const toggleRecombobulated = useCallback(() => {
     setBuild((prev) => {
       if (!prev) return prev;
@@ -157,6 +177,8 @@ export function BuildProvider({ children }) {
         applyGemstone,
         removeGemstone,
         setBookCount,
+        setSpecialValue,
+        toggleArtOfWar,
         toggleRecombobulated,
         applyReforge,
       }}

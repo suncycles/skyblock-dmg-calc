@@ -5,6 +5,7 @@ import { rarityColorCode, formatItemName } from '../lib/mcText';
 import { countGemstoneSlots, gemstoneSlotColumnOffsets, applyGemstonesToLore } from '../lib/gemstones';
 import { GEMSTONES } from '../lib/gemstoneData';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
+import { bumpRarity } from '../lib/recombobulator';
 import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
@@ -35,8 +36,9 @@ export default function GemstoneSlots() {
 
   function handleWeaponHover(e) {
     if (!weapon) return;
-    const lore = applyGemstonesToLore(weapon.lore || [], gemstones, weapon.tier);
-    showTooltip([`§${rarityColorCode(weapon.tier)}§l${formatItemName(weapon.name)}`, ...lore], e.currentTarget);
+    const displayTier = build.modifiers.recombobulated ? bumpRarity(weapon.tier) : weapon.tier;
+    const lore = applyGemstonesToLore(weapon.lore || [], gemstones, displayTier);
+    showTooltip([`§${rarityColorCode(displayTier)}§l${formatItemName(weapon.name)}`, ...lore], e.currentTarget);
   }
 
   const cells = [];
