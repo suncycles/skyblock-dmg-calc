@@ -138,6 +138,28 @@ export function toRoman(level) {
   return ROMAN[level] || String(level);
 }
 
+// weapons.json/armor.json categories don't all match NEU-REPO's own
+// enchant category keys 1:1 — NEU's enchants.json only has SWORD/BOW/
+// LONGSWORD for melee/ranged weapons (verified against a snapshot: no
+// "DUNGEON SWORD", "DUNGEON BOW", or "WAND" key exists at all), so those
+// categories were silently showing zero enchants rather than falling
+// back to the base weapon type they actually share enchants with in the
+// real game. Dungeon Longswords resolve to NEU's real "LONGSWORD" key
+// (a distinct enchant pool from plain swords), not "SWORD". Extend this
+// as armor categories need the same treatment (e.g. a future "DUNGEON
+// HELMET" category, if one turns out not to match NEU's "HELMET" key).
+const ENCHANT_CATEGORY_ALIASES = {
+  'DUNGEON SWORD': 'SWORD',
+  'THE WYLD SWORD': 'SWORD',
+  WAND: 'SWORD', // Wands/Staffs take Sword enchants in the real game
+  'DUNGEON BOW': 'BOW',
+  'DUNGEON LONGSWORD': 'LONGSWORD',
+};
+
+export function resolveEnchantCategory(category) {
+  return ENCHANT_CATEGORY_ALIASES[category] || category;
+}
+
 // NEU-REPO's category-list enchant ids don't always match the enchant's real
 // current display name, and titleCaseEnchantId's default "strip ultimate_,
 // title-case the rest" rule is wrong for a few specific ids. Verified against
