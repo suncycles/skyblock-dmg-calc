@@ -101,6 +101,20 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Fully unequips a slot (as opposed to selectItem, which replaces it) —
+  // the slot key is dropped from the loadout entirely rather than set to
+  // null, matching loadInitial/the rest of the app's "absent = nothing
+  // equipped" convention.
+  const removeSlot = useCallback((slot) => {
+    setLoadout((prev) => {
+      if (!prev[slot]) return prev;
+      const next = { ...prev };
+      delete next[slot];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // Applies (or replaces) a chosen level for one enchant. Ultimate enchants
   // occupy their own single slot (an item can only hold one); normal
   // enchants upsert into the list by id. removeIds (from
@@ -216,6 +230,7 @@ export function BuildProvider({ children }) {
       value={{
         loadout,
         selectItem,
+        removeSlot,
         applyEnchant,
         applyGemstone,
         removeGemstone,

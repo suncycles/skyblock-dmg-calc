@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
+import { useItemData } from '../context/ItemDataContext';
 import { useTooltip } from '../context/TooltipContext';
-import { rarityColorCode, formatItemName } from '../lib/mcText';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { SLOT_TEXTURES } from '../lib/icons';
+import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
@@ -21,7 +22,8 @@ const SLOT_COLUMNS = [1, 3, 5, 7];
 
 export default function ArmorSlotPicker() {
   const navigate = useNavigate();
-  const { loadout } = useBuild();
+  const { loadout, removeSlot } = useBuild();
+  const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
   function handleSlotClick(slot) {
@@ -34,8 +36,13 @@ export default function ArmorSlotPicker() {
       showTooltip([`§7${ARMOR_SLOT_LABELS[slot]}`, '§8Empty — click to pick one'], e.currentTarget);
       return;
     }
-    const { item } = equipped;
-    showTooltip([`§${rarityColorCode(item.tier)}${formatItemName(item.name)}`], e.currentTarget);
+    showTooltip(buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData), e.currentTarget);
+  }
+
+  function handleRemove(slot, e) {
+    e.stopPropagation();
+    hideTooltip();
+    removeSlot(slot);
   }
 
   const equippedCount = ARMOR_SLOTS.filter((slot) => loadout[slot]).length;
@@ -61,6 +68,15 @@ export default function ArmorSlotPicker() {
               <WeaponIcon id={equipped.item.id} material={equipped.item.material} alt={equipped.item.name} className={iconImg} />
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
+            )}
+            {equipped && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                title={`Remove ${ARMOR_SLOT_LABELS[slot]}`}
+                onClick={(e) => handleRemove(slot, e)}
+              >
+                🗑️
+              </span>
             )}
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
               {ARMOR_SLOT_LABELS[slot]}
