@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
@@ -10,6 +10,7 @@ import { applyReforgeToLore } from '../lib/reforges';
 import { applyBooksToLore } from '../lib/books';
 import { getSpecialConfig, applySpecialToLore } from '../lib/specialWeapons';
 import { canRecombobulate, bumpRarity, applyRecombToLore } from '../lib/recombobulator';
+import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 
@@ -46,11 +47,11 @@ function insertEnchantLines(lore, enchantLines) {
 }
 
 // 6 rows x 9 columns, matching the reference screenshot.
-// type: "empty" | "filler" | "weapon" | "icon" | "barrier"
+// type: "empty" | "filler" | "item" | "icon" | "barrier"
 const GRID_LAYOUT = [
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
   ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Enchantments', 'icon:Ultimate Enchantments', 'icon:Gemstones'],
-  ['empty', 'empty', 'empty', 'filler', 'weapon', 'filler', 'icon:Books', 'icon:Modifiers', 'icon:Special'],
+  ['empty', 'empty', 'empty', 'filler', 'item', 'filler', 'icon:Books', 'icon:Modifiers', 'icon:Special'],
   ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Reforges', 'icon:Item Upgrades', 'empty'],
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
   ['empty', 'empty', 'empty', 'empty', 'barrier:Close', 'empty', 'empty', 'empty', 'empty'],
@@ -72,25 +73,31 @@ const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 // they fill the slot edge-to-edge instead of sitting inset like item icons.
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
+// Opened per-slot (weapon or one of the 4 armor pieces — see
+// lib/armorSlots.js) via /hex/:slot; everything here operates on
+// loadout[slot] rather than "the" single equipped item.
 export default function Hex() {
+  const { slot } = useParams();
   const navigate = useNavigate();
   const { status, refresh, itemData } = useItemData();
-  const { build, toggleRecombobulated } = useBuild();
+  const { loadout, toggleRecombobulated } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
-  const weapon = build && build.weapon;
+  const item = loadout[slot] && loadout[slot].item;
+  const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || slot;
+  const closeTo = slot === 'weapon' ? '/weapon' : '/armor';
 
-  function handleWeaponHover(e) {
-    if (!weapon) return;
-    const modifiers = build.modifiers;
+  function handleItemHover(e) {
+    if (!item) return;
+    const modifiers = loadout[slot].modifiers;
     // Reforge bonuses scale off the item's *current* rarity, not the one
     // it was reforged at — recombobulating an already-reforged item is a
     // known real-game trick to bump the reforge's own bonus too — so this
     // has to be resolved before the reforge lookup below uses it.
-    const displayTier = modifiers.recombobulated ? bumpRarity(weapon.tier) : weapon.tier;
+    const displayTier = modifiers.recombobulated ? bumpRarity(item.tier) : item.tier;
 
     // Gemstone boosts scale with the item's *current* rarity too — same
     // reason as the reforge lookup below, resolved via displayTier.
-    let lore = applyGemstonesToLore(weapon.lore || [], modifiers.gemstones, displayTier);
+    let lore = applyGemstonesToLore(item.lore || [], modifiers.gemstones, displayTier);
     // Applied reforge could be either a free blacksmith one or a
     // stone-exclusive one — the two live in separate maps (see
     // worker/src/index.js), so check both.
@@ -99,19 +106,19 @@ export default function Hex() {
       : null;
     lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
     lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, lore.indexOf(''));
-    lore = applySpecialToLore(lore, weapon.id, modifiers.special);
+    lore = applySpecialToLore(lore, item.id, modifiers.special);
     lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
-    if (modifiers.recombobulated) lore = applyRecombToLore(lore, weapon.tier);
+    if (modifiers.recombobulated) lore = applyRecombToLore(lore, item.tier);
 
     const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
-    const title = `§${rarityColorCode(displayTier)}§l${reforgePrefix}${formatItemName(weapon.name)}`;
+    const title = `§${rarityColorCode(displayTier)}§l${reforgePrefix}${formatItemName(item.name)}`;
     showTooltip([title, ...lore], e.currentTarget);
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">The Hex</h1>
+        <h1 className="text-xl font-bold">The Hex — {slotLabel}</h1>
         <div className="flex items-center gap-2.5 text-[13px]">
           <span>{status}</span>
           <button className="text-[13px] px-3 py-1.5 cursor-pointer bg-neutral-200 text-black" onClick={refresh}>
@@ -127,14 +134,14 @@ export default function Hex() {
               const [type, label] = cellDef.split(':');
               const key = `${rowIdx}-${colIdx}`;
 
-              if (type === 'weapon') {
+              if (type === 'item') {
                 return (
-                  <div key={key} className={slotBase} onMouseEnter={handleWeaponHover} onMouseLeave={hideTooltip}>
-                    {weapon ? (
-                      <WeaponIcon id={weapon.id} material={weapon.material} alt={weapon.name} className={iconImg} />
+                  <div key={key} className={slotBase} onMouseEnter={handleItemHover} onMouseLeave={hideTooltip}>
+                    {item ? (
+                      <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />
                     ) : (
-                      <span title="No weapon selected — use Close to pick one" className="text-2xl">
-                        ⚔️
+                      <span title="No item selected — use Close to pick one" className="text-2xl">
+                        {slot === 'weapon' ? '⚔️' : '🛡️'}
                       </span>
                     )}
                   </div>
@@ -144,24 +151,24 @@ export default function Hex() {
               if (type === 'icon') {
                 const dest =
                   label === 'Enchantments'
-                    ? '/enchants'
+                    ? `/enchants/${slot}`
                     : label === 'Ultimate Enchantments'
-                      ? '/ultimate-enchants'
+                      ? `/ultimate-enchants/${slot}`
                       : label === 'Gemstones'
-                        ? '/gemstones'
+                        ? `/gemstones/${slot}`
                         : label === 'Books'
-                          ? '/books'
+                          ? `/books/${slot}`
                           : label === 'Reforges'
-                            ? '/reforges'
+                            ? `/reforges/${slot}`
                             : label === 'Special'
-                              ? '/special'
+                              ? `/special/${slot}`
                               : null;
 
                 // Gemstones/Books/Reforges only open for items that can
                 // actually use them — everything else (Item Upgrades) is
                 // still a dummy placeholder.
                 if (label === 'Gemstones') {
-                  const enabled = weapon && hasGemstoneSlots(weapon.lore);
+                  const enabled = item && hasGemstoneSlots(item.lore);
                   return (
                     <div
                       key={key}
@@ -175,13 +182,14 @@ export default function Hex() {
                 }
 
                 if (label === 'Books') {
-                  const enabled = Boolean(weapon);
-                  const applied = build?.modifiers?.books > 0 || Boolean(build?.modifiers?.artOfWar);
+                  const enabled = Boolean(item);
+                  const modifiers = loadout[slot] && loadout[slot].modifiers;
+                  const applied = Boolean(modifiers && (modifiers.books > 0 || modifiers.artOfWar));
                   return (
                     <div
                       key={key}
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
-                      title={enabled ? label : `${label} — select a weapon first`}
+                      title={enabled ? label : `${label} — select an item first`}
                       onClick={() => enabled && navigate(dest)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
@@ -191,10 +199,10 @@ export default function Hex() {
 
                 if (label === 'Reforges') {
                   const enabled =
-                    weapon &&
-                    (getApplicableReforges(itemData.reforges, weapon).length > 0 ||
-                      getApplicableReforges(itemData.reforgeStones, weapon).length > 0);
-                  const applied = Boolean(build?.modifiers?.reforge);
+                    item &&
+                    (getApplicableReforges(itemData.reforges, item).length > 0 ||
+                      getApplicableReforges(itemData.reforgeStones, item).length > 0);
+                  const applied = Boolean(loadout[slot] && loadout[slot].modifiers.reforge);
                   return (
                     <div
                       key={key}
@@ -208,13 +216,13 @@ export default function Hex() {
                 }
 
                 if (label === 'Special') {
-                  const enabled = Boolean(weapon && getSpecialConfig(weapon.id));
-                  const applied = enabled && build?.modifiers?.special > 0;
+                  const enabled = Boolean(item && getSpecialConfig(item.id));
+                  const applied = enabled && loadout[slot].modifiers.special > 0;
                   return (
                     <div
                       key={key}
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
-                      title={enabled ? 'Special — this weapon\'s own ability mechanic' : `${label} — no special ability mechanic for this item`}
+                      title={enabled ? 'Special — this item\'s own ability mechanic' : `${label} — no special ability mechanic for this item`}
                       onClick={() => enabled && navigate(dest)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
@@ -223,14 +231,14 @@ export default function Hex() {
                 }
 
                 if (label === 'Modifiers') {
-                  const enabled = weapon && canRecombobulate(weapon.tier);
-                  const applied = Boolean(build?.modifiers?.recombobulated);
+                  const enabled = item && canRecombobulate(item.tier);
+                  const applied = Boolean(loadout[slot] && loadout[slot].modifiers.recombobulated);
                   return (
                     <div
                       key={key}
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
                       title={enabled ? 'Recombobulator 3000 — click to toggle' : `${label} — this item can't be recombobulated`}
-                      onClick={() => enabled && toggleRecombobulated()}
+                      onClick={() => enabled && toggleRecombobulated(slot)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
                     </div>
@@ -251,7 +259,7 @@ export default function Hex() {
 
               if (type === 'barrier') {
                 return (
-                  <div key={key} className={interactiveIcon} title={label} onClick={() => navigate('/')}>
+                  <div key={key} className={interactiveIcon} title={label} onClick={() => navigate(closeTo)}>
                     <img src={SLOT_TEXTURES.close} alt={label} className={iconImg} />
                   </div>
                 );

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
@@ -29,14 +29,17 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // local selection; the applied enchant (if any) is read from BuildContext
 // so it stays highlighted after coming back from the picker.
 export default function EnchantList({ ultimate }) {
+  const { slot } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { build } = useBuild();
+  const { loadout } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
   const hoveredIdRef = useRef(null);
 
-  const category = build && build.weapon && build.weapon.category;
+  const item = loadout[slot] && loadout[slot].item;
+  const modifiers = loadout[slot] && loadout[slot].modifiers;
+  const category = item && item.category;
 
   const enchantIds = useMemo(() => {
     const byCategory = (itemData.enchants && itemData.enchants.enchants) || {};
@@ -47,22 +50,22 @@ export default function EnchantList({ ultimate }) {
 
   const appliedIds = useMemo(() => {
     const set = new Set();
-    if (build && build.modifiers && build.modifiers.ultimateEnchantment) {
-      set.add(build.modifiers.ultimateEnchantment.id);
+    if (modifiers && modifiers.ultimateEnchantment) {
+      set.add(modifiers.ultimateEnchantment.id);
     }
-    ((build && build.modifiers && build.modifiers.hexEnchantments) || []).forEach((e) => set.add(e.id));
+    (modifiers && modifiers.hexEnchantments || []).forEach((e) => set.add(e.id));
     return set;
-  }, [build]);
+  }, [modifiers]);
 
   const totalPages = Math.max(1, Math.ceil(enchantIds.length / PAGE_SIZE));
   const pageIds = enchantIds.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   const noun = ultimate ? 'ultimate enchants' : 'enchants';
-  const contextText = !build || !build.weapon
-    ? 'No weapon selected — go back and pick one to see applicable enchants.'
+  const contextText = !item
+    ? 'No item selected — go back and pick one to see applicable enchants.'
     : enchantIds.length === 0
-      ? `Enchanting: ${formatItemName(build.weapon.name)} — no cached ${noun} for category "${category}".`
-      : `Enchanting: ${formatItemName(build.weapon.name)} (${enchantIds.length} ${noun} available)`;
+      ? `Enchanting: ${formatItemName(item.name)} — no cached ${noun} for category "${category}".`
+      : `Enchanting: ${formatItemName(item.name)} (${enchantIds.length} ${noun} available)`;
 
   function handleEnchantHover(id, e) {
     hoveredIdRef.current = id;
@@ -76,7 +79,7 @@ export default function EnchantList({ ultimate }) {
       const lines = [`§b§l${displayName}`, '', ...(effect || ['§7No effect data available.'])];
 
       if (levels.length > 0) {
-        const warnings = computeConflictWarnings(id, levels[0].lore, build && build.modifiers);
+        const warnings = computeConflictWarnings(id, levels[0].lore, modifiers);
         if (warnings.length > 0) {
           lines.push('', ...warnings.map((name) => `§c${name} will be removed`));
         }
@@ -107,7 +110,7 @@ export default function EnchantList({ ultimate }) {
             <div
               key={key}
               className={`${slotBase} cursor-pointer hover:brightness-110 ${appliedIds.has(id) ? 'bg-green-400' : ''}`}
-              onClick={() => navigate(`/enchant-levels/${encodeURIComponent(id)}`)}
+              onClick={() => navigate(`/enchant-levels/${slot}/${encodeURIComponent(id)}`)}
               onMouseEnter={(e) => handleEnchantHover(id, e)}
               onMouseLeave={handleEnchantLeave}
             >
@@ -135,7 +138,7 @@ export default function EnchantList({ ultimate }) {
         );
       } else if (isNavRow && col === 4) {
         cells.push(
-          <div key={key} className={navSlot} title="Close" onClick={() => navigate('/hex')}>
+          <div key={key} className={navSlot} title="Close" onClick={() => navigate(`/hex/${slot}`)}>
             <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
           </div>,
         );

@@ -2,7 +2,13 @@ import { Routes, Route } from 'react-router-dom';
 import { ItemDataProvider } from './context/ItemDataContext';
 import { BuildProvider } from './context/BuildContext';
 import { TooltipProvider } from './context/TooltipContext';
+import Landing from './pages/Landing';
 import WeaponPicker from './pages/WeaponPicker';
+import ArmorSlotPicker from './pages/ArmorSlotPicker';
+import ArmorItemPicker from './pages/ArmorItemPicker';
+import PetPicker from './pages/PetPicker';
+import PetDetail from './pages/PetDetail';
+import PetItemPicker from './pages/PetItemPicker';
 import Hex from './pages/Hex';
 import EnchantList from './pages/EnchantList';
 import EnchantLevels from './pages/EnchantLevels';
@@ -24,18 +30,24 @@ export default function App() {
       <BuildProvider>
         <TooltipProvider>
           <Routes>
-            <Route path="/" element={<WeaponPicker />} />
-            <Route path="/hex" element={<Hex />} />
-            <Route path="/enchants" element={<EnchantList ultimate={false} />} />
-            <Route path="/ultimate-enchants" element={<EnchantList ultimate />} />
-            <Route path="/enchant-levels/:enchantId" element={<EnchantLevels />} />
-            <Route path="/gemstones" element={<GemstoneSlots />} />
-            <Route path="/gemstones/:slotIndex" element={<GemstoneTypePicker />} />
-            <Route path="/gemstones/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
-            <Route path="/books" element={<BooksPicker />} />
-            <Route path="/reforges" element={<ReforgesPicker blacksmith={false} />} />
-            <Route path="/reforges/blacksmith" element={<ReforgesPicker blacksmith />} />
-            <Route path="/special" element={<SpecialPicker />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/weapon" element={<WeaponPicker />} />
+            <Route path="/armor" element={<ArmorSlotPicker />} />
+            <Route path="/armor/:slot" element={<ArmorItemPicker />} />
+            <Route path="/pet" element={<PetPicker />} />
+            <Route path="/pet/detail" element={<PetDetail />} />
+            <Route path="/pet/item" element={<PetItemPicker />} />
+            <Route path="/hex/:slot" element={<Hex />} />
+            <Route path="/enchants/:slot" element={<EnchantList ultimate={false} />} />
+            <Route path="/ultimate-enchants/:slot" element={<EnchantList ultimate />} />
+            <Route path="/enchant-levels/:slot/:enchantId" element={<EnchantLevels />} />
+            <Route path="/gemstones/:slot" element={<GemstoneSlots />} />
+            <Route path="/gemstones/:slot/:slotIndex" element={<GemstoneTypePicker />} />
+            <Route path="/gemstones/:slot/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
+            <Route path="/books/:slot" element={<BooksPicker />} />
+            <Route path="/reforges/:slot" element={<ReforgesPicker blacksmith={false} />} />
+            <Route path="/reforges/:slot/blacksmith" element={<ReforgesPicker blacksmith />} />
+            <Route path="/special/:slot" element={<SpecialPicker />} />
           </Routes>
           <div className="fixed bottom-1 right-2 text-[10px] text-neutral-500 pointer-events-none select-none">
             Latest deploy: {deployTime}

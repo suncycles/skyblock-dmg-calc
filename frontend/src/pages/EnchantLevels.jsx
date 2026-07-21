@@ -24,12 +24,13 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // one applies it to the build and backs out to whichever list (normal or
 // ultimate) opened this — browser history, since either can lead here.
 export default function EnchantLevels() {
-  const { enchantId } = useParams();
+  const { slot, enchantId } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { build, applyEnchant } = useBuild();
+  const { loadout, applyEnchant } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [levels, setLevels] = useState(null); // null = loading
+  const modifiers = loadout[slot] && loadout[slot].modifiers;
 
   useEffect(() => {
     let cancelled = false;
@@ -47,14 +48,14 @@ export default function EnchantLevels() {
   const maxLevel = levels && levels.length > 0 ? levels[levels.length - 1].level : null;
 
   const appliedLevel = ultimate
-    ? build?.modifiers?.ultimateEnchantment?.id === enchantId
-      ? build.modifiers.ultimateEnchantment.level
+    ? modifiers?.ultimateEnchantment?.id === enchantId
+      ? modifiers.ultimateEnchantment.level
       : null
-    : (build?.modifiers?.hexEnchantments || []).find((e) => e.id === enchantId)?.level ?? null;
+    : (modifiers?.hexEnchantments || []).find((e) => e.id === enchantId)?.level ?? null;
 
   function handleSelect(levelEntry) {
-    const conflicts = computeConflictingEntries(enchantId, levelEntry.lore, build && build.modifiers);
-    applyEnchant(enchantId, levelEntry.level, maxLevel, conflicts.map((e) => e.id));
+    const conflicts = computeConflictingEntries(enchantId, levelEntry.lore, modifiers);
+    applyEnchant(slot, enchantId, levelEntry.level, maxLevel, conflicts.map((e) => e.id));
     navigate(-1);
   }
 
@@ -79,7 +80,7 @@ export default function EnchantLevels() {
               className={`${slotBase} relative cursor-pointer hover:brightness-110 ${isApplied ? 'bg-green-400' : ''}`}
               onClick={() => handleSelect(levelEntry)}
               onMouseEnter={(e) => {
-                const conflicts = computeConflictingEntries(enchantId, levelEntry.lore, build && build.modifiers);
+                const conflicts = computeConflictingEntries(enchantId, levelEntry.lore, modifiers);
                 const lines =
                   conflicts.length > 0
                     ? [

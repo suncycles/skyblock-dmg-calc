@@ -14,12 +14,12 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // goes in this slot. Spec allows any gem in any slot for now, so this
 // doesn't check the slot's restriction icon.
 export default function GemstoneTypePicker() {
-  const { slotIndex } = useParams();
+  const { slot, slotIndex } = useParams();
   const navigate = useNavigate();
-  const { build, removeGemstone } = useBuild();
+  const { loadout, removeGemstone } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const idx = Number(slotIndex);
-  const current = build?.modifiers?.gemstones?.[idx];
+  const current = loadout[slot]?.modifiers?.gemstones?.[idx];
 
   const cells = [];
   for (let row = 0; row < 6; row++) {
@@ -38,7 +38,7 @@ export default function GemstoneTypePicker() {
               key={key}
               className={`${slotBase} cursor-pointer hover:brightness-110 ${current?.gem === gemId ? 'bg-green-400' : ''}`}
               title={`${gem.label} (${gem.statLabel})`}
-              onClick={() => navigate(`/gemstones/${idx}/${gemId}`)}
+              onClick={() => navigate(`/gemstones/${slot}/${idx}/${gemId}`)}
               onMouseEnter={(e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget)}
               onMouseLeave={hideTooltip}
             >
@@ -65,8 +65,8 @@ export default function GemstoneTypePicker() {
             className={navSlot}
             title="Remove Gemstone"
             onClick={() => {
-              removeGemstone(idx);
-              navigate('/gemstones');
+              removeGemstone(slot, idx);
+              navigate(`/gemstones/${slot}`);
             }}
           >
             🗑️
@@ -74,7 +74,7 @@ export default function GemstoneTypePicker() {
         );
       } else if (row === 5 && col === 4) {
         cells.push(
-          <div key={key} className={navSlot} title="Close" onClick={() => navigate('/gemstones')}>
+          <div key={key} className={navSlot} title="Close" onClick={() => navigate(`/gemstones/${slot}`)}>
             <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
           </div>,
         );

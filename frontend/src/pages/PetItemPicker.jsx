@@ -3,25 +3,25 @@ import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import ItemPicker from './ItemPicker';
 
-export default function WeaponPicker() {
+export default function PetItemPicker() {
   const { itemData, loading, error } = useItemData();
-  const { selectItem } = useBuild();
+  const { setPetItem } = useBuild();
   const navigate = useNavigate();
 
-  function handleSelect(weapon) {
-    selectItem('weapon', weapon);
-    navigate('/hex/weapon');
+  function handleSelect(item) {
+    setPetItem(item.id);
+    navigate('/pet/detail');
   }
 
   return (
     <ItemPicker
-      items={itemData.weapons}
-      title="Pick a Weapon"
-      placeholder="Search weapons..."
+      items={itemData.petItems || []}
+      title="Pick a Pet Item"
+      placeholder="Search pet items..."
       loading={loading}
       error={error}
       onSelect={handleSelect}
-      onBack={() => navigate('/')}
+      onBack={() => navigate('/pet/detail')}
     />
   );
 }

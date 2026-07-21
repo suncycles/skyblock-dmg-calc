@@ -154,6 +154,13 @@ const ENCHANT_CATEGORY_ALIASES = {
   WAND: 'SWORD', // Wands/Staffs take Sword enchants in the real game
   'DUNGEON BOW': 'BOW',
   'DUNGEON LONGSWORD': 'LONGSWORD',
+  // Unlike the weapon dungeon variants above, plain HELMET/CHESTPLATE/
+  // LEGGINGS/BOOTS already match NEU's real enchants.json keys directly —
+  // only the DUNGEON-prefixed armor categories need aliasing.
+  'DUNGEON HELMET': 'HELMET',
+  'DUNGEON CHESTPLATE': 'CHESTPLATE',
+  'DUNGEON LEGGINGS': 'LEGGINGS',
+  'DUNGEON BOOTS': 'BOOTS',
 };
 
 export function resolveEnchantCategory(category) {
