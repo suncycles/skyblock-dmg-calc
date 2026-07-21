@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine } from '../lib/mcText';
-import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, MAX_PET_LEVEL } from '../lib/petData';
+import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
@@ -30,6 +30,7 @@ export default function PetDetail() {
   const level = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.level) ?? 0;
   const petItemId = loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.petItem;
   const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+  const maxLevel = pet ? getMaxPetLevel(pet.petId) : MAX_PET_LEVEL;
 
   // Decoupled from `level` itself so the field can sit empty mid-edit
   // (e.g. backspacing "1" to retype "29") without every keystroke
@@ -62,12 +63,12 @@ export default function PetDetail() {
     if (rawLore === null) return [`§${tierColor}§l${pet.name}`, '', '§7Loading...'];
     if (rawLore === false) return [`§${tierColor}§l[Lvl ${level}] ${pet.name}`, '§7No lore available.'];
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-    const stats = computeAllPetStats(levels, level);
-    const otherNums = computeOtherNums(levels, level);
+    const stats = computeAllPetStats(levels, level, maxLevel);
+    const otherNums = computeOtherNums(levels, level, maxLevel);
     const lore = substitutePetLore(rawLore.lore, level, stats, otherNums);
     const title = (rawLore.displayname || `§${tierColor}§l${pet.name}`).replace('{LVL}', String(level));
     return [formatItemName(title), ...lore];
-  }, [pet, rawLore, level, itemData.pets]);
+  }, [pet, rawLore, level, maxLevel, itemData.pets]);
 
   if (!pet) {
     return (
@@ -92,9 +93,15 @@ export default function PetDetail() {
     setLevelInput(raw);
     if (raw === '') return; // let it sit empty mid-edit; committed on blur
     const num = Number(raw);
-    if (!Number.isNaN(num)) {
-      setPetLevel(Math.max(0, Math.min(MAX_PET_LEVEL, Math.floor(num))));
-    }
+    if (Number.isNaN(num)) return;
+    const clamped = Math.max(0, Math.min(maxLevel, Math.floor(num)));
+    setPetLevel(clamped);
+    // Only the out-of-range case needs an explicit re-sync: if `clamped`
+    // happens to equal whatever `level` already was (e.g. typing "250"
+    // when already at the 200 cap), the level-changed effect below won't
+    // fire (the number genuinely didn't change), so the field would
+    // otherwise keep showing the raw unclamped "250" forever.
+    if (clamped !== num) setLevelInput(String(clamped));
   }
 
   function handleLevelBlur() {
@@ -122,13 +129,13 @@ export default function PetDetail() {
           </div>
 
           <label className="text-sm font-bold text-black" htmlFor="pet-level">
-            Level (0-{MAX_PET_LEVEL})
+            Level (0-{maxLevel})
           </label>
           <input
             id="pet-level"
             type="number"
             min="0"
-            max={MAX_PET_LEVEL}
+            max={maxLevel}
             step="1"
             value={levelInput}
             onChange={handleLevelChange}

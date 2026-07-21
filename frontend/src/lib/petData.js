@@ -15,7 +15,21 @@
    like reforge stones/pet items' own real lore, and the placeholders are
    substituted here using the same interpolated values. */
 
-export const MAX_PET_LEVEL = 100; // real cap is 200 for the 3 dragon pets — not modeled yet
+export const MAX_PET_LEVEL = 100; // default cap — 3 dragon pets go higher, see EXTENDED_MAX_LEVELS below
+
+// Golden/Jade/Rose Dragon are the only 3 pets that level past 100 (real
+// cap 200) — verified against NEU-REPO's constants/pets.json
+// (custom_pet_leveling) and petnums.json (each has a
+// "stats_levelling_curve": "101:200:1" marker on its one LEGENDARY entry,
+// meaning levels 101-200 just continue the same per-level rate
+// established between the 1 and 100 checkpoints — no new checkpoint/curve
+// exists for 200, so interpolateValue's rate calculation below is left
+// untouched and just allowed to run past its usual level-100 ceiling.
+const EXTENDED_MAX_LEVELS = { GOLDEN_DRAGON: 200, JADE_DRAGON: 200, ROSE_DRAGON: 200 };
+
+export function getMaxPetLevel(petId) {
+  return EXTENDED_MAX_LEVELS[petId] || MAX_PET_LEVEL;
+}
 
 // Standard Hypixel legacy pet-rarity ordinal scheme, verified against
 // NEU-REPO ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
@@ -61,17 +75,22 @@ export function getAvailableRarities(petsRaw, petId) {
   return PET_RARITY_ORDER.filter((r) => byRarity[r] && byRarity[r]['1'] && byRarity[r]['100']);
 }
 
+// `maxLevel` only clamps how high `level` is allowed to go (100 normally,
+// 200 for the 3 dragon pets) — the interpolation rate itself is always
+// anchored on the level-1/level-100 checkpoint pair petnums.json actually
+// provides (99 steps), so levels 101-200 extrapolate that same rate
+// rather than getting compressed into a 0..1 fraction of a 200-level
+// span that has no real level-200 checkpoint to interpolate toward.
 export function interpolateValue(level1Val, level100Val, level, maxLevel = MAX_PET_LEVEL) {
   const clampedLevel = Math.max(1, Math.min(level || 1, maxLevel));
-  if (maxLevel <= 1) return level1Val;
-  const t = (clampedLevel - 1) / (maxLevel - 1);
+  const t = (clampedLevel - 1) / 99;
   return Math.round((level1Val + (level100Val - level1Val) * t) * 10) / 10;
 }
 
 // Unfiltered, uppercase-keyed — used to fill in a real lore template's
 // {STAT_NAME} placeholders, which reference NEU's own stat key spelling
 // directly (unlike the damage-calc's own lowercase STAT_LABELS keys).
-export function computeAllPetStats(levels, level) {
+export function computeAllPetStats(levels, level, maxLevel = MAX_PET_LEVEL) {
   if (!levels) return {};
   const level1 = (levels['1'] && levels['1'].statNums) || {};
   const level100 = (levels['100'] && levels['100'].statNums) || {};
@@ -79,18 +98,18 @@ export function computeAllPetStats(levels, level) {
   for (const [key, level1Val] of Object.entries(level1)) {
     const level100Val = level100[key];
     if (level100Val === undefined) continue;
-    result[key] = interpolateValue(level1Val, level100Val, level);
+    result[key] = interpolateValue(level1Val, level100Val, level, maxLevel);
   }
   return result;
 }
 
 // otherNums are positional (ability-specific, unlabeled) numbers a pet's
 // real lore references as {0}, {1}, {2}... in order.
-export function computeOtherNums(levels, level) {
+export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
   if (!levels) return [];
   const level1 = (levels['1'] && levels['1'].otherNums) || [];
   const level100 = (levels['100'] && levels['100'].otherNums) || [];
-  return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level));
+  return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level, maxLevel));
 }
 
 function formatPlaceholderNum(n) {
