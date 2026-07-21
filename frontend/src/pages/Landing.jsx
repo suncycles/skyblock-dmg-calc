@@ -88,7 +88,10 @@ export default function Landing() {
       return;
     }
     const { item, modifiers } = loadout.pet;
-    showTooltip([`§${rarityColorCode(item.tier)}${formatItemName(item.name)}`, `§7Level ${modifiers.level}`], e.currentTarget);
+    const lines = [`§${rarityColorCode(item.tier)}${formatItemName(item.name)}`, `§7Level ${modifiers.level}`];
+    const petItem = modifiers.petItem ? (itemData.petItems || []).find((i) => i.id === modifiers.petItem) : null;
+    if (petItem) lines.push(`§7Held Item: §${rarityColorCode(petItem.tier)}${formatItemName(petItem.name)}`);
+    showTooltip(lines, e.currentTarget);
   }
 
   // One small helper covers both gear columns — same slot cell shape
