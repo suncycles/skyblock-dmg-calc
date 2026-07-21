@@ -29,13 +29,8 @@
    restrictions correctly resolve to zero matches here rather than being
    approximated. */
 
-// Maps our weapons.json `category` values to every reforge-table itemTypes
-// spelling that should match it. "EQUIPMENT" is deliberately NOT added
-// automatically here: despite the name, Hypixel's "Equipment" is a
-// separate gear category (Necklace/Cloak/Belt/Gloves — effectively a
-// second armor set), not a universal weapon+armor pool. This project
-// doesn't model Equipment slots yet, so weapons should never match
-// EQUIPMENT-typed reforges at all.
+// Maps our weapons.json/armor.json/equipment.json `category` values to
+// every reforge-table itemTypes spelling that should match it.
 const CATEGORY_TO_REFORGE_TYPES = {
   SWORD: ['SWORD/ROD', 'SWORD'],
   'DUNGEON SWORD': ['SWORD/ROD', 'SWORD'],
@@ -55,6 +50,19 @@ const CATEGORY_TO_REFORGE_TYPES = {
   'DUNGEON LEGGINGS': ['ARMOR'],
   BOOTS: ['ARMOR'],
   'DUNGEON BOOTS': ['ARMOR'],
+  // Equipment (Necklace/Cloak/Belt/Gloves) reforges mostly share one
+  // generic 'EQUIPMENT' itemTypes bucket, the same way armor shares
+  // 'ARMOR' — 'CLOAK' and 'BELT' also each have a handful of
+  // piece-specific entries (verified against a NEU-REPO snapshot; no
+  // piece-specific 'NECKLACE' or 'GLOVES' entries exist).
+  NECKLACE: ['EQUIPMENT'],
+  'DUNGEON NECKLACE': ['EQUIPMENT'],
+  CLOAK: ['EQUIPMENT', 'CLOAK'],
+  'DUNGEON CLOAK': ['EQUIPMENT', 'CLOAK'],
+  BELT: ['EQUIPMENT', 'BELT'],
+  'DUNGEON BELT': ['EQUIPMENT', 'BELT'],
+  GLOVES: ['EQUIPMENT'],
+  'DUNGEON GLOVES': ['EQUIPMENT'],
 };
 
 // Stat-line label + color a reforge bonus should render with when

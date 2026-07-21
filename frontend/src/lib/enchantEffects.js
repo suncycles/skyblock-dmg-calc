@@ -161,6 +161,13 @@ const ENCHANT_CATEGORY_ALIASES = {
   'DUNGEON CHESTPLATE': 'CHESTPLATE',
   'DUNGEON LEGGINGS': 'LEGGINGS',
   'DUNGEON BOOTS': 'BOOTS',
+  // Same story for equipment: NECKLACE/CLOAK/BELT/GLOVES all match NEU's
+  // enchants.json keys directly (verified against a snapshot), only the
+  // DUNGEON-prefixed variants need aliasing.
+  'DUNGEON NECKLACE': 'NECKLACE',
+  'DUNGEON CLOAK': 'CLOAK',
+  'DUNGEON BELT': 'BELT',
+  'DUNGEON GLOVES': 'GLOVES',
 };
 
 export function resolveEnchantCategory(category) {
