@@ -10,10 +10,23 @@
  * skins (a real Mojang skin texture referenced via SkullOwner in the
  * item's own NBT), not a resource-pack-overridden vanilla texture — but
  * that same NBT is exactly what Hypixel's own UI renders as the item's
- * icon, so this extracts the skin's profile UUID and renders a real head
- * icon via mc-heads.net (a public Minecraft-skin-render service;
- * crafatar.com, the other common one, returned HTTP 521 when checked)
- * instead of guessing at a texture-pack match.
+ * icon, so this extracts the skin texture and renders a real head icon
+ * via mc-heads.net (a public Minecraft-skin-render service; crafatar.com,
+ * the other common one, returned HTTP 521 when checked) instead of
+ * guessing at a texture-pack match.
+ *
+ * IMPORTANT: must key the render off the texture hash
+ * (textures.SKIN.url's last path segment), NOT off `profileId`.
+ * `profileId` is the real Mojang account UUID of whichever player that
+ * skin was captured from — mc-heads.net's /avatar/{uuid} route resolves
+ * that UUID to the account's CURRENT live skin (same as Mojang's session
+ * API), which has nothing to do with the skin actually baked into the
+ * item; that account may have since changed skins entirely. The texture
+ * hash is a content-addressed id of that exact skin image and never
+ * changes, and mc-heads.net accepts it as a drop-in replacement for a
+ * UUID in the same /avatar/{id}/{size} route. Verified directly: querying
+ * by CROWN_OF_AVARICE's profileId rendered a random real player's face;
+ * querying by its texture hash rendered the correct gold/black crown.
  *
  * Output goes to the same frontend/public/images/skyblock/{ID}.png path
  * apply-hypixel-textures.mjs already writes to — getSkyblockIcon()/
@@ -47,31 +60,36 @@ const HEAD_RENDER_SIZE = 100;
 // only need whichever one resolves first.
 const RARITY_ORDINALS = [4, 3, 2, 5, 1, 0];
 
-function extractSkinUuid(nbttag) {
+function extractSkinTextureHash(nbttag) {
   const m = /Value:"([^"]+)"/.exec(nbttag || '');
   if (!m) return null;
   try {
     const decoded = JSON.parse(Buffer.from(m[1], 'base64').toString('utf8'));
-    return decoded.profileId || null;
+    const url = decoded.textures?.SKIN?.url;
+    if (!url) return null;
+    return url.split('/').pop() || null;
   } catch {
     return null;
   }
 }
 
-async function fetchSkinUuid(itemId) {
+async function fetchSkinTextureHash(itemId) {
   try {
     const res = await fetch(`${NEU_ITEMS_BASE}/${encodeURIComponent(itemId)}.json`);
     if (!res.ok) return null;
     const data = await res.json();
-    return extractSkinUuid(data.nbttag);
+    return extractSkinTextureHash(data.nbttag);
   } catch {
     return null;
   }
 }
 
-async function saveHeadRender(uuid, outPath) {
+async function saveHeadRender(textureHash, outPath) {
   try {
-    const res = await fetch(`https://mc-heads.net/avatar/${uuid}/${HEAD_RENDER_SIZE}`);
+    // /head/ (not /avatar/) — the isometric 3D cube render, matching the
+    // style Hypixel's own resource-pack icons use, rather than a flat 2D
+    // face crop.
+    const res = await fetch(`https://mc-heads.net/head/${textureHash}/${HEAD_RENDER_SIZE}`);
     if (!res.ok) return false;
     const buf = Buffer.from(await res.arrayBuffer());
     writeFileSync(outPath, buf);
@@ -109,9 +127,9 @@ async function main() {
   );
   console.log(`${skullItems.length} skull-based weapon/armor items missing an icon...`);
   const itemResult = await runBatched(skullItems, async (item) => {
-    const uuid = await fetchSkinUuid(item.id);
-    if (!uuid) return false;
-    return saveHeadRender(uuid, path.join(OUT_DIR, `${item.id}.png`));
+    const hash = await fetchSkinTextureHash(item.id);
+    if (!hash) return false;
+    return saveHeadRender(hash, path.join(OUT_DIR, `${item.id}.png`));
   });
   console.log(`  saved ${itemResult.ok}/${itemResult.done}`);
 
@@ -121,8 +139,8 @@ async function main() {
   console.log(`${petIds.length} pets missing an icon...`);
   const petResult = await runBatched(petIds, async (petId) => {
     for (const ordinal of RARITY_ORDINALS) {
-      const uuid = await fetchSkinUuid(`${petId};${ordinal}`);
-      if (uuid) return saveHeadRender(uuid, path.join(OUT_DIR, `${petId}.png`));
+      const hash = await fetchSkinTextureHash(`${petId};${ordinal}`);
+      if (hash) return saveHeadRender(hash, path.join(OUT_DIR, `${petId}.png`));
     }
     return false;
   });
