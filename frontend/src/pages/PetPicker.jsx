@@ -1,20 +1,23 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
-import { useBuild } from '../context/BuildContext';
-import { getFlattenedPets } from '../lib/petData';
+import { getUniquePets } from '../lib/petData';
 import ItemPicker from './ItemPicker';
 
+// Step 1 of picking a pet: choose the species. Rarity (step 2, which
+// together with level determines its real stats) is picked next on
+// PetRarityPicker — same 2-step flow as gemstones (type, then tier).
 export default function PetPicker() {
   const { itemData, loading, error } = useItemData();
-  const { selectItem } = useBuild();
   const navigate = useNavigate();
 
-  const items = useMemo(() => getFlattenedPets(itemData.pets), [itemData.pets]);
+  const items = useMemo(
+    () => getUniquePets(itemData.pets).map((p) => ({ id: p.petId, name: p.name, material: 'BONE' })),
+    [itemData.pets],
+  );
 
   function handleSelect(pet) {
-    selectItem('pet', pet);
-    navigate('/pet/detail');
+    navigate(`/pet/${pet.id}`);
   }
 
   return (
