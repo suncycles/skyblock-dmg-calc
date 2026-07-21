@@ -116,13 +116,41 @@ function formatPlaceholderNum(n) {
   return String(Math.round(n * 10) / 10);
 }
 
+// Every pet's real NEU-REPO lore ends with a "Right-click to add this
+// pet to your pet menu!" hint — a real in-game mechanic (summoning a pet
+// from your collection) that's just noise in a calculator that only
+// ever shows one pet at a time. Dropped as a whole blank-line-bounded
+// paragraph (not a fixed line count) so it doesn't matter how many
+// lines the sentence wraps to.
+function removeAddToPetMenuHint(loreLines) {
+  const paragraphs = [];
+  let current = [];
+  for (const line of loreLines) {
+    if (line === '') {
+      paragraphs.push(current);
+      current = [];
+    } else {
+      current.push(line);
+    }
+  }
+  paragraphs.push(current);
+
+  const kept = paragraphs.filter((p) => !p.some((l) => /add this pet to your/i.test(l.replace(/§./g, ''))));
+  const result = [];
+  kept.forEach((p, i) => {
+    if (i > 0) result.push('');
+    result.push(...p);
+  });
+  return result;
+}
+
 // Fills in a real pet item lore template's {LVL}/{STAT_NAME}/{0}{1}{2}...
 // placeholders with this level's interpolated values. Any placeholder
 // with no matching value (e.g. a stat this pet doesn't have) is left
 // as-is rather than silently dropped, so a gap is visible rather than
 // hidden.
 export function substitutePetLore(loreLines, level, statValues, otherNumValues) {
-  return loreLines.map((line) =>
+  const substituted = loreLines.map((line) =>
     line
       .replace(/\{LVL\}/g, String(level))
       .replace(/\{([A-Z_]+)\}/g, (m, key) => (statValues[key] !== undefined ? formatPlaceholderNum(statValues[key]) : m))
@@ -130,4 +158,5 @@ export function substitutePetLore(loreLines, level, statValues, otherNumValues) 
         otherNumValues[Number(idx)] !== undefined ? formatPlaceholderNum(otherNumValues[Number(idx)]) : m,
       ),
   );
+  return removeAddToPetMenuHint(substituted);
 }

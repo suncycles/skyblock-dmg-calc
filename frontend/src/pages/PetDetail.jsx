@@ -5,6 +5,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine } from '../lib/mcText';
 import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
+import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from '../lib/petItemEffects';
 import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
@@ -76,12 +77,28 @@ export default function PetDetail() {
     if (rawLore === null) return [`§${tierColor}§l${pet.name}`, '', '§7Loading...'];
     if (rawLore === false) return [`§${tierColor}§l[Lvl ${level}] ${pet.name}`, '§7No lore available.'];
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-    const stats = computeAllPetStats(levels, level, maxLevel);
+    let stats = computeAllPetStats(levels, level, maxLevel);
+    // A held Pet Item can boost one or all of the pet's own stats by a
+    // percentage (e.g. Antique Remedies: +80% Strength) — apply it before
+    // the {STAT_NAME} placeholders below get filled in, so the boosted
+    // number is what actually shows on the pet's tooltip, not the base
+    // value. Pure XP/coin pet items parse to no boost and are a no-op.
+    const statBoost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+    stats = applyPetItemStatBoost(stats, statBoost);
     const otherNums = computeOtherNums(levels, level, maxLevel);
     const lore = substitutePetLore(rawLore.lore, level, stats, otherNums);
     const title = (rawLore.displayname || `§${tierColor}§l${pet.name}`).replace('{LVL}', String(level));
-    return [formatItemName(title), ...lore];
-  }, [pet, rawLore, level, maxLevel, itemData.pets]);
+    // Held Item shown as its own line (colored by the pet item's own
+    // rarity, like a real item name would be), followed by its real
+    // effect description lines (as-authored colors/wrapping) so the
+    // boost applied above is visibly explained, not just silently baked
+    // into the stat numbers above.
+    const heldItemLines = petItem
+      ? [`§7Held Item: §${rarityColorCode(petItem.tier)}${formatItemName(petItem.name)}`, ...(extractPetItemEffectLines(petItem.lore) || [])]
+      : [];
+    const withHeldItem = heldItemLines.length > 0 ? [...lore.slice(0, -1), ...heldItemLines, lore[lore.length - 1]] : lore;
+    return [formatItemName(title), ...withHeldItem];
+  }, [pet, rawLore, level, maxLevel, itemData.pets, petItem]);
 
   if (!pet) {
     return (
@@ -179,12 +196,23 @@ export default function PetDetail() {
             </div>
           </div>
 
-          <button
-            className="self-start px-3 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
-            onClick={() => navigate('/pet')}
-          >
-            Back
-          </button>
+          <div className="flex gap-1">
+            <button
+              className="px-3 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
+              onClick={() => navigate('/pet')}
+            >
+              Back
+            </button>
+            {/* Detail is 2 levels deep (species list, then rarity) from
+                the home grid — a direct shortcut beats clicking Back
+                twice. */}
+            <button
+              className="px-3 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
+              onClick={() => navigate('/')}
+            >
+              Home
+            </button>
+          </div>
         </div>
 
         <div className="mc-tooltip" style={{ position: 'static', fontSize: '11px', lineHeight: 1.35, maxWidth: 260 }}>
