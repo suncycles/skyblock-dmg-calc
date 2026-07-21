@@ -7,6 +7,7 @@ import WeaponPicker from './pages/WeaponPicker';
 import ArmorSlotPicker from './pages/ArmorSlotPicker';
 import ArmorItemPicker from './pages/ArmorItemPicker';
 import PetPicker from './pages/PetPicker';
+import PetRarityPicker from './pages/PetRarityPicker';
 import PetDetail from './pages/PetDetail';
 import PetItemPicker from './pages/PetItemPicker';
 import Hex from './pages/Hex';
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/armor/:slot" element={<ArmorItemPicker />} />
             <Route path="/pet" element={<PetPicker />} />
             <Route path="/pet/detail" element={<PetDetail />} />
+            <Route path="/pet/:petId" element={<PetRarityPicker />} />
             <Route path="/pet/item" element={<PetItemPicker />} />
             <Route path="/hex/:slot" element={<Hex />} />
             <Route path="/enchants/:slot" element={<EnchantList ultimate={false} />} />
