@@ -121,7 +121,10 @@ export default function PetDetail() {
         <div className={`${panel} p-6 flex flex-col gap-4 w-full max-w-[500px]`}>
           <div className="flex items-center gap-3">
             <div className={`${slotBase} w-12 h-12`}>
-              <WeaponIcon id={pet.id} material={pet.material} alt={pet.name} className="w-[70%] h-[70%] object-contain pixelated" />
+              {/* icon keyed by the bare species id (pet.id is "<petId>_<rarity>") —
+                  every rarity shares one baked head icon, see
+                  worker/scripts/apply-skull-head-icons.mjs */}
+              <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[70%] h-[70%] object-contain pixelated" />
             </div>
             <div className="font-bold text-lg" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
               {formatItemName(pet.name)}
