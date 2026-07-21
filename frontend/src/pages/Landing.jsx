@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
@@ -29,6 +30,18 @@ export default function Landing() {
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
+  // buildFullItemTooltipLines is async (it fetches applied enchants' real
+  // per-level lore to compute their stat bonuses) — one hover token
+  // shared by every gear/weapon slot on this page (only one can be
+  // hovered at a time) so a still-in-flight lookup from an ended hover
+  // can't clobber a newer one or resurrect the tooltip after the mouse
+  // has left. See Hex.jsx for the same pattern.
+  const hoverTokenRef = useRef(0);
+  function invalidateHover() {
+    hoverTokenRef.current++;
+    hideTooltip();
+  }
+
   // Shared by both the armor and equipment columns — they're two
   // functionally identical gear sets (enchants/reforges/gemstones/books
   // all apply the same way), just filtered from different item lists.
@@ -36,13 +49,16 @@ export default function Landing() {
     navigate(loadout[slot] ? `/hex/${slot}` : pickerPath);
   }
 
-  function handleGearHover(slot, label, e) {
+  async function handleGearHover(slot, label, e) {
     const equipped = loadout[slot];
     if (!equipped) {
       showTooltip([`§7${label}`, '§8Empty — click to pick one'], e.currentTarget);
       return;
     }
-    showTooltip(buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData), e.currentTarget);
+    const anchor = e.currentTarget;
+    const token = ++hoverTokenRef.current;
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData);
+    if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
   function handleGearRemove(slot, e) {
@@ -55,12 +71,15 @@ export default function Landing() {
     navigate(loadout.weapon ? '/hex/weapon' : '/weapon');
   }
 
-  function handleWeaponHover(e) {
+  async function handleWeaponHover(e) {
     if (!loadout.weapon) {
       showTooltip(['§7Weapon', '§8Empty — click to pick one'], e.currentTarget);
       return;
     }
-    showTooltip(buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData), e.currentTarget);
+    const anchor = e.currentTarget;
+    const token = ++hoverTokenRef.current;
+    const lines = await buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData);
+    if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
   function handlePetHover(e) {
@@ -83,7 +102,7 @@ export default function Landing() {
         className={`${slotBase} relative cursor-pointer hover:brightness-110 ${equipped ? 'bg-green-400' : ''}`}
         onClick={() => handleGearClick(slot, pickerPath)}
         onMouseEnter={(e) => handleGearHover(slot, label, e)}
-        onMouseLeave={hideTooltip}
+        onMouseLeave={invalidateHover}
       >
         {equipped ? (
           <WeaponIcon id={equipped.item.id} material={equipped.item.material} alt={equipped.item.name} className={iconImg} />
@@ -133,7 +152,7 @@ export default function Landing() {
             className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.weapon ? 'bg-green-400' : ''}`}
             onClick={handleWeaponClick}
             onMouseEnter={handleWeaponHover}
-            onMouseLeave={hideTooltip}
+            onMouseLeave={invalidateHover}
           >
             {loadout.weapon ? (
               <WeaponIcon

@@ -87,7 +87,7 @@ function findNameLineIndex(lore) {
 
 // The description block runs from just after the name line until the next
 // blank line.
-function extractDescriptionLines(lore) {
+export function extractDescriptionLines(lore) {
   const nameIdx = findNameLineIndex(lore);
   const lines = [];
   for (let i = nameIdx + 1; i < lore.length; i++) {

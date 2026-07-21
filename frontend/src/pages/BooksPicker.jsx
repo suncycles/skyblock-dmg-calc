@@ -3,7 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { SLOT_TEXTURES, CATEGORY_ICONS, ART_OF_WAR_ICON } from '../lib/icons';
-import { BOOK_STAT_BONUS, ART_OF_WAR_STAT_BONUS, ART_OF_WAR_ITEM_ID, ART_OF_WAR_COLOR } from '../lib/books';
+import {
+  WEAPON_BOOK_STAT_BONUS,
+  ARMOR_BOOK_STAT_BONUS,
+  ART_OF_WAR_STAT_BONUS,
+  ART_OF_WAR_ITEM_ID,
+  ART_OF_WAR_COLOR,
+} from '../lib/books';
+import { getGearType } from '../lib/gearType';
 import { formatStatValue } from '../lib/reforgeData';
 import { fetchNeuItem } from '../lib/neuItems';
 
@@ -28,6 +35,13 @@ export default function BooksPicker() {
   const current = loadout[slot]?.modifiers?.books || 0;
   const artOfWarApplied = Boolean(loadout[slot]?.modifiers?.artOfWar);
   const hoveringArtOfWarRef = useRef(false);
+  // Reachable for weapon and armor slots only — Hex.jsx already disables
+  // the Books icon entirely for equipment (can't take Potato Books or the
+  // Art of War at all in the real game, see lib/books.js) — but this is
+  // still gear-type-aware defensively rather than assuming weapon.
+  const gearType = getGearType(loadout[slot]?.item?.category);
+  const isWeapon = gearType === 'weapon';
+  const bookBonus = isWeapon ? WEAPON_BOOK_STAT_BONUS : ARMOR_BOOK_STAT_BONUS;
 
   function handleSelect(count) {
     setBookCount(slot, count);
@@ -35,13 +49,23 @@ export default function BooksPicker() {
   }
 
   function tooltipLines(count) {
-    const strength = BOOK_STAT_BONUS.strength * count;
-    const damage = BOOK_STAT_BONUS.damage * count;
+    if (isWeapon) {
+      const strength = bookBonus.strength * count;
+      const damage = bookBonus.damage * count;
+      return [
+        `§5${count} Potato Book${count === 1 ? '' : 's'}`,
+        '',
+        `§7Grants §c${formatStatValue('strength', strength)} Strength §7and`,
+        `§c${formatStatValue('damage', damage)} Damage§7.`,
+      ];
+    }
+    const health = bookBonus.health * count;
+    const defense = bookBonus.defense * count;
     return [
       `§5${count} Potato Book${count === 1 ? '' : 's'}`,
       '',
-      `§7Grants §c${formatStatValue('strength', strength)} Strength §7and`,
-      `§c${formatStatValue('damage', damage)} Damage§7.`,
+      `§7Grants §c${formatStatValue('health', health)} Health §7and`,
+      `§a${formatStatValue('defense', defense)} Defense§7.`,
     ];
   }
 
@@ -118,16 +142,22 @@ export default function BooksPicker() {
         );
       } else if (row === 5 && col === 1) {
         cells.push(
-          <div
-            key={key}
-            className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
-            title="The Art of War — click to toggle"
-            onClick={() => toggleArtOfWar(slot)}
-            onMouseEnter={handleArtOfWarHover}
-            onMouseLeave={handleArtOfWarLeave}
-          >
-            <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
-          </div>,
+          isWeapon ? (
+            <div
+              key={key}
+              className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
+              title="The Art of War — click to toggle"
+              onClick={() => toggleArtOfWar(slot)}
+              onMouseEnter={handleArtOfWarHover}
+              onMouseLeave={handleArtOfWarLeave}
+            >
+              <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
+            </div>
+          ) : (
+            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of War — armor cannot use it">
+              <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
+            </div>
+          ),
         );
       } else if (row === 5 && col === 3 && current > 0) {
         cells.push(
