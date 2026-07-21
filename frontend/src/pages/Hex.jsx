@@ -8,6 +8,7 @@ import { hasGemstoneSlots, applyGemstonesToLore } from '../lib/gemstones';
 import { getApplicableReforges } from '../lib/reforgeData';
 import { applyReforgeToLore } from '../lib/reforges';
 import { applyBooksToLore } from '../lib/books';
+import { getSpecialConfig, applySpecialToLore } from '../lib/specialWeapons';
 import { canRecombobulate, bumpRarity, applyRecombToLore } from '../lib/recombobulator';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
@@ -49,7 +50,7 @@ function insertEnchantLines(lore, enchantLines) {
 const GRID_LAYOUT = [
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
   ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Enchantments', 'icon:Ultimate Enchantments', 'icon:Gemstones'],
-  ['empty', 'empty', 'empty', 'filler', 'weapon', 'filler', 'icon:Books', 'icon:Modifiers', 'empty'],
+  ['empty', 'empty', 'empty', 'filler', 'weapon', 'filler', 'icon:Books', 'icon:Modifiers', 'icon:Special'],
   ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Reforges', 'icon:Item Upgrades', 'empty'],
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
   ['empty', 'empty', 'empty', 'empty', 'barrier:Close', 'empty', 'empty', 'empty', 'empty'],
@@ -87,7 +88,9 @@ export default function Hex() {
     // has to be resolved before the reforge lookup below uses it.
     const displayTier = modifiers.recombobulated ? bumpRarity(weapon.tier) : weapon.tier;
 
-    let lore = applyGemstonesToLore(weapon.lore || [], modifiers.gemstones, weapon.tier);
+    // Gemstone boosts scale with the item's *current* rarity too — same
+    // reason as the reforge lookup below, resolved via displayTier.
+    let lore = applyGemstonesToLore(weapon.lore || [], modifiers.gemstones, displayTier);
     // Applied reforge could be either a free blacksmith one or a
     // stone-exclusive one — the two live in separate maps (see
     // worker/src/index.js), so check both.
@@ -95,7 +98,8 @@ export default function Hex() {
       ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
       : null;
     lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
-    lore = applyBooksToLore(lore, modifiers.books, lore.indexOf(''));
+    lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, lore.indexOf(''));
+    lore = applySpecialToLore(lore, weapon.id, modifiers.special);
     lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
     if (modifiers.recombobulated) lore = applyRecombToLore(lore, weapon.tier);
 
@@ -149,7 +153,9 @@ export default function Hex() {
                           ? '/books'
                           : label === 'Reforges'
                             ? '/reforges'
-                            : null;
+                            : label === 'Special'
+                              ? '/special'
+                              : null;
 
                 // Gemstones/Books/Reforges only open for items that can
                 // actually use them — everything else (Item Upgrades) is
@@ -170,7 +176,7 @@ export default function Hex() {
 
                 if (label === 'Books') {
                   const enabled = Boolean(weapon);
-                  const applied = build?.modifiers?.books > 0;
+                  const applied = build?.modifiers?.books > 0 || Boolean(build?.modifiers?.artOfWar);
                   return (
                     <div
                       key={key}
@@ -194,6 +200,21 @@ export default function Hex() {
                       key={key}
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
                       title={enabled ? label : `${label} — no reforges available for this item`}
+                      onClick={() => enabled && navigate(dest)}
+                    >
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
+                    </div>
+                  );
+                }
+
+                if (label === 'Special') {
+                  const enabled = Boolean(weapon && getSpecialConfig(weapon.id));
+                  const applied = enabled && build?.modifiers?.special > 0;
+                  return (
+                    <div
+                      key={key}
+                      className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
+                      title={enabled ? 'Special — this weapon\'s own ability mechanic' : `${label} — no special ability mechanic for this item`}
                       onClick={() => enabled && navigate(dest)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />

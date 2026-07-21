@@ -1,9 +1,11 @@
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
-import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
-import { BOOK_STAT_BONUS } from '../lib/books';
+import { SLOT_TEXTURES, CATEGORY_ICONS, ART_OF_WAR_ICON } from '../lib/icons';
+import { BOOK_STAT_BONUS, ART_OF_WAR_STAT_BONUS, ART_OF_WAR_ITEM_ID, ART_OF_WAR_COLOR } from '../lib/books';
 import { formatStatValue } from '../lib/reforgeData';
+import { fetchNeuItem } from '../lib/neuItems';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -20,9 +22,11 @@ const MAX_BOOKS = 15;
 // UX as EnchantLevels.jsx: pick a count, apply, back out.
 export default function BooksPicker() {
   const navigate = useNavigate();
-  const { build, setBookCount } = useBuild();
+  const { build, setBookCount, toggleArtOfWar } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const current = build?.modifiers?.books || 0;
+  const artOfWarApplied = Boolean(build?.modifiers?.artOfWar);
+  const hoveringArtOfWarRef = useRef(false);
 
   function handleSelect(count) {
     setBookCount(count);
@@ -38,6 +42,39 @@ export default function BooksPicker() {
       `§7Grants §c${formatStatValue('strength', strength)} Strength §7and`,
       `§c${formatStatValue('damage', damage)} Damage§7.`,
     ];
+  }
+
+  // Fallback if the live NEU-REPO fetch fails — synthesized from the same
+  // stat table applyBooksToLore uses, colored to match its §6 annotation.
+  function artOfWarFallbackLines() {
+    return [
+      `§${ART_OF_WAR_COLOR}The Art of War`,
+      '',
+      `§7Grants §c${formatStatValue('strength', ART_OF_WAR_STAT_BONUS.strength)} Strength §7when applied.`,
+    ];
+  }
+
+  // The Art of War's real item lore (ability text, flavor quote, rarity
+  // tag) is fetched live from NEU-REPO, same on-hover pattern as
+  // ReforgesPicker's stone tooltips — see lib/neuItems.js.
+  function handleArtOfWarHover(e) {
+    const anchor = e.currentTarget;
+    hoveringArtOfWarRef.current = true;
+    showTooltip([`§${ART_OF_WAR_COLOR}The Art of War`, '', '§7Loading...'], anchor);
+
+    fetchNeuItem(ART_OF_WAR_ITEM_ID).then((data) => {
+      if (!hoveringArtOfWarRef.current) return; // moved on before this resolved
+      if (data && data.lore && data.lore.length > 0) {
+        showTooltip([data.displayname || `§${ART_OF_WAR_COLOR}The Art of War`, ...data.lore], anchor);
+      } else {
+        showTooltip(artOfWarFallbackLines(), anchor);
+      }
+    });
+  }
+
+  function handleArtOfWarLeave() {
+    hoveringArtOfWarRef.current = false;
+    hideTooltip();
   }
 
   const cells = [];
@@ -78,6 +115,19 @@ export default function BooksPicker() {
             <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
           </div>,
         );
+      } else if (row === 5 && col === 1) {
+        cells.push(
+          <div
+            key={key}
+            className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
+            title="The Art of War — click to toggle"
+            onClick={toggleArtOfWar}
+            onMouseEnter={handleArtOfWarHover}
+            onMouseLeave={handleArtOfWarLeave}
+          >
+            <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
+          </div>,
+        );
       } else if (row === 5 && col === 3 && current > 0) {
         cells.push(
           <div
@@ -113,6 +163,7 @@ export default function BooksPicker() {
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">
         {current === 0 ? 'No Potato Books applied.' : `${current} Potato Book${current === 1 ? '' : 's'} applied.`}
+        {artOfWarApplied ? ' The Art of War applied.' : ''}
       </div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
