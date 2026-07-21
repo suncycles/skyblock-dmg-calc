@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName } from '../lib/mcText';
@@ -26,19 +26,21 @@ const CENTER_COL = 5;
 // filled slot opens the gem-type picker (GemstoneTypePicker) for that slot
 // index; applying a gem there (via the tier picker) navigates back here.
 export default function GemstoneSlots() {
+  const { slot } = useParams();
   const navigate = useNavigate();
-  const { build } = useBuild();
+  const { loadout } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
-  const weapon = build && build.weapon;
-  const slotCount = weapon ? countGemstoneSlots(weapon.lore) : 0;
-  const gemstones = (build && build.modifiers && build.modifiers.gemstones) || [];
+  const item = loadout[slot] && loadout[slot].item;
+  const modifiers = loadout[slot] && loadout[slot].modifiers;
+  const slotCount = item ? countGemstoneSlots(item.lore) : 0;
+  const gemstones = (modifiers && modifiers.gemstones) || [];
   const offsets = gemstoneSlotColumnOffsets(slotCount);
 
-  function handleWeaponHover(e) {
-    if (!weapon) return;
-    const displayTier = build.modifiers.recombobulated ? bumpRarity(weapon.tier) : weapon.tier;
-    const lore = applyGemstonesToLore(weapon.lore || [], gemstones, displayTier);
-    showTooltip([`§${rarityColorCode(displayTier)}§l${formatItemName(weapon.name)}`, ...lore], e.currentTarget);
+  function handleItemHover(e) {
+    if (!item) return;
+    const displayTier = modifiers.recombobulated ? bumpRarity(item.tier) : item.tier;
+    const lore = applyGemstonesToLore(item.lore || [], gemstones, displayTier);
+    showTooltip([`§${rarityColorCode(displayTier)}§l${formatItemName(item.name)}`, ...lore], e.currentTarget);
   }
 
   const cells = [];
@@ -48,8 +50,8 @@ export default function GemstoneSlots() {
 
       if (row === ITEM_ROW && col === ITEM_COL) {
         cells.push(
-          <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleWeaponHover} onMouseLeave={hideTooltip}>
-            {weapon && <WeaponIcon id={weapon.id} material={weapon.material} alt={weapon.name} className={iconImg} />}
+          <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleItemHover} onMouseLeave={hideTooltip}>
+            {item && <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />}
           </div>,
         );
         continue;
@@ -64,7 +66,7 @@ export default function GemstoneSlots() {
             key={key}
             className={`${slotBase} cursor-pointer hover:brightness-110 ${gem ? 'bg-green-400' : ''}`}
             title={gem ? `${entry.tier[0].toUpperCase()}${entry.tier.slice(1)} ${gem.label}` : 'Empty gemstone slot'}
-            onClick={() => navigate(`/gemstones/${slotIdx}`)}
+            onClick={() => navigate(`/gemstones/${slot}/${slotIdx}`)}
           >
             {gem ? (
               <img src={getGemstoneIcon(entry.gem, entry.tier)} alt={gem.label} className={iconImg} />
@@ -78,7 +80,7 @@ export default function GemstoneSlots() {
 
       if (row === 4 && col === 4) {
         cells.push(
-          <div key={key} className={navSlot} title="Close" onClick={() => navigate('/hex')}>
+          <div key={key} className={navSlot} title="Close" onClick={() => navigate(`/hex/${slot}`)}>
             <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
           </div>,
         );
@@ -99,11 +101,11 @@ export default function GemstoneSlots() {
       </header>
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">
-        {!weapon
-          ? 'No weapon selected — go back and pick one.'
+        {!item
+          ? 'No item selected — go back and pick one.'
           : slotCount === 0
             ? 'This item has no Gemstone Slots.'
-            : `${formatItemName(weapon.name)} — ${slotCount} Gemstone Slot${slotCount === 1 ? '' : 's'}`}
+            : `${formatItemName(item.name)} — ${slotCount} Gemstone Slot${slotCount === 1 ? '' : 's'}`}
       </div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">

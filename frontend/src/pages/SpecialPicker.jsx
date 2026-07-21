@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { getSpecialConfig, computeSpecialBonus } from '../lib/specialWeapons';
 import { formatItemName } from '../lib/mcText';
@@ -14,11 +14,12 @@ const panel =
 // live bonus preview, saved on every change (same instant-apply feel as
 // Books/Modifiers).
 export default function SpecialPicker() {
+  const { slot } = useParams();
   const navigate = useNavigate();
-  const { build, setSpecialValue } = useBuild();
-  const weapon = build && build.weapon;
+  const { loadout, setSpecialValue } = useBuild();
+  const weapon = loadout[slot] && loadout[slot].item;
   const config = weapon ? getSpecialConfig(weapon.id) : null;
-  const value = (build && build.modifiers && build.modifiers.special) || 0;
+  const value = (loadout[slot] && loadout[slot].modifiers && loadout[slot].modifiers.special) || 0;
 
   if (!weapon || !config) {
     return (
@@ -42,7 +43,7 @@ export default function SpecialPicker() {
 
   function handleChange(e) {
     const num = Math.max(0, Number(e.target.value) || 0);
-    setSpecialValue(num);
+    setSpecialValue(slot, num);
   }
 
   const bonus = computeSpecialBonus(config, value);

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { SLOT_TEXTURES, CATEGORY_ICONS, ART_OF_WAR_ICON } from '../lib/icons';
@@ -21,15 +21,16 @@ const MAX_BOOKS = 15;
 // "how many total" picker, not two separate counters. Same grid-of-levels
 // UX as EnchantLevels.jsx: pick a count, apply, back out.
 export default function BooksPicker() {
+  const { slot } = useParams();
   const navigate = useNavigate();
-  const { build, setBookCount, toggleArtOfWar } = useBuild();
+  const { loadout, setBookCount, toggleArtOfWar } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
-  const current = build?.modifiers?.books || 0;
-  const artOfWarApplied = Boolean(build?.modifiers?.artOfWar);
+  const current = loadout[slot]?.modifiers?.books || 0;
+  const artOfWarApplied = Boolean(loadout[slot]?.modifiers?.artOfWar);
   const hoveringArtOfWarRef = useRef(false);
 
   function handleSelect(count) {
-    setBookCount(count);
+    setBookCount(slot, count);
     navigate(-1);
   }
 
@@ -121,7 +122,7 @@ export default function BooksPicker() {
             key={key}
             className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
             title="The Art of War — click to toggle"
-            onClick={toggleArtOfWar}
+            onClick={() => toggleArtOfWar(slot)}
             onMouseEnter={handleArtOfWarHover}
             onMouseLeave={handleArtOfWarLeave}
           >

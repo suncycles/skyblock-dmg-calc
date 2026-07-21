@@ -44,6 +44,17 @@ const TIER_NAMES = Object.keys(misc.tier_colors)
 const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND'];
 const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 
+// Items that parse as a weapon/armor category but aren't real
+// player-obtainable gear: Rift NPC "items" (their tier is always null —
+// they're dialogue props, not loot) and one-off cosmetic/quest items
+// whose real function has nothing to do with combat.
+const EXCLUDED_IDS = new Set([
+  'ARGOFAY_THREEBROTHER_1_RIFT_NPC',
+  'ARGOFAY_THREEBROTHER_2_RIFT_NPC',
+  'ARGOFAY_THREEBROTHER_3_RIFT_NPC',
+  'TIME_KNIFE', // "Time Shuriken" — Rift cosmetic throwable, not a weapon
+]);
+
 function stripColorCodes(str) {
   return str.replace(/§./g, '');
 }
@@ -94,6 +105,8 @@ for (const file of files) {
     skippedNoLore++;
     continue;
   }
+
+  if (EXCLUDED_IDS.has(raw.internalname)) continue;
 
   const { tier, category } = parseTierAndCategory(raw.lore);
   if (!category) continue;

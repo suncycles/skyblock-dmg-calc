@@ -42,6 +42,57 @@ const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 const NEU_REFORGES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforges.json";
 const NEU_REFORGESTONES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforgestones.json";
 
+// Per-pet, per-rarity stat table (level 1 and level 100 checkpoints —
+// the frontend interpolates in between, see frontend/src/lib/petData.js).
+// Small single file, fetched live like enchants/reforges rather than
+// needing offline preprocessing.
+const NEU_PETNUMS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json";
+const NEU_ITEMS_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items";
+
+// Pet items — the held item a pet can equip for a stat/XP boost. Unlike
+// weapons/armor (8000+ files, needs offline preprocessing) this is a
+// small fixed set, so it's just hardcoded and fetched live like
+// everything else here. Sourced from constants/pets.json's
+// `pet_item_display_name_to_id` map; the 3 "*_DROP" ids omitted below are
+// crafting-ingredient "cores" ("Used to craft the Tier Boost pet item"),
+// not real equippable items.
+const PET_ITEM_IDS = [
+  "PET_ITEM_QUICK_CLAW",
+  "PET_ITEM_TIER_BOOST",
+  "PET_ITEM_COMBAT_SKILL_BOOST_EPIC",
+  "PET_ITEM_COMBAT_SKILL_BOOST_RARE",
+  "PET_ITEM_COMBAT_SKILL_BOOST_UNCOMMON",
+  "PET_ITEM_COMBAT_SKILL_BOOST_COMMON",
+  "PET_ITEM_BUBBLEGUM",
+  "PET_ITEM_EXP_SHARE",
+  "ALL_SKILLS_SUPER_BOOST",
+  "PET_ITEM_ALL_SKILLS_BOOST_COMMON",
+  "PET_ITEM_LUCKY_CLOVER",
+  "PET_ITEM_FORAGING_SKILL_BOOST_EPIC",
+  "PET_ITEM_FORAGING_SKILL_BOOST_COMMON",
+  "PET_ITEM_FISHING_SKILL_BOOST_EPIC",
+  "PET_ITEM_FISHING_SKILL_BOOST_RARE",
+  "PET_ITEM_FISHING_SKILL_BOOST_UNCOMMON",
+  "PET_ITEM_FISHING_SKILL_BOOST_COMMON",
+  "PET_ITEM_FARMING_SKILL_BOOST_EPIC",
+  "PET_ITEM_FARMING_SKILL_BOOST_RARE",
+  "PET_ITEM_FARMING_SKILL_BOOST_UNCOMMON",
+  "PET_ITEM_FARMING_SKILL_BOOST_COMMON",
+  "PET_ITEM_HARDENED_SCALES_UNCOMMON",
+  "PET_ITEM_TEXTBOOK",
+  "PET_ITEM_IRON_CLAWS_COMMON",
+  "PET_ITEM_BIG_TEETH_COMMON",
+  "PET_ITEM_FLYING_PIG",
+  "PET_ITEM_SADDLE",
+  "PET_ITEM_SPOOKY_CUPCAKE",
+  "PET_ITEM_MINING_SKILL_BOOST_RARE",
+  "PET_ITEM_MINING_SKILL_BOOST_UNCOMMON",
+  "PET_ITEM_MINING_SKILL_BOOST_COMMON",
+  "PET_ITEM_TITANIUM_MINECART",
+  "PET_ITEM_BINGO_BOOSTER",
+  "PET_ITEM_SHARPENED_CLAWS_UNCOMMON",
+];
+
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — adjust as needed
 
@@ -102,9 +153,67 @@ async function handleRefresh(env) {
 async function buildFreshData() {
   const enchantsRes = await fetch(NEU_ENCHANTS_URL);
   const enchants = await enchantsRes.json();
-  const [reforges, reforgeStones] = await Promise.all([fetchReforges(), fetchReforgeStones()]);
+  const [reforges, reforgeStones, pets, petItems] = await Promise.all([
+    fetchReforges(),
+    fetchReforgeStones(),
+    fetchPetNums(),
+    fetchPetItems(),
+  ]);
 
-  return { weapons, armor, enchants, reforges, reforgeStones, lastFetched: Date.now() };
+  return { weapons, armor, enchants, reforges, reforgeStones, pets, petItems, lastFetched: Date.now() };
+}
+
+async function fetchPetNums() {
+  const res = await fetch(NEU_PETNUMS_URL);
+  return res.json();
+}
+
+function stripColorCodes(str) {
+  return str.replace(/§./g, "");
+}
+
+// Pet items follow the same "<TIER> PET ITEM" lore-tag convention every
+// other item in this project already gets tier-parsed from (see
+// worker/scripts/build-item-data.mjs's parseTierAndCategory) — simplified
+// here since the category half is always literally "PET ITEM".
+function parsePetItemTier(lore) {
+  for (let i = lore.length - 1; i >= 0; i--) {
+    const plain = stripColorCodes(lore[i]).trim().toUpperCase();
+    if (!plain) continue;
+    if (!plain.endsWith("PET ITEM")) return null;
+    return plain.slice(0, -"PET ITEM".length).trim().replace(/ /g, "_") || null;
+  }
+  return null;
+}
+
+function materialFromItemId(itemid) {
+  if (!itemid) return null;
+  return itemid.replace(/^[a-z0-9_]+:/, "").toUpperCase();
+}
+
+async function fetchPetItems() {
+  const results = await Promise.all(
+    PET_ITEM_IDS.map(async (id) => {
+      try {
+        const res = await fetch(`${NEU_ITEMS_BASE}/${id}.json`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!Array.isArray(data.lore) || data.lore.length === 0) return null;
+        const tier = parsePetItemTier(data.lore);
+        if (!tier) return null;
+        return {
+          id: data.internalname,
+          name: stripColorCodes(data.displayname || data.internalname || ""),
+          material: materialFromItemId(data.itemid),
+          tier,
+          lore: data.lore,
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return results.filter(Boolean);
 }
 
 async function fetchReforges() {

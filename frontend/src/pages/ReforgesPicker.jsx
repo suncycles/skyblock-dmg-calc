@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
@@ -35,13 +35,14 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // physical item, so they always use the generic icon, same as EnchantList
 // reuses one icon for every enchant slot.
 export default function ReforgesPicker({ blacksmith }) {
+  const { slot } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { build, applyReforge } = useBuild();
+  const { loadout, applyReforge } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
   const hoveredNameRef = useRef(null);
-  const weapon = build && build.weapon;
+  const weapon = loadout[slot] && loadout[slot].item;
   const reforgeSource = blacksmith ? itemData.reforges : itemData.reforgeStones;
   const noun = blacksmith ? 'blacksmith reforges' : 'reforge stones';
 
@@ -52,11 +53,11 @@ export default function ReforgesPicker({ blacksmith }) {
 
   const totalPages = Math.max(1, Math.ceil(applicable.length / PAGE_SIZE));
   const pageReforges = applicable.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-  const current = build?.modifiers?.reforge;
+  const current = loadout[slot]?.modifiers?.reforge;
 
   function handleSelect(name) {
-    applyReforge(name);
-    navigate('/hex');
+    applyReforge(slot, name);
+    navigate(`/hex/${slot}`);
   }
 
   // Fallback shown for blacksmith reforges (no physical item to fetch lore
@@ -155,7 +156,7 @@ export default function ReforgesPicker({ blacksmith }) {
         );
       } else if (isNavRow && col === 1 && !blacksmith) {
         cells.push(
-          <div key={key} className={navSlot} title="Blacksmith" onClick={() => navigate('/reforges/blacksmith')}>
+          <div key={key} className={navSlot} title="Blacksmith" onClick={() => navigate(`/reforges/${slot}/blacksmith`)}>
             <img src={ANVIL_ICON} alt="Blacksmith" className={iconImg} />
           </div>,
         );
@@ -177,7 +178,7 @@ export default function ReforgesPicker({ blacksmith }) {
             key={key}
             className={navSlot}
             title={blacksmith ? 'Back' : 'Close'}
-            onClick={() => (blacksmith ? navigate(-1) : navigate('/hex'))}
+            onClick={() => (blacksmith ? navigate(-1) : navigate(`/hex/${slot}`))}
           >
             <img src={SLOT_TEXTURES.close} alt={blacksmith ? 'Back' : 'Close'} className={iconImg} />
           </div>,

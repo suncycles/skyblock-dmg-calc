@@ -21,19 +21,19 @@ function titleCase(word) {
 // backs out two screens (past this picker and the gem-type picker) straight
 // to the slot grid, same "pick and auto-return" feel as enchant levels.
 export default function GemstoneTierPicker() {
-  const { slotIndex, gemType } = useParams();
+  const { slot, slotIndex, gemType } = useParams();
   const navigate = useNavigate();
-  const { build, applyGemstone } = useBuild();
+  const { loadout, applyGemstone } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const idx = Number(slotIndex);
   const gemId = gemType.toUpperCase();
   const gem = GEMSTONES[gemId];
-  const baseTier = build?.weapon?.tier || 'common';
-  const itemRarity = build?.modifiers?.recombobulated ? bumpRarity(baseTier) : baseTier;
-  const current = build?.modifiers?.gemstones?.[idx];
+  const baseTier = loadout[slot]?.item?.tier || 'common';
+  const itemRarity = loadout[slot]?.modifiers?.recombobulated ? bumpRarity(baseTier) : baseTier;
+  const current = loadout[slot]?.modifiers?.gemstones?.[idx];
 
   function handleSelect(tier) {
-    applyGemstone(idx, gemId, tier);
+    applyGemstone(slot, idx, gemId, tier);
     navigate(-2);
   }
 

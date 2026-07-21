@@ -44,6 +44,17 @@ const CATEGORY_TO_REFORGE_TYPES = {
   WAND: ['SWORD/ROD', 'SWORD'], // Wands/Staffs reforge off the same table as swords in the real game
   BOW: ['BOW'],
   'DUNGEON BOW': ['BOW'],
+  // Armor reforges mostly share one generic 'ARMOR' itemTypes bucket in
+  // both reforges.json and reforgestones.json; reforgestones.json also has
+  // piece-specific 'HELMET'/'CHESTPLATE' strings for a handful of entries.
+  HELMET: ['ARMOR', 'HELMET'],
+  'DUNGEON HELMET': ['ARMOR', 'HELMET'],
+  CHESTPLATE: ['ARMOR', 'CHESTPLATE'],
+  'DUNGEON CHESTPLATE': ['ARMOR', 'CHESTPLATE'],
+  LEGGINGS: ['ARMOR'],
+  'DUNGEON LEGGINGS': ['ARMOR'],
+  BOOTS: ['ARMOR'],
+  'DUNGEON BOOTS': ['ARMOR'],
 };
 
 // Stat-line label + color a reforge bonus should render with when
