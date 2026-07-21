@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
+import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine } from '../lib/mcText';
 import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
@@ -26,6 +27,18 @@ export default function PetDetail() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { loadout, setPetLevel, setPetItem } = useBuild();
+  const { hideTooltip } = useTooltip();
+
+  // This page shows its own tooltip permanently, inline (see the mc-tooltip
+  // side panel below) rather than on hover — but a hover-triggered
+  // tooltip from whatever was last hovered on the previous page (e.g. a
+  // rarity cell on PetRarityPicker, clicked to navigate here) can still be
+  // showing when this page mounts, since a click-driven route change
+  // doesn't fire a natural mouseleave to clear it. Explicitly clear it on
+  // mount so it can never show duplicated alongside the inline one.
+  useEffect(() => {
+    hideTooltip();
+  }, [hideTooltip]);
   const pet = loadout.pet && loadout.pet.item;
   const level = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.level) ?? 0;
   const petItemId = loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.petItem;
@@ -117,21 +130,21 @@ export default function PetDetail() {
         <h1 className="text-xl font-bold">The Hex — Pet</h1>
       </header>
 
-      <div className="w-full max-w-[900px] flex flex-wrap items-start gap-4">
-        <div className={`${panel} p-6 flex flex-col gap-4 w-full max-w-[500px]`}>
-          <div className="flex items-center gap-3">
-            <div className={`${slotBase} w-12 h-12`}>
+      <div className="w-full max-w-[560px] flex flex-wrap items-start gap-2">
+        <div className={`${panel} p-3 flex flex-col gap-2 w-full max-w-[260px] text-[13px]`}>
+          <div className="flex items-center gap-2">
+            <div className={`${slotBase} w-8 h-8`}>
               {/* icon keyed by the bare species id (pet.id is "<petId>_<rarity>") —
                   every rarity shares one baked head icon, see
                   worker/scripts/apply-skull-head-icons.mjs */}
               <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[70%] h-[70%] object-contain pixelated" />
             </div>
-            <div className="font-bold text-lg" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
+            <div className="font-bold text-sm" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
               {formatItemName(pet.name)}
             </div>
           </div>
 
-          <label className="text-sm font-bold text-black" htmlFor="pet-level">
+          <label className="text-xs font-bold text-black" htmlFor="pet-level">
             Level (0-{maxLevel})
           </label>
           <input
@@ -143,21 +156,21 @@ export default function PetDetail() {
             value={levelInput}
             onChange={handleLevelChange}
             onBlur={handleLevelBlur}
-            className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
+            className="px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700"
           />
 
-          <div className="flex items-center justify-between gap-3 border-t border-neutral-500 pt-4">
-            <div className="text-sm text-black">Pet Item: {petItem ? formatItemName(petItem.name) : 'None'}</div>
-            <div className="flex gap-2">
+          <div className="flex items-center justify-between gap-2 border-t border-neutral-500 pt-2">
+            <div className="text-xs text-black">Pet Item: {petItem ? formatItemName(petItem.name) : 'None'}</div>
+            <div className="flex gap-1">
               <button
-                className="px-3 py-1.5 bg-neutral-800 text-white text-sm cursor-pointer hover:brightness-110"
+                className="px-2 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
                 onClick={() => navigate('/pet/item')}
               >
                 Change
               </button>
               {petItem && (
                 <button
-                  className="px-3 py-1.5 bg-neutral-800 text-white text-sm cursor-pointer hover:brightness-110"
+                  className="px-2 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
                   onClick={() => setPetItem(null)}
                 >
                   Remove
@@ -167,14 +180,14 @@ export default function PetDetail() {
           </div>
 
           <button
-            className="self-start px-4 py-2 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
+            className="self-start px-3 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
             onClick={() => navigate('/pet')}
           >
             Back
           </button>
         </div>
 
-        <div className="mc-tooltip" style={{ position: 'static' }}>
+        <div className="mc-tooltip" style={{ position: 'static', fontSize: '11px', lineHeight: 1.35, maxWidth: 260 }}>
           <McTooltipLines parsedLines={tooltipLines.map(parseMinecraftLine)} />
         </div>
       </div>
