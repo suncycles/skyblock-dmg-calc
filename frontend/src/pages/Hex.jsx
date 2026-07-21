@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
@@ -6,6 +7,7 @@ import { hasGemstoneSlots } from '../lib/gemstones';
 import { getApplicableReforges } from '../lib/reforgeData';
 import { getSpecialConfig } from '../lib/specialWeapons';
 import { canRecombobulate } from '../lib/recombobulator';
+import { getGearType } from '../lib/gearType';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
@@ -50,15 +52,29 @@ export default function Hex() {
   const { loadout, toggleRecombobulated } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
+  const gearType = item ? getGearType(item.category) : null;
   const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || EQUIPMENT_SLOT_LABELS[slot] || slot;
   // Both weapon and armor now live on the single merged home screen (see
   // Landing.jsx) rather than separate hub pages, so Close always returns
   // there.
   const closeTo = '/';
 
-  function handleItemHover(e) {
+  // buildFullItemTooltipLines is async (it fetches applied enchants' real
+  // per-level lore to compute their stat bonuses) — capture the anchor
+  // and a token before awaiting so a still-in-flight lookup from a hover
+  // that's already ended can't clobber a newer one or resurrect the
+  // tooltip after the mouse has left.
+  const hoverTokenRef = useRef(0);
+  async function handleItemHover(e) {
     if (!item) return;
-    showTooltip(buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData), e.currentTarget);
+    const anchor = e.currentTarget;
+    const token = ++hoverTokenRef.current;
+    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData);
+    if (hoverTokenRef.current === token) showTooltip(lines, anchor);
+  }
+  function handleItemLeave() {
+    hoverTokenRef.current++;
+    hideTooltip();
   }
 
   return (
@@ -82,7 +98,7 @@ export default function Hex() {
 
               if (type === 'item') {
                 return (
-                  <div key={key} className={slotBase} onMouseEnter={handleItemHover} onMouseLeave={hideTooltip}>
+                  <div key={key} className={slotBase} onMouseEnter={handleItemHover} onMouseLeave={handleItemLeave}>
                     {item ? (
                       <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />
                     ) : (
@@ -128,14 +144,16 @@ export default function Hex() {
                 }
 
                 if (label === 'Books') {
-                  const enabled = Boolean(item);
+                  const isEquipment = gearType === 'equipment';
+                  const enabled = Boolean(item) && !isEquipment;
                   const modifiers = loadout[slot] && loadout[slot].modifiers;
                   const applied = Boolean(modifiers && (modifiers.books > 0 || modifiers.artOfWar));
+                  const disabledReason = !item ? 'select an item first' : 'Equipment cannot use Potato Books or the Art of War';
                   return (
                     <div
                       key={key}
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
-                      title={enabled ? label : `${label} — select an item first`}
+                      title={enabled ? label : `${label} — ${disabledReason}`}
                       onClick={() => enabled && navigate(dest)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
