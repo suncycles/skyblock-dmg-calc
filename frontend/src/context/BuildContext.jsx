@@ -11,7 +11,8 @@ function emptyModifiers() {
     ultimateEnchantment: null, // {id, level, maxLevel} | null — only one allowed
     gemstones: [],
     books: 0, // Hot/Fuming Potato Book count, 0-15
-    artOfWar: false, // The Art of War — one-time-use, +5 Strength
+    artOfWar: false, // The Art of War — one-time-use, +5 Strength, weapons only
+    artOfPeace: false, // The Art of Peace — one-time-use, +40 Health, armor only
     special: 0, // weapon-specific ability input — see lib/specialWeapons.js
     recombobulated: false,
     reforge: null, // reforge name string | null
@@ -194,6 +195,13 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  const toggleArtOfPeace = useCallback(
+    (slot) => {
+      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, artOfPeace: !modifiers.artOfPeace }));
+    },
+    [updateSlotModifiers],
+  );
+
   const toggleRecombobulated = useCallback(
     (slot) => {
       updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, recombobulated: !modifiers.recombobulated }));
@@ -237,6 +245,7 @@ export function BuildProvider({ children }) {
         setBookCount,
         setSpecialValue,
         toggleArtOfWar,
+        toggleArtOfPeace,
         toggleRecombobulated,
         applyReforge,
         setPetLevel,

@@ -87,11 +87,13 @@ export const CATEGORY_ICONS = {
 
 export const ENCHANTED_BOOK_ICON = '/images/Enchanted_Book.png';
 
-// The Art of War's own NEU item material is "minecraft:book" — same as the
-// Hot/Fuming Potato Book slots it sits alongside on the Books screen — so
-// Book_and_Quill.png (already bundled, used elsewhere for Ultimate
-// Enchantments) stands in here instead, purely so the one-time toggle
-// reads as visually distinct from the 15 numbered Potato Book slots.
+// The Art of War/Art of Peace's own NEU item material is "minecraft:book"
+// — same as the Hot/Fuming Potato Book slots they sit alongside on the
+// Books screen — so Book_and_Quill.png (already bundled, used elsewhere
+// for Ultimate Enchantments) stands in for both instead, purely so these
+// one-time toggles read as visually distinct from the 15 numbered Potato
+// Book slots. They share this one generic icon since neither has bespoke
+// art of its own to tell them apart by.
 export const ART_OF_WAR_ICON = '/images/Book_and_Quill.png';
 
 // Opens the Blacksmith sub-screen from the Reforges (stones) page — an

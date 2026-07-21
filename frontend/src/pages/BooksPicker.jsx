@@ -9,6 +9,9 @@ import {
   ART_OF_WAR_STAT_BONUS,
   ART_OF_WAR_ITEM_ID,
   ART_OF_WAR_COLOR,
+  ART_OF_PEACE_STAT_BONUS,
+  ART_OF_PEACE_ITEM_ID,
+  ART_OF_PEACE_COLOR,
 } from '../lib/books';
 import { getGearType } from '../lib/gearType';
 import { formatStatValue } from '../lib/reforgeData';
@@ -30,17 +33,21 @@ const MAX_BOOKS = 15;
 export default function BooksPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout, setBookCount, toggleArtOfWar } = useBuild();
+  const { loadout, setBookCount, toggleArtOfWar, toggleArtOfPeace } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const current = loadout[slot]?.modifiers?.books || 0;
   const artOfWarApplied = Boolean(loadout[slot]?.modifiers?.artOfWar);
+  const artOfPeaceApplied = Boolean(loadout[slot]?.modifiers?.artOfPeace);
   const hoveringArtOfWarRef = useRef(false);
+  const hoveringArtOfPeaceRef = useRef(false);
   // Reachable for weapon and armor slots only — Hex.jsx already disables
-  // the Books icon entirely for equipment (can't take Potato Books or the
-  // Art of War at all in the real game, see lib/books.js) — but this is
-  // still gear-type-aware defensively rather than assuming weapon.
+  // the Books icon entirely for equipment (can't take Potato Books, the
+  // Art of War, or the Art of Peace at all in the real game, see
+  // lib/books.js) — but this is still gear-type-aware defensively rather
+  // than assuming weapon.
   const gearType = getGearType(loadout[slot]?.item?.category);
   const isWeapon = gearType === 'weapon';
+  const isArmor = gearType === 'armor';
   const bookBonus = isWeapon ? WEAPON_BOOK_STAT_BONUS : ARMOR_BOOK_STAT_BONUS;
 
   function handleSelect(count) {
@@ -102,6 +109,38 @@ export default function BooksPicker() {
     hideTooltip();
   }
 
+  // Fallback if the live NEU-REPO fetch fails — synthesized from the same
+  // stat table applyBooksToLore uses, colored to match its §6 annotation.
+  function artOfPeaceFallbackLines() {
+    return [
+      `§${ART_OF_PEACE_COLOR}The Art of Peace`,
+      '',
+      `§7Grants §c${formatStatValue('health', ART_OF_PEACE_STAT_BONUS.health)} Health §7when applied.`,
+    ];
+  }
+
+  // The Art of Peace's real item lore is fetched live from NEU-REPO, same
+  // on-hover pattern as the Art of War above.
+  function handleArtOfPeaceHover(e) {
+    const anchor = e.currentTarget;
+    hoveringArtOfPeaceRef.current = true;
+    showTooltip([`§${ART_OF_PEACE_COLOR}The Art of Peace`, '', '§7Loading...'], anchor);
+
+    fetchNeuItem(ART_OF_PEACE_ITEM_ID).then((data) => {
+      if (!hoveringArtOfPeaceRef.current) return; // moved on before this resolved
+      if (data && data.lore && data.lore.length > 0) {
+        showTooltip([data.displayname || `§${ART_OF_PEACE_COLOR}The Art of Peace`, ...data.lore], anchor);
+      } else {
+        showTooltip(artOfPeaceFallbackLines(), anchor);
+      }
+    });
+  }
+
+  function handleArtOfPeaceLeave() {
+    hoveringArtOfPeaceRef.current = false;
+    hideTooltip();
+  }
+
   const cells = [];
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 9; col++) {
@@ -109,7 +148,52 @@ export default function BooksPicker() {
       const isInteriorRow = row >= 1 && row <= 4;
       const isInteriorCol = col >= 1 && col <= 7;
 
-      if (isInteriorRow && isInteriorCol) {
+      // Art of War sits centered directly below the potato-book grid
+      // (col 4 is the middle of the books' col 1-7 span, row 3 is the row
+      // right under the last book row); Art of Peace sits at the right
+      // edge of that same row (col 7, the books' rightmost column) —
+      // both checked ahead of the generic book-slot branch below since
+      // it'd otherwise claim these cells too (as empty overflow slots
+      // past MAX_BOOKS).
+      if (row === 3 && col === 4) {
+        cells.push(
+          isWeapon ? (
+            <div
+              key={key}
+              className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
+              title="The Art of War — click to toggle"
+              onClick={() => toggleArtOfWar(slot)}
+              onMouseEnter={handleArtOfWarHover}
+              onMouseLeave={handleArtOfWarLeave}
+            >
+              <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
+            </div>
+          ) : (
+            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of War — only weapons can use it">
+              <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
+            </div>
+          ),
+        );
+      } else if (row === 3 && col === 7) {
+        cells.push(
+          isArmor ? (
+            <div
+              key={key}
+              className={`${navSlot} ${artOfPeaceApplied ? 'bg-green-400' : ''}`}
+              title="The Art of Peace — click to toggle"
+              onClick={() => toggleArtOfPeace(slot)}
+              onMouseEnter={handleArtOfPeaceHover}
+              onMouseLeave={handleArtOfPeaceLeave}
+            >
+              <img src={ART_OF_WAR_ICON} alt="The Art of Peace" className={iconImg} />
+            </div>
+          ) : (
+            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of Peace — only armor can use it">
+              <img src={ART_OF_WAR_ICON} alt="The Art of Peace" className={iconImg} />
+            </div>
+          ),
+        );
+      } else if (isInteriorRow && isInteriorCol) {
         const count = (row - 1) * 7 + (col - 1) + 1;
         if (count <= MAX_BOOKS) {
           const isApplied = current === count;
@@ -139,25 +223,6 @@ export default function BooksPicker() {
           <div key={key} className={slotBase}>
             <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
           </div>,
-        );
-      } else if (row === 5 && col === 1) {
-        cells.push(
-          isWeapon ? (
-            <div
-              key={key}
-              className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
-              title="The Art of War — click to toggle"
-              onClick={() => toggleArtOfWar(slot)}
-              onMouseEnter={handleArtOfWarHover}
-              onMouseLeave={handleArtOfWarLeave}
-            >
-              <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
-            </div>
-          ) : (
-            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of War — armor cannot use it">
-              <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
-            </div>
-          ),
         );
       } else if (row === 5 && col === 3 && current > 0) {
         cells.push(
@@ -195,6 +260,7 @@ export default function BooksPicker() {
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">
         {current === 0 ? 'No Potato Books applied.' : `${current} Potato Book${current === 1 ? '' : 's'} applied.`}
         {artOfWarApplied ? ' The Art of War applied.' : ''}
+        {artOfPeaceApplied ? ' The Art of Peace applied.' : ''}
       </div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">

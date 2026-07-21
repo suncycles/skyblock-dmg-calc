@@ -101,7 +101,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData) {
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
     : null;
   lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
-  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, lore.indexOf(''), gearType);
+  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
 
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
