@@ -23,13 +23,22 @@ export const ART_OF_WAR_STAT_BONUS = { strength: 5 };
 export const ART_OF_WAR_ITEM_ID = 'THE_ART_OF_WAR';
 export const ART_OF_WAR_COLOR = '6';
 
+// The Art of Peace (NEU-REPO internalname "THE_ART_OF_PEACE") — Art of
+// War's armor-only counterpart, verified from its own real item lore:
+// "Grants +40❤ Health when applied to an armor piece. Can only be
+// applied to an item once." Weapons and equipment can't take it.
+export const ART_OF_PEACE_STAT_BONUS = { health: 40 };
+export const ART_OF_PEACE_ITEM_ID = 'THE_ART_OF_PEACE';
+export const ART_OF_PEACE_COLOR = '6';
+
 // `gearType` ('weapon' | 'armor' | 'equipment', see lib/gearType.js)
-// picks which bonus table applies and whether Art of War is honored at
-// all — bookCount/artOfWarApplied are still passed straight from
-// modifiers regardless of gearType, so this is the one place that
-// actually enforces eligibility rather than trusting every caller to
-// have already zeroed them out for an ineligible item.
-export function applyBooksToLore(lore, bookCount, artOfWarApplied, insertBeforeLineIdx, gearType) {
+// picks which bonus table applies and whether Art of War/Art of Peace
+// are honored at all — bookCount/artOfWarApplied/artOfPeaceApplied are
+// still passed straight from modifiers regardless of gearType, so this
+// is the one place that actually enforces eligibility rather than
+// trusting every caller to have already zeroed them out for an
+// ineligible item.
+export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApplied, insertBeforeLineIdx, gearType) {
   let result = lore;
   if (bookCount && gearType !== 'equipment') {
     const perBook = gearType === 'armor' ? ARMOR_BOOK_STAT_BONUS : WEAPON_BOOK_STAT_BONUS;
@@ -41,6 +50,10 @@ export function applyBooksToLore(lore, bookCount, artOfWarApplied, insertBeforeL
     // new lines, shifting whatever index was passed in.
     const blankIdx = result.indexOf('');
     result = annotateStatLines(result, ART_OF_WAR_STAT_BONUS, ART_OF_WAR_COLOR, blankIdx === -1 ? insertBeforeLineIdx : blankIdx);
+  }
+  if (artOfPeaceApplied && gearType === 'armor') {
+    const blankIdx = result.indexOf('');
+    result = annotateStatLines(result, ART_OF_PEACE_STAT_BONUS, ART_OF_PEACE_COLOR, blankIdx === -1 ? insertBeforeLineIdx : blankIdx);
   }
   return result;
 }

@@ -147,8 +147,10 @@ export default function Hex() {
                   const isEquipment = gearType === 'equipment';
                   const enabled = Boolean(item) && !isEquipment;
                   const modifiers = loadout[slot] && loadout[slot].modifiers;
-                  const applied = Boolean(modifiers && (modifiers.books > 0 || modifiers.artOfWar));
-                  const disabledReason = !item ? 'select an item first' : 'Equipment cannot use Potato Books or the Art of War';
+                  const applied = Boolean(modifiers && (modifiers.books > 0 || modifiers.artOfWar || modifiers.artOfPeace));
+                  const disabledReason = !item
+                    ? 'select an item first'
+                    : 'Equipment cannot use Potato Books, the Art of War, or the Art of Peace';
                   return (
                     <div
                       key={key}
