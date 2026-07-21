@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { parseMinecraftLine } from '../lib/mcText';
+import McTooltipLines from '../components/McTooltipLines';
 
 const TooltipContext = createContext(null);
 
@@ -53,28 +54,7 @@ function TooltipEl({ lines, anchorRect }) {
 
   return (
     <div ref={elRef} className="mc-tooltip" style={{ left: pos.left, top: pos.top }}>
-      {lines.map((segments, i) => (
-        <div key={i}>
-          {segments.length === 0
-            ? ' '
-            : segments.map((seg, j) => (
-                <span
-                  key={j}
-                  style={{
-                    color: seg.color,
-                    fontWeight: seg.bold ? 'bold' : undefined,
-                    fontStyle: seg.italic ? 'italic' : undefined,
-                    textDecoration:
-                      [seg.underline && 'underline', seg.strikethrough && 'line-through']
-                        .filter(Boolean)
-                        .join(' ') || undefined,
-                  }}
-                >
-                  {seg.text}
-                </span>
-              ))}
-        </div>
-      ))}
+      <McTooltipLines parsedLines={lines} />
     </div>
   );
 }
