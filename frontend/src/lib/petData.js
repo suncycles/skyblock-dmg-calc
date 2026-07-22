@@ -1,3 +1,6 @@
+import { formatItemName, rarityColorCode } from './mcText';
+import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from './petItemEffects';
+
 /* Pet stats, sourced from NEU-REPO's constants/petnums.json (worker
    forwards it live under itemData.pets, see worker/src/index.js) — shaped
    { [petId]: { [rarity]: { "1": {statNums, otherNums}, "100": {statNums, otherNums} } } }.
@@ -159,4 +162,34 @@ export function substitutePetLore(loreLines, level, statValues, otherNumValues) 
       ),
   );
   return removeAddToPetMenuHint(substituted);
+}
+
+// The full real-lore-with-stats-substituted tooltip, shared by PetDetail's
+// permanent side panel and Landing's hover tooltip so both show the exact
+// same thing for the same pet — `rawLore` is the already-fetched
+// fetchNeuItem(petLoreItemId(...)) result (or `false` for "fetch failed
+// with no lore", or `null`/`undefined` while still loading), left to the
+// caller since PetDetail keeps it in state across renders while Landing
+// fetches it fresh per hover.
+export function buildPetTooltipLines(pet, modifiers, itemData, rawLore) {
+  const level = modifiers?.level ?? 0;
+  const maxLevel = getMaxPetLevel(pet.petId);
+  const tierColor = rarityColorCode(pet.tier);
+  if (rawLore === null || rawLore === undefined) return [`§${tierColor}§l${pet.name}`, '', '§7Loading...'];
+  if (rawLore === false) return [`§${tierColor}§l[Lvl ${level}] ${pet.name}`, '§7No lore available.'];
+
+  const petItemId = modifiers?.petItem;
+  const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+  const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+  let stats = computeAllPetStats(levels, level, maxLevel);
+  const statBoost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+  stats = applyPetItemStatBoost(stats, statBoost);
+  const otherNums = computeOtherNums(levels, level, maxLevel);
+  const lore = substitutePetLore(rawLore.lore, level, stats, otherNums);
+  const title = (rawLore.displayname || `§${tierColor}§l${pet.name}`).replace('{LVL}', String(level));
+  const heldItemLines = petItem
+    ? [`§7Held Item: §${rarityColorCode(petItem.tier)}${formatItemName(petItem.name)}`, ...(extractPetItemEffectLines(petItem.lore) || [])]
+    : [];
+  const withHeldItem = heldItemLines.length > 0 ? [...lore.slice(0, -1), ...heldItemLines, lore[lore.length - 1]] : lore;
+  return [formatItemName(title), ...withHeldItem];
 }

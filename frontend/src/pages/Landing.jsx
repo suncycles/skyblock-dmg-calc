@@ -5,8 +5,9 @@ import { useItemData } from '../context/ItemDataContext';
 import { useTooltip } from '../context/TooltipContext';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
-import { formatItemName, rarityColorCode } from '../lib/mcText';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
+import { petLoreItemId, buildPetTooltipLines } from '../lib/petData';
+import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 
@@ -82,16 +83,21 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
-  function handlePetHover(e) {
+  // Same real-lore-with-stats-substituted tooltip PetDetail's inline panel
+  // shows (see lib/petData.js's buildPetTooltipLines) — fetched fresh per
+  // hover rather than cached, same as gear/weapon hover above.
+  async function handlePetHover(e) {
     if (!loadout.pet) {
       showTooltip(['§7Pet', '§8Empty — click to pick one'], e.currentTarget);
       return;
     }
-    const { item, modifiers } = loadout.pet;
-    const lines = [`§${rarityColorCode(item.tier)}${formatItemName(item.name)}`, `§7Level ${modifiers.level}`];
-    const petItem = modifiers.petItem ? (itemData.petItems || []).find((i) => i.id === modifiers.petItem) : null;
-    if (petItem) lines.push(`§7Held Item: §${rarityColorCode(petItem.tier)}${formatItemName(petItem.name)}`);
-    showTooltip(lines, e.currentTarget);
+    const anchor = e.currentTarget;
+    const token = ++hoverTokenRef.current;
+    const { item: pet, modifiers } = loadout.pet;
+    const rawLoreData = await fetchNeuItem(petLoreItemId(pet.petId, pet.tier));
+    const rawLore = rawLoreData && rawLoreData.lore && rawLoreData.lore.length > 0 ? rawLoreData : false;
+    const lines = buildPetTooltipLines(pet, modifiers, itemData, rawLore);
+    if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
   // One small helper covers both gear columns — same slot cell shape
@@ -190,7 +196,7 @@ export default function Landing() {
             className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.pet ? 'bg-green-400' : ''}`}
             onClick={() => navigate('/pet')}
             onMouseEnter={handlePetHover}
-            onMouseLeave={hideTooltip}
+            onMouseLeave={invalidateHover}
           >
             {loadout.pet ? (
               <WeaponIcon id={loadout.pet.item.petId} material="BONE" alt={loadout.pet.item.name} className={iconImg} />
