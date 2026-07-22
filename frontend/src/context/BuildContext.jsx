@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
+import { computeTuningPoints } from '../lib/accessoryPowers';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
@@ -50,6 +51,26 @@ function emptyPetModifiers() {
   };
 }
 
+// Accessory Powers (see lib/accessoryPowers.js) — a chosen power id, the
+// player's Magical Power, and Tuning Point allocation. No enchants/
+// gemstones/reforge concept at all, same "own small shape" precedent as
+// pets.
+function emptyAccessoryModifiers() {
+  return {
+    magicalPower: 0,
+    tuning: {
+      health: 0,
+      defense: 0,
+      speed: 0,
+      strength: 0,
+      crit_damage: 0,
+      crit_chance: 0,
+      bonus_attack_speed: 0,
+      intelligence: 0,
+    },
+  };
+}
+
 // Sparse: a slot key ('weapon' | 'helmet' | 'chestplate' | 'leggings' |
 // 'boots' | 'pet') is simply absent from the loadout until something's
 // picked for it — no null placeholders for the other slots while working
@@ -69,6 +90,8 @@ function loadInitial() {
       if (!entry?.item) continue;
       if (slot === 'pet') {
         if (typeof entry?.modifiers?.level !== 'number') continue;
+      } else if (slot === 'accessory') {
+        if (typeof entry?.modifiers?.magicalPower !== 'number') continue;
       } else {
         if (!Array.isArray(entry?.modifiers?.hexEnchantments)) continue;
         if (typeof entry?.modifiers?.books !== 'number') continue;
@@ -124,15 +147,17 @@ export function BuildProvider({ children }) {
           item:
             slot === 'pet'
               ? { id: item.id, petId: item.petId, name: item.name, material: item.material, tier: item.tier }
-              : {
-                  id: item.id,
-                  name: item.name,
-                  material: item.material,
-                  category: item.category,
-                  tier: item.tier,
-                  lore: item.lore || [],
-                },
-          modifiers: slot === 'pet' ? emptyPetModifiers() : emptyModifiers(),
+              : slot === 'accessory'
+                ? { id: item.id, name: item.name, iconId: item.iconId, material: item.material }
+                : {
+                    id: item.id,
+                    name: item.name,
+                    material: item.material,
+                    category: item.category,
+                    tier: item.tier,
+                    lore: item.lore || [],
+                  },
+          modifiers: slot === 'pet' ? emptyPetModifiers() : slot === 'accessory' ? emptyAccessoryModifiers() : emptyModifiers(),
         },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -285,6 +310,31 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  const setAccessoryMagicalPower = useCallback(
+    (value) => {
+      updateSlotModifiers('accessory', (modifiers) => ({ ...modifiers, magicalPower: value }));
+    },
+    [updateSlotModifiers],
+  );
+
+  // Clamped so the sum of every stat's assigned points never exceeds what
+  // the current Magical Power actually grants — matches the real "remove
+  // points to reinvest them elsewhere" behavior rather than letting the
+  // total silently overshoot.
+  const setAccessoryTuningPoint = useCallback(
+    (statKey, points) => {
+      updateSlotModifiers('accessory', (modifiers) => {
+        const totalPoints = computeTuningPoints(modifiers.magicalPower);
+        const otherPointsSpent = Object.entries(modifiers.tuning)
+          .filter(([key]) => key !== statKey)
+          .reduce((sum, [, v]) => sum + v, 0);
+        const clamped = Math.max(0, Math.min(points, totalPoints - otherPointsSpent));
+        return { ...modifiers, tuning: { ...modifiers.tuning, [statKey]: clamped } };
+      });
+    },
+    [updateSlotModifiers],
+  );
+
   return (
     <BuildContext.Provider
       value={{
@@ -307,6 +357,8 @@ export function BuildProvider({ children }) {
         setPetLevel,
         setPetItem,
         setPetBankCoins,
+        setAccessoryMagicalPower,
+        setAccessoryTuningPoint,
       }}
     >
       {children}
