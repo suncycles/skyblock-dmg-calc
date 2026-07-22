@@ -1,24 +1,38 @@
-// Final Damage against a specific target mob — formula sourced directly
-// from the wiki's raw wikitext this session (not guessed):
-// https://hypixel-skyblock.fandom.com/wiki/Damage_Calculation
+// Final Damage against a specific target mob.
 //
-//   InitialDamage    = (5 + WeaponDMG) * (1 + Strength/100)
-//   DamageMultiplier = 1 + CombatLevelBonus + Enchants + WeaponBonus
-//   FinalDamage      = floor(InitialDamage * DamageMultiplier * (1+ArmorBonus) * (1 + CritDamage/100))
+//   InitialDamage = (5 + WeaponDMG) * (1 + Strength/100)
+//   FinalDamage   = floor((InitialDamage * AdditiveMultiplier * MultiplicativeMultiplier + BonusModifiers) * (1 + CritDamage/100))
 //
-// Crit Chance never appears in the formula — "Final Damage" is Hypixel's
-// own crit-assumed reference number, not an expected-value calculation.
-// The wiki's (1+ArmorBonus) is a single slot in its simplified example
-// (Tarantula's every-4th-hit double damage), but real loadouts can have
-// several independent true-multiplier effects active at once (Skyblock
-// Level, Crown of Avarice) — generalized here to the product of every
-// applicable entry in lib/damageSources.js's `multiplicative` bucket,
-// the natural extension rather than a divergence from the source.
-// CombatLevelBonus/Enchants/WeaponBonus are all just summed together per
-// the wiki ("the values for enchantments should be summed") — no
-// architectural distinction between an enchant's % and an item ability's
-// %, so `additiveNonConditional` + matching `additiveConditional` entries
-// are combined into one sum here.
+// Strength and CritDamage are weighted equally — both are their own
+// independent (1 + stat/100) factor, one applied before the additive/
+// multiplicative stage and one after, but structurally symmetric.
+//
+// AdditiveMultiplier = 1 + (every applicable % bonus, summed) — every
+// enchantment (Sharpness, Smite, etc.) and ability-text bonus (Golden
+// Dragon's Legendary Treasure, Combat Level, etc.) is just added
+// together: Smite 50% + Sharpness 65% = 115% additive, not compounded.
+// Maps directly onto lib/damageSources.js's `additiveNonConditional` +
+// whichever `additiveConditional` entries match the target.
+//
+// MultiplicativeMultiplier = product of every applicable "x" bonus —
+// these are few and far between (Crown of Avarice, Skyblock Level, and
+// item-specific ones like Blaze Daggers/Vanquished set/Monster Hunter
+// or Raider set bonuses where modeled) and genuinely multiply rather
+// than add, e.g. a 1B-coin Crown of Avarice (1.15x) on Skyblock Level
+// 500 (1.05x) is 1.15*1.05, not 1.15+1.05-1. Maps onto the
+// `multiplicative` bucket.
+//
+// BonusModifiers is a flat amount added after the additive/
+// multiplicative multiplication but still scaled by Crit Damage — real
+// Hypixel examples are Soul Eater, the End Stone Bow, and the One Punch
+// Dragon Essence Shop perk (per the wiki's Damage Calculation page
+// Trivia), none of which this app currently parses/models, so it's
+// always 0 today — kept as an explicit term rather than omitted so the
+// formula stays structurally correct if any of those get added later.
+//
+// Original formula source (still the basis for the underlying pieces):
+// https://hypixel-skyblock.fandom.com/wiki/Damage_Calculation — reproduces
+// its own worked example exactly (Final Damage 10160) with BonusModifiers=0.
 
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey } from './mobTypes';
@@ -70,17 +84,22 @@ export function computeFinalDamage(sources, mob) {
     }
   }
 
-  let armorFactor = 1;
+  let multiplicativeMultiplier = 1;
   for (const e of multiplicative) {
     if (!e.condition || conditionMatchesMob(e.condition, mob)) {
-      armorFactor *= e.value;
+      multiplicativeMultiplier *= e.value;
       appliedIds.add(e.id);
     }
   }
 
-  const initialDamage = (5 + baseStats.damage) * (1 + baseStats.strength / 100);
-  const damageMultiplier = 1 + additivePercent / 100;
-  const finalDamage = Math.floor(initialDamage * damageMultiplier * armorFactor * (1 + baseStats.crit_damage / 100));
+  // No currently-modeled source populates this — see the file header.
+  const bonusModifiers = 0;
 
-  return { initialDamage, damageMultiplier, additivePercent, armorFactor, finalDamage, appliedIds };
+  const initialDamage = (5 + baseStats.damage) * (1 + baseStats.strength / 100);
+  const additiveMultiplier = 1 + additivePercent / 100;
+  const finalDamage = Math.floor(
+    (initialDamage * additiveMultiplier * multiplicativeMultiplier + bonusModifiers) * (1 + baseStats.crit_damage / 100),
+  );
+
+  return { initialDamage, additiveMultiplier, additivePercent, multiplicativeMultiplier, bonusModifiers, finalDamage, appliedIds };
 }
