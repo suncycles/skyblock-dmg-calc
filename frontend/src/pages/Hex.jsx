@@ -49,7 +49,7 @@ export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
   const { status, refresh, itemData } = useItemData();
-  const { loadout, toggleRecombobulated } = useBuild();
+  const { loadout, toggleRecombobulated, playerStats } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const gearType = item ? getGearType(item.category) : null;
@@ -69,7 +69,7 @@ export default function Hex() {
     if (!item) return;
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData);
+    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData, playerStats.catacombsLevel);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
   function handleItemLeave() {

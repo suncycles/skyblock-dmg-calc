@@ -140,12 +140,12 @@ function sumStatFromTooltipLines(finalLines, pristineLore, label) {
   return base + parenNums.reduce((a, b) => a + b, 0);
 }
 
-async function collectBaseStats(loadout, itemData) {
+async function collectBaseStats(loadout, itemData, catacombsLevel) {
   const totals = { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 };
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel);
     for (const statKey of TRACKED_STATS) {
       totals[statKey] += sumStatFromTooltipLines(lines, equipped.item.lore, STAT_LABELS[statKey].label);
     }
@@ -413,7 +413,7 @@ export async function collectDamageSources(loadout, itemData, playerStats) {
     situational: [],
   };
 
-  out.baseStats = await collectBaseStats(loadout, itemData);
+  out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel);
   out.baseStats.strength += computeForagingStrengthBonus(playerStats?.foragingLevel);
 
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);

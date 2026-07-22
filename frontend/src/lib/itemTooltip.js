@@ -89,7 +89,7 @@ async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
 // Hex.jsx and the home-grid overview. Async only because of the enchant
 // stat-bonus lookup above; callers should await it before showing the
 // tooltip (capture the hover anchor before the await — see Hex.jsx).
-export async function buildFullItemTooltipLines(item, modifiers, itemData) {
+export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel) {
   if (!item || !modifiers) return [];
   const displayTier = modifiers.recombobulated ? bumpRarity(item.tier) : item.tier;
   const gearType = getGearType(item.category);
@@ -101,7 +101,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData) {
   const reforge = modifiers.reforge
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
     : null;
-  lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
+  lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel);
   lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
   // Computed straight off the item's own pristine lore (not the
