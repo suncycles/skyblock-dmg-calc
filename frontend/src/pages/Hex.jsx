@@ -124,7 +124,9 @@ export default function Hex() {
                             ? `/reforges/${slot}`
                             : label === 'Special'
                               ? `/special/${slot}`
-                              : null;
+                              : label === 'Item Upgrades'
+                                ? `/stars/${slot}`
+                                : null;
 
                 // Gemstones/Books/Reforges only open for items that can
                 // actually use them — everything else (Item Upgrades) is
@@ -189,6 +191,21 @@ export default function Hex() {
                       key={key}
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
                       title={enabled ? 'Special — this item\'s own ability mechanic' : `${label} — no special ability mechanic for this item`}
+                      onClick={() => enabled && navigate(dest)}
+                    >
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
+                    </div>
+                  );
+                }
+
+                if (label === 'Item Upgrades') {
+                  const enabled = Boolean(item);
+                  const applied = enabled && loadout[slot].modifiers.stars > 0;
+                  return (
+                    <div
+                      key={key}
+                      className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
+                      title={enabled ? 'Item Upgrades — Starring' : `${label} — select an item first`}
                       onClick={() => enabled && navigate(dest)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />

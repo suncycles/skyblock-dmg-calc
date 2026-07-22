@@ -6,6 +6,7 @@ import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore } from './specialWeapons';
+import { computeStarBonuses, buildStarSuffix, STAR_COLOR } from './starring';
 import { bumpRarity, applyRecombToLore } from './recombobulator';
 import { getGearType } from './gearType';
 
@@ -103,6 +104,10 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData) {
   lore = applyReforgeToLore(lore, reforge, displayTier, lore.indexOf(''));
   lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
+  // Computed straight off the item's own pristine lore (not the
+  // progressively-annotated `lore` above), so it's always exactly 2% of
+  // the item's real base stat regardless of what else has been applied.
+  lore = annotateStatLines(lore, computeStarBonuses(item.lore, modifiers.stars), STAR_COLOR, lore.indexOf(''));
 
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = annotateStatLines(lore, enchantStatBonuses, ENCHANT_STAT_COLOR, lore.indexOf(''));
@@ -111,6 +116,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData) {
   if (modifiers.recombobulated) lore = applyRecombToLore(lore, item.tier);
 
   const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
-  const title = `§${rarityColorCode(displayTier)}§l${reforgePrefix}${formatItemName(item.name)}`;
+  const starSuffix = buildStarSuffix(modifiers.stars);
+  const title = `§${rarityColorCode(displayTier)}§l${reforgePrefix}${formatItemName(item.name)}${starSuffix ? ` ${starSuffix}` : ''}`;
   return [title, ...lore];
 }
