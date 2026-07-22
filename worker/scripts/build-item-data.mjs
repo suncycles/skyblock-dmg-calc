@@ -57,6 +57,17 @@ const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES'];
 // category here instead finds all of them and can't silently drift stale.
 const PET_ITEM_CATEGORY = 'PET ITEM';
 
+// Power Stones (combine 9x at Maxwell/Thaumaturgist to unlock a Stone
+// Power on the Accessory Bag) — same "<TIER> POWER STONE" trailing-lore
+// convention as everything else here, verified against real NEU-REPO
+// files (e.g. ACACIA_BIRDHOUSE.json ends "§9§lRARE POWER STONE"). The
+// Power itself (name, per-MP stat scaling) isn't structured data
+// anywhere in NEU-REPO — only the physical stone item is — so that part
+// is a small hand-curated table in the frontend (lib/accessoryPowers.js),
+// sourced directly from the wiki; this script only needs to find the 21
+// real stone items for their icon/lore.
+const POWER_STONE_CATEGORY = 'POWER STONE';
+
 // Items that parse as a weapon/armor category but aren't real
 // player-obtainable gear: Rift NPC "items" (their tier is always null —
 // they're dialogue props, not loot) and one-off cosmetic/quest items
@@ -101,6 +112,7 @@ const weapons = [];
 const armor = [];
 const equipment = [];
 const petItems = [];
+const powerStones = [];
 let skippedNoLore = 0;
 let parseErrors = 0;
 
@@ -136,13 +148,25 @@ for (const file of files) {
   // always has a parsed tier; dialogue text doesn't.
   const isEquipment = !isWeapon && !isArmor && tier && EQUIPMENT_TYPES.some((t) => category.endsWith(t));
   const isPetItem = !isWeapon && !isArmor && !isEquipment && tier && category === PET_ITEM_CATEGORY;
-  if (!isWeapon && !isArmor && !isEquipment && !isPetItem) continue;
+  const isPowerStone = !isWeapon && !isArmor && !isEquipment && !isPetItem && tier && category === POWER_STONE_CATEGORY;
+  if (!isWeapon && !isArmor && !isEquipment && !isPetItem && !isPowerStone) continue;
 
   if (isPetItem) {
     // Pet items have no slot-matching `category` concept (there's only
     // ever one pet-item slot) and no consumer needs one — matches the
     // shape the old live-fetch code produced.
     petItems.push({
+      id: raw.internalname,
+      name: stripColorCodes(raw.displayname || raw.internalname || ''),
+      material: materialFromItemId(raw.itemid),
+      tier,
+      lore: raw.lore,
+    });
+    continue;
+  }
+
+  if (isPowerStone) {
+    powerStones.push({
       id: raw.internalname,
       name: stripColorCodes(raw.displayname || raw.internalname || ''),
       material: materialFromItemId(raw.itemid),
@@ -170,6 +194,7 @@ console.log(`weapons: ${weapons.length}`);
 console.log(`armor: ${armor.length}`);
 console.log(`equipment: ${equipment.length}`);
 console.log(`pet items: ${petItems.length}`);
+console.log(`power stones: ${powerStones.length}`);
 console.log(`skipped (no lore): ${skippedNoLore}`);
 console.log(`parse errors: ${parseErrors}`);
 
@@ -178,4 +203,5 @@ writeFileSync(path.join(outDir, 'weapons.json'), JSON.stringify(weapons));
 writeFileSync(path.join(outDir, 'armor.json'), JSON.stringify(armor));
 writeFileSync(path.join(outDir, 'equipment.json'), JSON.stringify(equipment));
 writeFileSync(path.join(outDir, 'petItems.json'), JSON.stringify(petItems));
-console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, equipment.json, and petItems.json`);
+writeFileSync(path.join(outDir, 'powerStones.json'), JSON.stringify(powerStones));
+console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, equipment.json, petItems.json, and powerStones.json`);
