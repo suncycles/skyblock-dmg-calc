@@ -8,6 +8,9 @@ import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { petLoreItemId, buildPetTooltipLines } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
+import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
+import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
+import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 
@@ -100,6 +103,25 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
+  // Synchronous, no fetch needed — the power table + formula are all
+  // local (lib/accessoryPowers.js).
+  function handleAccessoryHover(e) {
+    if (!loadout.accessory) {
+      showTooltip(['§7Accessories', '§8Empty — click to pick a power'], e.currentTarget);
+      return;
+    }
+    const { item, modifiers } = loadout.accessory;
+    const power = getPowerById(item.id);
+    const stats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
+    const lines = [`§d§l${formatItemName(item.name)}`, `§7${power ? power.type : ''}`, `§7Magical Power: §b${modifiers.magicalPower}`, ''];
+    for (const [key, value] of Object.entries(stats)) {
+      const meta = STAT_LABELS[key];
+      if (!meta || !value) continue;
+      lines.push(`§7${meta.label}: §${meta.color}${formatStatValue(key, Math.round(value * 10) / 10)}`);
+    }
+    showTooltip(lines, e.currentTarget);
+  }
+
   // One small helper covers both gear columns — same slot cell shape
   // (icon + bottom label + remove button when equipped), just a
   // different slot list/label map/picker route per column.
@@ -153,7 +175,44 @@ export default function Landing() {
         continue;
       }
 
-      // Column D (index 3): weapon at row 4 (index 3), pet at row 5 (index 4).
+      // Column D (index 3): Accessories directly above the weapon (row 3,
+      // index 2), weapon at row 4 (index 3), pet at row 5 (index 4).
+      if (col === 3 && row === 2) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.accessory ? 'bg-green-400' : ''}`}
+            onClick={() => navigate('/accessory')}
+            onMouseEnter={handleAccessoryHover}
+            onMouseLeave={invalidateHover}
+          >
+            {loadout.accessory ? (
+              <WeaponIcon
+                id={loadout.accessory.item.iconId}
+                material={loadout.accessory.item.material}
+                alt={loadout.accessory.item.name}
+                className={iconImg}
+              />
+            ) : (
+              <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
+            )}
+            {loadout.accessory && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                title="Remove Accessories"
+                onClick={(e) => handleGearRemove('accessory', e)}
+              >
+                🗑️
+              </span>
+            )}
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+              Accessories
+            </span>
+          </div>,
+        );
+        continue;
+      }
+
       if (col === 3 && row === 3) {
         cells.push(
           <div
