@@ -258,7 +258,13 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 // shown as situational — it isn't a damage-dealt source at all, so it's
 // out of this tool's scope rather than merely unresolved).
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
-const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+to\s+([^.]+?)\s+mobs?\b/i;
+// "to X mobs" (Necron's Blade family) and "against X" (Demonslayer
+// Gauntlet: "Deal +10% damage against Blazes.") are the same mechanic —
+// the target isn't always suffixed with the generic word "mobs" (a
+// specific plural mob name like "Blazes" stands alone), so that suffix
+// is optional, bounded by a lookahead to the next period/end of string
+// rather than consumed, so it doesn't get pulled into the captured name.
+const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
