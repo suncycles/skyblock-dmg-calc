@@ -10,6 +10,7 @@ import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
 import { computeCombatLevelBonus, computeSkyblockLevelMultiplier } from './playerStats';
 import { computeAccessoryTotalStats } from './accessoryPowers';
+import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -229,7 +230,15 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
     if (m) {
       const value = parseFloat(m[2]);
       if (m[1]) {
-        out.additiveConditional.push({ id, label: name, source, value, condition: cleanTargetText(m[1]) });
+        // Prefer the canonical Mob Type name(s) over whatever the lore
+        // text itself says — most of these 9 enchants already say the
+        // type name verbatim (Hypixel rewrote them when Mob Types
+        // shipped), but Cubism's tooltip is still the old hand-written
+        // mob enumeration and never got updated. This keeps all 9
+        // consistent regardless of which text style Hypixel currently uses.
+        const mobTypes = ENCHANT_ID_MOB_TYPES[entry.id.toLowerCase()];
+        const condition = mobTypes ? mobTypes.join(', ') : cleanTargetText(m[1]);
+        out.additiveConditional.push({ id, label: name, source, value, condition });
       } else {
         out.additiveNonConditional.push({ id, label: name, source, value });
       }
