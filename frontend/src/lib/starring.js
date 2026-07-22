@@ -46,16 +46,22 @@ export function computeStarBonuses(lore, starCount) {
   return bonuses;
 }
 
-// ✪ per star, colored in bands of 5 (gold, then pink, then light blue) —
-// real Hypixel's own star-tier coloring convention.
+const TIER_COLORS = ['6', 'd', 'b']; // gold, pink, light blue
+
+// Always exactly 5 ✪ glyphs (once past the first tier) rather than growing
+// with the count: the current tier's own progress leads, colored in its
+// own tier color, and any remaining slots needed to reach 5 are backfilled
+// from the *previous* tier's color rather than left blank — e.g. 13 stars
+// (3 into tier 3/blue) reads as 3 blue + 2 pink, not 3 blue alone.
 export function buildStarSuffix(starCount) {
   if (!starCount) return '';
-  const gold = Math.min(starCount, 5);
-  const pink = Math.min(Math.max(starCount - 5, 0), 5);
-  const blue = Math.min(Math.max(starCount - 10, 0), 5);
-  let suffix = '';
-  if (gold) suffix += `§6${'✪'.repeat(gold)}`;
-  if (pink) suffix += `§d${'✪'.repeat(pink)}`;
-  if (blue) suffix += `§b${'✪'.repeat(blue)}`;
+  const tierIndex = Math.min(Math.ceil(starCount / 5), TIER_COLORS.length) - 1;
+  const filledInTier = starCount - tierIndex * 5;
+  const backfill = 5 - filledInTier;
+
+  let suffix = `§${TIER_COLORS[tierIndex]}${'✪'.repeat(filledInTier)}`;
+  if (backfill > 0 && tierIndex > 0) {
+    suffix += `§${TIER_COLORS[tierIndex - 1]}${'✪'.repeat(backfill)}`;
+  }
   return suffix;
 }
