@@ -22,6 +22,7 @@ import ReforgesPicker from './pages/ReforgesPicker';
 import SpecialPicker from './pages/SpecialPicker';
 import StarringPicker from './pages/StarringPicker';
 import DamageSources from './pages/DamageSources';
+import AccessoryPowerPicker from './pages/AccessoryPowerPicker';
 
 // __BUILD_TIME__ is injected by vite.config.js's `define` at build time —
 // a fixed instant, not "now", so this reads the same on every page load
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/special/:slot" element={<SpecialPicker />} />
             <Route path="/stars/:slot" element={<StarringPicker />} />
             <Route path="/damage-sources" element={<DamageSources />} />
+            <Route path="/accessory" element={<AccessoryPowerPicker />} />
           </Routes>
           <div className="fixed bottom-1 right-2 text-[10px] text-neutral-500 pointer-events-none select-none">
             Latest deploy: {deployTime}
