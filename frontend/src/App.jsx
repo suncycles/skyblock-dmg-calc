@@ -25,6 +25,7 @@ import DamageSources from './pages/DamageSources';
 import AccessoryPowerPicker from './pages/AccessoryPowerPicker';
 import AccessoryTuning from './pages/AccessoryTuning';
 import PlayerLevels from './pages/PlayerLevels';
+import TargetMobPicker from './pages/TargetMobPicker';
 
 // __BUILD_TIME__ is injected by vite.config.js's `define` at build time —
 // a fixed instant, not "now", so this reads the same on every page load
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="/accessory" element={<AccessoryPowerPicker />} />
             <Route path="/accessory/tuning" element={<AccessoryTuning />} />
             <Route path="/player-levels" element={<PlayerLevels />} />
+            <Route path="/target-mob" element={<TargetMobPicker />} />
           </Routes>
           <div className="fixed bottom-1 right-2 text-[10px] text-neutral-500 pointer-events-none select-none">
             Latest deploy: {deployTime}
