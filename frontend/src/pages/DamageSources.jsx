@@ -32,7 +32,7 @@ const BASE_STAT_KEYS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout } = useBuild();
+  const { loadout, playerStats } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -41,10 +41,10 @@ export default function DamageSources() {
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData).then((r) => {
+    collectDamageSources(loadout, itemData, playerStats).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData]);
+  }, [loadout, itemData, playerStats]);
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
