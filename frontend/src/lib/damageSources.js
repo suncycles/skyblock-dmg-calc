@@ -8,7 +8,12 @@ import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
 import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
-import { computeCombatLevelBonus, computeSkyblockLevelMultiplier, computeForagingStrengthBonus } from './playerStats';
+import {
+  computeCombatLevelBonus,
+  computeSkyblockLevelMultiplier,
+  computeSkyblockLevelStrengthBonus,
+  computeForagingStrengthBonus,
+} from './playerStats';
 import { computeAccessoryTotalStats } from './accessoryPowers';
 import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
 
@@ -415,6 +420,7 @@ export async function collectDamageSources(loadout, itemData, playerStats) {
 
   out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel);
   out.baseStats.strength += computeForagingStrengthBonus(playerStats?.foragingLevel);
+  out.baseStats.strength += computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel);
 
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
   if (combatLevelBonus) {
