@@ -1,12 +1,12 @@
 import { rarityColorCode, formatItemName } from './mcText';
 import { titleCaseEnchantId, toRoman, fetchEnchantLevels, extractDescriptionLines } from './enchantEffects';
 import { parseEnchantStatBonus } from './enchantStats';
-import { annotateStatLines } from './statLines';
+import { annotateStatLines, mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore } from './specialWeapons';
-import { computeStarBonuses, buildStarSuffix, STAR_COLOR } from './starring';
+import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore } from './recombobulator';
 import { getGearType } from './gearType';
 
@@ -107,7 +107,11 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData) {
   // Computed straight off the item's own pristine lore (not the
   // progressively-annotated `lore` above), so it's always exactly 2% of
   // the item's real base stat regardless of what else has been applied.
-  lore = annotateStatLines(lore, computeStarBonuses(item.lore, modifiers.stars), STAR_COLOR, lore.indexOf(''));
+  // Merged directly into the base number (e.g. Dark Claymore's 500
+  // Damage becomes 550 at 5 stars) rather than an appended "(+X)"
+  // annotation — a star is described as improving the item's base stats,
+  // not as an external modifier layered on top.
+  lore = mergeStatIntoBase(lore, computeStarBonuses(item.lore, modifiers.stars), lore.indexOf(''));
 
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = annotateStatLines(lore, enchantStatBonuses, ENCHANT_STAT_COLOR, lore.indexOf(''));
