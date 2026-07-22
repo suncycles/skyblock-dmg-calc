@@ -250,6 +250,15 @@ export default function Landing() {
           {cells}
         </div>
       </div>
+
+      {/* Deliberately small/muted, not a second focal element next to the
+          grid — see lib/damageSources.js for what it aggregates. */}
+      <button
+        className="mt-2 text-[11px] text-neutral-400 hover:text-neutral-200 cursor-pointer underline"
+        onClick={() => navigate('/damage-sources')}
+      >
+        📊 Damage Sources
+      </button>
     </div>
   );
 }
