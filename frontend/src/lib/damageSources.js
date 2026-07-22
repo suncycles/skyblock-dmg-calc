@@ -334,11 +334,16 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
     });
   } else if (config.kind === 'crownOfAvarice') {
     const { damageMultiplier } = crownOfAvariceStats(config, bonus);
+    // Real lore: "...deal +0.015x Damage for each digit of Coins
+    // consumed" is the same sentence as "Grants +2.5 Magic Find against
+    // Mythological mobs" — the coin multiplier is Mythological-only, not
+    // always-on.
     out.multiplicative.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Coins Consumed)`,
       source: slotLabel,
       value: damageMultiplier,
+      condition: 'Mythological',
     });
   }
   // midasSword/midasStaff: already merged into base stats (see

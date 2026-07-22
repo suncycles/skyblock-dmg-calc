@@ -10,6 +10,7 @@ import { petLoreItemId, buildPetTooltipLines } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
+import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -31,7 +32,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats } = useBuild();
+  const { loadout, removeSlot, playerStats, targetMob, setTargetMob } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -121,6 +122,22 @@ export default function Landing() {
       lines.push(`§7${meta.label}: §${meta.color}${formatStatValue(key, Math.round(value * 10) / 10)}`);
     }
     showTooltip(lines, e.currentTarget);
+  }
+
+  // Synchronous — the mob's types are already local (lib/mobTypes.js).
+  function handleTargetMobHover(e) {
+    if (!targetMob) {
+      showTooltip(['§7Target Mob', '§8Empty — click to pick one'], e.currentTarget);
+      return;
+    }
+    const types = MOB_TYPES[targetMob] || [];
+    showTooltip([`§d§l${targetMob}`, `§7Types: §f${types.join(', ')}`], e.currentTarget);
+  }
+
+  function handleTargetMobRemove(e) {
+    e.stopPropagation();
+    hideTooltip();
+    setTargetMob(null);
   }
 
   // One small helper covers both gear columns — same slot cell shape
@@ -301,6 +318,41 @@ export default function Landing() {
             )}
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
               Pet
+            </span>
+          </div>,
+        );
+        continue;
+      }
+
+      // Column F (index 5), row 1: Target Mob — the mob Final Damage
+      // (see lib/finalDamage.js) is computed against, picked from the
+      // wiki-scraped roster in lib/mobTypes.js. Takes over the first cell
+      // of the otherwise-decorative mob-head filler block below; no icon
+      // assets exist for named mobs so this is a plain colored-text tile
+      // like the Skyblock Level slot, not an image.
+      if (col === 5 && row === 1) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 pb-2.5`}
+            onClick={() => navigate('/target-mob')}
+            onMouseEnter={handleTargetMobHover}
+            onMouseLeave={invalidateHover}
+          >
+            <span className="text-[9px] font-bold text-white text-center px-1 truncate max-w-full drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+              {targetMob || 'Select Mob'}
+            </span>
+            {targetMob && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                title="Remove Target Mob"
+                onClick={handleTargetMobRemove}
+              >
+                🗑️
+              </span>
+            )}
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] whitespace-nowrap">
+              Target
             </span>
           </div>,
         );

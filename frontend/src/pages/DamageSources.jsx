@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
+import { computeFinalDamage } from '../lib/finalDamage';
+import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
-import { splitKeywords, KEYWORD_SYMBOLS } from '../lib/damageSymbols';
+import { splitKeywords, KEYWORD_SYMBOLS, MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -49,7 +51,7 @@ function Keyworded({ text }) {
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout, playerStats } = useBuild();
+  const { loadout, playerStats, targetMob } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -62,6 +64,10 @@ export default function DamageSources() {
       if (tokenRef.current === token) setResult(r);
     });
   }, [loadout, itemData, playerStats]);
+
+  const targetMobTypes = targetMob ? MOB_TYPES[targetMob] : null;
+  const validTarget = targetMob && targetMobTypes;
+  const finalDamage = result && validTarget ? computeFinalDamage(result, { name: targetMob, types: targetMobTypes }) : null;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -80,6 +86,53 @@ export default function DamageSources() {
         <div className="w-full max-w-[700px] text-sm text-neutral-300">Calculating...</div>
       ) : (
         <div className="w-full max-w-[700px] flex flex-col gap-3">
+          <div className={`${panel} p-4 flex flex-col gap-2`}>
+            <div className="text-sm font-bold text-black">Final Damage</div>
+            {!validTarget ? (
+              <div className="text-xs text-neutral-600 italic">
+                {targetMob && !targetMobTypes
+                  ? `"${targetMob}" is no longer in the mob data — `
+                  : 'No target selected — '}
+                <button className="underline cursor-pointer" onClick={() => navigate('/target-mob')}>
+                  pick a mob
+                </button>{' '}
+                to compute Final Damage.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="text-[13px] font-bold text-black">{targetMob}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {targetMobTypes.map((t) => {
+                      const meta = MOB_TYPE_SYMBOLS[t];
+                      return (
+                        <span key={t} className="text-[10px] font-mono" style={{ color: meta.color }}>
+                          {meta.symbol} {t}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
+                  <span>Initial Damage</span>
+                  <span className="text-right font-mono">{round1(finalDamage.initialDamage)}</span>
+                  <span>Damage Multiplier</span>
+                  <span className="text-right font-mono">
+                    +{round1(finalDamage.additivePercent)}% (x{round4(finalDamage.damageMultiplier)})
+                  </span>
+                  <span>Armor Factor</span>
+                  <span className="text-right font-mono">{round4(finalDamage.armorFactor)}x</span>
+                </div>
+                <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
+                  <span className="text-sm font-bold text-black">Final Damage</span>
+                  <span className="text-2xl font-mono font-bold text-black">
+                    {finalDamage.finalDamage.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
           <Section title="(Base) Stats" empty="">
             {BASE_STAT_KEYS.map((key) => (
               <div key={key} className="flex justify-between text-[13px] text-black">
@@ -112,6 +165,7 @@ export default function DamageSources() {
                   </>
                 }
                 source={e.source}
+                applied={finalDamage ? finalDamage.appliedIds.has(e.id) : undefined}
               />
             ))}
           </Section>
@@ -132,6 +186,7 @@ export default function DamageSources() {
                   </>
                 }
                 source={e.source}
+                applied={finalDamage ? finalDamage.appliedIds.has(e.id) : undefined}
               />
             ))}
           </Section>
@@ -179,9 +234,13 @@ function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
 
-function Row({ left, right, source }) {
+// `applied` is only meaningful once a target mob is selected (see
+// lib/finalDamage.js's appliedIds) — undefined (no target yet) renders
+// normally, false dims the row to show it isn't contributing to the
+// Final Damage number above.
+function Row({ left, right, source, applied }) {
   return (
-    <div className="flex justify-between items-baseline text-[13px] text-black gap-2">
+    <div className={`flex justify-between items-baseline text-[13px] text-black gap-2 ${applied === false ? 'opacity-40' : ''}`}>
       <span>
         {left} <span className="text-[11px] text-neutral-600">— {source}</span>
       </span>

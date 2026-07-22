@@ -4,8 +4,17 @@ import { computeTuningPoints } from '../lib/accessoryPowers';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
+const TARGET_MOB_KEY = 'hexTargetMob';
 
 const BuildContext = createContext(null);
+
+// The mob Final Damage is computed against (see lib/finalDamage.js) —
+// just a canonical mob name string (a key into lib/mobTypes.js's
+// MOB_TYPES) or null, its own small persisted concern same as
+// playerStats rather than part of the equipment loadout.
+function loadInitialTargetMob() {
+  return localStorage.getItem(TARGET_MOB_KEY) || null;
+}
 
 // Global, not tied to any equipped item/pet — Combat Level, Skyblock
 // Level, etc (see lib/playerStats.js) — persisted separately from the
@@ -109,6 +118,13 @@ function loadInitial() {
 export function BuildProvider({ children }) {
   const [loadout, setLoadout] = useState(loadInitial);
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
+  const [targetMob, setTargetMobState] = useState(loadInitialTargetMob);
+
+  const setTargetMob = useCallback((name) => {
+    setTargetMobState(name);
+    if (name) localStorage.setItem(TARGET_MOB_KEY, name);
+    else localStorage.removeItem(TARGET_MOB_KEY);
+  }, []);
 
   const setCombatLevel = useCallback((value) => {
     setPlayerStats((prev) => {
@@ -352,6 +368,8 @@ export function BuildProvider({ children }) {
         setCombatLevel,
         setSkyblockLevel,
         setForagingLevel,
+        targetMob,
+        setTargetMob,
         selectItem,
         removeSlot,
         applyEnchant,

@@ -281,7 +281,7 @@ for (const [name, types] of Object.entries(MOB_TYPES)) {
 // (e.g. "Slug" has no separate "Slug"/"Slugs" ambiguity to worry about,
 // but this guards names like "Zombies" -> "Zombie" without assuming every
 // trailing "s" is a plural marker).
-function resolveKey(name) {
+export function resolveMobKey(name) {
   const key = name.trim().toLowerCase();
   if (LOOKUP.has(key)) return key;
   if (key.endsWith('s') && LOOKUP.has(key.slice(0, -1))) return key.slice(0, -1);
@@ -289,7 +289,7 @@ function resolveKey(name) {
 }
 
 export function getMobTypes(mobName) {
-  const key = resolveKey(mobName);
+  const key = resolveMobKey(mobName);
   return key ? LOOKUP.get(key) : [];
 }
 
