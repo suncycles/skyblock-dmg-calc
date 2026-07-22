@@ -21,7 +21,7 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return items.filter((w) => w.name && stripLeadingSymbol(w.name).toLowerCase().startsWith(q)).slice(0, 8);
+    return items.filter((w) => w.name && stripLeadingSymbol(w.name).toLowerCase().includes(q)).slice(0, 8);
   }, [query, items]);
 
   return (
