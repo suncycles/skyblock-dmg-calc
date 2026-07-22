@@ -4,8 +4,7 @@ import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine } from '../lib/mcText';
-import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
-import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from '../lib/petItemEffects';
+import { petLoreItemId, buildPetTooltipLines, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
@@ -71,34 +70,13 @@ export default function PetDetail() {
     };
   }, [loreId]);
 
+  // Shared with Landing's hover tooltip (lib/petData.js's
+  // buildPetTooltipLines) so both show the exact same real-lore-with-
+  // stats-substituted content for the same pet.
   const tooltipLines = useMemo(() => {
-    if (!pet) return [];
-    const tierColor = rarityColorCode(pet.tier);
-    if (rawLore === null) return [`§${tierColor}§l${pet.name}`, '', '§7Loading...'];
-    if (rawLore === false) return [`§${tierColor}§l[Lvl ${level}] ${pet.name}`, '§7No lore available.'];
-    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-    let stats = computeAllPetStats(levels, level, maxLevel);
-    // A held Pet Item can boost one or all of the pet's own stats by a
-    // percentage (e.g. Antique Remedies: +80% Strength) — apply it before
-    // the {STAT_NAME} placeholders below get filled in, so the boosted
-    // number is what actually shows on the pet's tooltip, not the base
-    // value. Pure XP/coin pet items parse to no boost and are a no-op.
-    const statBoost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
-    stats = applyPetItemStatBoost(stats, statBoost);
-    const otherNums = computeOtherNums(levels, level, maxLevel);
-    const lore = substitutePetLore(rawLore.lore, level, stats, otherNums);
-    const title = (rawLore.displayname || `§${tierColor}§l${pet.name}`).replace('{LVL}', String(level));
-    // Held Item shown as its own line (colored by the pet item's own
-    // rarity, like a real item name would be), followed by its real
-    // effect description lines (as-authored colors/wrapping) so the
-    // boost applied above is visibly explained, not just silently baked
-    // into the stat numbers above.
-    const heldItemLines = petItem
-      ? [`§7Held Item: §${rarityColorCode(petItem.tier)}${formatItemName(petItem.name)}`, ...(extractPetItemEffectLines(petItem.lore) || [])]
-      : [];
-    const withHeldItem = heldItemLines.length > 0 ? [...lore.slice(0, -1), ...heldItemLines, lore[lore.length - 1]] : lore;
-    return [formatItemName(title), ...withHeldItem];
-  }, [pet, rawLore, level, maxLevel, itemData.pets, petItem]);
+    if (!pet || !loadout.pet) return [];
+    return buildPetTooltipLines(pet, loadout.pet.modifiers, itemData, rawLore);
+  }, [pet, loadout.pet, itemData, rawLore]);
 
   if (!pet) {
     return (
