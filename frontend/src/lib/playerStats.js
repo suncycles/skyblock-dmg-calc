@@ -26,6 +26,13 @@ export function computeSkyblockLevelMultiplier(level) {
   return 1 + (clamped * SKYBLOCK_LEVEL_PERCENT_PER_LEVEL) / 100;
 }
 
+// Every 5 Skyblock Levels grants +1 Strength, separate from the damage
+// multiplier above.
+export function computeSkyblockLevelStrengthBonus(level) {
+  const clamped = Math.max(0, level || 0);
+  return Math.floor(clamped / 5);
+}
+
 // Real Hypixel Skyblock Level display color, dyed every 40 levels (the
 // same colored-wool progression shown in-game/on the wiki) — level 1-40
 // is white, 41-80 yellow, ... 441+ stays dark red (no bracket past 480 is
