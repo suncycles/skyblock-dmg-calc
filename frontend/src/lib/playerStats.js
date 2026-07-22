@@ -13,3 +13,13 @@ export function computeCombatLevelBonus(level) {
   if (clamped <= 50) return clamped * 4;
   return 50 * 4 + (clamped - 50) * 1;
 }
+
+// Real Hypixel Skyblock Level damage bonus: linear multiplicative, +0.01%
+// per level — 4.93% (1.0493x) at the wiki-documented reference point of
+// level 493.
+const SKYBLOCK_LEVEL_PERCENT_PER_LEVEL = 4.93 / 493;
+
+export function computeSkyblockLevelMultiplier(level) {
+  const clamped = Math.max(0, level || 0);
+  return 1 + (clamped * SKYBLOCK_LEVEL_PERCENT_PER_LEVEL) / 100;
+}

@@ -8,7 +8,7 @@ import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
 import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
-import { computeCombatLevelBonus } from './playerStats';
+import { computeCombatLevelBonus, computeSkyblockLevelMultiplier } from './playerStats';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -390,6 +390,11 @@ export async function collectDamageSources(loadout, itemData, playerStats) {
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
   if (combatLevelBonus) {
     out.additiveNonConditional.push({ id: 'combat-level', label: 'Combat Level', source: 'Player', value: combatLevelBonus });
+  }
+
+  const skyblockLevelMultiplier = computeSkyblockLevelMultiplier(playerStats?.skyblockLevel);
+  if (skyblockLevelMultiplier !== 1) {
+    out.multiplicative.push({ id: 'skyblock-level', label: 'Skyblock Level', source: 'Player', value: skyblockLevelMultiplier });
   }
 
   for (const slot of GEAR_SLOTS) {
