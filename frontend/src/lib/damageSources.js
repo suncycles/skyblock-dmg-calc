@@ -236,13 +236,26 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 // ---------------------------------------------------------------------
 // Item/pet ability text: two real phrasings for the same "bonus damage
 // vs a mob category" mechanic, verified against Necron's Blade-family
-// weapons (object-last: "Deals +50% damage to Wither mobs") and Crown of
-// Avarice (subject-first: "Mythological mobs deal 1.5x damage").
+// weapons (object-last: "Deals +50% damage to Wither mobs") and a
+// subject-first "X mobs take Nx damage" shape (the player dealing more
+// damage TO those mobs).
+//
+// "X mobs DEAL Nx damage", despite the superficially similar shape, means
+// the opposite: those mobs deal that damage TO THE PLAYER — an incoming-
+// damage penalty, not a player damage-output source. Verified directly:
+// Crown of Avarice's own lore says "Mythological mobs deal 1.5x damage"
+// for the exact same mechanic Crown of Greed spells out unambiguously as
+// "but you take 1.25x damage from them". Excluded entirely (not even
+// shown as situational — it isn't a damage-dealt source at all, so it's
+// out of this tool's scope rather than merely unresolved).
+const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
 const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+to\s+([^.]+?)\s+mobs?\b/i;
-const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+(?:deal|take)s?\s+\+?([\d.]+)x\s+damage/i;
+const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
 function matchDamageParagraph(text) {
+  if (INCOMING_DAMAGE_RE.test(text)) return null;
+
   let m = SUBJECT_MULTIPLIER_RE.exec(text);
   if (m) return { bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) };
 
