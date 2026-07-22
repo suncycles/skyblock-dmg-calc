@@ -26,7 +26,7 @@ const slotBase =
 export default function PetDetail() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { loadout, setPetLevel, setPetItem } = useBuild();
+  const { loadout, setPetLevel, setPetItem, setPetBankCoins } = useBuild();
   const { hideTooltip } = useTooltip();
 
   // This page shows its own tooltip permanently, inline (see the mc-tooltip
@@ -43,6 +43,7 @@ export default function PetDetail() {
   const level = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.level) ?? 0;
   const petItemId = loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.petItem;
   const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+  const bankCoins = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.bankCoins) || 0;
   const maxLevel = pet ? getMaxPetLevel(pet.petId) : MAX_PET_LEVEL;
 
   // Decoupled from `level` itself so the field can sit empty mid-edit
@@ -173,6 +174,29 @@ export default function PetDetail() {
               )}
             </div>
           </div>
+
+          {/* Legendary Treasure ("Gain X% damage for every million coins
+              in your bank, Max Y%") is the one Golden Dragon perk with a
+              real, fixed formula (see lib/damageSources.js) — every other
+              perk either isn't a damage bonus or depends on state this app
+              doesn't track (Magic Find, Gold Collection), so this is the
+              only pet-specific input, shown only for this one species. */}
+          {pet.petId === 'GOLDEN_DRAGON' && (
+            <div className="border-t border-neutral-500 pt-2">
+              <label className="text-xs font-bold text-black" htmlFor="pet-bank-coins">
+                Coins in Bank (Legendary Treasure)
+              </label>
+              <input
+                id="pet-bank-coins"
+                type="number"
+                min="0"
+                step="1000000"
+                value={bankCoins}
+                onChange={(e) => setPetBankCoins(Math.max(0, Number(e.target.value) || 0))}
+                className="w-full px-2 py-1 mt-1 text-sm bg-black text-white border-2 border-neutral-700"
+              />
+            </div>
+          )}
 
           <div className="flex gap-1">
             <button

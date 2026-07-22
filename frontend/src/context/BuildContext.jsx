@@ -27,6 +27,7 @@ function emptyPetModifiers() {
   return {
     level: 1,
     petItem: null, // pet item id string | null
+    bankCoins: 0, // Golden Dragon's "Legendary Treasure" input — see lib/damageSources.js
   };
 }
 
@@ -241,6 +242,13 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  const setPetBankCoins = useCallback(
+    (value) => {
+      updateSlotModifiers('pet', (modifiers) => ({ ...modifiers, bankCoins: value }));
+    },
+    [updateSlotModifiers],
+  );
+
   return (
     <BuildContext.Provider
       value={{
@@ -259,6 +267,7 @@ export function BuildProvider({ children }) {
         setStarCount,
         setPetLevel,
         setPetItem,
+        setPetBankCoins,
       }}
     >
       {children}

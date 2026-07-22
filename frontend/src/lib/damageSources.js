@@ -1,0 +1,400 @@
+import { STAT_LABELS } from './reforgeData';
+import { buildFullItemTooltipLines } from './itemTooltip';
+import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
+import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
+import { formatItemName } from './mcText';
+import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from './armorSlots';
+import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
+import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel } from './petData';
+import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
+import { fetchNeuItem } from './neuItems';
+
+/* Aggregates every damage-relevant stat/bonus across the whole loadout
+   (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
+   base stats (Damage/Strength/Crit Chance/Crit Damage, summed), % damage
+   bonuses split into non-conditional (Sharpness, Giant Killer at its
+   capped/"100% uptime" value) vs conditional (Smite -> Wither/Undead/
+   Skeletal, item abilities like "+50% damage to Wither mobs"),
+   multiplicative sources (Crown of Avarice's Nx), and a situational list
+   for formula-based sources with no fixed value (Execute's %-per-missing-
+   HP, or any "damage"-mentioning text that didn't match a known pattern)
+   — excluded from the totals but kept structured (formula/basis/rate) so
+   a future mob-HP simulator can resolve them without re-deriving anything.
+
+   Coverage is pattern-based against real, verified NEU-REPO phrasings,
+   not a hand-curated table of every enchant/item — see the regexes below
+   for exactly what's recognized. Anything mentioning "damage" that isn't
+   recognized lands in `situational` with its raw text shown rather than
+   being silently dropped; anything not mentioning "damage" at all (pure
+   Ferocity/Defense-shred/utility effects) is out of scope entirely. */
+
+const GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS];
+const SLOT_LABELS = { weapon: 'Weapon', ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS };
+const TRACKED_STATS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
+
+// Fully handled by collectBaseStats/collectSpecialMechanicEntries below
+// (their bonus is either merged into base stats already, per last
+// session's work, or computed exactly from the real player-entered
+// value) — excluded from the generic ability-text scan so the same
+// mechanic doesn't also get loosely re-parsed a second time.
+const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
+  'DAEDALUS_AXE',
+  'STARRED_DAEDALUS_AXE',
+  'MIDAS_SWORD',
+  'STARRED_MIDAS_SWORD',
+  'MIDAS_STAFF',
+  'STARRED_MIDAS_STAFF',
+  'EMERALD_BLADE',
+]);
+
+function stripToPlain(lines) {
+  return (Array.isArray(lines) ? lines.join(' ') : lines)
+    .replace(/§./g, '')
+    .replace(/[^\x00-\x7F]/g, '') // drop decorative/PUA glyphs
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function splitParagraphs(lore) {
+  const paragraphs = [];
+  let current = [];
+  for (const line of lore || []) {
+    if (line === '') {
+      paragraphs.push(current);
+      current = [];
+    } else {
+      current.push(line);
+    }
+  }
+  paragraphs.push(current);
+  return paragraphs.filter((p) => p.length > 0);
+}
+
+// Ability paragraphs almost always lead with a header line before the
+// actual effect text — weapons/armor use "§6Ability: Name" (Crown of
+// Avarice: "Ability: Overindulgence"), pets just the bare name (Golden
+// Dragon: "Legendary Treasure", Ender Dragon: "End Strike") — left in,
+// that header text ends up glued onto the front of a subject-first "X
+// mobs deal Nx damage" condition capture, since the whole paragraph is
+// joined into one string before matching. A header line never itself
+// contains a digit/"%"/"damage"/"mobs" (the only things any regex below
+// matches on), so dropping any such leading line can't lose information
+// either pattern would have used.
+function stripLeadingHeaderLine(lines) {
+  if (!lines || lines.length < 2) return lines;
+  const first = lines[0].replace(/§./g, '').trim();
+  const looksLikeHeader = !/[\d%]/.test(first) && !/damage|mobs/i.test(first);
+  return looksLikeHeader ? lines.slice(1) : lines;
+}
+
+// A stat-block paragraph (item's own Damage/Strength/Gemstones/etc, or a
+// pet's own Strength/Crit Chance/Crit Damage block) always leads with a
+// "Label: value" line — detected by shape rather than assumed to always
+// be paragraph 0, since pets have an unrelated "Combat Pet" paragraph
+// before their real stat block. Filtered out of ability-text scanning so
+// e.g. a pet's own "Crit Damage: +50%" stat line can't trip the generic
+// "mentions damage" situational catch-all below.
+function isStatBlockParagraph(paragraph) {
+  if (!paragraph || paragraph.length === 0) return false;
+  return /^[A-Za-z ]+:\s*[+-]?[\d.]/.test(paragraph[0].replace(/§./g, '').trim());
+}
+
+function cleanTargetText(raw) {
+  return raw
+    .replace(/\bmobs?\b/gi, '')
+    .replace(/\s*,?\s*and\s+/gi, ', ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^,|,$/g, '')
+    .trim();
+}
+
+// ---------------------------------------------------------------------
+// Base stats: reuses buildFullItemTooltipLines (already the single
+// source of truth for "what does this item's tooltip actually show",
+// tested throughout this session) rather than re-deriving numbers from
+// each of gemstones.js/reforges.js/books.js/statLines.js/starring.js
+// separately. Every modifier annotates a stat line as either its own new
+// "Label: +X (+X)" line (when the item had no such line pristinely — the
+// leading number IS the first modifier's own value, already echoed as
+// its first parenthetical too) or appends "(+X)" to an existing line —
+// so the two cases need different summing to avoid double-counting a
+// synthesized line's leading number against its own first annotation.
+function sumStatFromTooltipLines(finalLines, pristineLore, label) {
+  const labelRe = new RegExp(`^${label}:`);
+  const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
+  if (!finalLine) return 0;
+  const plain = finalLine.replace(/§./g, '');
+  const afterLabel = plain.slice(plain.indexOf(':') + 1);
+  const existedPristinely = (pristineLore || []).some((l) => labelRe.test(l.replace(/§./g, '').trim()));
+  const parenNums = [...afterLabel.matchAll(/\(([+-]?[\d.]+)%?\)/g)].map((m) => parseFloat(m[1]));
+
+  if (!existedPristinely) {
+    return parenNums.reduce((a, b) => a + b, 0);
+  }
+  const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabel);
+  const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
+  return base + parenNums.reduce((a, b) => a + b, 0);
+}
+
+async function collectBaseStats(loadout, itemData) {
+  const totals = { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 };
+  for (const slot of GEAR_SLOTS) {
+    const equipped = loadout[slot];
+    if (!equipped) continue;
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData);
+    for (const statKey of TRACKED_STATS) {
+      totals[statKey] += sumStatFromTooltipLines(lines, equipped.item.lore, STAT_LABELS[statKey].label);
+    }
+    // Emerald Blade's ability bonus is shown under its own "Current
+    // Damage Bonus:" line, not a "Damage:" stat line, so the generic
+    // label-matching above can't see it.
+    if (equipped.item.id === 'EMERALD_BLADE') {
+      const config = getSpecialConfig(equipped.item.id);
+      totals.damage += computeSpecialBonus(config, equipped.modifiers.special);
+    }
+  }
+  if (loadout.pet) {
+    const { item: pet, modifiers } = loadout.pet;
+    const maxLevel = getMaxPetLevel(pet.petId);
+    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+    let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+    const petItemId = modifiers.petItem;
+    const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+    const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+    stats = applyPetItemStatBoost(stats, boost);
+    totals.strength += stats.STRENGTH || 0;
+    totals.crit_chance += stats.CRIT_CHANCE || 0;
+    totals.crit_damage += stats.CRIT_DAMAGE || 0;
+  }
+  return totals;
+}
+
+// ---------------------------------------------------------------------
+// Enchants: real per-level lore fetched the same way itemTooltip.js's
+// computeEnchantStatBonuses already does. Two known formula shapes,
+// verified directly against NEU-REPO this session:
+//  - "Increases [melee/ranged] damage dealt [to X] by Y%" (Sharpness has
+//    no target -> non-conditional; Smite/Bane of Arthropods/Cubism/Ender
+//    Slayer name one or more targets -> conditional, one shared % across
+//    all of them, not a separate % per target).
+//  - "Increases damage dealt by Y% for each percent of <basis>[, up to
+//    Z%]" (Giant Killer has an explicit cap; Execute has the same shape
+//    with no cap). Only Giant Killer gets a resolved value here (its cap,
+//    per the "100% uptime" instruction) — anything else matching this
+//    shape has no natural fixed value and goes to situational, structured
+//    for a future mob-HP simulator to resolve exactly.
+const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+)?damage\s+dealt(?:\s+to\s+(.+?))?\s+by\s+\+?([\d.]+)%/i;
+const PER_TARGET_STAT_RE =
+  /Increases\s+damage\s+dealt\s+by\s+\+?([\d.]+)%\s+for\s+each\s+(?:percent|%)\s+of\s+(.+?)(?:,?\s+up\s+to\s+\+?([\d.]+)%)?\.?\s*$/i;
+
+async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out) {
+  for (const entry of entries) {
+    const levels = await fetchEnchantLevels(entry.id, enchantsMeta);
+    const levelData = levels.find((l) => l.level === entry.level);
+    if (!levelData) continue;
+    const text = stripToPlain(extractDescriptionLines(levelData.lore));
+    const name = `${titleCaseEnchantId(entry.id)} ${toRoman(entry.level)}`;
+    const source = `${itemLabel} (${slotLabel})`;
+    const id = `${slotLabel}-${entry.id}`;
+
+    // Checked first: PERCENT_TO_TARGET_RE's "damage dealt by Y%" prefix
+    // is a structural subset of this pattern's own "damage dealt by Y%
+    // for each percent of..." text, so Giant Killer/Execute would
+    // otherwise match it first and get their per-point rate treated as
+    // if it were the whole (non-conditional) bonus.
+    let m = PER_TARGET_STAT_RE.exec(text);
+    if (m) {
+      const ratePerLevel = parseFloat(m[1]);
+      const basis = m[2].trim();
+      const cap = m[3] != null ? parseFloat(m[3]) : null;
+      if (entry.id.toLowerCase() === 'giant_killer' && cap != null) {
+        out.additiveNonConditional.push({ id, label: name, source, value: cap });
+      } else {
+        out.situational.push({ id, label: name, source, note: text, formula: { kind: 'per-target-stat', basis, ratePerLevel, cap } });
+      }
+      continue;
+    }
+
+    m = PERCENT_TO_TARGET_RE.exec(text);
+    if (m) {
+      const value = parseFloat(m[2]);
+      if (m[1]) {
+        out.additiveConditional.push({ id, label: name, source, value, condition: cleanTargetText(m[1]) });
+      } else {
+        out.additiveNonConditional.push({ id, label: name, source, value });
+      }
+      continue;
+    }
+
+    if (/damage/i.test(text)) {
+      out.situational.push({ id, label: name, source, note: text, formula: null });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
+// Item/pet ability text: two real phrasings for the same "bonus damage
+// vs a mob category" mechanic, verified against Necron's Blade-family
+// weapons (object-last: "Deals +50% damage to Wither mobs") and Crown of
+// Avarice (subject-first: "Mythological mobs deal 1.5x damage").
+const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+to\s+([^.]+?)\s+mobs?\b/i;
+const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+(?:deal|take)s?\s+\+?([\d.]+)x\s+damage/i;
+const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
+
+function matchDamageParagraph(text) {
+  let m = SUBJECT_MULTIPLIER_RE.exec(text);
+  if (m) return { bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) };
+
+  m = DEALS_TO_TARGET_RE.exec(text);
+  if (m) return { bucket: 'additiveConditional', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) };
+
+  m = DEALS_FLAT_RE.exec(text);
+  if (m) return { bucket: 'additiveNonConditional', value: parseFloat(m[1]) };
+
+  if (/damage/i.test(text)) return { bucket: 'situational', note: text };
+  return null;
+}
+
+function pushParagraphMatch(out, text, label, source, id) {
+  const match = matchDamageParagraph(text);
+  if (!match) return;
+  if (match.bucket === 'situational') {
+    out.situational.push({ id, label, source, note: match.note, formula: null });
+  } else if (match.bucket === 'multiplicative') {
+    out.multiplicative.push({ id, label, source, value: match.value, condition: match.condition });
+  } else if (match.bucket === 'additiveConditional') {
+    out.additiveConditional.push({ id, label, source, value: match.value, condition: match.condition });
+  } else {
+    out.additiveNonConditional.push({ id, label, source, value: match.value });
+  }
+}
+
+function scanItemAbilityText(lore, label, source, out, idPrefix) {
+  splitParagraphs(lore)
+    .filter((p) => !isStatBlockParagraph(p))
+    .forEach((p, idx) => pushParagraphMatch(out, stripToPlain(stripLeadingHeaderLine(p)), label, source, `${idPrefix}-${idx}`));
+}
+
+// ---------------------------------------------------------------------
+// Special-mechanic weapons (lib/specialWeapons.js) already have their
+// bonus correctly computed as a real number from the player's entered
+// value — pulled directly here rather than re-derived by regex over
+// static lore text, to avoid drift/double-counting.
+function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, out) {
+  const config = getSpecialConfig(item.id);
+  if (!config) return;
+  const bonus = computeSpecialBonus(config, modifiers.special);
+  if (!bonus) return;
+
+  if (config.kind === 'bestiary') {
+    out.additiveConditional.push({
+      id: `${item.id}-special`,
+      label: `${itemLabel} (Bestiary)`,
+      source: slotLabel,
+      value: bonus,
+      condition: 'Mythological',
+    });
+  } else if (config.kind === 'crownOfAvarice') {
+    const { damageMultiplier } = crownOfAvariceStats(config, bonus);
+    out.multiplicative.push({
+      id: `${item.id}-special`,
+      label: `${itemLabel} (Coins Consumed)`,
+      source: slotLabel,
+      value: damageMultiplier,
+    });
+  }
+  // midasSword/midasStaff: already merged into base stats (see
+  // lib/statLines.js's mergeStatIntoBase) — nothing more to add.
+}
+
+// ---------------------------------------------------------------------
+// Pet: base Strength/Crit Chance/Crit Damage handled in collectBaseStats
+// above; this covers the pet's own ability text (e.g. Ender Dragon's
+// "End Strike: Deal 200% more damage to Ender mobs", picked up by the
+// same generic scan as items) plus Golden Dragon's "Legendary Treasure"
+// (%damage per million bank coins, capped) — its rate/cap are already-
+// substituted real numbers straight from the pet's own lore (the
+// {3}%/{4}% placeholders lib/petData.js's substitutePetLore already
+// fills in for the current level), not hardcoded, so they track the
+// equipped Golden Dragon's real level automatically.
+const GOLDEN_DRAGON_TREASURE_RE =
+  /Gain\s+\+?([\d.]+)%\s+damage\s+for\s+every\s+million\s+coins\s+in\s+your\s+bank\.?\s*(?:\(Max\s+\+?([\d.]+)%\))?/i;
+
+async function collectPetEntries(loadout, itemData, out) {
+  if (!loadout.pet) return;
+  const { item: pet, modifiers } = loadout.pet;
+  const loreId = petLoreItemId(pet.petId, pet.tier);
+  const rawLoreData = await fetchNeuItem(loreId);
+  if (!rawLoreData || !rawLoreData.lore || rawLoreData.lore.length === 0) return;
+
+  const maxLevel = getMaxPetLevel(pet.petId);
+  const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+  const stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+  const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
+  const substituted = substitutePetLore(rawLoreData.lore, modifiers.level, stats, otherNums);
+  const paragraphs = splitParagraphs(substituted).filter((p) => !isStatBlockParagraph(p));
+
+  const petLabel = formatItemName(pet.name);
+  const source = `${petLabel} (Pet)`;
+
+  paragraphs.forEach((p, idx) => {
+    const text = stripToPlain(p);
+    if (!text) return;
+
+    if (pet.petId === 'GOLDEN_DRAGON') {
+      const m = GOLDEN_DRAGON_TREASURE_RE.exec(text);
+      if (m) {
+        const rate = parseFloat(m[1]);
+        const cap = m[2] != null ? parseFloat(m[2]) : null;
+        const bankCoins = Math.max(0, modifiers.bankCoins || 0);
+        let value = (bankCoins / 1_000_000) * rate;
+        if (cap != null) value = Math.min(value, cap);
+        if (value > 0) {
+          out.additiveNonConditional.push({ id: 'golden-dragon-legendary-treasure', label: 'Legendary Treasure', source, value });
+        }
+        return; // handled — don't also generic-scan this paragraph
+      }
+    }
+
+    pushParagraphMatch(out, stripToPlain(stripLeadingHeaderLine(p)), petLabel, source, `pet-${idx}`);
+  });
+}
+
+// ---------------------------------------------------------------------
+export async function collectDamageSources(loadout, itemData) {
+  const out = {
+    baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
+    additiveNonConditional: [],
+    additiveConditional: [],
+    multiplicative: [],
+    situational: [],
+  };
+
+  out.baseStats = await collectBaseStats(loadout, itemData);
+
+  for (const slot of GEAR_SLOTS) {
+    const equipped = loadout[slot];
+    if (!equipped) continue;
+    const itemLabel = formatItemName(equipped.item.name);
+    const slotLabel = SLOT_LABELS[slot];
+
+    const enchantEntries = [
+      ...(equipped.modifiers.hexEnchantments || []),
+      ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
+    ];
+    if (enchantEntries.length > 0) {
+      await collectEnchantEntries(enchantEntries, itemLabel, slotLabel, itemData.enchants, out);
+    }
+
+    if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {
+      scanItemAbilityText(equipped.item.lore, itemLabel, slotLabel, out, `${slot}-ability`);
+    }
+
+    collectSpecialMechanicEntries(equipped.item, equipped.modifiers, itemLabel, slotLabel, out);
+  }
+
+  await collectPetEntries(loadout, itemData, out);
+
+  return out;
+}
