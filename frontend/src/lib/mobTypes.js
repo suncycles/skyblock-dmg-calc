@@ -21,6 +21,27 @@
 // Construct, Arcane, Shielded, Airborne, Glacial) are flavor/lore
 // classification only, with no matching enchant.
 
+// Real per-level enchant lore for these 9, verified directly against
+// NEU-REPO this session: Smite/Ender Slayer/Bane of Arthropods/Smoldering/
+// Impaling/Woodsplitter were all rewritten to name the Mob Type itself
+// ("Increases damage dealt to Aquatic mobs by 5%") when Hypixel shipped
+// Mob Types — but Cubism's tooltip is still the old hand-written mob
+// enumeration ("Magma Cubes, Slimes, and Creepers"), never updated to
+// match. Keyed by the real NEU-REPO item id (lowercase) rather than
+// display name, since titleCaseEnchantId's naive "capitalize every
+// underscore-split word" would produce "Bane Of Arthropods" (capital
+// "Of"), and Woodsplitter's actual id is the legacy "arcane" (confirmed
+// via NEU-REPO — ARCANE;1.json's lore reads "Woodsplitter I").
+export const ENCHANT_ID_MOB_TYPES = {
+  smite: ['Undead', 'Skeletal', 'Wither'],
+  ender_slayer: ['Ender'],
+  bane_of_arthropods: ['Arthropod'],
+  smoldering: ['Infernal'],
+  cubism: ['Cubic'],
+  impaling: ['Aquatic'],
+  arcane: ['Woodland'],
+};
+
 export const MOB_TYPE_ENCHANTS = {
   Undead: 'Smite',
   Skeletal: 'Smite',
