@@ -5,6 +5,7 @@ import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
+import { splitKeywords, KEYWORD_SYMBOLS } from '../lib/damageSymbols';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -20,6 +21,22 @@ function Section({ title, subtitle, children, empty }) {
 }
 
 const BASE_STAT_KEYS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
+
+// Prefixes every stat/mob-type keyword mention (lib/damageSymbols.js) with
+// its colored glyph — used for base-stat labels, conditional/multiplicative
+// condition text ("Undead, Skeletal, Wither", "Cubic"), and situational
+// notes, since any of those can name a keyword.
+function Keyworded({ text }) {
+  return splitKeywords(text).map((part, i) =>
+    typeof part === 'string' ? (
+      <span key={i}>{part}</span>
+    ) : (
+      <span key={i} style={{ color: KEYWORD_SYMBOLS[part.keyword].color }}>
+        {KEYWORD_SYMBOLS[part.keyword].symbol} {part.matchedText}
+      </span>
+    ),
+  );
+}
 
 // Cross-loadout damage-source breakdown — every equipped item/enchant/
 // pet ability that contributes bonus damage, categorized the same way
@@ -66,7 +83,9 @@ export default function DamageSources() {
           <Section title="(Base) Stats" empty="">
             {BASE_STAT_KEYS.map((key) => (
               <div key={key} className="flex justify-between text-[13px] text-black">
-                <span>{STAT_LABELS[key].label}:</span>
+                <span>
+                  <Keyworded text={STAT_LABELS[key].label} />:
+                </span>
                 <span className="font-mono">{formatStatValue(key, Math.round(result.baseStats[key] * 10) / 10)}</span>
               </div>
             ))}
@@ -84,13 +103,36 @@ export default function DamageSources() {
             empty="None equipped."
           >
             {result.additiveConditional.map((e) => (
-              <Row key={e.id} left={e.label} right={`+${round1(e.value)}% to ${e.condition}`} source={e.source} />
+              <Row
+                key={e.id}
+                left={e.label}
+                right={
+                  <>
+                    +{round1(e.value)}% to <Keyworded text={e.condition} />
+                  </>
+                }
+                source={e.source}
+              />
             ))}
           </Section>
 
           <Section title="Multiplicative Damage Sources" empty="None equipped.">
             {result.multiplicative.map((e) => (
-              <Row key={e.id} left={e.label} right={`${round4(e.value)}x${e.condition ? ` to ${e.condition}` : ''}`} source={e.source} />
+              <Row
+                key={e.id}
+                left={e.label}
+                right={
+                  <>
+                    {round4(e.value)}x{e.condition && (
+                      <>
+                        {' '}
+                        to <Keyworded text={e.condition} />
+                      </>
+                    )}
+                  </>
+                }
+                source={e.source}
+              />
             ))}
           </Section>
 
@@ -111,7 +153,9 @@ export default function DamageSources() {
                       <div className="font-bold">
                         {e.label} <span className="font-normal text-neutral-600">— {e.source}</span>
                       </div>
-                      <div className="text-neutral-600">{e.note}</div>
+                      <div className="text-neutral-600">
+                        <Keyworded text={e.note} />
+                      </div>
                     </div>
                   ))
                 )}
