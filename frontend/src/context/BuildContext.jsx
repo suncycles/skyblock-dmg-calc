@@ -12,16 +12,17 @@ const BuildContext = createContext(null);
 // slot-keyed loadout since it isn't "equipment."
 function loadInitialPlayerStats() {
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
-  if (!stored) return { combatLevel: 0, skyblockLevel: 0 };
+  if (!stored) return { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0 };
   try {
     const parsed = JSON.parse(stored);
     return {
       combatLevel: typeof parsed.combatLevel === 'number' ? parsed.combatLevel : 0,
       skyblockLevel: typeof parsed.skyblockLevel === 'number' ? parsed.skyblockLevel : 0,
+      foragingLevel: typeof parsed.foragingLevel === 'number' ? parsed.foragingLevel : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
-    return { combatLevel: 0, skyblockLevel: 0 };
+    return { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0 };
   }
 }
 
@@ -120,6 +121,14 @@ export function BuildProvider({ children }) {
   const setSkyblockLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, skyblockLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setForagingLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, foragingLevel: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -342,6 +351,7 @@ export function BuildProvider({ children }) {
         playerStats,
         setCombatLevel,
         setSkyblockLevel,
+        setForagingLevel,
         selectItem,
         removeSlot,
         applyEnchant,
