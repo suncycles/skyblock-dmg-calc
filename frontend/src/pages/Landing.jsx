@@ -63,7 +63,7 @@ export default function Landing() {
     }
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, playerStats.catacombsLevel);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
@@ -84,7 +84,7 @@ export default function Landing() {
     }
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData);
+    const lines = await buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData, playerStats.catacombsLevel);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 

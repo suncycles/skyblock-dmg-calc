@@ -60,3 +60,29 @@ export function computeForagingStrengthBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_FORAGING_LEVEL, level || 0));
   return Math.min(clamped, 14) * 1 + Math.max(0, clamped - 14) * 2;
 }
+
+export const MAX_CATACOMBS_LEVEL = 50;
+
+// The Ancient reforge (Precursor Gear stone, armor-only) grants +1 Crit
+// Damage per Catacombs level, flat, the same at every item rarity — its
+// real NEU-REPO reforgeAbility text reads "Grants +1 Crit Damage per
+// Catacombs level." Its reforgeStats table (worker/src/data-equivalent,
+// fetched live from constants/reforgestones.json) does carry a static
+// crit_damage number for COMMON specifically, but that's a stale
+// snapshot artifact, not the real per-level mechanic — see
+// lib/reforges.js, which overrides it with this instead of reading it.
+export function computeAncientReforgeCritDamage(catacombsLevel) {
+  return Math.max(0, Math.min(MAX_CATACOMBS_LEVEL, catacombsLevel || 0));
+}
+
+// Catacombs Level's overall stat-multiplier scaling (every stat boosted
+// by a flat % based on level, separate from the Ancient reforge above) —
+// NOT implemented anywhere in this app yet, deliberately: recorded here
+// only as reference for whenever that gets built, exactly as given
+// (levels 1-30 explicit, un-smoothed — note level 3's value breaks the
+// otherwise-steady climb, which is how it was provided, not a transcription
+// error corrected here):
+//   1:10  2:15  3:29  4:25  5:31  6:38  7:46  8:55  9:65  10:75
+//   11:85  12:95  13:105  14:115  15:125  16:135  17:145  18:155  19:165  20:175
+//   21:185  22:195  23:205  24:215  25:225  26:235  27:245  28:255  29:265  30:275
+//   31-50: +10% per level, up to 485% total at level 50
