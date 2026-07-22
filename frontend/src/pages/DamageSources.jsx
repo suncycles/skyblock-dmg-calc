@@ -116,12 +116,18 @@ export default function DamageSources() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
                   <span>Initial Damage</span>
                   <span className="text-right font-mono">{round1(finalDamage.initialDamage)}</span>
-                  <span>Damage Multiplier</span>
+                  <span>Additive Multiplier</span>
                   <span className="text-right font-mono">
-                    +{round1(finalDamage.additivePercent)}% (x{round4(finalDamage.damageMultiplier)})
+                    +{round1(finalDamage.additivePercent)}% (x{round4(finalDamage.additiveMultiplier)})
                   </span>
-                  <span>Armor Factor</span>
-                  <span className="text-right font-mono">{round4(finalDamage.armorFactor)}x</span>
+                  <span>Multiplicative Multiplier</span>
+                  <span className="text-right font-mono">{round4(finalDamage.multiplicativeMultiplier)}x</span>
+                  {finalDamage.bonusModifiers !== 0 && (
+                    <>
+                      <span>Bonus Modifiers</span>
+                      <span className="text-right font-mono">+{round1(finalDamage.bonusModifiers)}</span>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
                   <span className="text-sm font-bold text-black">Final Damage</span>
