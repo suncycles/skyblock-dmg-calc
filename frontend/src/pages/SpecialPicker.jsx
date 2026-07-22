@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
-import { getSpecialConfig, computeSpecialBonus } from '../lib/specialWeapons';
+import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from '../lib/specialWeapons';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
 
@@ -54,7 +54,12 @@ export default function SpecialPicker() {
         ? `Current Damage Bonus: +${bonus}`
         : config.kind === 'midasStaff'
           ? `Current Ability Damage Bonus: +${bonus}`
-          : `Current Damage and Strength Bonus: +${bonus}`;
+          : config.kind === 'crownOfAvarice'
+            ? (() => {
+                const { magicFind, damageMultiplier } = crownOfAvariceStats(config, bonus);
+                return `${bonus} digit${bonus === 1 ? '' : 's'} — +${damageMultiplier}x Damage, +${magicFind} Magic Find vs Mythological mobs`;
+              })()
+            : `Current Damage and Strength Bonus: +${bonus}`;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">

@@ -59,6 +59,21 @@ export const SPECIAL_WEAPON_CONFIG = {
     purseCap: 2_000_000_000,
     inputLabel: 'Coins in Purse',
   },
+  // Not a weapon at all (it's the real LEGENDARY HELMET "Crown of
+  // Avarice"), but its "Overindulgence" ability is the exact same
+  // single-free-form-number-scales-a-live-lore-value shape as the seven
+  // weapons above, so it reuses this whole mechanism rather than a
+  // separate one. Its own lore states the formula outright: +2.5 Magic
+  // Find and +0.015x (1.5%) Damage per digit of Coins Consumed (verified
+  // directly from NEU-REPO — 0 coins consumed shows "+1x Damage"/"+0
+  // Magic Find" in the item's own pristine lore, i.e. digit count of 0
+  // coins is 0, not 1).
+  CROWN_OF_AVARICE: {
+    kind: 'crownOfAvarice',
+    magicFindPerDigit: 2.5,
+    damagePercentPerDigit: 1.5,
+    inputLabel: 'Coins Consumed',
+  },
 };
 
 export function getSpecialConfig(weaponId) {
@@ -81,9 +96,24 @@ export function computeSpecialBonus(config, value) {
       return linearBonus(v, config.priceCap, config.maxBonus);
     case 'emeraldBlade':
       return +(2.5 * Math.min(v, config.purseCap) ** 0.25).toFixed(1);
+    case 'crownOfAvarice':
+      // Digit count of coins consumed — 0 has 0 digits, matching the
+      // item's own pristine "+1x Damage"/"+0 Magic Find" lore at 0.
+      return v === 0 ? 0 : Math.floor(Math.log10(v)) + 1;
     default:
       return 0;
   }
+}
+
+// Crown of Avarice's two per-digit bonuses, derived from the digit count
+// computeSpecialBonus already returns for it — split out since (unlike
+// every other special kind here) it drives two independently-formatted
+// lore lines instead of one.
+export function crownOfAvariceStats(config, digits) {
+  return {
+    magicFind: +(digits * config.magicFindPerDigit).toFixed(2),
+    damageMultiplier: +(1 + (digits * config.damagePercentPerDigit) / 100).toFixed(3),
+  };
 }
 
 // Daedalus Blade and Emerald Blade's own NEU-REPO lore already ships a
@@ -131,6 +161,18 @@ export function applySpecialToLore(lore, weaponId, value) {
     const line = `§7Ability Damage Bonus: §${SPECIAL_COLOR}+${bonus}`;
     if (insertIdx === -1) return [...lore, line];
     return [...lore.slice(0, insertIdx), line, ...lore.slice(insertIdx)];
+  }
+
+  if (config.kind === 'crownOfAvarice') {
+    const digits = bonus;
+    if (!digits) return lore; // pristine lore already reads Coins Consumed: 0 / +1x Damage / +0 Magic Find
+    const { magicFind, damageMultiplier } = crownOfAvariceStats(config, digits);
+    return lore.map((line) => {
+      if (line.includes('Coins Consumed:')) return line.replace(/§6\d+$/, `§6${Math.max(0, value || 0)}`);
+      if (line.includes('+1x') && line.includes('Damage')) return line.replace('+1x', `+${damageMultiplier}x`);
+      if (line.includes('+0') && line.includes('Magic Find')) return line.replace('+0', `+${magicFind}`);
+      return line;
+    });
   }
 
   return lore;
