@@ -27,7 +27,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats, setCombatLevel } = useBuild();
+  const { loadout, removeSlot, playerStats, setCombatLevel, setSkyblockLevel } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -263,6 +263,18 @@ export default function Landing() {
           step="1"
           value={playerStats.combatLevel}
           onChange={(e) => setCombatLevel(Math.max(0, Math.min(60, Math.floor(Number(e.target.value) || 0))))}
+          className="w-12 px-1 py-0.5 bg-neutral-800 text-neutral-200 border border-neutral-600 text-center"
+        />
+        <label htmlFor="skyblock-level" className="ml-2">
+          Skyblock Level:
+        </label>
+        <input
+          id="skyblock-level"
+          type="number"
+          min="0"
+          step="1"
+          value={playerStats.skyblockLevel}
+          onChange={(e) => setSkyblockLevel(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           className="w-12 px-1 py-0.5 bg-neutral-800 text-neutral-200 border border-neutral-600 text-center"
         />
       </div>

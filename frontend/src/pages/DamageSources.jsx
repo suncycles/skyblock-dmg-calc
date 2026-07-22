@@ -90,7 +90,7 @@ export default function DamageSources() {
 
           <Section title="Multiplicative Damage Sources" empty="None equipped.">
             {result.multiplicative.map((e) => (
-              <Row key={e.id} left={e.label} right={`${round1(e.value)}x${e.condition ? ` to ${e.condition}` : ''}`} source={e.source} />
+              <Row key={e.id} left={e.label} right={`${round4(e.value)}x${e.condition ? ` to ${e.condition}` : ''}`} source={e.source} />
             ))}
           </Section>
 
@@ -126,6 +126,13 @@ export default function DamageSources() {
 
 function round1(n) {
   return Math.round(n * 10) / 10;
+}
+
+// Multiplicative sources can be much finer-grained than the 1-decimal %
+// entries (Skyblock Level is only +0.0001x per level) — 1 decimal would
+// silently flatten a real bonus down to "1x".
+function round4(n) {
+  return Math.round(n * 10000) / 10000;
 }
 
 function Row({ left, right, source }) {
