@@ -1,4 +1,4 @@
-import { annotateStatLines } from './statLines';
+import { mergeStatIntoBase } from './statLines';
 
 /* Weapon-specific ability mechanics that don't fit the generic Books/
    Gemstones/Reforges pipeline — each is a single player-supplied number
@@ -116,14 +116,25 @@ export function crownOfAvariceStats(config, digits) {
   };
 }
 
+// Unlike Daedalus Blade/Emerald Blade/Crown of Avarice, Midas Sword/
+// Staff's real NEU-REPO lore has no live "Price Paid" counter line at all
+// — just static text explaining the mechanic. Inserted here as its own
+// blank-line-bounded paragraph right before the "This item can be
+// reforged!" footer, matching where those other items' own live-counter
+// paragraphs sit, with the same comma-grouped number formatting their
+// lore already uses for coin amounts (e.g. "50,000,000").
+function insertPriceCounterLine(lore, value) {
+  const reforgeIdx = lore.findIndex((l) => l.includes('This item can be reforged'));
+  const line = `§7Price Paid: §6${Math.max(0, value || 0).toLocaleString('en-US')}`;
+  const insertAt = reforgeIdx > 0 && lore[reforgeIdx - 1] === '' ? reforgeIdx - 1 : reforgeIdx;
+  if (insertAt === -1) return [...lore, '', line];
+  return [...lore.slice(0, insertAt), '', line, ...lore.slice(insertAt)];
+}
+
 // Daedalus Blade and Emerald Blade's own NEU-REPO lore already ships a
 // "live value" line seeded at 0 (Daedalus's "Bestiary Tiers: 0" block,
 // Emerald Blade's "Current Damage Bonus: 0.0") — patched in place so the
-// tooltip reads exactly like the real item would. Midas Sword/Staff have
-// no such line: Sword's bonus applies to stats the lore already lists
-// (or omits when 0, e.g. Strength) via the same annotateStatLines helper
-// Books/Reforges use; Staff's is Ability Damage, which isn't a stat line
-// at all, so it gets a new inserted line instead.
+// tooltip reads exactly like the real item would.
 export function applySpecialToLore(lore, weaponId, value) {
   const config = getSpecialConfig(weaponId);
   if (!config || !lore) return lore;
@@ -150,17 +161,26 @@ export function applySpecialToLore(lore, weaponId, value) {
   }
 
   if (config.kind === 'midasSword') {
-    if (!bonus) return lore;
-    const insertIdx = lore.indexOf('');
-    return annotateStatLines(lore, { damage: bonus, strength: bonus }, SPECIAL_COLOR, insertIdx);
+    const withCounter = insertPriceCounterLine(lore, value);
+    if (!bonus) return withCounter;
+    // Merged directly into the base Damage/Strength numbers (not an
+    // appended "(+X)" annotation) — Greed's bonus is described in the
+    // item's own lore as part of what the sword's stats *are* at a given
+    // price paid, not an external buff layered on top.
+    const insertIdx = withCounter.indexOf('');
+    return mergeStatIntoBase(withCounter, { damage: bonus, strength: bonus }, insertIdx);
   }
 
   if (config.kind === 'midasStaff') {
-    if (!bonus) return lore;
-    const insertIdx = lore.indexOf('');
+    const withCounter = insertPriceCounterLine(lore, value);
+    if (!bonus) return withCounter;
+    const insertIdx = withCounter.indexOf('');
+    // No pre-existing "Ability Damage" base line to merge into (Midas
+    // Staff's lore doesn't have one), so this is inserted directly as the
+    // value itself, same "it's just the base now" treatment as the sword.
     const line = `§7Ability Damage Bonus: §${SPECIAL_COLOR}+${bonus}`;
-    if (insertIdx === -1) return [...lore, line];
-    return [...lore.slice(0, insertIdx), line, ...lore.slice(insertIdx)];
+    if (insertIdx === -1) return [...withCounter, line];
+    return [...withCounter.slice(0, insertIdx), line, ...withCounter.slice(insertIdx)];
   }
 
   if (config.kind === 'crownOfAvarice') {
