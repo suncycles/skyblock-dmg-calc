@@ -34,6 +34,7 @@ import weapons from "./data/weapons.json";
 import armor from "./data/armor.json";
 import equipment from "./data/equipment.json";
 import petItems from "./data/petItems.json";
+import powerStones from "./data/powerStones.json";
 
 // Community-maintained source (not the official Hypixel API) —
 // the wiki has no API and blocks scraping.
@@ -123,7 +124,7 @@ async function buildFreshData() {
     fetchPetNums(),
   ]);
 
-  return { weapons, armor, equipment, enchants, reforges, reforgeStones, pets, petItems, lastFetched: Date.now() };
+  return { weapons, armor, equipment, enchants, reforges, reforgeStones, pets, petItems, powerStones, lastFetched: Date.now() };
 }
 
 async function fetchPetNums() {

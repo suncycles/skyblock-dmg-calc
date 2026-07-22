@@ -127,8 +127,9 @@ async function main() {
   const armor = JSON.parse(readFileSync(path.join(DATA_DIR, 'armor.json'), 'utf8'));
   const equipment = JSON.parse(readFileSync(path.join(DATA_DIR, 'equipment.json'), 'utf8'));
   const petItems = JSON.parse(readFileSync(path.join(DATA_DIR, 'petItems.json'), 'utf8'));
+  const powerStones = JSON.parse(readFileSync(path.join(DATA_DIR, 'powerStones.json'), 'utf8'));
 
-  const skullItems = [...weapons, ...armor, ...equipment, ...petItems].filter(
+  const skullItems = [...weapons, ...armor, ...equipment, ...petItems, ...powerStones].filter(
     (item) => item.material === 'SKULL' && !existsSync(path.join(OUT_DIR, `${item.id}.png`)),
   );
   console.log(`${skullItems.length} skull-based weapon/armor/equipment/pet-item items missing an icon...`);
