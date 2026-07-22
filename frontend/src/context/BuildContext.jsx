@@ -2,8 +2,24 @@ import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
 
 const STORAGE_KEY = 'hexLoadout';
+const PLAYER_STATS_KEY = 'hexPlayerStats';
 
 const BuildContext = createContext(null);
+
+// Global, not tied to any equipped item/pet — Combat Level, Skyblock
+// Level, etc (see lib/playerStats.js) — persisted separately from the
+// slot-keyed loadout since it isn't "equipment."
+function loadInitialPlayerStats() {
+  const stored = localStorage.getItem(PLAYER_STATS_KEY);
+  if (!stored) return { combatLevel: 0 };
+  try {
+    const parsed = JSON.parse(stored);
+    return { combatLevel: typeof parsed.combatLevel === 'number' ? parsed.combatLevel : 0 };
+  } catch (err) {
+    console.error('Failed to parse saved player stats:', err);
+    return { combatLevel: 0 };
+  }
+}
 
 function emptyModifiers() {
   return {
@@ -65,6 +81,15 @@ function loadInitial() {
 
 export function BuildProvider({ children }) {
   const [loadout, setLoadout] = useState(loadInitial);
+  const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
+
+  const setCombatLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, combatLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // Shared by every modifier setter below: no-ops if the slot has nothing
   // equipped yet, otherwise runs `updater` over that slot's current
@@ -253,6 +278,8 @@ export function BuildProvider({ children }) {
     <BuildContext.Provider
       value={{
         loadout,
+        playerStats,
+        setCombatLevel,
         selectItem,
         removeSlot,
         applyEnchant,

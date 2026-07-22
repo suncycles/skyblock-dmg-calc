@@ -27,7 +27,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot } = useBuild();
+  const { loadout, removeSlot, playerStats, setCombatLevel } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -249,6 +249,22 @@ export default function Landing() {
         <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
         </div>
+      </div>
+
+      {/* Global player-level stats (see lib/playerStats.js) — small, not
+          part of the gear grid, counted in Damage Sources' (base) stats. */}
+      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-400">
+        <label htmlFor="combat-level">Combat Level:</label>
+        <input
+          id="combat-level"
+          type="number"
+          min="0"
+          max="60"
+          step="1"
+          value={playerStats.combatLevel}
+          onChange={(e) => setCombatLevel(Math.max(0, Math.min(60, Math.floor(Number(e.target.value) || 0))))}
+          className="w-12 px-1 py-0.5 bg-neutral-800 text-neutral-200 border border-neutral-600 text-center"
+        />
       </div>
 
       {/* Deliberately small/muted, not a second focal element next to the

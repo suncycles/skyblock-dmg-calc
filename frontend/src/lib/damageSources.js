@@ -8,6 +8,7 @@ import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
 import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
+import { computeCombatLevelBonus } from './playerStats';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -375,7 +376,7 @@ async function collectPetEntries(loadout, itemData, out) {
 }
 
 // ---------------------------------------------------------------------
-export async function collectDamageSources(loadout, itemData) {
+export async function collectDamageSources(loadout, itemData, playerStats) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     additiveNonConditional: [],
@@ -385,6 +386,11 @@ export async function collectDamageSources(loadout, itemData) {
   };
 
   out.baseStats = await collectBaseStats(loadout, itemData);
+
+  const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
+  if (combatLevelBonus) {
+    out.additiveNonConditional.push({ id: 'combat-level', label: 'Combat Level', source: 'Player', value: combatLevelBonus });
+  }
 
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
