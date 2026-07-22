@@ -1,0 +1,552 @@
+<title>Mob Types — Hypixel SkyBlock</title>
+<style>
+  :root {
+    --bg: #f1f2f6;
+    --surface: #ffffff;
+    --surface-2: #e9ebf1;
+    --border: #d7dae2;
+    --text: #1a1d25;
+    --text-dim: #5b6072;
+    --text-faint: #8a8f9e;
+    --accent: #a97a1e;
+    --accent-text: #6e4f10;
+    --accent-soft: rgba(169, 122, 30, 0.12);
+    --accent-soft-strong: rgba(169, 122, 30, 0.22);
+    --good: #3a7d4f;
+    --warn: #b5522a;
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12141a;
+      --surface: #191c24;
+      --surface-2: #20242e;
+      --border: #2c3140;
+      --text: #e7e9f0;
+      --text-dim: #9aa0b2;
+      --text-faint: #6b7183;
+      --accent: #d6a53c;
+      --accent-text: #e9c26e;
+      --accent-soft: rgba(214, 165, 60, 0.14);
+      --accent-soft-strong: rgba(214, 165, 60, 0.26);
+      --good: #5ea87a;
+      --warn: #d97c52;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12141a;
+    --surface: #191c24;
+    --surface-2: #20242e;
+    --border: #2c3140;
+    --text: #e7e9f0;
+    --text-dim: #9aa0b2;
+    --text-faint: #6b7183;
+    --accent: #d6a53c;
+    --accent-text: #e9c26e;
+    --accent-soft: rgba(214, 165, 60, 0.14);
+    --accent-soft-strong: rgba(214, 165, 60, 0.26);
+    --good: #5ea87a;
+    --warn: #d97c52;
+  }
+  :root[data-theme="light"] {
+    --bg: #f1f2f6;
+    --surface: #ffffff;
+    --surface-2: #e9ebf1;
+    --border: #d7dae2;
+    --text: #1a1d25;
+    --text-dim: #5b6072;
+    --text-faint: #8a8f9e;
+    --accent: #a97a1e;
+    --accent-text: #6e4f10;
+    --accent-soft: rgba(169, 122, 30, 0.12);
+    --accent-soft-strong: rgba(169, 122, 30, 0.22);
+    --good: #3a7d4f;
+    --warn: #b5522a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2.75rem 1.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  /* header */
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.7rem);
+    line-height: 1.05;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .dek {
+    font-size: 0.98rem;
+    color: var(--text-dim);
+    max-width: 62ch;
+    line-height: 1.55;
+  }
+  .dek code {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    background: var(--surface-2);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+  }
+
+  /* coverage */
+  .coverage {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .coverage-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .coverage-figure {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+  .coverage-figure .of {
+    color: var(--text-faint);
+    font-weight: 400;
+    font-size: 1rem;
+  }
+  .coverage-note {
+    font-size: 0.85rem;
+    color: var(--warn);
+    font-family: var(--sans);
+  }
+  .bar-track {
+    height: 8px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-text));
+    border-radius: 5px 0 0 5px;
+  }
+  .coverage-caption {
+    font-size: 0.82rem;
+    color: var(--text-faint);
+    line-height: 1.5;
+  }
+
+  /* legend */
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .legend-heading {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    font-family: var(--sans);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .legend-heading .n {
+    font-family: var(--mono);
+    color: var(--text-dim);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.32rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    user-select: none;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  }
+  .chip:hover { border-color: var(--text-faint); }
+  .chip .count {
+    color: var(--text-faint);
+    font-size: 0.72rem;
+  }
+  .chip.combat { border-color: var(--accent-soft-strong); }
+  .chip.combat .enchant {
+    color: var(--accent-text);
+    font-size: 0.72rem;
+  }
+  .chip.active {
+    background: var(--accent-soft-strong);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .chip.active.combat { color: var(--accent-text); }
+
+  /* controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+  .search input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    outline: none;
+  }
+  .search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .search input::placeholder { color: var(--text-faint); }
+  .result-count {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  .clear-btn {
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    color: var(--accent-text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    visibility: hidden;
+  }
+  .clear-btn.show { visibility: visible; }
+
+  /* table */
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .scroll {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface-2);
+    text-align: left;
+    font-family: var(--sans);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr.hidden { display: none; }
+  td {
+    padding: 0.55rem 1rem;
+    vertical-align: middle;
+  }
+  td.name {
+    font-family: var(--mono);
+    white-space: nowrap;
+    color: var(--text);
+  }
+  td.types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    padding: 0.16rem 0.5rem;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .pill.combat {
+    border-color: var(--accent-soft-strong);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .empty-row td {
+    text-align: center;
+    color: var(--text-faint);
+    font-family: var(--sans);
+    padding: 2.5rem 1rem;
+  }
+
+  footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+  }
+  footer a { color: var(--text-dim); }
+  footer code {
+    font-family: var(--mono);
+    background: var(--surface-2);
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+  }
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Hypixel SkyBlock &middot; parsed reference data</div>
+    <h1>Mob Types</h1>
+    <p class="dek">
+      Every mob&ndash;type mapping currently listed on the Fandom wiki's
+      <code>Mob Types/List</code> page, parsed from its raw wikitext. Types in gold
+      have a matching enchantment that grants bonus damage against them &mdash;
+      everything else is flavor/lore classification only.
+    </p>
+  </header>
+
+  <div class="coverage">
+    <div class="coverage-row">
+      <div class="coverage-figure" id="coverage-figure">211 <span class="of">/ 268 known mobs mapped</span></div>
+      <div class="coverage-note">57 missing (21%)</div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" style="width: 78.7%"></div></div>
+    <div class="coverage-caption">
+      The source page is self-tagged <code>{{Sectionstub}}</code> by its editors &mdash;
+      it is known-incomplete, not just possibly stale. Treat absence from this list as
+      &ldquo;not yet documented,&rdquo; not &ldquo;has no type.&rdquo;
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-heading">Enchant-mapped types <span class="n">(9)</span></div>
+    <div class="chips" id="chips-combat"></div>
+    <div class="legend-heading" style="margin-top: 0.4rem;">No enchant <span class="n">(14)</span></div>
+    <div class="chips" id="chips-flavor"></div>
+  </div>
+
+  <div class="controls">
+    <div class="search">
+      <input type="text" id="search-input" placeholder="Filter by mob name&hellip;" autocomplete="off" />
+    </div>
+    <button class="clear-btn" id="clear-btn">clear filters</button>
+    <div class="result-count" id="result-count">211 shown</div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 1%;">Mob</th>
+            <th>Types</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <div>Source: <a href="https://hypixel-skyblock.fandom.com/wiki/Mob_Types/List" target="_blank" rel="noopener">hypixel-skyblock.fandom.com/wiki/Mob_Types/List</a>, fetched via the MediaWiki <code>api.php?action=query&amp;prop=revisions</code> endpoint (the wiki's <code>?action=raw</code> path is now behind a Cloudflare JS challenge).</div>
+    <div>211 unique mobs parsed from 297 raw table rows across 23 type tabs (mobs cross-listed under 2&ndash;3 types collapse to one row each here).</div>
+  </footer>
+</div>
+
+<script>
+  const DATA = {"Abyssal Miner":["Aquatic","Undead"],"Apostle":["Undead","Wither"],"Arachne":["Arcane","Arthropod"],"Ashfang":["Arcane","Infernal"],"Automaton":["Arcane","Construct","Subterranean"],"Bal":["Cubic","Infernal","Shielded"],"Bat":["Airborne","Animal","Spooky"],"Bat Piñata":["Airborne","Shielded","Spooky"],"Bayou Sludge":["Aquatic","Cubic"],"Beetle":["Pest"],"Bezal":["Infernal"],"Bladesoul":["Arcane","Skeletal","Wither"],"Blaze":["Infernal"],"Blight":["Infernal","Undead"],"Blue Jerry":["Humanoid","Shielded"],"Bogged":["Aquatic","Skeletal"],"Bonzo":["Arcane","Humanoid"],"Boss Corleone":["Humanoid","Subterranean"],"Butterfly":["Airborne","Arcane","Subterranean"],"Chaosmite":["Arcane","Arthropod","Ender"],"Chillblade":["Skeletal","Woodland"],"Chillshot":["Skeletal","Woodland"],"Crazy Witch":["Shielded","Spooky"],"Creeper":["Cubic"],"Cretan Bull":["Animal","Mythological"],"Cricket":["Pest"],"Crypt Dreadlord":["Subterranean","Undead","Wither"],"Crypt Ghoul":["Undead"],"Crypt Lurker":["Undead"],"Crypt Souleater":["Subterranean","Undead","Wither"],"Crypt Undead":["Subterranean","Undead"],"Deep Sea Protector":["Aquatic","Construct"],"Diamond Goblin":["Elusive","Humanoid","Shielded"],"Dragonfly":["Pest"],"Dropship":["Airborne","Arcane","Cubic"],"Earthworm":["Pest"],"Emerald Slime":["Cubic"],"End Stone Protector":["Construct","Ender"],"Ender Dragon":["Airborne","Arcane","Ender"],"Enderman":["Ender"],"Endermite":["Arthropod","Ender"],"Explosive Imp":["Infernal","Undead"],"Fels":["Arcane"],"Field Mouse":["Elusive","Pest"],"Firefly":["Pest"],"Fireproof Witch":["Arcane","Humanoid","Magmatic"],"Flaming Spider":["Arthropod","Infernal"],"Fly":["Pest"],"Frosty":["Aquatic","Construct","Frozen"],"Frozen Steve":["Aquatic","Frozen","Humanoid"],"Gaia Construct":["Construct","Mythological"],"Ghast":["Airborne","Cubic"],"Ghost":["Arcane","Subterranean"],"Glacite Bowman":["Glacial","Humanoid"],"Glacite Caver":["Glacial","Humanoid"],"Glacite Mage":["Glacial","Humanoid"],"Glacite Mutt":["Animal","Glacial"],"Glacite Walker":["Glacial","Humanoid"],"Golden Ghoul":["Undead"],"Golden Goblin":["Humanoid","Shielded"],"Golden Jerry":["Elusive","Humanoid","Shielded"],"Golem":["Arcane","Construct"],"Gravel Skeleton":["Skeletal"],"Graveyard Zombie":["Undead"],"Green Jerry":["Humanoid","Shielded"],"Grim Reaper":["Aquatic","Arcane","Spooky"],"Grinch":["Aquatic","Construct","Frozen"],"Grunt":["Humanoid"],"Guardian Defender":["Aquatic","Arcane"],"Harpy":["Animal","Humanoid","Mythological"],"Headless Horseman":["Animal","Skeletal","Spooky","Undead"],"Howling Spirit":["Animal","Arcane"],"Hydrospear":["Aquatic","Undead","Woodland"],"Inferno Demonlord":["Infernal"],"Inferno Magma Cube":["Cubic","Infernal"],"Kada Knight":["Animal","Undead"],"Key Guardian":["Subterranean","Undead"],"King Minos":["Elusive","Humanoid","Mythological"],"Kuudra Berserker":["Infernal","Undead"],"Kuudra Follower":["Infernal","Undead"],"Kuudra Knocker":["Infernal","Undead"],"Kuudra Landmine":["Infernal","Undead"],"Kuudra Slasher":["Cubic","Infernal"],"Lapis Zombie":["Undead"],"Lava Pigman":["Magmatic","Undead"],"Littlefoot":["Elusive","Glacial","Humanoid"],"Locust":["Pest"],"Lord Jawbus":["Construct","Elusive","Magmatic"],"Lost Adventurer":["Arcane","Humanoid"],"Mage Outlaw":["Arcane","Humanoid"],"Magma Boss":["Cubic","Infernal"],"Magma Cube":["Cubic","Infernal"],"Magma Cube Rider":["Cubic","Infernal","Undead"],"Magma Slug":["Cubic","Magmatic"],"Manticore":["Animal","Elusive","Mythological"],"Mega Bat":["Airborne","Shielded","Spooky"],"Mimic":["Arcane","Construct","Undead"],"Miner Skeleton":["Skeletal"],"Miner Zombie":["Undead"],"Minos Champion":["Humanoid","Mythological"],"Minos Hunter":["Humanoid","Mythological","Undead"],"Minos Inquisitor":["Elusive","Humanoid","Mythological"],"Minotaur":["Humanoid","Mythological"],"Mite":["Pest"],"Mosquito":["Pest"],"Moth":["Pest"],"Mutated Blaze":["Infernal"],"Nessie":["Animal","Aquatic","Elusive"],"Nest Endermite":["Arthropod","Ender"],"Nightmare":["Aquatic","Spooky","Undead"],"Nutcracker":["Aquatic","Construct","Frozen"],"Obsidian Defender":["Ender","Wither"],"Old Dragon":["Airborne","Arcane","Ender"],"Pack Spirit":["Animal","Arcane"],"Phantom Fisher":["Aquatic","Arcane","Spooky"],"Phantom Spirit":["Shielded","Spooky"],"Plhlegblast":["Elusive","Magmatic"],"Powder Ghast":["Airborne","Cubic","Shielded"],"Praying Mantis":["Pest"],"Protector Dragon":["Airborne","Arcane","Ender"],"Purple Jerry":["Humanoid","Shielded"],"Pyroclastic Worm":["Cubic","Magmatic"],"Ragnarok":["Elusive","Magmatic","Skeletal"],"Rain Slime":["Cubic"],"Rat":["Pest"],"Redstone Pigman":["Undead"],"Reindrake":["Elusive","Frozen","Shielded"],"Revenant Horror":["Undead"],"Rider of the Deep":["Animal","Aquatic","Undead"],"Scarecrow":["Aquatic","Spooky"],"Scared Skeleton":["Skeletal"],"Scary Jerry":["Shielded","Spooky"],"Scatha":["Elusive","Shielded","Subterranean"],"Sea Archer":["Aquatic","Skeletal"],"Sea Guardian":["Aquatic","Arcane"],"Sea Walker":["Aquatic","Undead"],"Sea Witch":["Aquatic","Arcane","Humanoid"],"Seer":["Ender"],"Shadow Assassin":["Arcane","Humanoid"],"Siamese Lynxes":["Animal","Mythological"],"Skeleton":["Skeletal"],"Skeleton Grunt":["Skeletal"],"Skeleton Lord":["Skeletal"],"Skeleton Master":["Skeletal"],"Skeleton Soldier":["Skeletal"],"Skeletor":["Construct","Skeletal"],"Slime":["Cubic"],"Sludge":["Cubic","Subterranean"],"Slug":["Pest"],"Smoldering Blaze":["Infernal"],"Sneaky Creeper":["Cubic"],"Sniper":["Skeletal","Undead"],"Soul of the Alpha":["Animal","Arcane"],"Special Zealot":["Elusive","Ender"],"Sphinx":["Elusive","Humanoid","Mythological"],"Spider":["Arthropod"],"Spider Jockey":["Arthropod","Skeletal"],"Star Sentry":["Arcane","Construct","Shielded"],"Stranded Nymph":["Aquatic","Humanoid","Mythological"],"Stridersurfer":["Magmatic","Undead","Woodland"],"Strong Dragon":["Airborne","Arcane","Ender"],"Super Archer":["Skeletal"],"Super Tank Zombie":["Undead"],"Superior Dragon":["Airborne","Arcane","Ender"],"Sven Packmaster":["Animal"],"Tank Zombie":["Undead"],"Tarantula Broodfather":["Arthropod"],"Tentacle":["Cubic","Infernal"],"Terracotta":["Arcane","Construct"],"The Loch Emperor":["Aquatic","Arcane","Skeletal"],"The Watcher":["Arcane"],"Thunder":["Arcane","Elusive","Magmatic"],"Tidetot":["Aquatic","Undead","Woodland"],"Titanoboa":["Animal","Aquatic","Elusive"],"Trick or Treater":["Shielded","Spooky"],"Undead":["Undead"],"Undead Skeleton":["Skeletal","Undead"],"Unstable Dragon":["Airborne","Arcane","Ender"],"Vanquisher":["Elusive","Wither"],"Vittomite":["Arthropod","Ender"],"Voidgloom Seraph":["Ender"],"Voidling":["Ender"],"Voidling Extremist":["Ender"],"Voidling Fanatic":["Ender"],"Werewolf":["Animal","Aquatic","Spooky"],"Wetwing":["Animal","Aquatic","Undead"],"Wiki Tiki":["Aquatic","Construct","Elusive"],"Wise Dragon":["Airborne","Arcane","Ender"],"Witch":["Arcane","Humanoid"],"Wither Gourd":["Shielded","Spooky"],"Wither Guard":["Skeletal","Wither"],"Wither Miner":["Skeletal","Wither"],"Wither Sentry":["Construct","Wither"],"Wither Skeleton":["Skeletal","Wither"],"Wither Spectre":["Arcane","Wither"],"Withermancer":["Arcane","Skeletal","Wither"],"Wolf":["Animal"],"Worm":["Shielded","Subterranean"],"Wraith":["Shielded","Spooky"],"Yeti":["Aquatic","Frozen","Humanoid"],"Yog":["Cubic","Infernal","Subterranean"],"Young Dragon":["Airborne","Arcane","Ender"],"Zealot":["Ender"],"Zealot Bruiser":["Ender"],"Zombie":["Undead"],"Zombie Commander":["Undead"],"Zombie Grunt":["Undead"],"Zombie Knight":["Undead"],"Zombie Lord":["Undead"],"Zombie Soldier":["Undead"],"Zombie Villager":["Undead"]};
+
+  const ENCHANT_MAP = {
+    Undead: "Smite", Skeletal: "Smite", Wither: "Smite",
+    Ender: "Ender Slayer", Arthropod: "Bane of Arthropods",
+    Infernal: "Smoldering", Cubic: "Cubism",
+    Aquatic: "Impaling", Woodland: "Woodsplitter"
+  };
+
+  const typeCounts = {};
+  for (const mob in DATA) {
+    for (const t of DATA[mob]) typeCounts[t] = (typeCounts[t] || 0) + 1;
+  }
+  const combatTypes = Object.keys(ENCHANT_MAP).sort((a, b) => typeCounts[b] - typeCounts[a]);
+  const flavorTypes = Object.keys(typeCounts).filter(t => !ENCHANT_MAP[t]).sort((a, b) => typeCounts[b] - typeCounts[a]);
+
+  const activeTypes = new Set();
+  let searchTerm = "";
+
+  function renderChips() {
+    const combatEl = document.getElementById("chips-combat");
+    const flavorEl = document.getElementById("chips-flavor");
+    combatEl.innerHTML = "";
+    flavorEl.innerHTML = "";
+
+    function makeChip(type, combat) {
+      const chip = document.createElement("div");
+      chip.className = "chip" + (combat ? " combat" : "");
+      chip.dataset.type = type;
+      chip.innerHTML = type +
+        (combat ? ` <span class="enchant">&middot; ${ENCHANT_MAP[type]}</span>` : "") +
+        ` <span class="count">${typeCounts[type]}</span>`;
+      chip.addEventListener("click", () => {
+        if (activeTypes.has(type)) activeTypes.delete(type);
+        else activeTypes.add(type);
+        chip.classList.toggle("active");
+        applyFilters();
+      });
+      return chip;
+    }
+
+    combatTypes.forEach(t => combatEl.appendChild(makeChip(t, true)));
+    flavorTypes.forEach(t => flavorEl.appendChild(makeChip(t, false)));
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById("table-body");
+    tbody.innerHTML = "";
+    const names = Object.keys(DATA).sort((a, b) => a.localeCompare(b));
+    for (const name of names) {
+      const tr = document.createElement("tr");
+      tr.dataset.name = name.toLowerCase();
+      tr.dataset.types = DATA[name].join("|");
+
+      const tdName = document.createElement("td");
+      tdName.className = "name";
+      tdName.textContent = name;
+      tr.appendChild(tdName);
+
+      const tdTypes = document.createElement("td");
+      tdTypes.className = "types";
+      DATA[name].forEach(t => {
+        const pill = document.createElement("span");
+        pill.className = "pill" + (ENCHANT_MAP[t] ? " combat" : "");
+        pill.textContent = t;
+        tdTypes.appendChild(pill);
+      });
+      tr.appendChild(tdTypes);
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  function applyFilters() {
+    const rows = document.querySelectorAll("#table-body tr");
+    let shown = 0;
+    rows.forEach(row => {
+      const matchesSearch = !searchTerm || row.dataset.name.includes(searchTerm);
+      const rowTypes = row.dataset.types.split("|");
+      const matchesTypes = activeTypes.size === 0 || rowTypes.some(t => activeTypes.has(t));
+      const visible = matchesSearch && matchesTypes;
+      row.classList.toggle("hidden", !visible);
+      if (visible) shown++;
+    });
+    document.getElementById("result-count").textContent = shown + " shown";
+    document.getElementById("clear-btn").classList.toggle("show", activeTypes.size > 0 || searchTerm.length > 0);
+
+    const tableWrap = document.querySelector(".table-wrap .scroll");
+    let emptyRow = document.getElementById("empty-row");
+    if (shown === 0) {
+      if (!emptyRow) {
+        emptyRow = document.createElement("div");
+        emptyRow.id = "empty-row";
+        emptyRow.style.padding = "2.5rem 1rem";
+        emptyRow.style.textAlign = "center";
+        emptyRow.style.color = "var(--text-faint)";
+        emptyRow.textContent = "No mobs match the current filters.";
+        tableWrap.appendChild(emptyRow);
+      }
+    } else if (emptyRow) {
+      emptyRow.remove();
+    }
+  }
+
+  document.getElementById("search-input").addEventListener("input", (e) => {
+    searchTerm = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  document.getElementById("clear-btn").addEventListener("click", () => {
+    activeTypes.clear();
+    searchTerm = "";
+    document.getElementById("search-input").value = "";
+    document.querySelectorAll(".chip.active").forEach(c => c.classList.remove("active"));
+    applyFilters();
+  });
+
+  renderChips();
+  renderTable();
+  applyFilters();
+</script>
