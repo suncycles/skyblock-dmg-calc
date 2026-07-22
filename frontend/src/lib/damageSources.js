@@ -16,6 +16,14 @@ import {
 } from './playerStats';
 import { computeAccessoryTotalStats } from './accessoryPowers';
 import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
+import {
+  GOD_POTION_STRENGTH_POTION,
+  GOD_POTION_CRIT_CHANCE,
+  GOD_POTION_CRIT_DAMAGE,
+  GOD_POTION_ARCHERY_DAMAGE,
+  JERRY_CANDY_STRENGTH,
+  isBowEquipped,
+} from './godPotion';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -409,7 +417,7 @@ async function collectPetEntries(loadout, itemData, out) {
 }
 
 // ---------------------------------------------------------------------
-export async function collectDamageSources(loadout, itemData, playerStats) {
+export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     additiveNonConditional: [],
@@ -421,6 +429,27 @@ export async function collectDamageSources(loadout, itemData, playerStats) {
   out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel);
   out.baseStats.strength += computeForagingStrengthBonus(playerStats?.foragingLevel);
   out.baseStats.strength += computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel);
+
+  // God Potion — a flat on/off toggle, not a level. Only the pieces this
+  // app tracks as aggregate base stats (Strength/Crit Chance/Crit
+  // Damage) are wired in; see lib/godPotion.js for what's excluded and
+  // why. Archery IV's bow damage is a genuine %-damage bonus (not a raw
+  // stat), so it's itemized in additiveNonConditional like every other
+  // enchant/ability — but only when a bow is actually equipped, since
+  // it's conditional on the player's own weapon, not the target mob.
+  if (godPotionActive) {
+    out.baseStats.strength += GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH;
+    out.baseStats.crit_chance += GOD_POTION_CRIT_CHANCE;
+    out.baseStats.crit_damage += GOD_POTION_CRIT_DAMAGE;
+    if (isBowEquipped(loadout)) {
+      out.additiveNonConditional.push({
+        id: 'god-potion-archery',
+        label: 'God Potion (Archery IV)',
+        source: 'Player',
+        value: GOD_POTION_ARCHERY_DAMAGE,
+      });
+    }
+  }
 
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
   if (combatLevelBonus) {

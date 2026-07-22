@@ -51,7 +51,7 @@ function Keyworded({ text }) {
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout, playerStats, targetMob } = useBuild();
+  const { loadout, playerStats, targetMob, godPotionActive } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -60,10 +60,10 @@ export default function DamageSources() {
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData, playerStats).then((r) => {
+    collectDamageSources(loadout, itemData, playerStats, godPotionActive).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData, playerStats]);
+  }, [loadout, itemData, playerStats, godPotionActive]);
 
   const targetMobTypes = targetMob ? MOB_TYPES[targetMob] : null;
   const validTarget = targetMob && targetMobTypes;

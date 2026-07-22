@@ -11,6 +11,7 @@ import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { GOD_POTION_TOOLTIP_LINES } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -32,7 +33,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats, targetMob, setTargetMob } = useBuild();
+  const { loadout, removeSlot, playerStats, targetMob, setTargetMob, godPotionActive, toggleGodPotion } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -370,6 +371,24 @@ export default function Landing() {
         continue;
       }
 
+      // Bottom-left (row 5, col 0): God Potion — a plain on/off toggle,
+      // not a picker (see lib/godPotion.js), so clicking it flips state
+      // in place rather than navigating anywhere.
+      if (col === 0 && row === 5) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${godPotionActive ? 'bg-green-400' : ''}`}
+            onClick={toggleGodPotion}
+            onMouseEnter={(e) => showTooltip(GOD_POTION_TOOLTIP_LINES, e.currentTarget)}
+            onMouseLeave={hideTooltip}
+          >
+            <WeaponIcon id="GOD_POTION" material="POTION" alt="God Potion" className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`} />
+          </div>,
+        );
+        continue;
+      }
+
       cells.push(
         <div key={key} className={slotBase}>
           <img src={SLOT_TEXTURES.empty} alt="" className={slotFillImg} />
@@ -381,7 +400,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4 text-center">
-        <h1 className="text-3xl font-bold">The Hex</h1>
+        <h1 className="text-3xl font-bold"></h1>
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">

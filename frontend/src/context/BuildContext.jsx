@@ -5,6 +5,7 @@ import { computeTuningPoints } from '../lib/accessoryPowers';
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
 const TARGET_MOB_KEY = 'hexTargetMob';
+const GOD_POTION_KEY = 'hexGodPotion';
 
 const BuildContext = createContext(null);
 
@@ -14,6 +15,13 @@ const BuildContext = createContext(null);
 // playerStats rather than part of the equipment loadout.
 function loadInitialTargetMob() {
   return localStorage.getItem(TARGET_MOB_KEY) || null;
+}
+
+// A simple on/off toggle (see lib/godPotion.js) — not a numeric level or
+// an equipped item, so it gets its own small persisted boolean rather
+// than living in playerStats or loadout.
+function loadInitialGodPotion() {
+  return localStorage.getItem(GOD_POTION_KEY) === 'true';
 }
 
 // Global, not tied to any equipped item/pet — Combat Level, Skyblock
@@ -120,11 +128,20 @@ export function BuildProvider({ children }) {
   const [loadout, setLoadout] = useState(loadInitial);
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMob, setTargetMobState] = useState(loadInitialTargetMob);
+  const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
 
   const setTargetMob = useCallback((name) => {
     setTargetMobState(name);
     if (name) localStorage.setItem(TARGET_MOB_KEY, name);
     else localStorage.removeItem(TARGET_MOB_KEY);
+  }, []);
+
+  const toggleGodPotion = useCallback(() => {
+    setGodPotionActiveState((prev) => {
+      const next = !prev;
+      localStorage.setItem(GOD_POTION_KEY, String(next));
+      return next;
+    });
   }, []);
 
   const setCombatLevel = useCallback((value) => {
@@ -380,6 +397,8 @@ export function BuildProvider({ children }) {
         setCatacombsLevel,
         targetMob,
         setTargetMob,
+        godPotionActive,
+        toggleGodPotion,
         selectItem,
         removeSlot,
         applyEnchant,
