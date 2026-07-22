@@ -9,6 +9,7 @@ import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore,
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
 import { computeCombatLevelBonus, computeSkyblockLevelMultiplier } from './playerStats';
+import { computeAccessoryTotalStats } from './accessoryPowers';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -167,6 +168,13 @@ async function collectBaseStats(loadout, itemData) {
     totals.strength += stats.STRENGTH || 0;
     totals.crit_chance += stats.CRIT_CHANCE || 0;
     totals.crit_damage += stats.CRIT_DAMAGE || 0;
+  }
+  if (loadout.accessory) {
+    const { item, modifiers } = loadout.accessory;
+    const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
+    totals.strength += accessoryStats.strength || 0;
+    totals.crit_chance += accessoryStats.crit_chance || 0;
+    totals.crit_damage += accessoryStats.crit_damage || 0;
   }
   return totals;
 }
