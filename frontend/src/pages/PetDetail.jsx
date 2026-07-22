@@ -6,6 +6,7 @@ import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine } from '../lib/mcText';
 import { petLoreItemId, buildPetTooltipLines, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
+import { parseShorthandNumber } from '../lib/numberInput';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 import McTooltipLines from '../components/McTooltipLines';
@@ -188,11 +189,11 @@ export default function PetDetail() {
               </label>
               <input
                 id="pet-bank-coins"
-                type="number"
-                min="0"
-                step="1000000"
+                type="text"
+                inputMode="decimal"
                 value={bankCoins}
-                onChange={(e) => setPetBankCoins(Math.max(0, Number(e.target.value) || 0))}
+                onChange={(e) => setPetBankCoins(Math.max(0, parseShorthandNumber(e.target.value)))}
+                placeholder="e.g. 10m"
                 className="w-full px-2 py-1 mt-1 text-sm bg-black text-white border-2 border-neutral-700"
               />
             </div>
