@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from '../lib/specialWeapons';
+import { parseShorthandNumber } from '../lib/numberInput';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
 
@@ -42,7 +43,7 @@ export default function SpecialPicker() {
   }
 
   function handleChange(e) {
-    const num = Math.max(0, Number(e.target.value) || 0);
+    const num = Math.max(0, parseShorthandNumber(e.target.value));
     setSpecialValue(slot, num);
   }
 
@@ -73,11 +74,11 @@ export default function SpecialPicker() {
         </label>
         <input
           id="special-value"
-          type="number"
-          min="0"
-          step="1"
+          type="text"
+          inputMode="decimal"
           value={value}
           onChange={handleChange}
+          placeholder="e.g. 25m"
           className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
         />
         <div className="text-sm text-neutral-800">{bonusText}</div>
