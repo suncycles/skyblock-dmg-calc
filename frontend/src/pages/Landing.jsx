@@ -9,6 +9,7 @@ import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { petLoreItemId, buildPetTooltipLines } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
+import { getSkyblockLevelColor } from '../lib/playerStats';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -30,7 +31,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats, setCombatLevel, setSkyblockLevel } = useBuild();
+  const { loadout, removeSlot, playerStats } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -175,6 +176,33 @@ export default function Landing() {
         continue;
       }
 
+      // Column D (index 3), row 1: Player Levels (Combat/Skyblock/
+      // Foraging) — directly above Accessories. Shows the Skyblock Level
+      // number colored by its real in-game level-color bracket (see
+      // lib/playerStats.js's getSkyblockLevelColor); click opens the
+      // small edit page for all three levels.
+      if (col === 3 && row === 1) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110`}
+            onClick={() => navigate('/player-levels')}
+            title="Player Levels"
+          >
+            <span
+              className="text-sm font-bold leading-none whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]"
+              style={{ color: getSkyblockLevelColor(playerStats.skyblockLevel) }}
+            >
+              [{playerStats.skyblockLevel}]
+            </span>
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] whitespace-nowrap">
+              Levels
+            </span>
+          </div>,
+        );
+        continue;
+      }
+
       // Column D (index 3): Accessories directly above the weapon (row 3,
       // index 2), weapon at row 4 (index 3), pet at row 5 (index 4).
       if (col === 3 && row === 2) {
@@ -308,34 +336,6 @@ export default function Landing() {
         <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
         </div>
-      </div>
-
-      {/* Global player-level stats (see lib/playerStats.js) — small, not
-          part of the gear grid, counted in Damage Sources' (base) stats. */}
-      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-400">
-        <label htmlFor="combat-level">Combat Level:</label>
-        <input
-          id="combat-level"
-          type="number"
-          min="0"
-          max="60"
-          step="1"
-          value={playerStats.combatLevel}
-          onChange={(e) => setCombatLevel(Math.max(0, Math.min(60, Math.floor(Number(e.target.value) || 0))))}
-          className="w-12 px-1 py-0.5 bg-neutral-800 text-neutral-200 border border-neutral-600 text-center"
-        />
-        <label htmlFor="skyblock-level" className="ml-2">
-          Skyblock Level:
-        </label>
-        <input
-          id="skyblock-level"
-          type="number"
-          min="0"
-          step="1"
-          value={playerStats.skyblockLevel}
-          onChange={(e) => setSkyblockLevel(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-          className="w-12 px-1 py-0.5 bg-neutral-800 text-neutral-200 border border-neutral-600 text-center"
-        />
       </div>
 
       {/* Deliberately small/muted, not a second focal element next to the
