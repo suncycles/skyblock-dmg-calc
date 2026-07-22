@@ -167,6 +167,15 @@ export default function Landing() {
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
             )}
+            {loadout.weapon && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                title="Remove Weapon"
+                onClick={(e) => handleGearRemove('weapon', e)}
+              >
+                🗑️
+              </span>
+            )}
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
               Weapon
             </span>
@@ -187,6 +196,15 @@ export default function Landing() {
               <WeaponIcon id={loadout.pet.item.petId} material="BONE" alt={loadout.pet.item.name} className={iconImg} />
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
+            )}
+            {loadout.pet && (
+              <span
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                title="Remove Pet"
+                onClick={(e) => handleGearRemove('pet', e)}
+              >
+                🗑️
+              </span>
             )}
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
               Pet
