@@ -16,6 +16,7 @@ function emptyModifiers() {
     special: 0, // weapon-specific ability input — see lib/specialWeapons.js
     recombobulated: false,
     reforge: null, // reforge name string | null
+    stars: 0, // Item Upgrades star count, 0-15 — see lib/starring.js
   };
 }
 
@@ -218,6 +219,13 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  const setStarCount = useCallback(
+    (slot, count) => {
+      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, stars: count }));
+    },
+    [updateSlotModifiers],
+  );
+
   const setPetLevel = useCallback(
     (level) => {
       updateSlotModifiers('pet', (modifiers) => ({ ...modifiers, level }));
@@ -248,6 +256,7 @@ export function BuildProvider({ children }) {
         toggleArtOfPeace,
         toggleRecombobulated,
         applyReforge,
+        setStarCount,
         setPetLevel,
         setPetItem,
       }}
