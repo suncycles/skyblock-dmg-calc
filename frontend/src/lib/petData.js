@@ -78,14 +78,23 @@ export function getAvailableRarities(petsRaw, petId) {
   return PET_RARITY_ORDER.filter((r) => byRarity[r] && byRarity[r]['1'] && byRarity[r]['100']);
 }
 
-// `maxLevel` only clamps how high `level` is allowed to go (100 normally,
-// 200 for the 3 dragon pets) — the interpolation rate itself is always
-// anchored on the level-1/level-100 checkpoint pair petnums.json actually
-// provides (99 steps), so levels 101-200 extrapolate that same rate
-// rather than getting compressed into a 0..1 fraction of a 200-level
-// span that has no real level-200 checkpoint to interpolate toward.
+// `maxLevel` only clamps how high `level` is allowed to go for most pets
+// (100), but the 3 dragon pets (maxLevel 200) are a different mechanic
+// entirely, not just a longer version of the same curve: they're an
+// unhatched egg — no stats, no abilities — for the whole 0-100 range, and
+// only start actually leveling up (stats/abilities scaling in) from 101
+// onward. petnums.json's own "100" checkpoint is really the level-200
+// (max) value for these, not level 100's — verified against real pet
+// lore/wiki behavior, not an assumption this file's data shape can show
+// on its own. Detected purely from `maxLevel > MAX_PET_LEVEL` (only the
+// 3 dragons ever pass 200) rather than needing the petId threaded in.
 export function interpolateValue(level1Val, level100Val, level, maxLevel = MAX_PET_LEVEL) {
   const clampedLevel = Math.max(1, Math.min(level || 1, maxLevel));
+  if (maxLevel > MAX_PET_LEVEL) {
+    if (clampedLevel <= MAX_PET_LEVEL) return 0;
+    const t = (clampedLevel - (MAX_PET_LEVEL + 1)) / (maxLevel - MAX_PET_LEVEL - 1);
+    return Math.round((level1Val + (level100Val - level1Val) * t) * 10) / 10;
+  }
   const t = (clampedLevel - 1) / 99;
   return Math.round((level1Val + (level100Val - level1Val) * t) * 10) / 10;
 }
