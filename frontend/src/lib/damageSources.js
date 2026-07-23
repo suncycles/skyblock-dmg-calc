@@ -7,6 +7,12 @@ import { formatItemName } from './mcText';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from './armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
 import {
+  FINAL_DESTINATION_SET,
+  FINAL_DESTINATION_STRENGTH,
+  FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
+  hasFullSet,
+} from './armorSetBonuses';
+import {
   petLoreItemId,
   computeAllPetStats,
   computeOtherNums,
@@ -755,6 +761,21 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       });
     }
   }
+
+  // Full-set bonuses — checked positionally against ARMOR_SLOTS/
+  // EQUIPMENT_SLOTS (see lib/armorSetBonuses.js), since each only
+  // applies with the exact 4 real pieces equipped.
+  if (hasFullSet(loadout, ARMOR_SLOTS, FINAL_DESTINATION_SET)) {
+    addBaseStat(out, 'strength', FINAL_DESTINATION_STRENGTH, 'Final Destination (Full Set)');
+    out.additiveConditional.push({
+      id: 'final-destination-set-ender',
+      label: 'Final Destination (Full Set)',
+      source: 'Armor',
+      value: FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
+      condition: 'Ender',
+    });
+  }
+
 
   await collectPetEntries(loadout, itemData, out);
 
