@@ -72,7 +72,17 @@ export default function EnchantLevels() {
         const levelEntry = levels ? levels[idx] : null;
         if (levelEntry) {
           const isMax = levelEntry.level === maxLevel;
-          const textColor = ultimate ? 'text-fuchsia-600' : isMax ? 'text-amber-600' : 'text-neutral-800';
+          const isMaxMinusOne = levelEntry.level === maxLevel - 1;
+          // Ultimate stays pink regardless of tier; non-ultimate: chroma
+          // at true max, gold one tier below max, plain otherwise — same
+          // rule EnchantList.jsx's caption badges use.
+          const textColor = ultimate
+            ? 'text-fuchsia-600'
+            : isMax
+              ? 'chroma-text'
+              : isMaxMinusOne
+                ? 'text-amber-600'
+                : 'text-neutral-800';
           const isApplied = appliedLevel === levelEntry.level;
           cells.push(
             <div
