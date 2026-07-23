@@ -262,8 +262,28 @@ const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+)?damage\s+dealt(
 const PER_TARGET_STAT_RE =
   /Increases\s+damage\s+dealt\s+by\s+\+?([\d.]+)%\s+for\s+each\s+(?:percent|%)\s+of\s+(.+?)(?:,?\s+up\s+to\s+\+?([\d.]+)%)?\.?\s*$/i;
 
+// One For All — real NEU-REPO lore (fetched this session): "Removes all
+// other enchants but increases your weapon damage by 500%." A single
+// fixed level (no I/II/... scaling), phrased as "weapon damage" rather
+// than the "damage dealt [to X]" shape every other %-damage enchant
+// uses, so it can't be picked up by either regex below — hardcoded
+// instead of extending those patterns for one enchant. The "removes all
+// other enchants" half is already handled at the UI layer (see
+// computeConflictingEntries in lib/enchantEffects.js).
+const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
+
 async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out) {
   for (const entry of entries) {
+    if (entry.id.toLowerCase() === 'ultimate_one_for_all') {
+      out.additiveNonConditional.push({
+        id: `${slotLabel}-${entry.id}`,
+        label: 'One For All',
+        source: `${itemLabel} (${slotLabel})`,
+        value: ONE_FOR_ALL_DAMAGE_PERCENT,
+      });
+      continue;
+    }
+
     const levels = await fetchEnchantLevels(entry.id, enchantsMeta);
     const levelData = levels.find((l) => l.level === entry.level);
     if (!levelData) continue;
