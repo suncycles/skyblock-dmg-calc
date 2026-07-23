@@ -174,8 +174,39 @@ function sumStatFromTooltipLines(finalLines, pristineLore, label) {
   return base + parenNums.reduce((a, b) => a + b, 0);
 }
 
+// Chimera ultimate enchant — real NEU-REPO lore (fetched this session):
+// "Copies 20%/40%/60%/80%/100% of your active pet's stats" at levels
+// I-V respectively, i.e. a flat 20% per level. Applied here (rather than
+// collectEnchantEntries' generic ability-text scan, which can't turn a
+// "copies pet stats" sentence into a %-damage entry) as a SEPARATE
+// addition on top of the pet's own normal contribution above — the
+// enchant genuinely stacks a partial second copy of the pet's stats, it
+// doesn't replace anything.
+const CHIMERA_PERCENT_PER_LEVEL = 20;
+
 async function collectBaseStats(loadout, itemData, catacombsLevel) {
   const totals = { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 };
+
+  // Computed up front (rather than after the gear loop) so Chimera,
+  // found while scanning a weapon's applied enchants below, can copy a
+  // percentage of the pet's own final (post-item-boost) stats.
+  let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
+  if (loadout.pet) {
+    const { item: pet, modifiers } = loadout.pet;
+    const maxLevel = getMaxPetLevel(pet.petId);
+    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+    let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+    stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
+    const petItemId = modifiers.petItem;
+    const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+    const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+    stats = applyPetItemStatBoost(stats, boost);
+    petStats = stats;
+    totals.strength += stats.STRENGTH || 0;
+    totals.crit_chance += stats.CRIT_CHANCE || 0;
+    totals.crit_damage += stats.CRIT_DAMAGE || 0;
+  }
+
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
@@ -190,21 +221,19 @@ async function collectBaseStats(loadout, itemData, catacombsLevel) {
       const config = getSpecialConfig(equipped.item.id);
       totals.damage += computeSpecialBonus(config, equipped.modifiers.special);
     }
+
+    const chimera = [
+      ...(equipped.modifiers.hexEnchantments || []),
+      ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
+    ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
+    if (chimera) {
+      const fraction = (chimera.level * CHIMERA_PERCENT_PER_LEVEL) / 100;
+      totals.strength += (petStats.STRENGTH || 0) * fraction;
+      totals.crit_chance += (petStats.CRIT_CHANCE || 0) * fraction;
+      totals.crit_damage += (petStats.CRIT_DAMAGE || 0) * fraction;
+    }
   }
-  if (loadout.pet) {
-    const { item: pet, modifiers } = loadout.pet;
-    const maxLevel = getMaxPetLevel(pet.petId);
-    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-    let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
-    stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
-    const petItemId = modifiers.petItem;
-    const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
-    const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
-    stats = applyPetItemStatBoost(stats, boost);
-    totals.strength += stats.STRENGTH || 0;
-    totals.crit_chance += stats.CRIT_CHANCE || 0;
-    totals.crit_damage += stats.CRIT_DAMAGE || 0;
-  }
+
   if (loadout.accessory) {
     const { item, modifiers } = loadout.accessory;
     const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
