@@ -83,6 +83,7 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
   'WARDEN_HELMET',
+  'ATOMSPLIT_KATANA',
 ]);
 
 // Warden Helmet's "Brute Force" ability ("Halves your +25 Speed but
@@ -92,6 +93,26 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
 // assumed always at its max real-game boost (8 stacks = +160%) rather
 // than left unresolved in situational.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
+
+// Atomsplit Katana's real lore reads "Deal +300% damage to Endermen." —
+// the generic ability-text scan would auto-resolve "Endermen" to just
+// the single mob named "Enderman" (lib/mobTypes.js's resolveMobKey),
+// missing the real Ender-dungeon "Enderman family" the weapon is
+// actually built to counter. Hardcoded to the full real mob list per
+// instruction, since there's no Mob Type covering exactly this set
+// (Ender-typed mobs include plenty this weapon doesn't affect, e.g.
+// Voidgloom Seraph's own summons).
+const ATOMSPLIT_KATANA_DAMAGE_PERCENT = 300;
+const ATOMSPLIT_KATANA_MOBS = [
+  'Enderman',
+  'Zealot',
+  'Zealot Bruiser',
+  'Voidgloom Seraph',
+  'Fels',
+  'Special Zealot',
+  'Voidling Fanatic',
+  'Voidling Extremist',
+];
 
 function stripToPlain(lines) {
   return (Array.isArray(lines) ? lines.join(' ') : lines)
@@ -628,6 +649,16 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         label: 'Brute Force (assumed max)',
         source: slotLabel,
         value: WARDEN_HELMET_BRUTE_FORCE_PERCENT,
+      });
+    }
+
+    if (equipped.item.id === 'ATOMSPLIT_KATANA') {
+      out.additiveConditional.push({
+        id: 'atomsplit-katana-endermen',
+        label: `${itemLabel} (Endermen family)`,
+        source: slotLabel,
+        value: ATOMSPLIT_KATANA_DAMAGE_PERCENT,
+        condition: ATOMSPLIT_KATANA_MOBS.join(', '),
       });
     }
   }
