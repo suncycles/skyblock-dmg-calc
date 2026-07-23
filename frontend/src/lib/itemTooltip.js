@@ -9,6 +9,7 @@ import { applySpecialToLore } from './specialWeapons';
 import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore } from './recombobulator';
 import { getGearType } from './gearType';
+import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
 
 // §d (light purple) — distinct from Reforges' blue, Books' yellow, Art of
 // War's gold, and matches the pink Ultimate-enchant name color, so
@@ -112,6 +113,9 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   // annotation — a star is described as improving the item's base stats,
   // not as an external modifier layered on top.
   lore = mergeStatIntoBase(lore, computeStarBonuses(item.lore, modifiers.stars), lore.indexOf(''));
+  // Same "improves the item's own base stats" treatment as Stars above —
+  // see lib/witherBladeBonuses.js for the real per-weapon rates.
+  lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
 
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = annotateStatLines(lore, enchantStatBonuses, ENCHANT_STAT_COLOR, lore.indexOf(''));
