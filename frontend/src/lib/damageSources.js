@@ -10,6 +10,9 @@ import {
   FINAL_DESTINATION_SET,
   FINAL_DESTINATION_STRENGTH,
   FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
+  VANQUISHED_SET,
+  VANQUISHED_SET_MULTIPLIER,
+  VANQUISHED_SET_ID,
   MONSTER_HUNTER_SET,
   MONSTER_HUNTER_MULTIPLIER,
   MONSTER_RAIDER_SET,
@@ -777,6 +780,15 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       source: 'Armor',
       value: FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
       condition: 'Ender',
+    });
+  }
+
+  if (hasFullSet(loadout, EQUIPMENT_SLOTS, VANQUISHED_SET)) {
+    out.multiplicative.push({
+      id: VANQUISHED_SET_ID,
+      label: 'Vanquished (Full Set, Hidden Bonus)',
+      source: 'Equipment',
+      value: VANQUISHED_SET_MULTIPLIER,
     });
   }
 
