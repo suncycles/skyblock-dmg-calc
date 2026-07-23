@@ -242,9 +242,22 @@ function sumStatFromTooltipLines(finalLines, pristineLore, label) {
 // doesn't replace anything.
 const CHIMERA_PERCENT_PER_LEVEL = 20;
 
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel) {
-  const totals = { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 };
+// Records WHERE a (Base) Stats number came from, not just the total —
+// out.baseStatSources[statKey] is a {label, value} list DamageSources.jsx
+// shows when a stat row is clicked. Contributions sharing a label (e.g.
+// every Ruler/Strength-Elemental attribute folding into one "Attributes"
+// line) are merged into a running total rather than one row each, same
+// "grouped, not itemized per-enchant" granularity the user asked for.
+function addBaseStat(out, statKey, value, label) {
+  if (!value) return;
+  out.baseStats[statKey] += value;
+  const list = out.baseStatSources[statKey];
+  const existing = list.find((e) => e.label === label);
+  if (existing) existing.value += value;
+  else list.push({ label, value });
+}
 
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, out) {
   // Computed up front (rather than after the gear loop) so Chimera,
   // found while scanning a weapon's applied enchants below, can copy a
   // percentage of the pet's own final (post-item-boost) stats.
@@ -260,24 +273,25 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel) 
     const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
     stats = applyPetItemStatBoost(stats, boost);
     petStats = stats;
-    totals.strength += stats.STRENGTH || 0;
-    totals.crit_chance += stats.CRIT_CHANCE || 0;
-    totals.crit_damage += stats.CRIT_DAMAGE || 0;
+    addBaseStat(out, 'strength', stats.STRENGTH || 0, 'Pet');
+    addBaseStat(out, 'crit_chance', stats.CRIT_CHANCE || 0, 'Pet');
+    addBaseStat(out, 'crit_damage', stats.CRIT_DAMAGE || 0, 'Pet');
   }
 
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
+    const slotLabel = SLOT_LABELS[slot];
     const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
     for (const statKey of TRACKED_STATS) {
-      totals[statKey] += sumStatFromTooltipLines(lines, equipped.item.lore, STAT_LABELS[statKey].label);
+      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, equipped.item.lore, STAT_LABELS[statKey].label), slotLabel);
     }
     // Emerald Blade's ability bonus is shown under its own "Current
     // Damage Bonus:" line, not a "Damage:" stat line, so the generic
     // label-matching above can't see it.
     if (equipped.item.id === 'EMERALD_BLADE') {
       const config = getSpecialConfig(equipped.item.id);
-      totals.damage += computeSpecialBonus(config, equipped.modifiers.special);
+      addBaseStat(out, 'damage', computeSpecialBonus(config, equipped.modifiers.special), slotLabel);
     }
 
     const chimera = [
@@ -286,20 +300,20 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel) 
     ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
     if (chimera) {
       const fraction = (chimera.level * CHIMERA_PERCENT_PER_LEVEL) / 100;
-      totals.strength += (petStats.STRENGTH || 0) * fraction;
-      totals.crit_chance += (petStats.CRIT_CHANCE || 0) * fraction;
-      totals.crit_damage += (petStats.CRIT_DAMAGE || 0) * fraction;
+      const chimeraLabel = `${slotLabel} (Chimera)`;
+      addBaseStat(out, 'strength', (petStats.STRENGTH || 0) * fraction, chimeraLabel);
+      addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, chimeraLabel);
+      addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, chimeraLabel);
     }
   }
 
   if (loadout.accessory) {
     const { item, modifiers } = loadout.accessory;
     const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
-    totals.strength += accessoryStats.strength || 0;
-    totals.crit_chance += accessoryStats.crit_chance || 0;
-    totals.crit_damage += accessoryStats.crit_damage || 0;
+    addBaseStat(out, 'strength', accessoryStats.strength || 0, 'Accessory');
+    addBaseStat(out, 'crit_chance', accessoryStats.crit_chance || 0, 'Accessory');
+    addBaseStat(out, 'crit_damage', accessoryStats.crit_damage || 0, 'Accessory');
   }
-  return totals;
 }
 
 // ---------------------------------------------------------------------
@@ -567,13 +581,13 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveConditional.push({ id: `attr-${id}`, label: name, source: 'Attribute', value, condition: mobType });
   }
 
-  // Silently summed into baseStats, no itemized row — same precedent as
-  // Foraging/Skyblock Level's strength contributions.
+  // Folded into one "Attributes" base-stat source line rather than one
+  // per Elemental attribute — see addBaseStat.
   for (const { id } of STRENGTH_ELEMENTAL_ATTRIBUTES) {
     const level = attributes[id] || 0;
     if (!level) continue;
     const base = ELEMENTAL_STRENGTH_RATE * level;
-    out.baseStats.strength += base * (1 + echoOfElementalBoost / 100);
+    addBaseStat(out, 'strength', base * (1 + echoOfElementalBoost / 100), 'Attributes');
   }
 
   const deadeyeLevel = attributes.deadeye || 0;
@@ -605,37 +619,42 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveNonConditional.push({ id: 'attr-dominance', label: 'Dominance', source: 'Attribute', value: DOMINANCE_RATE * dominanceLevel });
   }
 
-  // Unlimited Power/Energy apply after everything else (a true multiplier
-  // on the fully-summed Strength/Crit Damage) — not itemized here at all,
-  // just raw percentages for lib/finalDamage.js to apply last. Almighty
+  // Unlimited Power/Energy apply after everything else — a true
+  // multiplier on the fully-summed Strength/Crit Damage (every source
+  // above, including this function's own Ruler/Elemental contributions)
+  // — baked directly into baseStats itself (as its own "Unlimited Power"/
+  // "Unlimited Energy" source line) rather than kept as a separate
+  // percent for lib/finalDamage.js to apply on top; that way the (Base)
+  // Stats total shown in Damage Sources already reflects it. Almighty
   // ('Your "Unlimited" Attributes are +5%-50% stronger') is the same
   // keyword-matching relative-boost mechanism as the Echo chain, just
   // targeting both Unlimited attributes directly instead of a family —
   // it isn't itself named "Echo" so Echo of Echoes doesn't boost it back.
   const almightyBoost = ALMIGHTY_RATE * (attributes.almighty || 0);
-  out.unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
-  out.unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
+  const unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
+  const unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
+  addBaseStat(out, 'strength', out.baseStats.strength * (unlimitedPowerPercent / 100), 'Unlimited Power');
+  addBaseStat(out, 'crit_damage', out.baseStats.crit_damage * (unlimitedEnergyPercent / 100), 'Unlimited Energy');
 }
 
 // ---------------------------------------------------------------------
 export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
+    baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
     additiveNonConditional: [],
     additiveConditional: [],
     multiplicative: [],
     situational: [],
-    unlimitedPowerPercent: 0,
-    unlimitedEnergyPercent: 0,
   };
 
-  out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel);
-  out.baseStats.strength += computeForagingStrengthBonus(playerStats?.foragingLevel);
-  out.baseStats.strength += computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel);
+  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
+  addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
+  addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   // Every player starts with these two stats before any gear at all —
   // real Hypixel base stats, unlike Damage/Strength which start at 0.
-  out.baseStats.crit_chance += BASE_CRIT_CHANCE;
-  out.baseStats.crit_damage += BASE_CRIT_DAMAGE;
+  addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');
+  addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
 
   // God Potion — a flat on/off toggle, not a level. Only the pieces this
   // app tracks as aggregate base stats (Strength/Crit Chance/Crit
@@ -645,9 +664,9 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   // enchant/ability — but only when a bow is actually equipped, since
   // it's conditional on the player's own weapon, not the target mob.
   if (godPotionActive) {
-    out.baseStats.strength += GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH;
-    out.baseStats.crit_chance += GOD_POTION_CRIT_CHANCE;
-    out.baseStats.crit_damage += GOD_POTION_CRIT_DAMAGE + GOD_POTION_SPIRIT_CRIT_DAMAGE;
+    addBaseStat(out, 'strength', GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH, 'God Potion');
+    addBaseStat(out, 'crit_chance', GOD_POTION_CRIT_CHANCE, 'God Potion');
+    addBaseStat(out, 'crit_damage', GOD_POTION_CRIT_DAMAGE + GOD_POTION_SPIRIT_CRIT_DAMAGE, 'God Potion');
     if (isBowEquipped(loadout)) {
       out.additiveNonConditional.push({
         id: 'god-potion-archery',
