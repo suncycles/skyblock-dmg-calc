@@ -10,6 +10,8 @@ import {
   FINAL_DESTINATION_SET,
   FINAL_DESTINATION_STRENGTH,
   FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
+  MONSTER_HUNTER_SET,
+  MONSTER_HUNTER_MULTIPLIER,
   hasFullSet,
 } from './armorSetBonuses';
 import {
@@ -773,6 +775,15 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       source: 'Armor',
       value: FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
       condition: 'Ender',
+    });
+  }
+
+  if (hasFullSet(loadout, ARMOR_SLOTS, MONSTER_HUNTER_SET)) {
+    out.multiplicative.push({
+      id: 'monster-hunter-hidden-bonus',
+      label: 'Monster Hunter Hidden Bonus',
+      source: 'Armor',
+      value: MONSTER_HUNTER_MULTIPLIER,
     });
   }
 
