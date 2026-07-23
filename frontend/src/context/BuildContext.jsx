@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
 import { computeTuningPoints } from '../lib/accessoryPowers';
+import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attributes';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
 const TARGET_MOB_KEY = 'hexTargetMob';
 const GOD_POTION_KEY = 'hexGodPotion';
+const ATTRIBUTES_KEY = 'hexAttributes';
 
 const BuildContext = createContext(null);
 
@@ -22,6 +24,26 @@ function loadInitialTargetMob() {
 // than living in playerStats or loadout.
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
+}
+
+// Attributes (see lib/attributes.js) are account-wide, not tied to any
+// equipped item — {[attributeId]: level 0-10}, own persisted object same
+// as playerStats, defaulting every known id to 0 so new ids introduced
+// later don't need a migration.
+function loadInitialAttributes() {
+  const defaults = Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0]));
+  const stored = localStorage.getItem(ATTRIBUTES_KEY);
+  if (!stored) return defaults;
+  try {
+    const parsed = JSON.parse(stored);
+    for (const id of ATTRIBUTE_IDS) {
+      if (typeof parsed[id] === 'number') defaults[id] = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(parsed[id])));
+    }
+    return defaults;
+  } catch (err) {
+    console.error('Failed to parse saved attributes:', err);
+    return defaults;
+  }
 }
 
 // Global, not tied to any equipped item/pet — Combat Level, Skyblock
@@ -129,6 +151,16 @@ export function BuildProvider({ children }) {
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMob, setTargetMobState] = useState(loadInitialTargetMob);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
+  const [attributes, setAttributesState] = useState(loadInitialAttributes);
+
+  const setAttributeLevel = useCallback((id, level) => {
+    setAttributesState((prev) => {
+      const clamped = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(level) || 0));
+      const next = { ...prev, [id]: clamped };
+      localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const setTargetMob = useCallback((name) => {
     setTargetMobState(name);
@@ -375,7 +407,7 @@ export function BuildProvider({ children }) {
   const setAccessoryTuningPoint = useCallback(
     (statKey, points) => {
       updateSlotModifiers('accessory', (modifiers) => {
-        const totalPoints = computeTuningPoints(modifiers.magicalPower);
+        const totalPoints = computeTuningPoints(modifiers.magicalPower) + attributes.tuning_box * TUNING_BOX_RATE;
         const otherPointsSpent = Object.entries(modifiers.tuning)
           .filter(([key]) => key !== statKey)
           .reduce((sum, [, v]) => sum + v, 0);
@@ -383,7 +415,7 @@ export function BuildProvider({ children }) {
         return { ...modifiers, tuning: { ...modifiers.tuning, [statKey]: clamped } };
       });
     },
-    [updateSlotModifiers],
+    [updateSlotModifiers, attributes.tuning_box],
   );
 
   return (
@@ -399,6 +431,8 @@ export function BuildProvider({ children }) {
         setTargetMob,
         godPotionActive,
         toggleGodPotion,
+        attributes,
+        setAttributeLevel,
         selectItem,
         removeSlot,
         applyEnchant,

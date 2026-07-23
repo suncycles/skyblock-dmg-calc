@@ -3,6 +3,7 @@ import { useBuild } from '../context/BuildContext';
 import { TUNING_STATS, TUNING_RATE_PER_POINT, computeTuningPoints } from '../lib/accessoryPowers';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
+import { TUNING_BOX_RATE } from '../lib/attributes';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -16,7 +17,7 @@ const panel =
 // BuildContext.jsx).
 export default function AccessoryTuning() {
   const navigate = useNavigate();
-  const { loadout, setAccessoryTuningPoint } = useBuild();
+  const { loadout, attributes, setAccessoryTuningPoint } = useBuild();
 
   if (!loadout.accessory) {
     return (
@@ -37,7 +38,7 @@ export default function AccessoryTuning() {
   }
 
   const { magicalPower, tuning } = loadout.accessory.modifiers;
-  const totalPoints = computeTuningPoints(magicalPower);
+  const totalPoints = computeTuningPoints(magicalPower) + attributes.tuning_box * TUNING_BOX_RATE;
   const spentPoints = TUNING_STATS.reduce((sum, key) => sum + (tuning[key] || 0), 0);
 
   return (
