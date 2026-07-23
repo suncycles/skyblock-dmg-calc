@@ -79,6 +79,13 @@ export default function EnchantList({ ultimate }) {
   const T6_LEVEL_OVERRIDES = { giant_killer: 6, syphon: 4, impaling: 5 };
   const T6_EXCLUDED_IDS = new Set(['divine_gift', 'knockback', 'titan_killer', 'life_steal', 'mana_steal']);
 
+  // [T7]-specific deviations, per instruction: Giant Killer and Drain
+  // ("syphon") again win their conflict groups over Titan Killer/Life
+  // Steal/Mana Steal — no explicit level needed since T7 already applies
+  // every enchant at its own true max — and Knockback is skipped
+  // entirely (Divine Gift and Impaling aren't overridden for T7).
+  const T7_EXCLUDED_IDS = new Set(['knockback', 'titan_killer', 'life_steal', 'mana_steal']);
+
   // [T6]/[T7] — applies every normal enchant available for this item at
   // (max tier - offset), alphabetically by displayed name so conflicting
   // pairs (Life Steal/Drain, Execute/Prosecute, Giant Killer/Titan
@@ -256,9 +263,9 @@ export default function EnchantList({ ultimate }) {
           </button>
           <button
             className="text-[13px] font-bold text-amber-500 hover:brightness-110 cursor-pointer underline disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={() => applyMassTier(0)}
+            onClick={() => applyMassTier(0, { excludeIds: T7_EXCLUDED_IDS })}
             disabled={!item || enchantIds.length === 0 || massApplying}
-            title="Apply every enchant at max tier"
+            title="Apply every enchant at max tier (Giant Killer, Drain; no Knockback)"
           >
             [T7]
           </button>
