@@ -12,6 +12,7 @@ import {
   substitutePetLore,
   getMaxPetLevel,
   applyGoldenDragonShiningScales,
+  DRAGONS_GREED_MAX_STRENGTH_PERCENT,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
@@ -675,6 +676,22 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         value: GOD_POTION_ARCHERY_DAMAGE,
       });
     }
+  }
+
+  // Golden Dragon's "Dragon's Greed" — assumed always active at its real
+  // max (+5% Strength, see lib/petData.js) since this app has no
+  // aggregate Magic Find total to scale it off of. Applied as a flat %
+  // boost on the fully-summed Strength total so far (gear/pet/accessory/
+  // Foraging/Skyblock Level/God Potion), added as its own base-stat
+  // source line — computed here rather than inside collectBaseStats so
+  // it captures the player's full Strength, not just the pet's own.
+  if (loadout.pet?.item?.petId === 'GOLDEN_DRAGON') {
+    addBaseStat(
+      out,
+      'strength',
+      out.baseStats.strength * (DRAGONS_GREED_MAX_STRENGTH_PERCENT / 100),
+      "Dragon's Greed (assumed max)",
+    );
   }
 
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);

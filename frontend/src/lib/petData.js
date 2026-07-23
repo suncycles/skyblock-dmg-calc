@@ -70,6 +70,20 @@ export function applyGoldenDragonShiningScales(petId, stats, goldCollection) {
   return { ...stats, STRENGTH: (stats.STRENGTH || 0) + bonus };
 }
 
+// Golden Dragon's "Dragon's Greed" perk — real NEU-REPO lore (fetched
+// this session): "Grants +{1}% Strength per 5 Magic Find. (Max +{2}%)",
+// where {1}/{2} are pet-level-scaled otherNums that cap at +0.5%/+5%
+// respectively at max pet level (verified against petnums.json's own
+// "100" checkpoint for GOLDEN_DRAGON;4 — 0.5% per 5 Magic Find, capped
+// at 5%). Magic Find isn't tracked as an aggregate anywhere in this app
+// (same judgment as Shining Scales' own Magic Find half), so per
+// instruction this is assumed always active at its real max (+5%)
+// rather than scaled off a Magic Find input — applied in
+// lib/damageSources.js as a flat 5% boost on the fully-summed Strength
+// total, same "extra multiplier baked in as its own base-stat source
+// line" pattern as the Unlimited Power attribute.
+export const DRAGONS_GREED_MAX_STRENGTH_PERCENT = 5;
+
 // Standard Hypixel legacy pet-rarity ordinal scheme, verified against
 // NEU-REPO ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
 export const PET_RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'];
