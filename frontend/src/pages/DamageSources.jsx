@@ -55,6 +55,7 @@ export default function DamageSources() {
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
+  const [expandedStat, setExpandedStat] = useState(null);
   const tokenRef = useRef(0);
 
   useEffect(() => {
@@ -122,18 +123,6 @@ export default function DamageSources() {
                   </span>
                   <span>Multiplicative Multiplier</span>
                   <span className="text-right font-mono">{round4(finalDamage.multiplicativeMultiplier)}x</span>
-                  {finalDamage.unlimitedPowerPercent !== 0 && (
-                    <>
-                      <span>Strength ×(1+Unlimited Power)</span>
-                      <span className="text-right font-mono">+{round1(finalDamage.unlimitedPowerPercent)}%</span>
-                    </>
-                  )}
-                  {finalDamage.unlimitedEnergyPercent !== 0 && (
-                    <>
-                      <span>Crit Damage ×(1+Unlimited Energy)</span>
-                      <span className="text-right font-mono">+{round1(finalDamage.unlimitedEnergyPercent)}%</span>
-                    </>
-                  )}
                   {finalDamage.bonusModifiers !== 0 && (
                     <>
                       <span>Bonus Modifiers</span>
@@ -151,15 +140,38 @@ export default function DamageSources() {
             )}
           </div>
 
-          <Section title="(Base) Stats" empty="">
-            {BASE_STAT_KEYS.map((key) => (
-              <div key={key} className="flex justify-between text-[13px] text-black">
-                <span>
-                  <Keyworded text={STAT_LABELS[key].label} />:
-                </span>
-                <span className="font-mono">{formatStatValue(key, Math.round(result.baseStats[key] * 10) / 10)}</span>
-              </div>
-            ))}
+          <Section title="(Base) Stats" subtitle="Click a stat to see where it comes from." empty="">
+            {BASE_STAT_KEYS.map((key) => {
+              const sources = result.baseStatSources[key];
+              const isExpanded = expandedStat === key;
+              return (
+                <div key={key}>
+                  <div
+                    className="flex justify-between text-[13px] text-black cursor-pointer hover:underline"
+                    onClick={() => setExpandedStat(isExpanded ? null : key)}
+                  >
+                    <span>
+                      <Keyworded text={STAT_LABELS[key].label} />:
+                    </span>
+                    <span className="font-mono">{formatStatValue(key, Math.round(result.baseStats[key] * 10) / 10)}</span>
+                  </div>
+                  {isExpanded && (
+                    <div className="flex flex-col gap-0.5 mt-1 mb-1.5 pl-3 border-l-2 border-neutral-400">
+                      {sources.length === 0 ? (
+                        <div className="text-[11px] text-neutral-600 italic">No sources.</div>
+                      ) : (
+                        sources.map((s) => (
+                          <div key={s.label} className="flex justify-between text-[12px] text-neutral-700">
+                            <span>{s.label}</span>
+                            <span className="font-mono">{formatStatValue(key, Math.round(s.value * 10) / 10)}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </Section>
 
           <Section title="Non-conditional % Additive Damage" empty="None equipped.">

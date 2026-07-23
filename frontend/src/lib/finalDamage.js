@@ -33,7 +33,11 @@
 // Unlimited Power/Unlimited Energy (lib/attributes.js) apply after
 // everything else — true multipliers on the fully-summed Strength/Crit
 // Damage totals, not another additive contributor, per the real
-// Attribute system's own description.
+// Attribute system's own description. Baked directly into
+// baseStats.strength/crit_damage by lib/damageSources.js's
+// collectAttributeEntries (its own "Unlimited Power"/"Unlimited Energy"
+// baseStatSources line), so this formula just reads baseStats as-is —
+// see that file rather than re-applying the multiplier here.
 //
 // Original formula source (still the basis for the underlying pieces):
 // https://hypixel-skyblock.fandom.com/wiki/Damage_Calculation — reproduces
@@ -100,15 +104,10 @@ export function computeFinalDamage(sources, mob) {
   // No currently-modeled source populates this — see the file header.
   const bonusModifiers = 0;
 
-  const unlimitedPowerPercent = sources.unlimitedPowerPercent || 0;
-  const unlimitedEnergyPercent = sources.unlimitedEnergyPercent || 0;
-  const strength = baseStats.strength * (1 + unlimitedPowerPercent / 100);
-  const critDamage = baseStats.crit_damage * (1 + unlimitedEnergyPercent / 100);
-
-  const initialDamage = (5 + baseStats.damage) * (1 + strength / 100);
+  const initialDamage = (5 + baseStats.damage) * (1 + baseStats.strength / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
   const finalDamage = Math.floor(
-    (initialDamage * additiveMultiplier * multiplicativeMultiplier + bonusModifiers) * (1 + critDamage / 100),
+    (initialDamage * additiveMultiplier * multiplicativeMultiplier + bonusModifiers) * (1 + baseStats.crit_damage / 100),
   );
 
   return {
@@ -117,8 +116,6 @@ export function computeFinalDamage(sources, mob) {
     additivePercent,
     multiplicativeMultiplier,
     bonusModifiers,
-    unlimitedPowerPercent,
-    unlimitedEnergyPercent,
     finalDamage,
     appliedIds,
   };
