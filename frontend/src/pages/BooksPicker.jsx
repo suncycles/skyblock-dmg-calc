@@ -50,8 +50,15 @@ export default function BooksPicker() {
   const isArmor = gearType === 'armor';
   const bookBonus = isWeapon ? WEAPON_BOOK_STAT_BONUS : ARMOR_BOOK_STAT_BONUS;
 
-  function handleSelect(count) {
+  // Picking an actual count stays on screen — the user might want to also
+  // toggle Art of War/Peace or try a different count without re-entering.
+  // Removing (0/none) is a "done here" action, so that one still backs out.
+  function handleSelectCount(count) {
     setBookCount(slot, count);
+  }
+
+  function handleRemove() {
+    setBookCount(slot, 0);
     navigate(-1);
   }
 
@@ -201,7 +208,7 @@ export default function BooksPicker() {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110 ${isApplied ? 'bg-green-400' : ''}`}
-              onClick={() => handleSelect(count)}
+              onClick={() => handleSelectCount(count)}
               onMouseEnter={(e) => showTooltip(tooltipLines(count), e.currentTarget)}
               onMouseLeave={hideTooltip}
             >
@@ -230,7 +237,7 @@ export default function BooksPicker() {
             key={key}
             className={navSlot}
             title="Remove Books"
-            onClick={() => handleSelect(0)}
+            onClick={handleRemove}
           >
             🗑️
           </div>,
