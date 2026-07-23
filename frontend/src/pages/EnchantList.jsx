@@ -10,6 +10,7 @@ import {
   isUltimateEnchant,
   isHiddenEnchant,
   computeConflictWarnings,
+  computeConflictingEntries,
   resolveEnchantCategory,
   getEnchantCaption,
 } from '../lib/enchantEffects';
@@ -33,9 +34,10 @@ export default function EnchantList({ ultimate }) {
   const { slot } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { loadout } = useBuild();
+  const { loadout, applyEnchant } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const [page, setPage] = useState(0);
+  const [massApplying, setMassApplying] = useState(false);
   const hoveredIdRef = useRef(null);
 
   const item = loadout[slot] && loadout[slot].item;
@@ -67,6 +69,41 @@ export default function EnchantList({ ultimate }) {
     : enchantIds.length === 0
       ? `Enchanting: ${formatItemName(item.name)} — no cached ${noun} for category "${category}".`
       : `Enchanting: ${formatItemName(item.name)} (${enchantIds.length} ${noun} available)`;
+
+  // [T6]/[T7] — applies every normal enchant available for this item at
+  // (max tier - offset), alphabetically by displayed name so conflicting
+  // pairs (Life Steal/Drain, Execute/Prosecute, Giant Killer/Titan
+  // Killer, Thunderlord/Thunderbolt, First Strike/Triple-Strike) resolve
+  // exactly like clicking through the list by hand would: the later
+  // letter wins, same computeConflictingEntries removal EnchantLevels.jsx
+  // already uses per-click. `simulated` tracks modifiers locally as the
+  // loop goes (React's real state won't have re-rendered mid-loop) so
+  // each step's conflict check sees everything already applied earlier
+  // in this same run, not the stale pre-click snapshot.
+  async function applyMassTier(offsetFromMax) {
+    if (!modifiers || enchantIds.length === 0 || massApplying) return;
+    setMassApplying(true);
+    const sortedIds = [...enchantIds].sort((a, b) => titleCaseEnchantId(a).localeCompare(titleCaseEnchantId(b)));
+    let simulated = modifiers;
+    for (const id of sortedIds) {
+      const levels = await fetchEnchantLevels(id, itemData.enchants);
+      if (levels.length === 0) continue;
+      const maxLevel = levels[levels.length - 1].level;
+      const targetLevel = Math.max(1, maxLevel - offsetFromMax);
+      const levelData = levels.find((l) => l.level === targetLevel) || levels[levels.length - 1];
+      const conflicts = computeConflictingEntries(id, levelData.lore, simulated);
+      const removeIds = conflicts.map((c) => c.id);
+      applyEnchant(slot, id, levelData.level, maxLevel, removeIds);
+      const entry = { id, level: levelData.level, maxLevel };
+      simulated = {
+        ...simulated,
+        hexEnchantments: [...(simulated.hexEnchantments || []).filter((e) => !removeIds.includes(e.id) && e.id !== id), entry],
+        ultimateEnchantment:
+          simulated.ultimateEnchantment && removeIds.includes(simulated.ultimateEnchantment.id) ? null : simulated.ultimateEnchantment,
+      };
+    }
+    setMassApplying(false);
+  }
 
   function handleEnchantHover(id, e) {
     hoveredIdRef.current = id;
@@ -184,6 +221,25 @@ export default function EnchantList({ ultimate }) {
           {cells}
         </div>
       </div>
+
+      {/* Mass-apply shortcuts — deliberately outside the chest-GUI grid,
+          same "small utility control below the panel" precedent as
+          Landing's Damage Sources button. Ultimate enchants only ever
+          occupy one slot each, so "every enchant at tier X" only makes
+          sense for the normal list. */}
+      {!ultimate && (
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            className="text-[13px] font-bold text-amber-500 hover:brightness-110 cursor-pointer underline disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={() => applyMassTier(1)}
+            disabled={!item || enchantIds.length === 0 || massApplying}
+            title="Apply every enchant at max tier - 1"
+          >
+            [T6]
+          </button>
+          {massApplying && <span className="text-[11px] text-neutral-400">Applying…</span>}
+        </div>
+      )}
     </div>
   );
 }
