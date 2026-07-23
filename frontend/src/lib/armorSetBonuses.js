@@ -21,10 +21,15 @@ export const FINAL_DESTINATION_SET = [
 export const FINAL_DESTINATION_STRENGTH = 30;
 export const FINAL_DESTINATION_ENDER_DAMAGE_PERCENT = 100;
 
-// Monster Hunter — an undocumented "hidden" set bonus per instruction
-// (none of the set's own pieces mention one in their real lore).
+// Monster Hunter/Monster Raider — undocumented "hidden" set bonuses per
+// instruction (neither set's own pieces mention one in their real
+// lore); the two sets share their first 3 pieces and differ only in
+// boots, so they're mutually exclusive by construction.
 export const MONSTER_HUNTER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'SPIDER_BOOTS'];
 export const MONSTER_HUNTER_MULTIPLIER = 1.25;
+
+export const MONSTER_RAIDER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'TARANTULA_BOOTS'];
+export const MONSTER_RAIDER_MULTIPLIER = 1.35;
 
 // `slots` is ARMOR_SLOTS or EQUIPMENT_SLOTS (positionally matched
 // against `setIds`); `loadout` is BuildContext's own loadout object.
