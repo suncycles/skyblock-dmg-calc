@@ -237,6 +237,14 @@ export default function EnchantList({ ultimate }) {
           >
             [T6]
           </button>
+          <button
+            className="text-[13px] font-bold text-amber-500 hover:brightness-110 cursor-pointer underline disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={() => applyMassTier(0)}
+            disabled={!item || enchantIds.length === 0 || massApplying}
+            title="Apply every enchant at max tier"
+          >
+            [T7]
+          </button>
           {massApplying && <span className="text-[11px] text-neutral-400">Applying…</span>}
         </div>
       )}
