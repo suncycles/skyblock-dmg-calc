@@ -70,26 +70,43 @@ export default function EnchantList({ ultimate }) {
       ? `Enchanting: ${formatItemName(item.name)} — no cached ${noun} for category "${category}".`
       : `Enchanting: ${formatItemName(item.name)} (${enchantIds.length} ${noun} available)`;
 
+  // [T6]-specific deviations from the generic "max tier - 1" rule, per
+  // instruction: Giant Killer (not Titan Killer) and Drain/"syphon" (not
+  // Life Steal/Mana Steal) win their conflict groups instead of whichever
+  // the alphabetical default would otherwise pick, both at their own
+  // explicit level rather than max-1; Impaling is forced to its true max
+  // instead of max-1; Divine Gift and Knockback are skipped entirely.
+  const T6_LEVEL_OVERRIDES = { giant_killer: 6, syphon: 4, impaling: 5 };
+  const T6_EXCLUDED_IDS = new Set(['divine_gift', 'knockback', 'titan_killer', 'life_steal', 'mana_steal']);
+
   // [T6]/[T7] — applies every normal enchant available for this item at
   // (max tier - offset), alphabetically by displayed name so conflicting
   // pairs (Life Steal/Drain, Execute/Prosecute, Giant Killer/Titan
   // Killer, Thunderlord/Thunderbolt, First Strike/Triple-Strike) resolve
   // exactly like clicking through the list by hand would: the later
   // letter wins, same computeConflictingEntries removal EnchantLevels.jsx
-  // already uses per-click. `simulated` tracks modifiers locally as the
-  // loop goes (React's real state won't have re-rendered mid-loop) so
-  // each step's conflict check sees everything already applied earlier
-  // in this same run, not the stale pre-click snapshot.
-  async function applyMassTier(offsetFromMax) {
+  // already uses per-click — unless overridden per `levelOverrides`/
+  // `excludeIds` (see T6_LEVEL_OVERRIDES/T6_EXCLUDED_IDS above). An
+  // excluded id is just never applied by this run — it doesn't clear an
+  // already-equipped one — but an override id's own real "Conflicts:"
+  // lore still removes whatever it actually conflicts with, same as any
+  // other application. `simulated` tracks modifiers locally as the loop
+  // goes (React's real state won't have re-rendered mid-loop) so each
+  // step's conflict check sees everything already applied earlier in
+  // this same run, not the stale pre-click snapshot.
+  async function applyMassTier(offsetFromMax, { levelOverrides = {}, excludeIds } = {}) {
     if (!modifiers || enchantIds.length === 0 || massApplying) return;
     setMassApplying(true);
-    const sortedIds = [...enchantIds].sort((a, b) => titleCaseEnchantId(a).localeCompare(titleCaseEnchantId(b)));
+    const sortedIds = [...enchantIds]
+      .filter((id) => !excludeIds || !excludeIds.has(id.toLowerCase()))
+      .sort((a, b) => titleCaseEnchantId(a).localeCompare(titleCaseEnchantId(b)));
     let simulated = modifiers;
     for (const id of sortedIds) {
       const levels = await fetchEnchantLevels(id, itemData.enchants);
       if (levels.length === 0) continue;
       const maxLevel = levels[levels.length - 1].level;
-      const targetLevel = Math.max(1, maxLevel - offsetFromMax);
+      const overrideLevel = levelOverrides[id.toLowerCase()];
+      const targetLevel = overrideLevel != null ? Math.min(overrideLevel, maxLevel) : Math.max(1, maxLevel - offsetFromMax);
       const levelData = levels.find((l) => l.level === targetLevel) || levels[levels.length - 1];
       const conflicts = computeConflictingEntries(id, levelData.lore, simulated);
       const removeIds = conflicts.map((c) => c.id);
@@ -231,9 +248,9 @@ export default function EnchantList({ ultimate }) {
         <div className="mt-2 flex items-center gap-3">
           <button
             className="text-[13px] font-bold text-amber-500 hover:brightness-110 cursor-pointer underline disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={() => applyMassTier(1)}
+            onClick={() => applyMassTier(1, { levelOverrides: T6_LEVEL_OVERRIDES, excludeIds: T6_EXCLUDED_IDS })}
             disabled={!item || enchantIds.length === 0 || massApplying}
-            title="Apply every enchant at max tier - 1"
+            title="Apply every enchant at max tier - 1 (Giant Killer 6, Drain 4, Impaling 5; no Divine Gift/Knockback)"
           >
             [T6]
           </button>
