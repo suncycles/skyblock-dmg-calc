@@ -221,6 +221,19 @@ export function isUltimateEnchant(id) {
   return id.toLowerCase().startsWith('ultimate_');
 }
 
+// A short 3-letter badge for each enchant slot on EnchantList.jsx, so a
+// specific enchant is recognizable without hovering — first 3 letters of
+// its displayed name (matching titleCaseEnchantId, so it stays in sync
+// with any of that function's overrides), lowercased. One explicit
+// exception: "One For All" would otherwise read "one", indistinguishable
+// at a glance from any other enchant starting with "On"/"one" — shortened
+// to "ofa" per instruction instead.
+export function getEnchantCaption(id) {
+  const key = id.toLowerCase();
+  if (key === 'ultimate_one_for_all') return 'ofa';
+  return titleCaseEnchantId(id).replace(/[^A-Za-z]/g, '').slice(0, 3).toLowerCase();
+}
+
 // Some enchants' own "Conflicts:" lore sections still reference the legacy
 // name of an enchant we display under a corrected name (e.g. Life Steal and
 // Mana Steal's lore lists "Syphon", not "Drain" — see DISPLAY_NAME_OVERRIDES).
