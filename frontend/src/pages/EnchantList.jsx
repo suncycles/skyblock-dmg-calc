@@ -51,14 +51,30 @@ export default function EnchantList({ ultimate }) {
     return all.filter((id) => isUltimateEnchant(id) === ultimate && !isHiddenEnchant(id));
   }, [itemData.enchants, category, ultimate]);
 
-  const appliedIds = useMemo(() => {
-    const set = new Set();
+  // Maps id -> its currently-applied {id, level, maxLevel} entry (not just
+  // a membership set) so caption color can reflect how close the applied
+  // tier is to max — see captionColorClass below.
+  const appliedEntries = useMemo(() => {
+    const map = new Map();
     if (modifiers && modifiers.ultimateEnchantment) {
-      set.add(modifiers.ultimateEnchantment.id);
+      map.set(modifiers.ultimateEnchantment.id, modifiers.ultimateEnchantment);
     }
-    (modifiers && modifiers.hexEnchantments || []).forEach((e) => set.add(e.id));
-    return set;
+    (modifiers && modifiers.hexEnchantments || []).forEach((e) => map.set(e.id, e));
+    return map;
   }, [modifiers]);
+
+  // Ultimate captions always stay pink regardless of tier (One For All
+  // has no leveling at all, so "max" would be meaningless there anyway).
+  // Non-ultimate: chroma at true max tier, gold one below max, plain
+  // white otherwise (including not-yet-applied).
+  function captionColorClass(id) {
+    if (ultimate) return 'text-fuchsia-400';
+    const applied = appliedEntries.get(id);
+    if (!applied) return 'text-white';
+    if (applied.level === applied.maxLevel) return 'chroma-text';
+    if (applied.level === applied.maxLevel - 1) return 'text-amber-400';
+    return 'text-white';
+  }
 
   const totalPages = Math.max(1, Math.ceil(enchantIds.length / PAGE_SIZE));
   const pageIds = enchantIds.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -164,23 +180,51 @@ export default function EnchantList({ ultimate }) {
       const isNavRow = row === 5;
       const key = `${row}-${col}`;
 
-      if (isInteriorRow && isInteriorCol) {
+      // Mass-apply shortcuts — top-right corner of the grid (T6 in the
+      // corner itself, T7 in the slot to its left), rather than a
+      // separate control row below the chest GUI. Ultimate enchants only
+      // ever occupy one slot each, so "every enchant at tier X" only
+      // makes sense for the normal list — both cells fall through to
+      // plain empty filler on /ultimate-enchants.
+      if (row === 0 && col === 8 && !ultimate) {
+        const disabled = !item || enchantIds.length === 0 || massApplying;
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:brightness-110'}`}
+            title="Apply every enchant at max tier - 1 (Giant Killer 6, Drain 4, Impaling 5; no Divine Gift/Knockback)"
+            onClick={() => !disabled && applyMassTier(1, { levelOverrides: T6_LEVEL_OVERRIDES, excludeIds: T6_EXCLUDED_IDS })}
+          >
+            <span className="text-sm font-bold text-amber-500">[T6]</span>
+          </div>,
+        );
+      } else if (row === 0 && col === 7 && !ultimate) {
+        const disabled = !item || enchantIds.length === 0 || massApplying;
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:brightness-110'}`}
+            title="Apply every enchant at max tier (Giant Killer, Drain; no Knockback)"
+            onClick={() => !disabled && applyMassTier(0, { excludeIds: T7_EXCLUDED_IDS })}
+          >
+            <span className="chroma-text text-sm font-extrabold">[T7]</span>
+          </div>,
+        );
+      } else if (isInteriorRow && isInteriorCol) {
         const idx = (row - 1) * 7 + (col - 1);
         const id = pageIds[idx];
         if (id) {
           cells.push(
             <div
               key={key}
-              className={`${slotBase} relative cursor-pointer hover:brightness-110 ${appliedIds.has(id) ? 'bg-green-400' : ''}`}
+              className={`${slotBase} relative cursor-pointer hover:brightness-110 ${appliedEntries.has(id) ? 'bg-green-400' : ''}`}
               onClick={() => navigate(`/enchant-levels/${slot}/${encodeURIComponent(id)}`)}
               onMouseEnter={(e) => handleEnchantHover(id, e)}
               onMouseLeave={handleEnchantLeave}
             >
               <img src={ENCHANTED_BOOK_ICON} alt={titleCaseEnchantId(id)} className={iconImg} />
               <span
-                className={`absolute bottom-0.5 right-1 text-[10px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] ${
-                  ultimate ? 'text-fuchsia-400' : 'text-white'
-                }`}
+                className={`absolute bottom-0.5 right-1 text-[10px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] ${captionColorClass(id)}`}
               >
                 {getEnchantCaption(id)}
               </span>
@@ -246,32 +290,7 @@ export default function EnchantList({ ultimate }) {
         </div>
       </div>
 
-      {/* Mass-apply shortcuts — deliberately outside the chest-GUI grid,
-          same "small utility control below the panel" precedent as
-          Landing's Damage Sources button. Ultimate enchants only ever
-          occupy one slot each, so "every enchant at tier X" only makes
-          sense for the normal list. */}
-      {!ultimate && (
-        <div className="mt-2 flex items-center gap-3">
-          <button
-            className="text-[13px] font-bold text-amber-500 hover:brightness-110 cursor-pointer underline disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={() => applyMassTier(1, { levelOverrides: T6_LEVEL_OVERRIDES, excludeIds: T6_EXCLUDED_IDS })}
-            disabled={!item || enchantIds.length === 0 || massApplying}
-            title="Apply every enchant at max tier - 1 (Giant Killer 6, Drain 4, Impaling 5; no Divine Gift/Knockback)"
-          >
-            [T6]
-          </button>
-          <button
-            className="text-[13px] font-bold text-amber-500 hover:brightness-110 cursor-pointer underline disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={() => applyMassTier(0, { excludeIds: T7_EXCLUDED_IDS })}
-            disabled={!item || enchantIds.length === 0 || massApplying}
-            title="Apply every enchant at max tier (Giant Killer, Drain; no Knockback)"
-          >
-            [T7]
-          </button>
-          {massApplying && <span className="text-[11px] text-neutral-400">Applying…</span>}
-        </div>
-      )}
+      {massApplying && <div className="mt-2 text-[11px] text-neutral-400">Applying…</div>}
     </div>
   );
 }
