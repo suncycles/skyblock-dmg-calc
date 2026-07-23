@@ -50,8 +50,9 @@ function loadInitialAttributes() {
 // Level, etc (see lib/playerStats.js) — persisted separately from the
 // slot-keyed loadout since it isn't "equipment."
 function loadInitialPlayerStats() {
+  const defaults = { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0, tamingLevel: 0 };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
-  if (!stored) return { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0 };
+  if (!stored) return defaults;
   try {
     const parsed = JSON.parse(stored);
     return {
@@ -59,10 +60,11 @@ function loadInitialPlayerStats() {
       skyblockLevel: typeof parsed.skyblockLevel === 'number' ? parsed.skyblockLevel : 0,
       foragingLevel: typeof parsed.foragingLevel === 'number' ? parsed.foragingLevel : 0,
       catacombsLevel: typeof parsed.catacombsLevel === 'number' ? parsed.catacombsLevel : 0,
+      tamingLevel: typeof parsed.tamingLevel === 'number' ? parsed.tamingLevel : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
-    return { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0 };
+    return defaults;
   }
 }
 
@@ -204,6 +206,14 @@ export function BuildProvider({ children }) {
   const setCatacombsLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, catacombsLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setTamingLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, tamingLevel: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -435,6 +445,7 @@ export function BuildProvider({ children }) {
         setSkyblockLevel,
         setForagingLevel,
         setCatacombsLevel,
+        setTamingLevel,
         targetMob,
         setTargetMob,
         godPotionActive,

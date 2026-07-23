@@ -17,6 +17,20 @@ import { mergeStatIntoBase } from './statLines';
 
 const SPECIAL_COLOR = 'b'; // aqua — distinct from Books (e), Art of War (6), Reforges (9), Gemstones (d)
 
+// Daedalus Blade's own real lore also reads "Gains +4 Damage per Taming
+// level [and copies the base Combat stats of your active pet]" — the
+// Taming-level Damage half is modeled here (see
+// computeDaedalusTamingBonus below, merged into base stats same as the
+// Bestiary bonus above); the pet-stat-copy half is a separate, always-on
+// mechanic not yet modeled in this app.
+const DAEDALUS_TAMING_DAMAGE_PER_LEVEL = { DAEDALUS_AXE: 4, STARRED_DAEDALUS_AXE: 5 };
+
+export function computeDaedalusTamingBonus(itemId, tamingLevel) {
+  const rate = DAEDALUS_TAMING_DAMAGE_PER_LEVEL[itemId];
+  if (!rate || !tamingLevel) return {};
+  return { damage: rate * tamingLevel };
+}
+
 export const SPECIAL_WEAPON_CONFIG = {
   DAEDALUS_AXE: {
     kind: 'bestiary',
