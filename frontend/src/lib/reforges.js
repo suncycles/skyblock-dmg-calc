@@ -1,4 +1,4 @@
-import { annotateStatLines } from './statLines';
+import { annotateStatLines, mergeStatIntoBase } from './statLines';
 import { getReforgeStatBonus } from './reforgeData';
 import { computeAncientReforgeCritDamage } from './playerStats';
 
@@ -24,5 +24,14 @@ export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertB
   }
 
   if (Object.keys(bonus).length === 0) return lore;
-  return annotateStatLines(lore, bonus, REFORGE_COLOR, insertBeforeLineIdx);
+  // Merged directly into the item's own base stat number (a reforged
+  // item's real tooltip shows its TOTAL stat, reforge bonus included, not
+  // a separate modifier — same "improves the base stats" treatment as
+  // Stars/Gemstones) — the reforge's own delta is still called out with
+  // its usual blue "(+X)" annotation on top, purely for visibility; by
+  // the time this runs every bonus key already has a real line to
+  // annotate (mergeStatIntoBase created one if the item didn't have it
+  // pristinely), so this never needs to synthesize a line itself.
+  const merged = mergeStatIntoBase(lore, bonus, insertBeforeLineIdx);
+  return annotateStatLines(merged, bonus, REFORGE_COLOR, insertBeforeLineIdx);
 }

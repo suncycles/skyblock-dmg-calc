@@ -1,5 +1,6 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
+import { REFORGE_COLOR } from './reforges';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -200,36 +201,33 @@ function cleanTargetText(raw) {
 // source of truth for "what does this item's tooltip actually show",
 // tested throughout this session) rather than re-deriving numbers from
 // each of gemstones.js/reforges.js/books.js/statLines.js/starring.js
-// separately. Every modifier annotates a stat line as either its own new
-// "Label: +X (+X)" line (when the item had no such line pristinely — the
-// leading number IS the first modifier's own value, already echoed as
-// its first parenthetical too) or appends "(+X)" to an existing line —
-// so the two cases need different summing to avoid double-counting a
-// synthesized line's leading number against its own first annotation.
-function sumStatFromTooltipLines(finalLines, pristineLore, label) {
+// separately. Gemstones/Reforges/Stars/Wither-blade-Catacombs/Daedalus-
+// Taming all merge their bonus directly into the line's own leading
+// number (mergeStatIntoBase) — a brand new line for a stat the item
+// doesn't otherwise show is just that bonus's plain value, no "(+X)".
+// Books/Art of War/Peace/Enchant stat bonuses only ever annotate
+// ("(+X)"), never merge, and annotateStatLines' own new-line case
+// matches that same "plain value, no redundant paren" convention — so
+// every "(+X)" anywhere in the final line is a genuinely additional
+// amount NOT already reflected in the leading number, with exactly one
+// exception: Reforges additionally echo their own (already-merged)
+// delta in blue purely for display (see lib/reforges.js), which would
+// double-count if summed here too.
+function sumStatFromTooltipLines(finalLines, label) {
   const labelRe = new RegExp(`^${label}:`);
   const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
   if (!finalLine) return 0;
   const plain = finalLine.replace(/§./g, '');
-  const afterLabel = plain.slice(plain.indexOf(':') + 1);
-  const existedPristinely = (pristineLore || []).some((l) => labelRe.test(l.replace(/§./g, '').trim()));
-  const parenNums = [...afterLabel.matchAll(/\(([+-]?[\d.]+)%?\)/g)].map((m) => parseFloat(m[1]));
-
-  if (!existedPristinely) {
-    // A synthesized line usually looks like annotateStatLines' "value
-    // (value)" (the leading number is a display-only duplicate of the
-    // one real bonus, so only the paren copy is summed) — but
-    // mergeStatIntoBase's own synthesized lines (e.g. Daedalus Blade's
-    // Taming-level Damage, which has no pristine "Damage:" line to
-    // begin with) are just "value" with no paren at all. Fall back to
-    // the leading number only when there's no paren to prefer, so
-    // neither shape is silently dropped nor double-counted.
-    if (parenNums.length > 0) return parenNums.reduce((a, b) => a + b, 0);
-    const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabel);
-    return leadingMatch ? parseFloat(leadingMatch[1]) : 0;
-  }
-  const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabel);
+  const afterLabelPlain = plain.slice(plain.indexOf(':') + 1);
+  const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabelPlain);
   const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
+
+  const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
+  const annotationRe = /§([0-9a-fk-or])\(([+-]?[\d.]+)%?\)/g;
+  const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
+    .filter((m) => m[1] !== REFORGE_COLOR)
+    .map((m) => parseFloat(m[2]));
+
   return base + parenNums.reduce((a, b) => a + b, 0);
 }
 
@@ -285,7 +283,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const slotLabel = SLOT_LABELS[slot];
     const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
     for (const statKey of TRACKED_STATS) {
-      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, equipped.item.lore, STAT_LABELS[statKey].label), slotLabel);
+      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
     }
     // Emerald Blade's ability bonus is shown under its own "Current
     // Damage Bonus:" line, not a "Damage:" stat line, so the generic
@@ -639,7 +637,7 @@ function collectAttributeEntries(attributes, loadout, out) {
 }
 
 // ---------------------------------------------------------------------
-export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes) {
+export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
@@ -655,6 +653,11 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   // Every player starts with these two stats before any gear at all —
   // real Hypixel base stats, unlike Damage/Strength which start at 0.
   addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');
+  addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
+  // Flat, player-entered "everything else" (Fairy Souls, Slayer/Skill
+  // level rewards, etc.) — see BuildContext.jsx's miscStats.
+  addBaseStat(out, 'strength', miscStats?.strength || 0, 'Misc');
+  addBaseStat(out, 'crit_damage', miscStats?.crit_damage || 0, 'Misc');
   addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
 
   // God Potion — a flat on/off toggle, not a level. Only the pieces this

@@ -51,7 +51,7 @@ function Keyworded({ text }) {
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout, playerStats, targetMob, godPotionActive, attributes } = useBuild();
+  const { loadout, playerStats, targetMob, godPotionActive, attributes, miscStats, setMiscStat } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -61,10 +61,10 @@ export default function DamageSources() {
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes).then((r) => {
+    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData, playerStats, godPotionActive, attributes]);
+  }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats]);
 
   const targetMobTypes = targetMob ? MOB_TYPES[targetMob] : null;
   const validTarget = targetMob && targetMobTypes;
@@ -140,39 +140,80 @@ export default function DamageSources() {
             )}
           </div>
 
-          <Section title="(Base) Stats" subtitle="Click a stat to see where it comes from." empty="">
-            {BASE_STAT_KEYS.map((key) => {
-              const sources = result.baseStatSources[key];
-              const isExpanded = expandedStat === key;
-              return (
-                <div key={key}>
-                  <div
-                    className="flex justify-between text-[13px] text-black cursor-pointer hover:underline"
-                    onClick={() => setExpandedStat(isExpanded ? null : key)}
-                  >
-                    <span>
-                      <Keyworded text={STAT_LABELS[key].label} />:
-                    </span>
-                    <span className="font-mono">{formatStatValue(key, Math.round(result.baseStats[key] * 10) / 10)}</span>
-                  </div>
-                  {isExpanded && (
-                    <div className="flex flex-col gap-0.5 mt-1 mb-1.5 pl-3 border-l-2 border-neutral-400">
-                      {sources.length === 0 ? (
-                        <div className="text-[11px] text-neutral-600 italic">No sources.</div>
-                      ) : (
-                        sources.map((s) => (
-                          <div key={s.label} className="flex justify-between text-[12px] text-neutral-700">
-                            <span>{s.label}</span>
-                            <span className="font-mono">{formatStatValue(key, Math.round(s.value * 10) / 10)}</span>
-                          </div>
-                        ))
+          <div className="flex gap-3 items-start">
+            <div className="flex-1">
+              <Section title="(Base) Stats" subtitle="Click a stat to see where it comes from." empty="">
+                {BASE_STAT_KEYS.map((key) => {
+                  const sources = result.baseStatSources[key];
+                  const isExpanded = expandedStat === key;
+                  return (
+                    <div key={key}>
+                      <div
+                        className="flex justify-between text-[13px] text-black cursor-pointer hover:underline"
+                        onClick={() => setExpandedStat(isExpanded ? null : key)}
+                      >
+                        <span>
+                          <Keyworded text={STAT_LABELS[key].label} />:
+                        </span>
+                        <span className="font-mono">{formatStatValue(key, Math.round(result.baseStats[key] * 10) / 10)}</span>
+                      </div>
+                      {isExpanded && (
+                        <div className="flex flex-col gap-0.5 mt-1 mb-1.5 pl-3 border-l-2 border-neutral-400">
+                          {sources.length === 0 ? (
+                            <div className="text-[11px] text-neutral-600 italic">No sources.</div>
+                          ) : (
+                            sources.map((s) => (
+                              <div key={s.label} className="flex justify-between text-[12px] text-neutral-700">
+                                <span>{s.label}</span>
+                                <span className="font-mono">{formatStatValue(key, Math.round(s.value * 10) / 10)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </Section>
+                  );
+                })}
+              </Section>
+            </div>
+
+            {/* Flat, manually-entered "everything else" Strength/Crit
+                Damage — Fairy Souls, Slayer/Skill level rewards, and the
+                rest of the game's long tail of small permanent bonuses
+                this calculator doesn't model individually. Folded into
+                (Base) Stats' own "Misc" source line — see
+                BuildContext.jsx's miscStats. */}
+            <div className={`${panel} p-3 flex flex-col gap-2 w-[160px] shrink-0`}>
+              <div className="text-sm font-bold text-black">Misc</div>
+              <div className="text-[11px] text-neutral-700 -mt-1 mb-1">Everything else (Fairy Souls, Slayer/Skill rewards, etc).</div>
+              <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-strength">
+                <span>
+                  <Keyworded text="Strength" />
+                </span>
+                <input
+                  id="misc-strength"
+                  type="number"
+                  step="1"
+                  value={miscStats.strength}
+                  onChange={(e) => setMiscStat('strength', e.target.value)}
+                  className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
+                />
+              </label>
+              <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-crit-damage">
+                <span>
+                  <Keyworded text="Crit Damage" />
+                </span>
+                <input
+                  id="misc-crit-damage"
+                  type="number"
+                  step="1"
+                  value={miscStats.crit_damage}
+                  onChange={(e) => setMiscStat('crit_damage', e.target.value)}
+                  className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
+                />
+              </label>
+            </div>
+          </div>
 
           <Section title="Non-conditional % Additive Damage" empty="None equipped.">
             {result.additiveNonConditional.map((e) => (
