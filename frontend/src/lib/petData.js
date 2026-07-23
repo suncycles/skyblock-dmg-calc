@@ -34,6 +34,42 @@ export function getMaxPetLevel(petId) {
   return EXTENDED_MAX_LEVELS[petId] || MAX_PET_LEVEL;
 }
 
+// Golden Dragon's "Shining Scales" perk — real NEU-REPO lore (fetched
+// this session): "Grants +11.1 Strength and +2.2 Magic Find to your pet
+// for each digit in your Gold Collection. (Max 100M collection)". The
+// numbers are hardcoded directly in the lore string (no {n} template
+// placeholder), so unlike every other Golden Dragon perk this one isn't
+// pet-level-scaled at all — verified against the wiki: "The Shining
+// Scales perk adds to the base stats of the pet," i.e. it's summed into
+// the pet's own STRENGTH before any pet-item %-boost multiplies the
+// total (see applyGoldenDragonShiningScales below). Magic Find isn't
+// tracked as an aggregate anywhere in this app (same "nothing to add it
+// to" judgment as God Potion's Jerry Candy), so only Strength is wired.
+export const SHINING_SCALES_STRENGTH_PER_DIGIT = 11.1;
+export const SHINING_SCALES_MAGIC_FIND_PER_DIGIT = 2.2; // not tracked — reference only
+export const SHINING_SCALES_MAX_GOLD_COLLECTION = 100_000_000;
+
+function goldCollectionDigits(goldCollection) {
+  const capped = Math.max(0, Math.min(goldCollection || 0, SHINING_SCALES_MAX_GOLD_COLLECTION));
+  return capped === 0 ? 0 : Math.floor(Math.log10(capped)) + 1;
+}
+
+export function computeShiningScalesStrength(goldCollection) {
+  return goldCollectionDigits(goldCollection) * SHINING_SCALES_STRENGTH_PER_DIGIT;
+}
+
+// Adds Shining Scales' Strength contribution into an already-computed
+// pet stats map (see computeAllPetStats) — call this BEFORE
+// applyPetItemStatBoost so a %-Strength pet item (e.g. Hephaestus
+// Remedies) correctly boosts the combined total, matching the real
+// in-game behavior of a base-stat bonus.
+export function applyGoldenDragonShiningScales(petId, stats, goldCollection) {
+  if (petId !== 'GOLDEN_DRAGON') return stats;
+  const bonus = computeShiningScalesStrength(goldCollection);
+  if (!bonus) return stats;
+  return { ...stats, STRENGTH: (stats.STRENGTH || 0) + bonus };
+}
+
 // Standard Hypixel legacy pet-rarity ordinal scheme, verified against
 // NEU-REPO ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
 export const PET_RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'];
@@ -191,6 +227,7 @@ export function buildPetTooltipLines(pet, modifiers, itemData, rawLore) {
   const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
   const levels = itemData.pets?.[pet.petId]?.[pet.tier];
   let stats = computeAllPetStats(levels, level, maxLevel);
+  stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers?.goldCollection);
   const statBoost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
   stats = applyPetItemStatBoost(stats, statBoost);
   const otherNums = computeOtherNums(levels, level, maxLevel);

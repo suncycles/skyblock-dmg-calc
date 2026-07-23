@@ -89,6 +89,7 @@ function emptyPetModifiers() {
     level: 1,
     petItem: null, // pet item id string | null
     bankCoins: 0, // Golden Dragon's "Legendary Treasure" input — see lib/damageSources.js
+    goldCollection: 0, // Golden Dragon's "Shining Scales" input — see lib/petData.js
   };
 }
 
@@ -393,6 +394,13 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  const setPetGoldCollection = useCallback(
+    (value) => {
+      updateSlotModifiers('pet', (modifiers) => ({ ...modifiers, goldCollection: value }));
+    },
+    [updateSlotModifiers],
+  );
+
   const setAccessoryMagicalPower = useCallback(
     (value) => {
       updateSlotModifiers('accessory', (modifiers) => ({ ...modifiers, magicalPower: value }));
@@ -448,6 +456,7 @@ export function BuildProvider({ children }) {
         setPetLevel,
         setPetItem,
         setPetBankCoins,
+        setPetGoldCollection,
         setAccessoryMagicalPower,
         setAccessoryTuningPoint,
       }}

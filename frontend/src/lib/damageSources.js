@@ -5,7 +5,14 @@ import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './sp
 import { formatItemName } from './mcText';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from './armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
-import { petLoreItemId, computeAllPetStats, computeOtherNums, substitutePetLore, getMaxPetLevel } from './petData';
+import {
+  petLoreItemId,
+  computeAllPetStats,
+  computeOtherNums,
+  substitutePetLore,
+  getMaxPetLevel,
+  applyGoldenDragonShiningScales,
+} from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
 import {
@@ -189,6 +196,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel) {
     const maxLevel = getMaxPetLevel(pet.petId);
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
     let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+    stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
     const petItemId = modifiers.petItem;
     const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
     const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
