@@ -42,9 +42,11 @@ import {
   ELEMENTAL_STRENGTH_RATE,
   STRENGTH_ELEMENTAL_ATTRIBUTES,
   DEADEYE_RATE,
+  WARRIOR_RATE,
   ELITE_RATE,
   UNLIMITED_POWER_RATE,
   UNLIMITED_ENERGY_RATE,
+  ALMIGHTY_RATE,
   DOMINANCE_RATE,
   computeEchoBoost,
 } from './attributes';
@@ -579,6 +581,14 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveNonConditional.push({ id: 'attr-deadeye', label: 'Deadeye', source: 'Attribute', value: DEADEYE_RATE * deadeyeLevel });
   }
 
+  // Warrior is Deadeye's exact inverse condition — "melee damage" means
+  // any equipped weapon that isn't a bow, reusing the same isBowEquipped
+  // check already established for that split.
+  const warriorLevel = attributes.warrior || 0;
+  if (warriorLevel && !isBowEquipped(loadout)) {
+    out.additiveNonConditional.push({ id: 'attr-warrior', label: 'Warrior', source: 'Attribute', value: WARRIOR_RATE * warriorLevel });
+  }
+
   const eliteLevel = attributes.elite || 0;
   if (eliteLevel) {
     out.additiveConditional.push({
@@ -597,9 +607,14 @@ function collectAttributeEntries(attributes, loadout, out) {
 
   // Unlimited Power/Energy apply after everything else (a true multiplier
   // on the fully-summed Strength/Crit Damage) — not itemized here at all,
-  // just raw percentages for lib/finalDamage.js to apply last.
-  out.unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0);
-  out.unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0);
+  // just raw percentages for lib/finalDamage.js to apply last. Almighty
+  // ('Your "Unlimited" Attributes are +5%-50% stronger') is the same
+  // keyword-matching relative-boost mechanism as the Echo chain, just
+  // targeting both Unlimited attributes directly instead of a family —
+  // it isn't itself named "Echo" so Echo of Echoes doesn't boost it back.
+  const almightyBoost = ALMIGHTY_RATE * (attributes.almighty || 0);
+  out.unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
+  out.unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
 }
 
 // ---------------------------------------------------------------------
