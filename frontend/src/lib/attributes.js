@@ -8,12 +8,15 @@
 // Only the damage-relevant subset is modeled: Ruler (per-Mob-Type %
 // damage), the Echo chain (keyword-matching relative boosts to Ruler/
 // Elemental attributes), Strength Elemental, Deadeye (bow-only % damage),
-// Elite (boss/miniboss % damage — no current mob in lib/mobTypes.js has
-// that flag, so it's always excluded/dimmed in Damage Sources, not a
-// bug), Unlimited Power/Energy (post-everything % multipliers on
-// Strength/Crit Damage), Tuning Box (+Accessory Tuning points), and
-// Dominance (treated as always-active per instruction). Lifeline is
-// explicitly out of scope, not modeled at all.
+// Warrior (melee-only % damage — the exact inverse condition of
+// Deadeye), Elite (boss/miniboss % damage — no current mob in
+// lib/mobTypes.js has that flag, so it's always excluded/dimmed in
+// Damage Sources, not a bug), Unlimited Power/Energy (post-everything %
+// multipliers on Strength/Crit Damage), Almighty (keyword-matching
+// relative boost to both "Unlimited" attributes, same mechanism as the
+// Echo chain), Tuning Box (+Accessory Tuning points), and Dominance
+// (treated as always-active per instruction). Lifeline is explicitly
+// out of scope, not modeled at all.
 
 export const MAX_ATTRIBUTE_LEVEL = 10;
 
@@ -48,9 +51,11 @@ export const STRENGTH_ELEMENTAL_ATTRIBUTES = ['Light', 'Stone', 'Lightning', 'Wi
 }));
 
 export const DEADEYE_RATE = 2.5; // %/level, "+2.5%-25% damage from ranged weapons" (bow only)
+export const WARRIOR_RATE = 2.5; // %/level, "Increases melee damage dealt by +2.5%-25%" (non-bow only)
 export const ELITE_RATE = 3; // %/level, "+3%-30% more Damage against bosses and mini-bosses"
 export const UNLIMITED_POWER_RATE = 0.1; // %/level, Strength — applied after everything else
 export const UNLIMITED_ENERGY_RATE = 0.1; // %/level, Crit Damage — applied after everything else
+export const ALMIGHTY_RATE = 5; // %/level, 'Your "Unlimited" Attributes are +5%-50% stronger'
 export const TUNING_BOX_RATE = 1; // Tuning Points/level, "+1-10 Tuning Points"
 export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" — treated as always-active
 
@@ -59,9 +64,11 @@ export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at fu
 // generically rather than one-off per attribute.
 export const OTHER_ATTRIBUTES = [
   { id: 'deadeye', name: 'Deadeye', rate: DEADEYE_RATE, unit: '%' },
+  { id: 'warrior', name: 'Warrior', rate: WARRIOR_RATE, unit: '%' },
   { id: 'elite', name: 'Elite', rate: ELITE_RATE, unit: '%' },
   { id: 'unlimited_power', name: 'Unlimited Power', rate: UNLIMITED_POWER_RATE, unit: '%' },
   { id: 'unlimited_energy', name: 'Unlimited Energy', rate: UNLIMITED_ENERGY_RATE, unit: '%' },
+  { id: 'almighty', name: 'Almighty', rate: ALMIGHTY_RATE, unit: '%' },
   { id: 'tuning_box', name: 'Tuning Box', rate: TUNING_BOX_RATE, unit: ' pts' },
   { id: 'dominance', name: 'Dominance', rate: DOMINANCE_RATE, unit: '%' },
 ];
