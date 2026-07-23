@@ -66,6 +66,9 @@ export default function AccessoryPowerPicker() {
   const totalPages = Math.max(1, Math.ceil(ALL_POWERS.length / PAGE_SIZE));
   const pagePowers = useMemo(() => ALL_POWERS.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE), [page]);
 
+  // Stays on screen after picking — lets the player compare powers or
+  // change their mind without re-entering; same "select stays, only
+  // explicit Close backs out" precedent as BooksPicker.jsx.
   function handleSelect(power) {
     selectItem('accessory', {
       id: power.id,
@@ -73,7 +76,6 @@ export default function AccessoryPowerPicker() {
       iconId: power.sourceItemId || null,
       material: power.sourceItemId ? 'SKULL' : 'BOOK',
     });
-    navigate('/');
   }
 
   function handleHover(power, e) {
