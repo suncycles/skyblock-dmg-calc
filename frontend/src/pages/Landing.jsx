@@ -33,7 +33,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats, targetMob, setTargetMob, godPotionActive, toggleGodPotion } = useBuild();
+  const { loadout, removeSlot, playerStats, targetMob, setTargetMob, godPotionActive, toggleGodPotion, attributes } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -366,6 +366,34 @@ export default function Landing() {
         cells.push(
           <div key={key} className={slotBase}>
             <img src="/images/skyblock/ZOMBIE.png" alt="" className={iconImg} />
+          </div>,
+        );
+        continue;
+      }
+
+      // Top-left corner (row 0, col 0): Attributes (see lib/attributes.js)
+      // — account-wide, not tied to any equipped item, so this is a plain
+      // text tile like Target Mob/Skyblock Level rather than an icon slot.
+      if (col === 0 && row === 0) {
+        const leveledCount = Object.values(attributes).filter((v) => v > 0).length;
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${leveledCount > 0 ? 'bg-green-400' : ''}`}
+            onClick={() => navigate('/attributes')}
+            onMouseEnter={(e) =>
+              showTooltip(
+                leveledCount > 0
+                  ? [`§d§lAttributes`, `§7${leveledCount} attribute${leveledCount === 1 ? '' : 's'} leveled`]
+                  : ['§7Attributes', '§8None leveled — click to edit'],
+                e.currentTarget,
+              )
+            }
+            onMouseLeave={hideTooltip}
+          >
+            <span className="text-[9px] font-bold text-white text-center px-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+              Attributes
+            </span>
           </div>,
         );
         continue;

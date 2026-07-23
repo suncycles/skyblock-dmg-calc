@@ -51,7 +51,7 @@ function Keyworded({ text }) {
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout, playerStats, targetMob, godPotionActive } = useBuild();
+  const { loadout, playerStats, targetMob, godPotionActive, attributes } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -60,10 +60,10 @@ export default function DamageSources() {
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData, playerStats, godPotionActive).then((r) => {
+    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData, playerStats, godPotionActive]);
+  }, [loadout, itemData, playerStats, godPotionActive, attributes]);
 
   const targetMobTypes = targetMob ? MOB_TYPES[targetMob] : null;
   const validTarget = targetMob && targetMobTypes;
@@ -122,6 +122,18 @@ export default function DamageSources() {
                   </span>
                   <span>Multiplicative Multiplier</span>
                   <span className="text-right font-mono">{round4(finalDamage.multiplicativeMultiplier)}x</span>
+                  {finalDamage.unlimitedPowerPercent !== 0 && (
+                    <>
+                      <span>Strength ×(1+Unlimited Power)</span>
+                      <span className="text-right font-mono">+{round1(finalDamage.unlimitedPowerPercent)}%</span>
+                    </>
+                  )}
+                  {finalDamage.unlimitedEnergyPercent !== 0 && (
+                    <>
+                      <span>Crit Damage ×(1+Unlimited Energy)</span>
+                      <span className="text-right font-mono">+{round1(finalDamage.unlimitedEnergyPercent)}%</span>
+                    </>
+                  )}
                   {finalDamage.bonusModifiers !== 0 && (
                     <>
                       <span>Bonus Modifiers</span>

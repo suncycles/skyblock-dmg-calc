@@ -24,6 +24,20 @@ import {
   JERRY_CANDY_STRENGTH,
   isBowEquipped,
 } from './godPotion';
+import {
+  RULER_RATE,
+  RULER_ATTRIBUTES,
+  ECHO_OF_RULER_RATE,
+  ECHO_OF_ELEMENTAL_RATE,
+  ELEMENTAL_STRENGTH_RATE,
+  STRENGTH_ELEMENTAL_ATTRIBUTES,
+  DEADEYE_RATE,
+  ELITE_RATE,
+  UNLIMITED_POWER_RATE,
+  UNLIMITED_ENERGY_RATE,
+  DOMINANCE_RATE,
+  computeEchoBoost,
+} from './attributes';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -348,15 +362,15 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
   } else if (config.kind === 'crownOfAvarice') {
     const { damageMultiplier } = crownOfAvariceStats(config, bonus);
     // Real lore: "...deal +0.015x Damage for each digit of Coins
-    // consumed" is the same sentence as "Grants +2.5 Magic Find against
-    // Mythological mobs" — the coin multiplier is Mythological-only, not
-    // always-on.
+    // consumed" and "Grants +2.5 Magic Find against Mythological mobs"
+    // read as one clause but are two separate mechanics — the damage
+    // multiplier applies to all mobs; only the (unmodeled) Magic Find
+    // bonus is Mythological-restricted.
     out.multiplicative.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Coins Consumed)`,
       source: slotLabel,
       value: damageMultiplier,
-      condition: 'Mythological',
     });
   }
   // midasSword/midasStaff: already merged into base stats (see
@@ -417,13 +431,74 @@ async function collectPetEntries(loadout, itemData, out) {
 }
 
 // ---------------------------------------------------------------------
-export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive) {
+// Attributes (lib/attributes.js) — account-wide, not tied to any equipped
+// item, so this reads straight from BuildContext's `attributes` state
+// rather than the loadout. The Echo chain is computed once up front
+// (Echo of Ruler/Echo of Elemental are each boosted by Echo of Echoes,
+// never by themselves) and applied to every Ruler/Strength-Elemental
+// attribute's own value before it's pushed/summed — see
+// lib/attributes.js's computeEchoBoost for the verified formula.
+function collectAttributeEntries(attributes, loadout, out) {
+  if (!attributes) return;
+
+  const echoOfRulerBoost = computeEchoBoost(ECHO_OF_RULER_RATE, attributes.echo_of_ruler, attributes.echo_of_echoes);
+  const echoOfElementalBoost = computeEchoBoost(ECHO_OF_ELEMENTAL_RATE, attributes.echo_of_elemental, attributes.echo_of_echoes);
+
+  for (const { id, name, mobType } of RULER_ATTRIBUTES) {
+    const level = attributes[id] || 0;
+    if (!level) continue;
+    const base = RULER_RATE * level;
+    const value = base * (1 + echoOfRulerBoost / 100);
+    out.additiveConditional.push({ id: `attr-${id}`, label: name, source: 'Attribute', value, condition: mobType });
+  }
+
+  // Silently summed into baseStats, no itemized row — same precedent as
+  // Foraging/Skyblock Level's strength contributions.
+  for (const { id } of STRENGTH_ELEMENTAL_ATTRIBUTES) {
+    const level = attributes[id] || 0;
+    if (!level) continue;
+    const base = ELEMENTAL_STRENGTH_RATE * level;
+    out.baseStats.strength += base * (1 + echoOfElementalBoost / 100);
+  }
+
+  const deadeyeLevel = attributes.deadeye || 0;
+  if (deadeyeLevel && isBowEquipped(loadout)) {
+    out.additiveNonConditional.push({ id: 'attr-deadeye', label: 'Deadeye', source: 'Attribute', value: DEADEYE_RATE * deadeyeLevel });
+  }
+
+  const eliteLevel = attributes.elite || 0;
+  if (eliteLevel) {
+    out.additiveConditional.push({
+      id: 'attr-elite',
+      label: 'Elite',
+      source: 'Attribute',
+      value: ELITE_RATE * eliteLevel,
+      condition: 'Bosses, Miniboss',
+    });
+  }
+
+  const dominanceLevel = attributes.dominance || 0;
+  if (dominanceLevel) {
+    out.additiveNonConditional.push({ id: 'attr-dominance', label: 'Dominance', source: 'Attribute', value: DOMINANCE_RATE * dominanceLevel });
+  }
+
+  // Unlimited Power/Energy apply after everything else (a true multiplier
+  // on the fully-summed Strength/Crit Damage) — not itemized here at all,
+  // just raw percentages for lib/finalDamage.js to apply last.
+  out.unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0);
+  out.unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0);
+}
+
+// ---------------------------------------------------------------------
+export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     additiveNonConditional: [],
     additiveConditional: [],
     multiplicative: [],
     situational: [],
+    unlimitedPowerPercent: 0,
+    unlimitedEnergyPercent: 0,
   };
 
   out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel);
@@ -483,6 +558,8 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   }
 
   await collectPetEntries(loadout, itemData, out);
+
+  collectAttributeEntries(attributes, loadout, out);
 
   return out;
 }
