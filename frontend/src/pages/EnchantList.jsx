@@ -11,6 +11,7 @@ import {
   isHiddenEnchant,
   computeConflictWarnings,
   resolveEnchantCategory,
+  getEnchantCaption,
 } from '../lib/enchantEffects';
 import { SLOT_TEXTURES, ENCHANTED_BOOK_ICON } from '../lib/icons';
 import { formatItemName } from '../lib/mcText';
@@ -109,12 +110,19 @@ export default function EnchantList({ ultimate }) {
           cells.push(
             <div
               key={key}
-              className={`${slotBase} cursor-pointer hover:brightness-110 ${appliedIds.has(id) ? 'bg-green-400' : ''}`}
+              className={`${slotBase} relative cursor-pointer hover:brightness-110 ${appliedIds.has(id) ? 'bg-green-400' : ''}`}
               onClick={() => navigate(`/enchant-levels/${slot}/${encodeURIComponent(id)}`)}
               onMouseEnter={(e) => handleEnchantHover(id, e)}
               onMouseLeave={handleEnchantLeave}
             >
               <img src={ENCHANTED_BOOK_ICON} alt={titleCaseEnchantId(id)} className={iconImg} />
+              <span
+                className={`absolute bottom-0.5 right-1 text-[10px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] ${
+                  ultimate ? 'text-fuchsia-400' : 'text-white'
+                }`}
+              >
+                {getEnchantCaption(id)}
+              </span>
             </div>,
           );
         } else {
