@@ -47,10 +47,13 @@ function findGemIdByStatLabel(statLabel) {
 // Rebuilds an item's lore with applied gemstones reflected: the
 // "Gemstones:" line's brackets recolor per-slot (bracket color = the
 // gemstone's tier-as-rarity, symbol color = the gemstone's own color), and
-// every boosted stat gets a "§d(+X)" pink annotation — appended to its
-// existing lore line if the item already shows that stat, or as a brand
-// new "§7{Stat}: §{color}+X §d(+X)" line (matching real stat-line format,
-// inserted right before Gemstones:) if it doesn't. `gemstones` is a sparse
+// every boosted stat is merged directly into the item's own base number
+// (e.g. a +30 Strength item with a +16 Jasper socketed shows "Strength:
+// +46") rather than a separate "(+X)" annotation — a socketed gemstone is
+// a permanent part of the item's stats, not a swappable modifier, same
+// "improves the base stats" treatment Stars/Reforges get. Falls back to a
+// brand new "§7{Stat}: §{color}+X" line (inserted right before Gemstones:)
+// if the item doesn't already show that stat. `gemstones` is a sparse
 // array indexed by slot position, entries are {gem, tier} or null/undefined.
 export function applyGemstonesToLore(lore, gemstones, itemRarity) {
   if (!lore || !gemstones || gemstones.every((g) => !g)) return lore;
@@ -84,13 +87,17 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
     }
 
     const plain = line.replace(/§./g, '');
-    const match = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
-    if (match && totals[match[2]] !== undefined) {
-      matchedLabels.add(match[2]);
-      const gemId = findGemIdByStatLabel(match[2]);
-      return `${line} §d(${formatGemstoneBoost(gemId, totals[match[2]])})`;
-    }
-    return line;
+    const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
+    if (!labelMatch || totals[labelMatch[2]] === undefined) return line;
+    // Base number is the first §-colored token right after "Label: " —
+    // captured separately from anything after it (a "%" suffix, or a
+    // later modifier's own "(+X)" annotation) so only the base moves.
+    const numMatch = /^(.*?:\s*§.)([+-]?[\d.]+)/.exec(line);
+    if (!numMatch) return line;
+    matchedLabels.add(labelMatch[2]);
+    const merged = Math.round((parseFloat(numMatch[2]) + totals[labelMatch[2]]) * 10) / 10;
+    const sign = merged >= 0 ? '+' : '';
+    return `${numMatch[1]}${sign}${merged}${line.slice(numMatch[0].length)}`;
   });
 
   const newLines = Object.keys(totals)
@@ -98,8 +105,7 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
     .map((statLabel) => {
       const gemId = findGemIdByStatLabel(statLabel);
       const gem = GEMSTONES[gemId];
-      const formatted = formatGemstoneBoost(gemId, totals[statLabel]);
-      return `§7${statLabel}: §${gem.valueColor}${formatted} §d(${formatted})`;
+      return `§7${statLabel}: §${gem.valueColor}${formatGemstoneBoost(gemId, totals[statLabel])}`;
     });
 
   if (newLines.length === 0 || gemstoneLineIdx === -1) return result;

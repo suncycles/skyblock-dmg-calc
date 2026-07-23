@@ -8,6 +8,7 @@ const PLAYER_STATS_KEY = 'hexPlayerStats';
 const TARGET_MOB_KEY = 'hexTargetMob';
 const GOD_POTION_KEY = 'hexGodPotion';
 const ATTRIBUTES_KEY = 'hexAttributes';
+const MISC_STATS_KEY = 'hexMiscStats';
 
 const BuildContext = createContext(null);
 
@@ -24,6 +25,27 @@ function loadInitialTargetMob() {
 // than living in playerStats or loadout.
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
+}
+
+// Flat, manually-entered "everything else" Strength/Crit Damage — the
+// real game has a long tail of small permanent bonuses (Fairy Souls,
+// Slayer level rewards, Skill level rewards, etc.) this calculator
+// doesn't model individually; rather than chase down every one, the
+// player enters their own known total here. See Damage Sources' panel
+// next to (Base) Stats.
+function loadInitialMiscStats() {
+  const stored = localStorage.getItem(MISC_STATS_KEY);
+  if (!stored) return { strength: 0, crit_damage: 0 };
+  try {
+    const parsed = JSON.parse(stored);
+    return {
+      strength: typeof parsed.strength === 'number' ? parsed.strength : 0,
+      crit_damage: typeof parsed.crit_damage === 'number' ? parsed.crit_damage : 0,
+    };
+  } catch (err) {
+    console.error('Failed to parse saved misc stats:', err);
+    return { strength: 0, crit_damage: 0 };
+  }
 }
 
 // Attributes (see lib/attributes.js) are account-wide, not tied to any
@@ -155,12 +177,21 @@ export function BuildProvider({ children }) {
   const [targetMob, setTargetMobState] = useState(loadInitialTargetMob);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
+  const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
 
   const setAttributeLevel = useCallback((id, level) => {
     setAttributesState((prev) => {
       const clamped = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(level) || 0));
       const next = { ...prev, [id]: clamped };
       localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setMiscStat = useCallback((statKey, value) => {
+    setMiscStatsState((prev) => {
+      const next = { ...prev, [statKey]: Number(value) || 0 };
+      localStorage.setItem(MISC_STATS_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
@@ -452,6 +483,8 @@ export function BuildProvider({ children }) {
         toggleGodPotion,
         attributes,
         setAttributeLevel,
+        miscStats,
+        setMiscStat,
         selectItem,
         removeSlot,
         applyEnchant,

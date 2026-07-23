@@ -3,12 +3,17 @@ import { STAT_LABELS, formatStatValue } from './reforgeData';
 // Appends a "§{color}(+X)" annotation to each lore line whose stat label
 // matches a key in `bonuses` (a {statKey: numericValue} map using
 // reforgeData's NEU stat keys, e.g. {damage: 50, strength: 15}), or adds a
-// brand new "§7Label: §{valueColor}+X §{color}(+X)" line — matching real
-// stat-line format — for any bonus the item's lore doesn't already show a
-// line for. Mirrors gemstones.js's applyGemstonesToLore but for flat/
-// percent bonuses keyed by STAT_LABELS instead of gemstone-specific
-// bracket handling; used by both Reforges and Books so those two features
-// don't each reimplement this line-matching/insertion logic.
+// brand new "§7Label: §{valueColor}+X" line (no redundant "(+X)" — there's
+// nothing else on that line to call the addition out against, same as
+// mergeStatIntoBase's own new-line case below) for any bonus the item's
+// lore doesn't already show a line for. Mirrors gemstones.js's
+// applyGemstonesToLore but for flat/percent bonuses keyed by STAT_LABELS
+// instead of gemstone-specific bracket handling; used by Reforges/Books/
+// Enchant stat bonuses so those features don't each reimplement this
+// line-matching/insertion logic. Every "(+X)" this produces represents a
+// genuinely additional amount NOT already reflected in the line's leading
+// number — lib/damageSources.js's sumStatFromTooltipLines relies on that
+// invariant to sum an item's total without double-counting.
 export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => v);
   if (!lore || entries.length === 0) return lore;
@@ -36,8 +41,7 @@ export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
     .filter((label) => !matchedLabels.has(label))
     .map((label) => {
       const { statKey, value } = byLabel[label];
-      const formatted = formatStatValue(statKey, value);
-      return `§7${label}: §${STAT_LABELS[statKey].color}${formatted} §${color}(${formatted})`;
+      return `§7${label}: §${STAT_LABELS[statKey].color}${formatStatValue(statKey, value)}`;
     });
 
   if (newLines.length === 0) return result;
