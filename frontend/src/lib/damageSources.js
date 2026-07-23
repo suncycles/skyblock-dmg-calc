@@ -82,7 +82,16 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'MIDAS_STAFF',
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
+  'WARDEN_HELMET',
 ]);
+
+// Warden Helmet's "Brute Force" ability ("Halves your +25 Speed but
+// grants +20% base weapon damage for every +25 Speed") scales with
+// however much Speed the player stacks — no fixed value, and this app
+// has no aggregate Speed total to derive it from. Per instruction,
+// assumed always at its max real-game boost (8 stacks = +160%) rather
+// than left unresolved in situational.
+const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 
 function stripToPlain(lines) {
   return (Array.isArray(lines) ? lines.join(' ') : lines)
@@ -612,6 +621,15 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
 
     collectSpecialMechanicEntries(equipped.item, equipped.modifiers, itemLabel, slotLabel, out);
+
+    if (equipped.item.id === 'WARDEN_HELMET') {
+      out.additiveNonConditional.push({
+        id: 'warden-helmet-brute-force',
+        label: 'Brute Force (assumed max)',
+        source: slotLabel,
+        value: WARDEN_HELMET_BRUTE_FORCE_PERCENT,
+      });
+    }
   }
 
   await collectPetEntries(loadout, itemData, out);
