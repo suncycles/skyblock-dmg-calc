@@ -12,6 +12,8 @@ import {
   FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
   MONSTER_HUNTER_SET,
   MONSTER_HUNTER_MULTIPLIER,
+  MONSTER_RAIDER_SET,
+  MONSTER_RAIDER_MULTIPLIER,
   hasFullSet,
 } from './armorSetBonuses';
 import {
@@ -784,6 +786,13 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       label: 'Monster Hunter Hidden Bonus',
       source: 'Armor',
       value: MONSTER_HUNTER_MULTIPLIER,
+    });
+  } else if (hasFullSet(loadout, ARMOR_SLOTS, MONSTER_RAIDER_SET)) {
+    out.multiplicative.push({
+      id: 'monster-raider-hidden-bonus',
+      label: 'Monster Raider Hidden Bonus',
+      source: 'Armor',
+      value: MONSTER_RAIDER_MULTIPLIER,
     });
   }
 
