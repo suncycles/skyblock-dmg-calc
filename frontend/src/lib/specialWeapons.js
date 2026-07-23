@@ -88,6 +88,17 @@ export const SPECIAL_WEAPON_CONFIG = {
     damagePercentPerDigit: 1.5,
     inputLabel: 'Coins Consumed',
   },
+  // David's Cloak's real lore has no live-scaling stat line at all — just
+  // "The more you Hunt, the stronger this cloak gets! Talk to David to
+  // view your progress!", with no published formula for how much
+  // Strength that actually grants. Modeled as a direct player-entered
+  // Strength value (capped at a reasonable max) rather than guessing at
+  // an unpublished curve.
+  DAVIDS_CLOAK: {
+    kind: 'flatStrength',
+    max: 50,
+    inputLabel: 'Base Strength Adjustment',
+  },
 };
 
 export function getSpecialConfig(weaponId) {
@@ -114,6 +125,8 @@ export function computeSpecialBonus(config, value) {
       // Digit count of coins consumed — 0 has 0 digits, matching the
       // item's own pristine "+1x Damage"/"+0 Magic Find" lore at 0.
       return v === 0 ? 0 : Math.floor(Math.log10(v)) + 1;
+    case 'flatStrength':
+      return Math.min(v, config.max);
     default:
       return 0;
   }
@@ -195,6 +208,15 @@ export function applySpecialToLore(lore, weaponId, value) {
     const line = `§7Ability Damage Bonus: §${SPECIAL_COLOR}+${bonus}`;
     if (insertIdx === -1) return [...withCounter, line];
     return [...withCounter.slice(0, insertIdx), line, ...withCounter.slice(insertIdx)];
+  }
+
+  if (config.kind === 'flatStrength') {
+    if (!bonus) return lore;
+    // No pristine Strength line exists on David's Cloak — inserted as a
+    // brand-new line (mergeStatIntoBase's "new line" case) so it reads as
+    // part of the item's own base stats, same treatment as Midas Sword's
+    // Greed bonus above.
+    return mergeStatIntoBase(lore, { strength: bonus }, lore.indexOf(''));
   }
 
   if (config.kind === 'crownOfAvarice') {

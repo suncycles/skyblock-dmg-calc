@@ -43,7 +43,8 @@ export default function SpecialPicker() {
   }
 
   function handleChange(e) {
-    const num = Math.max(0, parseShorthandNumber(e.target.value));
+    let num = Math.max(0, parseShorthandNumber(e.target.value));
+    if (config.max != null) num = Math.min(num, config.max);
     setSpecialValue(slot, num);
   }
 
@@ -60,7 +61,9 @@ export default function SpecialPicker() {
                 const { magicFind, damageMultiplier } = crownOfAvariceStats(config, bonus);
                 return `${bonus} digit${bonus === 1 ? '' : 's'} — +${damageMultiplier}x Damage, +${magicFind} Magic Find vs Mythological mobs`;
               })()
-            : `Current Damage and Strength Bonus: +${bonus}`;
+            : config.kind === 'flatStrength'
+              ? `+${bonus} Strength (max ${config.max})`
+              : `Current Damage and Strength Bonus: +${bonus}`;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
