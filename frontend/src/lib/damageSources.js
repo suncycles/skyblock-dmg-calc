@@ -197,7 +197,17 @@ function sumStatFromTooltipLines(finalLines, pristineLore, label) {
   const parenNums = [...afterLabel.matchAll(/\(([+-]?[\d.]+)%?\)/g)].map((m) => parseFloat(m[1]));
 
   if (!existedPristinely) {
-    return parenNums.reduce((a, b) => a + b, 0);
+    // A synthesized line usually looks like annotateStatLines' "value
+    // (value)" (the leading number is a display-only duplicate of the
+    // one real bonus, so only the paren copy is summed) — but
+    // mergeStatIntoBase's own synthesized lines (e.g. Daedalus Blade's
+    // Taming-level Damage, which has no pristine "Damage:" line to
+    // begin with) are just "value" with no paren at all. Fall back to
+    // the leading number only when there's no paren to prefer, so
+    // neither shape is silently dropped nor double-counted.
+    if (parenNums.length > 0) return parenNums.reduce((a, b) => a + b, 0);
+    const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabel);
+    return leadingMatch ? parseFloat(leadingMatch[1]) : 0;
   }
   const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabel);
   const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
@@ -214,7 +224,7 @@ function sumStatFromTooltipLines(finalLines, pristineLore, label) {
 // doesn't replace anything.
 const CHIMERA_PERCENT_PER_LEVEL = 20;
 
-async function collectBaseStats(loadout, itemData, catacombsLevel) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel) {
   const totals = { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 };
 
   // Computed up front (rather than after the gear loop) so Chimera,
@@ -240,7 +250,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel) {
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
     for (const statKey of TRACKED_STATS) {
       totals[statKey] += sumStatFromTooltipLines(lines, equipped.item.lore, STAT_LABELS[statKey].label);
     }
@@ -588,7 +598,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     unlimitedEnergyPercent: 0,
   };
 
-  out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel);
+  out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel);
   out.baseStats.strength += computeForagingStrengthBonus(playerStats?.foragingLevel);
   out.baseStats.strength += computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel);
 

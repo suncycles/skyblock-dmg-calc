@@ -5,7 +5,7 @@ import { annotateStatLines, mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore } from './reforges';
 import { applyBooksToLore } from './books';
-import { applySpecialToLore } from './specialWeapons';
+import { applySpecialToLore, computeDaedalusTamingBonus } from './specialWeapons';
 import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore } from './recombobulator';
 import { getGearType } from './gearType';
@@ -90,7 +90,7 @@ async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
 // Hex.jsx and the home-grid overview. Async only because of the enchant
 // stat-bonus lookup above; callers should await it before showing the
 // tooltip (capture the hover anchor before the await — see Hex.jsx).
-export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel) {
+export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel, tamingLevel) {
   if (!item || !modifiers) return [];
   const displayTier = modifiers.recombobulated ? bumpRarity(item.tier) : item.tier;
   const gearType = getGearType(item.category);
@@ -116,6 +116,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   // Same "improves the item's own base stats" treatment as Stars above —
   // see lib/witherBladeBonuses.js for the real per-weapon rates.
   lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
 
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = annotateStatLines(lore, enchantStatBonuses, ENCHANT_STAT_COLOR, lore.indexOf(''));

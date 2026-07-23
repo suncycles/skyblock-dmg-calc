@@ -82,6 +82,8 @@ export function computeAncientReforgeCritDamage(catacombsLevel) {
   return Math.max(0, Math.min(MAX_CATACOMBS_LEVEL, catacombsLevel || 0));
 }
 
+export const MAX_TAMING_LEVEL = 60;
+
 // Catacombs Level's overall stat-multiplier scaling (every stat boosted
 // by a flat % based on level, separate from the Ancient reforge above) —
 // NOT implemented anywhere in this app yet, deliberately: recorded here

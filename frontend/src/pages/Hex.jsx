@@ -69,7 +69,7 @@ export default function Hex() {
     if (!item) return;
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData, playerStats.catacombsLevel);
+    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
   function handleItemLeave() {
