@@ -101,8 +101,11 @@ const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 // actually built to counter. Hardcoded to the full real mob list per
 // instruction, since there's no Mob Type covering exactly this set
 // (Ender-typed mobs include plenty this weapon doesn't affect, e.g.
-// Voidgloom Seraph's own summons).
-const ATOMSPLIT_KATANA_DAMAGE_PERCENT = 300;
+// Voidgloom Seraph's own summons). Per instruction, modeled as a 3x
+// multiplicative boost rather than +300% additive — the in-game tooltip
+// phrasing ("+300% damage") is considered misleading/poorly written for
+// what the ability actually does.
+const ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER = 3;
 const ATOMSPLIT_KATANA_MOBS = [
   'Enderman',
   'Zealot',
@@ -113,6 +116,16 @@ const ATOMSPLIT_KATANA_MOBS = [
   'Voidling Fanatic',
   'Voidling Extremist',
 ];
+
+// Crown of Avarice's "Celebration" skin (raffle/giveaway cosmetic
+// variant, real NEU-REPO id CROWN_OF_AVARICE_CELEBRATION) ships with a
+// fixed "Coins Consumed: 61,000,000,000" already baked into its own
+// pristine lore — well past the base item's 1B perk-change cap, i.e.
+// permanently maxed rather than a player-tracked counter. SPECIAL_
+// WEAPON_CONFIG (lib/specialWeapons.js) only covers the base
+// CROWN_OF_AVARICE id, so this variant got no bonus at all before —
+// hardcoded here to its own real max value ("+1.15x Damage").
+const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
 
 function stripToPlain(lines) {
   return (Array.isArray(lines) ? lines.join(' ') : lines)
@@ -663,12 +676,21 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
 
     if (equipped.item.id === 'ATOMSPLIT_KATANA') {
-      out.additiveConditional.push({
+      out.multiplicative.push({
         id: 'atomsplit-katana-endermen',
         label: `${itemLabel} (Endermen family)`,
         source: slotLabel,
-        value: ATOMSPLIT_KATANA_DAMAGE_PERCENT,
+        value: ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER,
         condition: ATOMSPLIT_KATANA_MOBS.join(', '),
+      });
+    }
+
+    if (equipped.item.id === 'CROWN_OF_AVARICE_CELEBRATION') {
+      out.multiplicative.push({
+        id: 'crown-of-avarice-celebration',
+        label: `${itemLabel} (Coins Consumed, fixed max)`,
+        source: slotLabel,
+        value: CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER,
       });
     }
   }
