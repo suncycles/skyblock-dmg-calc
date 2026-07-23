@@ -21,6 +21,20 @@ export const FINAL_DESTINATION_SET = [
 export const FINAL_DESTINATION_STRENGTH = 30;
 export const FINAL_DESTINATION_ENDER_DAMAGE_PERCENT = 100;
 
+// Vanquished gear's own lore has no "Full Set Bonus" section at all —
+// this 1.1x is an undocumented/hidden bonus per instruction, not stated
+// anywhere in-game, so Damage Sources shows Final Damage both with and
+// without it applied (see DamageSources.jsx) rather than silently
+// folding it in.
+export const VANQUISHED_SET = [
+  'VANQUISHED_MAGMA_NECKLACE',
+  'VANQUISHED_GHAST_CLOAK',
+  'VANQUISHED_BLAZE_BELT',
+  'VANQUISHED_GLOWSTONE_GAUNTLET',
+];
+export const VANQUISHED_SET_MULTIPLIER = 1.1;
+export const VANQUISHED_SET_ID = 'vanquished-set-hidden-bonus';
+
 // Monster Hunter/Monster Raider — undocumented "hidden" set bonuses per
 // instruction (neither set's own pieces mention one in their real
 // lore); the two sets share their first 3 pieces and differ only in

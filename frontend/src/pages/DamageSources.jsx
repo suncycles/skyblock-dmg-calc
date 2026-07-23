@@ -4,6 +4,7 @@ import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
 import { computeFinalDamage } from '../lib/finalDamage';
+import { VANQUISHED_SET_ID } from '../lib/armorSetBonuses';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -69,6 +70,17 @@ export default function DamageSources() {
   const targetMobTypes = targetMob ? MOB_TYPES[targetMob] : null;
   const validTarget = targetMob && targetMobTypes;
   const finalDamage = result && validTarget ? computeFinalDamage(result, { name: targetMob, types: targetMobTypes }) : null;
+  // Vanquished's 1.1x is an undocumented hidden bonus (see
+  // lib/armorSetBonuses.js) — shown alongside the real, unboosted number
+  // rather than silently folded into the one Final Damage figure.
+  const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
+  const finalDamageWithoutVanquished =
+    result && validTarget && hasVanquishedBonus
+      ? computeFinalDamage(
+          { ...result, multiplicative: result.multiplicative.filter((e) => e.id !== VANQUISHED_SET_ID) },
+          { name: targetMob, types: targetMobTypes },
+        )
+      : null;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -130,12 +142,29 @@ export default function DamageSources() {
                     </>
                   )}
                 </div>
-                <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
-                  <span className="text-sm font-bold text-black">Final Damage</span>
-                  <span className="text-2xl font-mono font-bold text-black">
-                    {finalDamage.finalDamage.toLocaleString()}
-                  </span>
-                </div>
+                {hasVanquishedBonus ? (
+                  <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-sm font-bold text-black">Final Damage (with Vanquished)</span>
+                      <span className="text-2xl font-mono font-bold text-black">
+                        {finalDamage.finalDamage.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
+                      <span className="text-base font-mono text-neutral-700">
+                        {finalDamageWithoutVanquished.finalDamage.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
+                    <span className="text-sm font-bold text-black">Final Damage</span>
+                    <span className="text-2xl font-mono font-bold text-black">
+                      {finalDamage.finalDamage.toLocaleString()}
+                    </span>
+                  </div>
+                )}
               </>
             )}
           </div>
