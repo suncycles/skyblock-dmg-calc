@@ -20,6 +20,8 @@ import {
   computeSkyblockLevelMultiplier,
   computeSkyblockLevelStrengthBonus,
   computeForagingStrengthBonus,
+  BASE_CRIT_CHANCE,
+  BASE_CRIT_DAMAGE,
 } from './playerStats';
 import { computeAccessoryTotalStats } from './accessoryPowers';
 import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
@@ -27,6 +29,7 @@ import {
   GOD_POTION_STRENGTH_POTION,
   GOD_POTION_CRIT_CHANCE,
   GOD_POTION_CRIT_DAMAGE,
+  GOD_POTION_SPIRIT_CRIT_DAMAGE,
   GOD_POTION_ARCHERY_DAMAGE,
   JERRY_CANDY_STRENGTH,
   isBowEquipped,
@@ -614,6 +617,10 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   out.baseStats = await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel);
   out.baseStats.strength += computeForagingStrengthBonus(playerStats?.foragingLevel);
   out.baseStats.strength += computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel);
+  // Every player starts with these two stats before any gear at all —
+  // real Hypixel base stats, unlike Damage/Strength which start at 0.
+  out.baseStats.crit_chance += BASE_CRIT_CHANCE;
+  out.baseStats.crit_damage += BASE_CRIT_DAMAGE;
 
   // God Potion — a flat on/off toggle, not a level. Only the pieces this
   // app tracks as aggregate base stats (Strength/Crit Chance/Crit
@@ -625,7 +632,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   if (godPotionActive) {
     out.baseStats.strength += GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH;
     out.baseStats.crit_chance += GOD_POTION_CRIT_CHANCE;
-    out.baseStats.crit_damage += GOD_POTION_CRIT_DAMAGE;
+    out.baseStats.crit_damage += GOD_POTION_CRIT_DAMAGE + GOD_POTION_SPIRIT_CRIT_DAMAGE;
     if (isBowEquipped(loadout)) {
       out.additiveNonConditional.push({
         id: 'god-potion-archery',

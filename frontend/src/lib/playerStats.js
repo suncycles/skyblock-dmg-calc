@@ -5,6 +5,15 @@
 
 import { MC_COLORS } from './mcText';
 
+// Every Skyblock player starts with these two stats before any gear —
+// real Hypixel base stats, not 0 like every other tracked stat (Damage/
+// Strength have no free baseline). Summed into baseStats.crit_chance/
+// crit_damage as the starting point in lib/damageSources.js, same as
+// how a fresh character would show these in the in-game stats menu with
+// nothing equipped.
+export const BASE_CRIT_CHANCE = 30;
+export const BASE_CRIT_DAMAGE = 50;
+
 export const MAX_COMBAT_LEVEL = 60;
 
 // Real Hypixel Combat Level damage bonus: +4% additive per level for
