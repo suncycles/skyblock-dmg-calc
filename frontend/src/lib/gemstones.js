@@ -44,9 +44,13 @@ function findGemIdByStatLabel(statLabel) {
   return Object.keys(GEMSTONES).find((id) => GEMSTONES[id].statLabel === statLabel);
 }
 
-// §d (pink) — distinct from Reforges' blue and Books' yellow, matches
-// the real gemstone-menu pink used elsewhere in this app.
-export const GEMSTONE_COLOR = 'd';
+// §a (green) — distinct from Reforges' blue, Books' yellow, and Enchant
+// stat bonuses' light purple (itemTooltip.js's ENCHANT_STAT_COLOR, also
+// 'd' — a real collision with the previous pink choice here caused
+// sumStatFromTooltipLines' gemstone-echo exclusion to also swallow a
+// same-line enchant's own genuine paren, e.g. Critical's Crit Damage
+// bonus silently vanishing whenever Onyx was socketed on the same item).
+export const GEMSTONE_COLOR = 'a';
 
 // Rebuilds an item's lore with applied gemstones reflected: the
 // "Gemstones:" line's brackets recolor per-slot (bracket color = the
