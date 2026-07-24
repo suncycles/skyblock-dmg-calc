@@ -707,7 +707,6 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   // level rewards, etc.) — see BuildContext.jsx's miscStats.
   addBaseStat(out, 'strength', miscStats?.strength || 0, 'Misc');
   addBaseStat(out, 'crit_damage', miscStats?.crit_damage || 0, 'Misc');
-  addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
 
   // God Potion — a flat on/off toggle, not a level. Only the pieces this
   // app tracks as aggregate base stats (Strength/Crit Chance/Crit
