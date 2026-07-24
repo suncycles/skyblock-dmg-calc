@@ -45,7 +45,7 @@ export default function TargetMobPicker() {
           <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4 inline-block mr-1 align-[-2px]" />
           Back
         </button>
-        <h1 className="text-xl font-bold">The Hex — Target Mobs</h1>
+        <h1 className="text-xl font-bold">SkyDmg — Target Mobs</h1>
       </header>
 
       <div className="w-full max-w-[700px] flex flex-col gap-2.5">

@@ -27,7 +27,7 @@ const GRID_LAYOUT = [
 
 // Dummy handler for every interactive slot without real behavior yet.
 function handleSlotClick(label) {
-  console.log(`[The Hex] "${label}" clicked — not yet implemented.`);
+  console.log(`[SkyDmg] "${label}" clicked — not yet implemented.`);
 }
 
 // Real Minecraft slots are a recessed bevel (dark shadow top-left, light
@@ -80,7 +80,7 @@ export default function Hex() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">The Hex — {slotLabel}</h1>
+        <h1 className="text-xl font-bold">SkyDmg — {slotLabel}</h1>
         <div className="flex items-center gap-2.5 text-[13px]">
           <span>{status}</span>
           <button className="text-[13px] px-3 py-1.5 cursor-pointer bg-neutral-200 text-black" onClick={refresh}>

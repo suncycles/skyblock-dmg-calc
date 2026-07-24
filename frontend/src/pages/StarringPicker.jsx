@@ -22,7 +22,7 @@ export default function StarringPicker() {
     return (
       <div className="min-h-screen flex flex-col items-center p-4">
         <header className="w-full max-w-[700px] mb-4">
-          <h1 className="text-xl font-bold">The Hex — Item Upgrades</h1>
+          <h1 className="text-xl font-bold">SkyDmg — Item Upgrades</h1>
         </header>
         <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">No item selected.</div>
         <button
@@ -47,7 +47,7 @@ export default function StarringPicker() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">The Hex — {formatItemName(item.name)}</h1>
+        <h1 className="text-xl font-bold">SkyDmg — {formatItemName(item.name)}</h1>
       </header>
 
       <div className={`${panel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
