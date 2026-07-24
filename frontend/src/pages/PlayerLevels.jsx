@@ -33,7 +33,7 @@ export default function PlayerLevels() {
           <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4 inline-block mr-1 align-[-2px]" />
           Back
         </button>
-        <h1 className="text-xl font-bold">The Hex — Player Levels</h1>
+        <h1 className="text-xl font-bold">SkyDmg — Player Levels</h1>
       </header>
 
       <div className={`${panel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>

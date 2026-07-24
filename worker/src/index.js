@@ -1,5 +1,5 @@
 /* =========================================================
-   THE HEX — shared cache Worker
+   SKYDMG — shared cache Worker
    Single source of truth for weapons/armor/enchants data, all
    sourced from NotEnoughUpdates-REPO (community-maintained,
    MIT licensed) — no Hypixel API usage.

@@ -98,7 +98,7 @@ export default function Attributes() {
           <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4 inline-block mr-1 align-[-2px]" />
           Back
         </button>
-        <h1 className="text-xl font-bold">The Hex — Attributes</h1>
+        <h1 className="text-xl font-bold">SkyDmg — Attributes</h1>
       </header>
 
       <div className="w-full max-w-[500px] flex flex-col gap-3">

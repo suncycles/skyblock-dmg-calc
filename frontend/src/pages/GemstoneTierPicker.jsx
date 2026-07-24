@@ -104,7 +104,7 @@ export default function GemstoneTierPicker() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">The Hex — {gem ? gem.label : gemType} Tier</h1>
+        <h1 className="text-xl font-bold">SkyDmg — {gem ? gem.label : gemType} Tier</h1>
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
