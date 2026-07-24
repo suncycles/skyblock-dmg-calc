@@ -1,15 +1,6 @@
-/* Real per-level enchant effect text, sourced directly from NEU-REPO's
-   enchanted-book item files (items/{ID};{level}.json — e.g. SHARPNESS;1.json)
-   rather than any hand-written description table. Verified against the
-   in-game format: book lore is "§9{Name} {roman}" then a short description
-   block, a blank line, then apply/source/applicable-to text.
-
-   NEU-REPO has no dedicated "enchantments" API, but raw.githubusercontent.com
-   serves these files with permissive CORS, so the frontend fetches them
-   directly rather than routing through the worker — this is a handful of
-   small, cacheable, on-demand lookups (only for the one enchant currently
-   being viewed), unlike the 8000+ file bulk ingest the worker's weapon/armor
-   data needed offline preprocessing for. */
+/* Real per-level enchant effect text, sourced directly from NEU-REPO's enchanted-book item
+   files (items/{ID};{level}.json). Fetched directly from raw.githubusercontent.com rather
+   than through the worker, since these are small on-demand lookups. */
 
 const NEU_ITEMS_BASE = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items';
 const MAX_PROBE_LEVEL = 10;
@@ -35,11 +26,7 @@ async function probeLevels(fileId) {
   return results.filter(Boolean);
 }
 
-// Some category-list enchant ids are legacy/internal names that don't match
-// a NEU item file directly (e.g. "dragon_tracer" -> file id "AIMING"); the
-// worker's enchant data carries enchant_mapping_id/enchant_mapping_item as
-// parallel arrays pairing these, not consistently ordered old->new, so check
-// both directions — same resolution the enchant-list tooltip already needed.
+// Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").
 function resolveAlternateFileId(enchantsMeta, id) {
   const mapItem = (enchantsMeta && enchantsMeta.enchant_mapping_item) || [];
   const mapId = (enchantsMeta && enchantsMeta.enchant_mapping_id) || [];
@@ -51,9 +38,7 @@ function resolveAlternateFileId(enchantsMeta, id) {
   return null;
 }
 
-// Fetches every existing level (1..10, probed) for an enchant, each with its
-// real lore. Used both for the level-picker GUI and to derive min...max
-// effect text for the enchant-list hover tooltip. Cached per enchant id.
+// Fetches every existing level (1-10, probed) for an enchant with its real lore. Cached per enchant id.
 export function fetchEnchantLevels(id, enchantsMeta) {
   if (levelsCache.has(id)) return levelsCache.get(id);
 
@@ -70,13 +55,7 @@ export function fetchEnchantLevels(id, enchantsMeta) {
   return promise;
 }
 
-// Usually line 0 is the level name (e.g. "§9Sharpness I") and the description
-// runs right after it. A few enchants (e.g. Pyroclasm/"magmarizer") lead with
-// an unrelated note line — "§8Combinable in Anvil" — before a blank line and
-// the real name, which broke the "line 0 is always the name" assumption:
-// description extraction hit that leading blank immediately and returned
-// nothing. Find the actual name line by its shape (ends in a roman numeral)
-// instead of assuming its position.
+// Finds the level-name line (ends in a roman numeral) rather than assuming it's always line 0.
 function findNameLineIndex(lore) {
   for (let i = 0; i < lore.length; i++) {
     const plain = lore[i].replace(/§./g, '').trim();
@@ -85,8 +64,7 @@ function findNameLineIndex(lore) {
   return 0;
 }
 
-// The description block runs from just after the name line until the next
-// blank line.
+// The description block runs from just after the name line until the next blank line.
 export function extractDescriptionLines(lore) {
   const nameIdx = findNameLineIndex(lore);
   const lines = [];
@@ -97,9 +75,7 @@ export function extractDescriptionLines(lore) {
   return lines;
 }
 
-// Merges two same-shaped lore lines, replacing differing numeric runs with
-// "min...max" (e.g. "§a5%" + "§a65%" -> "§a5...65%"). Non-numeric text and
-// numbers that don't change between levels are left untouched.
+// Merges two same-shaped lore lines, replacing differing numeric runs with "min...max".
 function numericDiffMerge(lineMin, lineMax) {
   const re = /\d+(?:[.,]\d+)?/g;
   const numsMin = [...lineMin.matchAll(re)];
@@ -119,9 +95,7 @@ function numericDiffMerge(lineMin, lineMax) {
   return result;
 }
 
-// Builds the "effect" lines shown in the enchant-list hover tooltip: the
-// level-1 description with any level-scaling numbers expanded to a range,
-// e.g. ["§7Increases melee damage dealt by", "§a5...65%"].
+// Builds the enchant-list hover tooltip's effect lines: the level-1 description with level-scaling numbers expanded to a min...max range.
 export function buildEffectLines(levels) {
   if (!levels || levels.length === 0) return null;
   const first = levels[0];
@@ -138,32 +112,17 @@ export function toRoman(level) {
   return ROMAN[level] || String(level);
 }
 
-// weapons.json/armor.json categories don't all match NEU-REPO's own
-// enchant category keys 1:1 — NEU's enchants.json only has SWORD/BOW/
-// LONGSWORD for melee/ranged weapons (verified against a snapshot: no
-// "DUNGEON SWORD", "DUNGEON BOW", or "WAND" key exists at all), so those
-// categories were silently showing zero enchants rather than falling
-// back to the base weapon type they actually share enchants with in the
-// real game. Dungeon Longswords resolve to NEU's real "LONGSWORD" key
-// (a distinct enchant pool from plain swords), not "SWORD". Extend this
-// as armor categories need the same treatment (e.g. a future "DUNGEON
-// HELMET" category, if one turns out not to match NEU's "HELMET" key).
+// Maps weapon/armor categories to NEU-REPO's own enchant-category keys where they differ (mostly Dungeon-prefixed variants).
 const ENCHANT_CATEGORY_ALIASES = {
   'DUNGEON SWORD': 'SWORD',
   'THE WYLD SWORD': 'SWORD',
   WAND: 'SWORD', // Wands/Staffs take Sword enchants in the real game
   'DUNGEON BOW': 'BOW',
   'DUNGEON LONGSWORD': 'LONGSWORD',
-  // Unlike the weapon dungeon variants above, plain HELMET/CHESTPLATE/
-  // LEGGINGS/BOOTS already match NEU's real enchants.json keys directly —
-  // only the DUNGEON-prefixed armor categories need aliasing.
   'DUNGEON HELMET': 'HELMET',
   'DUNGEON CHESTPLATE': 'CHESTPLATE',
   'DUNGEON LEGGINGS': 'LEGGINGS',
   'DUNGEON BOOTS': 'BOOTS',
-  // Same story for equipment: NECKLACE/CLOAK/BELT/GLOVES all match NEU's
-  // enchants.json keys directly (verified against a snapshot), only the
-  // DUNGEON-prefixed variants need aliasing.
   'DUNGEON NECKLACE': 'NECKLACE',
   'DUNGEON CLOAK': 'CLOAK',
   'DUNGEON BELT': 'BELT',
@@ -174,13 +133,7 @@ export function resolveEnchantCategory(category) {
   return ENCHANT_CATEGORY_ALIASES[category] || category;
 }
 
-// NEU-REPO's per-category enchant lists are occasionally missing an
-// enchant entirely, not just filed under an alternate id — verified
-// against the enchant's own real lore/wiki page. Habanero Tactics'
-// pristine lore (ULTIMATE_HABANERO_TACTICS;4/5.json) reads "Applied To:
-// Armor," and its wiki page confirms it can go on any armor piece, but
-// NEU's HELMET/CHESTPLATE/LEGGINGS/BOOTS category lists have no entry
-// for it at all (checked directly, not just under a different id).
+// Enchants NEU-REPO's per-category lists are missing entirely (not just filed under an alternate id).
 const MISSING_CATEGORY_ENCHANTS = {
   HELMET: ['ultimate_habanero_tactics'],
   CHESTPLATE: ['ultimate_habanero_tactics'],
@@ -188,27 +141,14 @@ const MISSING_CATEGORY_ENCHANTS = {
   BOOTS: ['ultimate_habanero_tactics'],
 };
 
-// Same {enchants: {CATEGORY: [ids]}} shape as itemData.enchants, patched
-// with the above — callers should use this instead of reading
-// enchantsMeta.enchants[category] directly.
+// Same {enchants: {CATEGORY: [ids]}} shape as itemData.enchants, patched with MISSING_CATEGORY_ENCHANTS.
 export function getCategoryEnchantIds(enchantsMeta, category) {
   const base = (enchantsMeta && enchantsMeta.enchants && enchantsMeta.enchants[category]) || [];
   const missing = (MISSING_CATEGORY_ENCHANTS[category] || []).filter((id) => !base.includes(id));
   return missing.length > 0 ? [...base, ...missing] : base;
 }
 
-// NEU-REPO's category-list enchant ids don't always match the enchant's real
-// current display name, and titleCaseEnchantId's default "strip ultimate_,
-// title-case the rest" rule is wrong for a few specific ids. Verified against
-// each enchant's own item lore (items/{ID};1.json):
-//  - "ultimate_wise" really does display as "Ultimate Wise" (unlike every
-//    other ultimate, which drops the "Ultimate" word — e.g. ULTIMATE_ONE_FOR_ALL;1
-//    lore says "One For All I", but ULTIMATE_WISE;1 says "Ultimate Wise I").
-//  - "ultimate_reiterate" is the id for what's actually named "Duplex".
-//  - "syphon" is the id for what's actually named "Drain".
-//  - "aiming" is the id for what's actually named "Dragon Tracer".
-//  - "dragon_hunter" is the id for what's actually named "Gravity".
-//  - "magmarizer" is the id for what's actually named "Pyroclasm".
+// Enchant ids whose real display name titleCaseEnchantId's default rule gets wrong.
 const DISPLAY_NAME_OVERRIDES = {
   ultimate_wise: 'Ultimate Wise',
   ultimate_reiterate: 'Duplex',
@@ -218,18 +158,14 @@ const DISPLAY_NAME_OVERRIDES = {
   magmarizer: 'Pyroclasm',
 };
 
-// "ultimate_duplex" is a second, broken category-list entry for the same
-// enchant as "ultimate_reiterate" — probing ULTIMATE_DUPLEX;1..10 all 404,
-// there's no item data behind it at all. Hide it rather than show a dead slot.
+// "ultimate_duplex" is a dead category-list entry with no real item data behind it — hidden rather than shown as a broken slot.
 const HIDDEN_ENCHANT_IDS = new Set(['ultimate_duplex']);
 
 export function isHiddenEnchant(id) {
   return HIDDEN_ENCHANT_IDS.has(id.toLowerCase());
 }
 
-// Strips the "ultimate_" prefix (real lore doesn't include it for most
-// ultimates, e.g. "ultimate_one_for_all" displays as "One For All") before
-// title-casing, except for the overrides above.
+// Strips the "ultimate_" prefix before title-casing, except for the overrides above.
 export function titleCaseEnchantId(id) {
   const key = id.toLowerCase();
   if (DISPLAY_NAME_OVERRIDES[key]) return DISPLAY_NAME_OVERRIDES[key];
@@ -244,33 +180,17 @@ export function isUltimateEnchant(id) {
   return id.toLowerCase().startsWith('ultimate_');
 }
 
-// A short 3-letter badge for each enchant slot on EnchantList.jsx, so a
-// specific enchant is recognizable without hovering — first 3 letters of
-// its displayed name (matching titleCaseEnchantId, so it stays in sync
-// with any of that function's overrides), lowercased. One explicit
-// exception: "One For All" would otherwise read "one", indistinguishable
-// at a glance from any other enchant starting with "On"/"one" — shortened
-// to "ofa" per instruction instead.
+// Short 3-letter badge for an enchant slot on EnchantList.jsx — first 3 letters of its display name, lowercased.
 export function getEnchantCaption(id) {
   const key = id.toLowerCase();
   if (key === 'ultimate_one_for_all') return 'ofa';
   return titleCaseEnchantId(id).replace(/[^A-Za-z]/g, '').slice(0, 3).toLowerCase();
 }
 
-// Some enchants' own "Conflicts:" lore sections still reference the legacy
-// name of an enchant we display under a corrected name (e.g. Life Steal and
-// Mana Steal's lore lists "Syphon", not "Drain" — see DISPLAY_NAME_OVERRIDES),
-// or spell it with punctuation titleCaseEnchantId's plain space-join never
-// produces (Triple Strike's own "Conflicts:" list says "Triple-Strike", with
-// a hyphen — this silently broke First Strike -> Triple Strike removal one
-// direction only, since Triple Strike's own lore names "First Strike" with
-// no punctuation mismatch and matched fine). Normalize those raw names to
-// the same canonical name titleCaseEnchantId produces, so comparisons
-// against currently-applied enchants match.
+// Normalizes an enchant's own "Conflicts:" lore names to the canonical display name titleCaseEnchantId produces.
 const CONFLICT_NAME_ALIASES = { Syphon: 'Drain', 'Triple-Strike': 'Triple Strike' };
 
-// Parses the "§6Conflicts:\n§7- §cName\n§7- §cName\n\n" block real NEU-REPO
-// enchant lore carries, into a plain list of canonical display names.
+// Parses the "Conflicts:" lore block into a plain list of canonical display names.
 function parseConflictNames(lore) {
   const idx = lore.findIndex((line) => line.includes('Conflicts:'));
   if (idx === -1) return [];
@@ -284,24 +204,10 @@ function parseConflictNames(lore) {
   return names;
 }
 
-// Given the enchant being hovered/selected (its id + one level's real lore,
-// conflicts are the same at every level) and the enchants currently applied
-// to the build, returns the applied {id, level, maxLevel} entries that would
-// be removed if this one were applied. Used both to render the "X will be
-// removed" warning and (by BuildContext.applyEnchant) to actually remove them
-// on selection, so the warning is never a broken promise.
-//
-// Handled cases:
-//  - Enchants with an explicit lore "Conflicts:" list (Life Steal/Drain/Mana
-//    Steal, Execute/Prosecute, Giant Killer/Titan Killer, Thunderlord/
-//    Thunderbolt, First Strike/Triple-Strike).
-//  - Any two ultimate enchants: the build only has one ultimate slot, so
-//    picking a different one always replaces the current one.
-//  - "One For All", whose own lore says it removes every other enchant
-//    (normal and ultimate) — it has no lore "Conflicts:" list since the rule
-//    isn't a pairwise conflict, so it's special-cased both directions: hovering
-//    it warns about everything currently applied, and hovering anything else
-//    while it's applied warns that it will be removed.
+// Returns the applied {id, level, maxLevel} entries that would be removed if `id` were applied
+// — used both for the "X will be removed" warning and to actually remove them on selection.
+// Handles lore "Conflicts:" lists, ultimate-enchant slot replacement, and One For All's
+// "removes every other enchant" rule (both directions).
 export function computeConflictingEntries(id, lore, modifiers) {
   if (!modifiers) return [];
   const key = id.toLowerCase();
