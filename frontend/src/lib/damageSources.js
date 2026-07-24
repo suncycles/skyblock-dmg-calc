@@ -90,12 +90,17 @@ export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
    base stats (Damage/Strength/Crit Chance/Crit Damage, summed), % damage
    bonuses split into non-conditional (Sharpness, Giant Killer at its
    capped/"100% uptime" value) vs conditional (Smite -> Wither/Undead/
-   Skeletal, item abilities like "+50% damage to Wither mobs"),
-   multiplicative sources (Crown of Avarice's Nx), and a situational list
-   for formula-based sources with no fixed value (Execute's %-per-missing-
-   HP, or any "damage"-mentioning text that didn't match a known pattern)
-   — excluded from the totals but kept structured (formula/basis/rate) so
-   a future mob-HP simulator can resolve them without re-deriving anything.
+   Skeletal), a separate pair of weaponBonus buckets for the equipped
+   WEAPON's own "+X% damage [to Y]" ability text specifically (Hyperion-
+   line's "+50% damage to Wither mobs", every tiered Slayer weapon,
+   Daedalus Blade's Bestiary bonus, etc. — see lib/finalDamage.js's header
+   comment for why these apply as their own independent factor rather than
+   joining the shared additive pool), multiplicative sources (Crown of
+   Avarice's Nx), and a situational list for formula-based sources with no
+   fixed value (Execute's %-per-missing-HP, or any "damage"-mentioning
+   text that didn't match a known pattern) — excluded from the totals but
+   kept structured (formula/basis/rate) so a future mob-HP simulator can
+   resolve them without re-deriving anything.
 
    Coverage is pattern-based against real, verified NEU-REPO phrasings,
    not a hand-curated table of every enchant/item — see the regexes below
@@ -158,17 +163,18 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
   'WARDEN_HELMET',
-  // Katana line — additive is hardcoded in SLAYER_TIER_BONUSES against
-  // the full Enderman family, not the single "Enderman" the generic scan
-  // would resolve on its own (see that table's own header comment).
+  // All 11 Slayer-line tiered weapons (Katana/Zombie/Spider lines) — each
+  // one's own weaponBonus entry is hardcoded in SLAYER_TIER_BONUSES
+  // instead (see that table's own header comment for why, including why
+  // the Zombie line is excluded here too despite the generic scan being
+  // able to resolve it correctly on its own).
   'ATOMSPLIT_KATANA',
   'VOIDWALKER_KATANA',
   'VOIDEDGE_KATANA',
   'VORPAL_KATANA',
-  // Spider line — the generic scan's target-capture regex breaks on
-  // these 4 items' real "...to and gain +Y Combat Wisdom against
-  // Arthropod mobs" phrasing (see SLAYER_TIER_BONUSES), so both halves
-  // are hardcoded there instead.
+  'REVENANT_SWORD',
+  'REAPER_SWORD',
+  'AXE_OF_THE_SHREDDED',
   'RECLUSE_FANG',
   'TARANTULA_FANG',
   'SCORPION_FOIL',
@@ -183,42 +189,44 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
 // than left unresolved in situational.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 
-// Every tiered Slayer-line weapon that grants BOTH a %-additive damage
-// bonus AND a separate Nx multiplicative boost against the same mob
-// condition, simultaneously (confirmed against manual in-game damage
-// calculations, not just the tooltip's own additive-only phrasing) —
-// per instruction, verified across all 3 real Slayer weapon lines this
-// app tracks (see SLAYER_WEAPON_IDS above for the full real-lore-
-// verified id list these are drawn from):
+// Every tiered Slayer-line weapon's own "+X% damage" bonus against its
+// line's mob family — no additive contribution at all any more (per
+// instruction: Slayer weapons no longer give any additive bonus), just
+// the weapon's own independent (1 + X/100) factor, same treatment as
+// every other weapon with a stated damage bonus (see the weaponBonus
+// buckets' header comment). `bonusPercent` is the exact number the
+// item's own real lore states (e.g. Atomsplit's real "+300% damage to
+// Endermen" -> bonusPercent: 300 -> a (1+3) = 4x factor), covering all
+// 11 tiers/lines this app tracks (see SLAYER_WEAPON_IDS above for the
+// full real-lore-verified id list these are drawn from).
 //
+// All 11 are hardcoded here (and excluded from the generic ability-text
+// scan, see SPECIAL_SCAN_EXCLUDE_IDS) rather than left to that scan to
+// resolve on its own:
 //  - Katana line (Voidgloom Seraph/Enderman): real lore only ever says
-//    "Deal +X% damage to Endermen." — the generic ability-text scan
-//    would resolve that to just the single mob named "Enderman"
-//    (lib/mobTypes.js's resolveMobKey), missing the real Ender-dungeon
-//    "Enderman family" this line is actually built to counter (there's
-//    no Mob Type covering exactly this set — Ender-typed mobs include
-//    plenty these weapons don't affect, e.g. Voidgloom Seraph's own
-//    summons). Hardcoded to ATOMSPLIT_MOBS and excluded from the
-//    generic scan (SPECIAL_SCAN_EXCLUDE_IDS) for all 4 tiers, not just
-//    Atomsplit, since it's the same mechanic at every tier.
-//  - Zombie line (Revenant Horror/Undead): real lore reads cleanly
-//    ("Deal(s) +X% damage to Undead mobs."), auto-resolved by the
-//    generic scan as a correct "Undead"-conditioned additive entry
-//    already (Undead is a real Mob Type) — only the multiplicative
-//    half is added here.
+//    "Deal +X% damage to Endermen." — the generic scan would resolve
+//    that to just the single mob named "Enderman" (lib/mobTypes.js's
+//    resolveMobKey), missing the real Ender-dungeon "Enderman family"
+//    this line is actually built to counter (there's no Mob Type
+//    covering exactly this set — Ender-typed mobs include plenty these
+//    weapons don't affect, e.g. Voidgloom Seraph's own summons).
+//    Hardcoded to ATOMSPLIT_MOBS instead.
 //  - Spider line (Tarantula Broodfather/Arthropod): real lore's
 //    "Deal +X% Damage to and gain +Y Combat Wisdom against Arthropod
 //    mobs" phrasing breaks the generic scan's target-capture regex (it
 //    grabs "and gain +Y Combat Wisdom against Arthropod" as the
 //    "target," which never resolves to any real mob/type — verified
-//    live, the resulting entry never applies to anything). Both halves
-//    hardcoded here instead, same as the Katana line, and excluded from
-//    the generic scan.
+//    live, the resulting entry never applies to anything).
+//  - Zombie line (Revenant Horror/Undead, real names Revenant/Reaper
+//    Falchion and the Axe of the Shredded): real lore reads cleanly
+//    ("Deal(s) +X% damage to Undead mobs.") and the generic scan WOULD
+//    resolve it correctly on its own, but it's still hardcoded here (and
+//    still excluded from the scan) purely so all 11 tiers share one
+//    lookup table rather than splitting sourcing by line.
 //
 // `condition` is either the literal Mob Type string (Zombie/Spider
 // lines) or the full ATOMSPLIT_MOBS array (Katana line, joined at push
-// time). `additivePercent` is omitted for the Zombie line entries since
-// that half already comes from the generic scan.
+// time).
 const ATOMSPLIT_MOBS = [
   'Enderman',
   'Zealot',
@@ -231,19 +239,19 @@ const ATOMSPLIT_MOBS = [
 ];
 
 const SLAYER_TIER_BONUSES = {
-  VOIDWALKER_KATANA: { multiplier: 1.5, additivePercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
-  VOIDEDGE_KATANA: { multiplier: 2, additivePercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
-  VORPAL_KATANA: { multiplier: 2.5, additivePercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
-  ATOMSPLIT_KATANA: { multiplier: 3, additivePercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  VOIDWALKER_KATANA: { bonusPercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  VOIDEDGE_KATANA: { bonusPercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  VORPAL_KATANA: { bonusPercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  ATOMSPLIT_KATANA: { bonusPercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
 
-  REVENANT_SWORD: { multiplier: 1.5, condition: 'Undead' },
-  REAPER_SWORD: { multiplier: 2, condition: 'Undead' },
-  AXE_OF_THE_SHREDDED: { multiplier: 2.5, condition: 'Undead' },
+  REVENANT_SWORD: { bonusPercent: 150, condition: 'Undead' },
+  REAPER_SWORD: { bonusPercent: 200, condition: 'Undead' },
+  AXE_OF_THE_SHREDDED: { bonusPercent: 250, condition: 'Undead' },
 
-  RECLUSE_FANG: { multiplier: 1.5, additivePercent: 150, condition: 'Arthropod' },
-  TARANTULA_FANG: { multiplier: 2, additivePercent: 200, condition: 'Arthropod' },
-  SCORPION_FOIL: { multiplier: 2.5, additivePercent: 250, condition: 'Arthropod' },
-  STING: { multiplier: 3, additivePercent: 300, condition: 'Arthropod' },
+  RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
+  TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
+  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
+  STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
 
 // Crown of Avarice's "Celebration" skin (raffle/giveaway cosmetic
@@ -603,7 +611,15 @@ function matchDamageParagraph(text) {
   return null;
 }
 
-function pushParagraphMatch(out, text, label, source, id) {
+// `asWeaponBonus`: true when `text` comes from the equipped WEAPON's own
+// lore (not armor/equipment/pet) — a "+X% damage [to Y]" match found
+// there is the weapon's own damage-bonus ability (Hyperion-line's "+50%
+// to Wither", a Slayer weapon's own tier text, etc.), so it's routed
+// into the weaponBonus buckets instead of the general additive ones. The
+// "Nx damage" multiplicative shape (matchDamageParagraph's `multiplicative`
+// branch) isn't redirected — no currently-tracked weapon uses that
+// phrasing on itself, and it's a structurally different real mechanic.
+function pushParagraphMatch(out, text, label, source, id, asWeaponBonus) {
   const match = matchDamageParagraph(text);
   if (!match) return;
   if (match.bucket === 'situational') {
@@ -611,16 +627,20 @@ function pushParagraphMatch(out, text, label, source, id) {
   } else if (match.bucket === 'multiplicative') {
     out.multiplicative.push({ id, label, source, value: match.value, condition: match.condition });
   } else if (match.bucket === 'additiveConditional') {
-    out.additiveConditional.push({ id, label, source, value: match.value, condition: match.condition });
+    const bucket = asWeaponBonus ? out.weaponBonusConditional : out.additiveConditional;
+    bucket.push({ id, label, source, value: match.value, condition: match.condition });
   } else {
-    out.additiveNonConditional.push({ id, label, source, value: match.value });
+    const bucket = asWeaponBonus ? out.weaponBonusNonConditional : out.additiveNonConditional;
+    bucket.push({ id, label, source, value: match.value });
   }
 }
 
-function scanItemAbilityText(lore, label, source, out, idPrefix) {
+function scanItemAbilityText(lore, label, source, out, idPrefix, asWeaponBonus) {
   splitParagraphs(lore)
     .filter((p) => !isStatBlockParagraph(p))
-    .forEach((p, idx) => pushParagraphMatch(out, stripToPlain(stripLeadingHeaderLine(p)), label, source, `${idPrefix}-${idx}`));
+    .forEach((p, idx) =>
+      pushParagraphMatch(out, stripToPlain(stripLeadingHeaderLine(p)), label, source, `${idPrefix}-${idx}`, asWeaponBonus),
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -635,23 +655,16 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
   if (!bonus) return;
 
   if (config.kind === 'bestiary') {
-    out.additiveConditional.push({
+    // Daedalus Blade's Bestiary bonus is the weapon's own "+X% damage"
+    // ability — no separate additive contribution any more, same
+    // independent (1 + X/100) treatment as every other weapon with a
+    // stated damage bonus (see the weaponBonus buckets' header comment),
+    // Mythological-only per the item's own real lore.
+    out.weaponBonusConditional.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Bestiary)`,
       source: slotLabel,
       value: bonus,
-      condition: 'Mythological',
-    });
-    // Per manual calculations (not published in the item's own lore): the
-    // same Bestiary bonus also grants a multiplicative factor equal to
-    // 1% of its additive percent, e.g. a 245% additive bonus is also a
-    // 2.45x multiplier — stacked on top of, not instead of, the additive
-    // entry above, same Mythological-only condition.
-    out.multiplicative.push({
-      id: `${item.id}-special-mult`,
-      label: `${itemLabel} (Bestiary)`,
-      source: slotLabel,
-      value: bonus * 0.01,
       condition: 'Mythological',
     });
   } else if (config.kind === 'crownOfAvarice') {
@@ -810,6 +823,16 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
     additiveNonConditional: [],
     additiveConditional: [],
+    // The equipped weapon's own "+X% damage" ability bonuses (Atomsplit,
+    // Daedalus's Bestiary tiers, Hyperion-line's Wither bonus, Slayer
+    // weapon tiers, etc.) — kept in their own pair of buckets, same
+    // conditional/non-conditional split as the additive ones, rather than
+    // folded into the general additive pool. See lib/finalDamage.js's
+    // header comment for why: these apply as their own independent
+    // (1 + weaponBonus/100) factor in the formula, not summed together
+    // with enchants/attributes/etc.
+    weaponBonusNonConditional: [],
+    weaponBonusConditional: [],
     multiplicative: [],
     situational: [],
   };
@@ -911,7 +934,11 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
 
     if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {
-      scanItemAbilityText(equipped.item.lore, itemLabel, slotLabel, out, `${slot}-ability`);
+      // A weapon's own "+X% damage [to Y]" ability text is the weapon's
+      // own damage bonus (see the weaponBonus buckets' own comment) —
+      // only the weapon slot gets this treatment, armor/equipment/pet
+      // ability text stays in the general additive pool as before.
+      scanItemAbilityText(equipped.item.lore, itemLabel, slotLabel, out, `${slot}-ability`, slot === 'weapon');
     }
 
     collectSpecialMechanicEntries(equipped.item, equipped.modifiers, itemLabel, slotLabel, out);
@@ -930,22 +957,13 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       const conditionLabel = tierBonus.conditionLabel || tierBonus.condition;
       const condition = Array.isArray(tierBonus.condition) ? tierBonus.condition.join(', ') : tierBonus.condition;
       const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
-      out.multiplicative.push({
-        id: `${idBase}-tier-mult`,
+      out.weaponBonusConditional.push({
+        id: `${idBase}-tier-bonus`,
         label: `${itemLabel} (${conditionLabel})`,
         source: slotLabel,
-        value: tierBonus.multiplier,
+        value: tierBonus.bonusPercent,
         condition,
       });
-      if (tierBonus.additivePercent != null) {
-        out.additiveConditional.push({
-          id: `${idBase}-tier-additive`,
-          label: `${itemLabel} (${conditionLabel})`,
-          source: slotLabel,
-          value: tierBonus.additivePercent,
-          condition,
-        });
-      }
     }
 
     if (equipped.item.id === 'CROWN_OF_AVARICE_CELEBRATION') {

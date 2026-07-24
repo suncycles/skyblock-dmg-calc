@@ -201,6 +201,14 @@ export default function DamageSources() {
                       <span className="text-right font-mono">
                         +{round1(finalDamage.additivePercent)}% (x{round4(finalDamage.additiveMultiplier)})
                       </span>
+                      {finalDamage.weaponBonusPercent !== 0 && (
+                        <>
+                          <span>Weapon Bonus Multiplier</span>
+                          <span className="text-right font-mono">
+                            +{round1(finalDamage.weaponBonusPercent)}% (x{round4(finalDamage.weaponBonusMultiplier)})
+                          </span>
+                        </>
+                      )}
                       <span>Multiplicative Multiplier</span>
                       <span className="text-right font-mono">{round4(finalDamage.multiplicativeMultiplier)}x</span>
                       {finalDamage.bonusModifiers !== 0 && (
@@ -353,6 +361,30 @@ export default function DamageSources() {
                   <>
                     +{round1(e.value)}% to <Keyworded text={e.condition} />
                   </>
+                }
+                source={e.source}
+                applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
+              />
+            ))}
+          </Section>
+
+          <Section
+            title="Weapon Damage Bonus"
+            subtitle="The equipped weapon's own '+X% damage' ability — its own independent multiplier, separate from Additive Damage above."
+            empty="None equipped."
+          >
+            {[...result.weaponBonusNonConditional, ...result.weaponBonusConditional].map((e) => (
+              <Row
+                key={e.id}
+                left={e.label}
+                right={
+                  e.condition ? (
+                    <>
+                      +{round1(e.value)}% to <Keyworded text={e.condition} />
+                    </>
+                  ) : (
+                    `+${round1(e.value)}%`
+                  )
                 }
                 source={e.source}
                 applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
