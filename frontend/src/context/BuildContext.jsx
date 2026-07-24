@@ -10,6 +10,7 @@ const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
+const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 
 const BuildContext = createContext(null);
 
@@ -40,6 +41,20 @@ function loadInitialTargetMobs() {
 // than living in playerStats or loadout.
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
+}
+
+// The target's current HP%, 0-100 — resolves Execute/Prosecute's real
+// "% per point of missing/current HP" formulas into a fixed number
+// (see lib/damageSources.js), and gates First Strike/Triple-Strike's
+// "first hit(s) on a mob" bonus to only apply at 100 (a fresh, full-
+// health target). Global to the whole calc, not per selected target
+// mob, same "one small persisted concern" precedent as godPotionActive.
+// Defaults to 100 — a fresh engagement, matching First Strike/Triple-
+// Strike's own default-active assumption.
+function loadInitialMobHpPercent() {
+  const stored = localStorage.getItem(MOB_HP_PERCENT_KEY);
+  const parsed = stored != null ? Number(stored) : 100;
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 100;
 }
 
 // Flat, manually-entered "everything else" Strength/Crit Damage — the
@@ -193,6 +208,13 @@ export function BuildProvider({ children }) {
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
+  const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
+
+  const setMobHpPercent = useCallback((value) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    setMobHpPercentState(clamped);
+    localStorage.setItem(MOB_HP_PERCENT_KEY, String(clamped));
+  }, []);
 
   const setAttributeLevel = useCallback((id, level) => {
     setAttributesState((prev) => {
@@ -512,6 +534,8 @@ export function BuildProvider({ children }) {
         setAttributeLevel,
         miscStats,
         setMiscStat,
+        mobHpPercent,
+        setMobHpPercent,
         selectItem,
         removeSlot,
         applyEnchant,

@@ -411,7 +411,13 @@ const PER_TARGET_STAT_RE =
 // computeConflictingEntries in lib/enchantEffects.js).
 const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
 
-async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out) {
+// First Strike/Triple-Strike's "for the first hit(s) on a mob" bonus
+// only ever applies at the start of a fight — modeled as active only
+// when the mob HP slider (see BuildContext.jsx's mobHpPercent) reads
+// 100%, per instruction, rather than trying to model per-hit sequencing.
+const FIRST_HIT_ENCHANT_IDS = new Set(['first_strike', 'triple_strike']);
+
+async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out, mobHpPercent) {
   for (const entry of entries) {
     if (entry.id.toLowerCase() === 'ultimate_one_for_all') {
       out.additiveNonConditional.push({
@@ -441,7 +447,24 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
       const ratePerLevel = parseFloat(m[1]);
       const basis = m[2].trim();
       const cap = m[3] != null ? parseFloat(m[3]) : null;
-      if (entry.id.toLowerCase() === 'giant_killer' && cap != null) {
+      const key = entry.id.toLowerCase();
+      // Execute/Prosecute's own lore text already gives this level's
+      // real, already-scaled rate (ratePerLevel) — not a per-level
+      // formula constant needing further multiplication. Resolved
+      // against the mob HP slider: Execute scales off missing HP
+      // (100 - mobHpPercent), Prosecute off current HP (mobHpPercent) —
+      // real lore confirms both ("...missing on your target" vs
+      // "...your target has"), verified this session against
+      // EXECUTE/PROSECUTE;1-6.json (rates aren't linear across levels —
+      // e.g. Prosecute VI is 1%/point, not 6x level I's 0.1% — so the
+      // fetched per-level text is trusted over any formula).
+      if (key === 'execute' || key === 'prosecute') {
+        const hpBasis = key === 'execute' ? 100 - mobHpPercent : mobHpPercent;
+        const value = Math.round(ratePerLevel * hpBasis * 100) / 100;
+        if (value > 0) {
+          out.additiveNonConditional.push({ id, label: `${name} (at ${mobHpPercent}% HP)`, source, value });
+        }
+      } else if (key === 'giant_killer' && cap != null) {
         out.additiveNonConditional.push({ id, label: name, source, value: cap });
       } else {
         out.situational.push({ id, label: name, source, note: text, formula: { kind: 'per-target-stat', basis, ratePerLevel, cap } });
@@ -462,6 +485,13 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         const mobTypes = ENCHANT_ID_MOB_TYPES[entry.id.toLowerCase()];
         const condition = mobTypes ? mobTypes.join(', ') : cleanTargetText(m[1]);
         out.additiveConditional.push({ id, label: name, source, value, condition });
+      } else if (FIRST_HIT_ENCHANT_IDS.has(entry.id.toLowerCase())) {
+        // Only counted at 100% mob HP (see FIRST_HIT_ENCHANT_IDS above);
+        // silently excluded otherwise, same "no partial credit" treatment
+        // as Habanero Tactics' weapon-gated bonus.
+        if (mobHpPercent === 100) {
+          out.additiveNonConditional.push({ id, label: `${name} (first hit, 100% HP)`, source, value });
+        }
       } else {
         out.additiveNonConditional.push({ id, label: name, source, value });
       }
@@ -705,7 +735,7 @@ function collectAttributeEntries(attributes, loadout, out) {
 }
 
 // ---------------------------------------------------------------------
-export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats) {
+export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent = 100) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
@@ -785,7 +815,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
     ];
     if (enchantEntries.length > 0) {
-      await collectEnchantEntries(enchantEntries, itemLabel, slotLabel, itemData.enchants, out);
+      await collectEnchantEntries(enchantEntries, itemLabel, slotLabel, itemData.enchants, out, mobHpPercent);
     }
 
     if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {
