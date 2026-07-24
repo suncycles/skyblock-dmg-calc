@@ -1,39 +1,27 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
+import { useTooltip } from '../context/TooltipContext';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
+import { getMobIconDataUri } from '../lib/mobIcons';
 import { SLOT_TEXTURES } from '../lib/icons';
-
-const panel =
-  'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
 const ALL_MOB_NAMES = Object.keys(MOB_TYPES).sort((a, b) => a.localeCompare(b));
 
-function TypePills({ types }) {
-  return (
-    <div className="flex flex-wrap gap-1">
-      {types.map((t) => {
-        const meta = MOB_TYPE_SYMBOLS[t];
-        return (
-          <span key={t} className="text-[11px] font-mono" style={{ color: meta.color }}>
-            {meta.symbol} {t}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-// Picking the mob lib/finalDamage.js computes Final Damage against — a
-// plain search-and-scroll list rather than the chest-GUI grid other
-// pickers use, since mobs have no icon assets (see lib/mobTypes.js's
-// MOB_TYPES, scraped from the wiki's Mob Types/List page) and a flat list
-// with each mob's type pills visible is more scannable for 211 entries
-// than a paginated grid would be.
+// Picking the mob(s) lib/finalDamage.js computes Final Damage against — a
+// chest-GUI-style grid, matching every other picker in the app, rather
+// than the flat search list this used to be. Mobs have no unique head/
+// skin asset anywhere in this app's data (NEU-REPO only covers items),
+// so each tile shows a Minecraft-style "spawn egg" icon for the mob's
+// classified underlying vanilla entity instead (see lib/mobIcons.js) —
+// approximate, not exact art, but far more scannable than plain text
+// across 211 entries. Click toggles a mob in/out of the multi-select
+// target list (BuildContext's targetMobs) rather than picking one and
+// navigating away.
 export default function TargetMobPicker() {
   const navigate = useNavigate();
   const { targetMobs, toggleTargetMob } = useBuild();
+  const { showTooltip, hideTooltip } = useTooltip();
   const [query, setQuery] = useState('');
 
   const visible = useMemo(() => {
@@ -41,6 +29,11 @@ export default function TargetMobPicker() {
     if (!q) return ALL_MOB_NAMES;
     return ALL_MOB_NAMES.filter((name) => name.toLowerCase().includes(q));
   }, [query]);
+
+  function handleHover(name, e) {
+    const types = MOB_TYPES[name] || [];
+    showTooltip([`§d§l${name}`, `§7Types: §f${types.join(', ')}`], e.currentTarget);
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -70,28 +63,38 @@ export default function TargetMobPicker() {
           onChange={(e) => setQuery(e.target.value)}
         />
 
-        <div className={`${panel} max-h-[60vh] overflow-y-auto`}>
-          {visible.length === 0 ? (
-            <div className="p-3 text-sm text-black italic">No mobs match "{query}".</div>
-          ) : (
-            visible.map((name) => {
+        {visible.length === 0 ? (
+          <div className="text-sm text-neutral-300 italic">No mobs match "{query}".</div>
+        ) : (
+          <div className="grid grid-cols-8 gap-1.5">
+            {visible.map((name) => {
               const selected = targetMobs.includes(name);
               return (
                 <div
                   key={name}
-                  className={`flex items-center justify-between gap-3 px-3 py-1.5 border-b border-neutral-500 last:border-b-0 cursor-pointer hover:bg-neutral-300 ${selected ? 'bg-green-300' : ''}`}
+                  className={`relative flex flex-col items-center justify-center gap-1 aspect-square border p-1.5 cursor-pointer overflow-hidden ${
+                    selected
+                      ? 'bg-green-400 border-green-700 hover:bg-green-300'
+                      : 'bg-neutral-500 border-neutral-700 hover:bg-neutral-400'
+                  }`}
                   onClick={() => toggleTargetMob(name)}
+                  onMouseEnter={(e) => handleHover(name, e)}
+                  onMouseLeave={hideTooltip}
                 >
-                  <span className="text-sm font-bold text-black whitespace-nowrap">
-                    {selected ? '✓ ' : ''}
+                  <img src={getMobIconDataUri(name)} alt={name} className="w-[60%] h-[60%] object-contain pixelated" />
+                  <div className="w-full text-center text-[9px] leading-tight truncate text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
                     {name}
-                  </span>
-                  <TypePills types={MOB_TYPES[name]} />
+                  </div>
+                  {selected && (
+                    <span className="absolute top-0.5 right-0.5 text-[10px] leading-none text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+                      ✓
+                    </span>
+                  )}
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
