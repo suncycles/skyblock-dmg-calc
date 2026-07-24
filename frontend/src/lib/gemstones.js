@@ -44,13 +44,15 @@ function findGemIdByStatLabel(statLabel) {
   return Object.keys(GEMSTONES).find((id) => GEMSTONES[id].statLabel === statLabel);
 }
 
-// §a (green) — distinct from Reforges' blue, Books' yellow, and Enchant
-// stat bonuses' light purple (itemTooltip.js's ENCHANT_STAT_COLOR, also
-// 'd' — a real collision with the previous pink choice here caused
-// sumStatFromTooltipLines' gemstone-echo exclusion to also swallow a
-// same-line enchant's own genuine paren, e.g. Critical's Crit Damage
-// bonus silently vanishing whenever Onyx was socketed on the same item).
-export const GEMSTONE_COLOR = 'a';
+// §p — a deep pink, app-only extension of the vanilla 16-color palette
+// (see lib/mcText.js's MC_COLORS) so this can stay pink without
+// colliding with 'd', the real vanilla code Enchant stat bonuses use
+// (itemTooltip.js's ENCHANT_STAT_COLOR). Real 'd' collided here once
+// already — sumStatFromTooltipLines' gemstone-echo exclusion matched on
+// color alone and also swallowed a same-line enchant's own genuine
+// paren, e.g. Critical's Crit Damage bonus silently vanishing whenever
+// Onyx was socketed on the same item.
+export const GEMSTONE_COLOR = 'p';
 
 // Rebuilds an item's lore with applied gemstones reflected: the
 // "Gemstones:" line's brackets recolor per-slot (bracket color = the
@@ -60,10 +62,13 @@ export const GEMSTONE_COLOR = 'a';
 // +46") — a socketed gemstone is a permanent part of the item's stats, not
 // a swappable modifier, same "improves the base stats" treatment Stars/
 // Reforges get — still echoed alongside it as a pink "(+X)" annotation,
-// same as Reforges' own blue echo, purely for visibility. Falls back to a
-// brand new "§7{Stat}: §{color}+X" line (inserted right before Gemstones:)
-// if the item doesn't already show that stat. `gemstones` is a sparse
-// array indexed by slot position, entries are {gem, tier} or null/undefined.
+// same as Reforges' own blue echo, purely for visibility. Also echoed on
+// a brand new "§7{Stat}: §{color}+X §p(+X)" line (inserted right before
+// Gemstones:) for a stat the item doesn't already show at all — most
+// weapons have no pristine Health/Defense/True Defense line, for
+// instance, so Ruby/Amethyst/Opal would otherwise show no annotation
+// whatsoever despite genuinely applying. `gemstones` is a sparse array
+// indexed by slot position, entries are {gem, tier} or null/undefined.
 export function applyGemstonesToLore(lore, gemstones, itemRarity) {
   if (!lore || !gemstones || gemstones.every((g) => !g)) return lore;
 
@@ -116,7 +121,8 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
     .map((statLabel) => {
       const gemId = findGemIdByStatLabel(statLabel);
       const gem = GEMSTONES[gemId];
-      return `§7${statLabel}: §${gem.valueColor}${formatGemstoneBoost(gemId, totals[statLabel])}`;
+      const formatted = formatGemstoneBoost(gemId, totals[statLabel]);
+      return `§7${statLabel}: §${gem.valueColor}${formatted} §${GEMSTONE_COLOR}(${formatted})`;
     });
 
   if (newLines.length === 0 || gemstoneLineIdx === -1) return result;
