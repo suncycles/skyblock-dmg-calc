@@ -1,34 +1,12 @@
 import { MOB_TYPES } from './mobTypes';
 
-// Skyblock's ~211 mobs (lib/mobTypes.js) have no unique head/skin asset
-// anywhere in this app's bundled data — NEU-REPO only covers inventory
-// items, not mob entities, and most Skyblock mobs are reskins of a
-// vanilla Minecraft entity rather than a genuinely new model. Rather than
-// source (or fabricate) per-mob art, each mob is classified to its
-// underlying vanilla entity type and rendered as a Minecraft-style
-// "spawn egg" icon (two-tone circle) using that entity's real spawn-egg
-// colors — approximate, not pixel-accurate to any shipped asset, but
-// instantly recognizable and requires no external asset fetching at all.
-//
-// Classification is 3-tier, checked in order:
-//  1. NAME_OVERRIDES — exact mob name, for well-known reskins/bosses
-//     whose real name doesn't contain their vanilla base entity's name
-//     (e.g. "Ashfang" is a wolf boss, "Voidgloom Seraph" is Enderman-
-//     based).
-//  2. SUBSTRING_RULES — mob name contains a vanilla entity's own name
-//     (e.g. "Zombie Knight" -> zombie), checked in a specific order so
-//     compound names resolve to their most specific match ("Wither
-//     Skeleton" before the bare "wither"/"skeleton" rules).
-//  3. TYPE_FALLBACK — first matching Skyblock Mob Type (lib/mobTypes.js)
-//     in priority order maps to a representative vanilla entity, so any
-//     mob with no direct name match still gets a thematically sensible
-//     icon rather than a blank tile. Mobs entirely missing from
-//     MOB_TYPES (not yet documented by the wiki — see that file's own
-//     header) fall through to a plain grey "unknown" egg.
-//
-// This is a best-effort approximation, not a verified per-mob mapping —
-// same "documented, not guessed-and-hidden" honesty as MOB_TYPES' own
-// known-incomplete coverage.
+// Skyblock's ~211 mobs have no unique head/skin asset in this app's bundled data, so each mob
+// is classified to its underlying vanilla entity type and rendered as a "spawn egg" icon
+// using that entity's real spawn-egg colors. Classification is 3-tier, checked in order:
+//  1. NAME_OVERRIDES — exact mob name, for reskins/bosses whose name doesn't contain their vanilla base entity's name.
+//  2. SUBSTRING_RULES — mob name contains a vanilla entity's name, most-specific match first.
+//  3. TYPE_FALLBACK — first matching Skyblock Mob Type maps to a representative vanilla
+//     entity; mobs missing from MOB_TYPES fall through to a grey "unknown" egg.
 
 const VANILLA_TYPE_COLORS = {
   zombie: { base: '#4E7A3D', spots: '#2E4A24' },
@@ -60,8 +38,7 @@ const VANILLA_TYPE_COLORS = {
   unknown: { base: '#6B6B6B', spots: '#3D3D3D' },
 };
 
-// Exact mob name -> vanilla type, for reskins/bosses without a matching
-// substring — real Hypixel Skyblock mob knowledge, not inferred.
+// Exact mob name -> vanilla type, for reskins/bosses without a matching substring.
 const NAME_OVERRIDES = {
   Ashfang: 'wolf',
   'Sven Packmaster': 'wolf',
@@ -95,8 +72,7 @@ const NAME_OVERRIDES = {
   'Grim Reaper': 'wither_skeleton',
 };
 
-// Checked in order — earlier (more specific/compound) entries must come
-// before the bare substrings they contain.
+// Checked in order — more specific/compound entries must come before the bare substrings they contain.
 const SUBSTRING_RULES = [
   ['ender dragon', 'ender_dragon'],
   ['dragon', 'ender_dragon'],
@@ -129,8 +105,7 @@ const SUBSTRING_RULES = [
   ['fox', 'fox'],
 ];
 
-// First matching Skyblock Mob Type (in this priority order) maps to a
-// representative vanilla entity — covers any mob with no name match.
+// First matching Skyblock Mob Type (in this priority order) maps to a representative vanilla entity.
 const TYPE_FALLBACK = [
   ['Wither', 'wither_skeleton'],
   ['Skeletal', 'skeleton'],
@@ -171,10 +146,7 @@ export function getMobVanillaType(mobName) {
   return 'unknown';
 }
 
-// Inline SVG "spawn egg" — a base-colored oval with a few irregular
-// spot-colored blobs, mimicking the mottled look of a real Minecraft
-// spawn egg without reproducing any actual texture. Cached per type
-// since the same handful of eggs get reused across ~211 mobs.
+// Inline SVG "spawn egg": a base-colored oval with spot-colored blobs. Cached per type.
 const iconCache = new Map();
 
 function buildSpawnEggSvg(base, spots) {
