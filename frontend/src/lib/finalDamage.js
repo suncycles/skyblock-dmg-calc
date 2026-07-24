@@ -1,7 +1,7 @@
 // Final Damage against a specific target mob.
 //
 //   InitialDamage = (5 + WeaponDMG) * (1 + Strength/100)
-//   FinalDamage   = floor((InitialDamage * AdditiveMultiplier * MultiplicativeMultiplier + BonusModifiers) * (1 + CritDamage/100))
+//   FinalDamage   = floor((InitialDamage * AdditiveMultiplier * WeaponBonusMultiplier * MultiplicativeMultiplier + BonusModifiers) * (1 + CritDamage/100))
 //
 // Strength and CritDamage are weighted equally — both are their own
 // independent (1 + stat/100) factor, one applied before the additive/
@@ -12,15 +12,28 @@
 // Dragon's Legendary Treasure, Combat Level, etc.) is just added
 // together: Smite 50% + Sharpness 65% = 115% additive, not compounded.
 // Maps directly onto lib/damageSources.js's `additiveNonConditional` +
-// whichever `additiveConditional` entries match the target.
+// whichever `additiveConditional` entries match the target. The
+// equipped WEAPON's own "+X% damage" ability bonus is NOT part of this
+// pool any more (per instruction) — see WeaponBonusMultiplier below.
 //
-// MultiplicativeMultiplier = product of every applicable "x" bonus —
-// these are few and far between (Crown of Avarice, Skyblock Level, and
-// item-specific ones like Blaze Daggers/Vanquished set/Monster Hunter
-// or Raider set bonuses where modeled) and genuinely multiply rather
-// than add, e.g. a 1B-coin Crown of Avarice (1.15x) on Skyblock Level
-// 500 (1.05x) is 1.15*1.05, not 1.15+1.05-1. Maps onto the
-// `multiplicative` bucket.
+// WeaponBonusMultiplier = 1 + (the equipped weapon's own "+X% damage"
+// ability bonuses, summed) — its own independent factor, structurally
+// like AdditiveMultiplier but kept separate: Atomsplit Katana's real
+// "+300% damage to Endermen" is a weaponBonus of 300, i.e. a (1+3) = 4x
+// factor, not folded into the shared additive pool with enchants/
+// attributes/etc. Maps onto lib/damageSources.js's
+// `weaponBonusNonConditional` + whichever `weaponBonusConditional`
+// entries match the target (Daedalus Blade's Bestiary bonus, the
+// Hyperion/Valkyrie/Astraea/Scylla line's Wither bonus, every tiered
+// Slayer weapon, Pooch Sword's Wolf bonus, etc.)
+//
+// MultiplicativeMultiplier = product of every applicable "x" bonus that
+// ISN'T the equipped weapon's own damage-bonus ability — these are few
+// and far between (Crown of Avarice, Skyblock Level, and armor-set
+// bonuses like Vanquished/Monster Hunter/Raider where modeled) and
+// genuinely multiply rather than add, e.g. a 1B-coin Crown of Avarice
+// (1.15x) on Skyblock Level 500 (1.05x) is 1.15*1.05, not
+// 1.15+1.05-1. Maps onto the `multiplicative` bucket.
 //
 // BonusModifiers is a flat amount added after the additive/
 // multiplicative multiplication but still scaled by Crit Damage — real
@@ -78,7 +91,14 @@ export function conditionMatchesMob(condition, mob) {
 // state this app doesn't model, same as they're excluded from every
 // other total in Damage Sources today.
 export function computeFinalDamage(sources, mob) {
-  const { baseStats, additiveNonConditional, additiveConditional, multiplicative } = sources;
+  const {
+    baseStats,
+    additiveNonConditional,
+    additiveConditional,
+    weaponBonusNonConditional,
+    weaponBonusConditional,
+    multiplicative,
+  } = sources;
   const appliedIds = new Set();
 
   let additivePercent = 0;
@@ -89,6 +109,18 @@ export function computeFinalDamage(sources, mob) {
   for (const e of additiveConditional) {
     if (conditionMatchesMob(e.condition, mob)) {
       additivePercent += e.value;
+      appliedIds.add(e.id);
+    }
+  }
+
+  let weaponBonusPercent = 0;
+  for (const e of weaponBonusNonConditional || []) {
+    weaponBonusPercent += e.value;
+    appliedIds.add(e.id);
+  }
+  for (const e of weaponBonusConditional || []) {
+    if (conditionMatchesMob(e.condition, mob)) {
+      weaponBonusPercent += e.value;
       appliedIds.add(e.id);
     }
   }
@@ -106,14 +138,18 @@ export function computeFinalDamage(sources, mob) {
 
   const initialDamage = (5 + baseStats.damage) * (1 + baseStats.strength / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
+  const weaponBonusMultiplier = 1 + weaponBonusPercent / 100;
   const finalDamage = Math.floor(
-    (initialDamage * additiveMultiplier * multiplicativeMultiplier + bonusModifiers) * (1 + baseStats.crit_damage / 100),
+    (initialDamage * additiveMultiplier * weaponBonusMultiplier * multiplicativeMultiplier + bonusModifiers) *
+      (1 + baseStats.crit_damage / 100),
   );
 
   return {
     initialDamage,
     additiveMultiplier,
     additivePercent,
+    weaponBonusMultiplier,
+    weaponBonusPercent,
     multiplicativeMultiplier,
     bonusModifiers,
     finalDamage,
