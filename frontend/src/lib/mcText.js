@@ -1,13 +1,22 @@
 /* Minecraft/Skyblock §-color-code parsing. Color table is vanilla
-   Minecraft's 16 §-codes. Rarity colors are Hypixel Skyblock's, verified
-   against NEU-REPO's own constants/misc.json "tier_colors" (the same
-   data source the worker pulls from). */
+   Minecraft's 16 §-codes, plus one app-only extension ('p', see below —
+   the parser treats it identically to a real code, it just isn't one).
+   Rarity colors are Hypixel Skyblock's, verified against NEU-REPO's own
+   constants/misc.json "tier_colors" (the same data source the worker
+   pulls from). */
 
 export const MC_COLORS = {
   0: '#000000', 1: '#0000aa', 2: '#00aa00', 3: '#00aaaa',
   4: '#aa0000', 5: '#aa00aa', 6: '#ffaa00', 7: '#aaaaaa',
   8: '#555555', 9: '#5555ff', a: '#55ff55', b: '#55ffff',
   c: '#ff5555', d: '#ff55ff', e: '#ffff55', f: '#ffffff',
+  // 'p' isn't a real vanilla code (all 16 real §-slots above are already
+  // spoken for) — a deliberate app-only extension so Gemstones' bonus
+  // annotation can stay pink without colliding with 'd' (Enchant stat
+  // bonuses' real light-purple), the collision that silently dropped
+  // Critical's Crit Damage bonus whenever Onyx was also socketed. See
+  // lib/gemstones.js's GEMSTONE_COLOR.
+  p: '#ff1493',
 };
 
 export const RARITY_COLORS = {

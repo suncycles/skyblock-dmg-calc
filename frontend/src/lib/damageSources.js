@@ -346,7 +346,7 @@ function sumStatFromTooltipLines(finalLines, label) {
   const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
 
   const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
-  const annotationRe = /§([0-9a-fk-or])\(([+-]?[\d.]+)%?\)/g;
+  const annotationRe = /§([0-9a-fk-orp])\(([+-]?[\d.]+)%?\)/g;
   const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
     .filter((m) => m[1] !== REFORGE_COLOR && m[1] !== BOOKS_COLOR && m[1] !== GEMSTONE_COLOR)
     .map((m) => parseFloat(m[2]));
