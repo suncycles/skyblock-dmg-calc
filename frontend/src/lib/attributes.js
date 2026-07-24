@@ -35,7 +35,6 @@ export const RULER_ATTRIBUTES = [
   'Arcane',
   'Animal',
   'Subterranean',
-  'Elusive',
   'Mythological',
   'Construct',
   'Infernal',

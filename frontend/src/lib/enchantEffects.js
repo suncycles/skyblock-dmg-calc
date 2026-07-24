@@ -259,10 +259,15 @@ export function getEnchantCaption(id) {
 
 // Some enchants' own "Conflicts:" lore sections still reference the legacy
 // name of an enchant we display under a corrected name (e.g. Life Steal and
-// Mana Steal's lore lists "Syphon", not "Drain" — see DISPLAY_NAME_OVERRIDES).
-// Normalize those raw names to the same canonical name titleCaseEnchantId
-// produces, so comparisons against currently-applied enchants match.
-const CONFLICT_NAME_ALIASES = { Syphon: 'Drain' };
+// Mana Steal's lore lists "Syphon", not "Drain" — see DISPLAY_NAME_OVERRIDES),
+// or spell it with punctuation titleCaseEnchantId's plain space-join never
+// produces (Triple Strike's own "Conflicts:" list says "Triple-Strike", with
+// a hyphen — this silently broke First Strike -> Triple Strike removal one
+// direction only, since Triple Strike's own lore names "First Strike" with
+// no punctuation mismatch and matched fine). Normalize those raw names to
+// the same canonical name titleCaseEnchantId produces, so comparisons
+// against currently-applied enchants match.
+const CONFLICT_NAME_ALIASES = { Syphon: 'Drain', 'Triple-Strike': 'Triple Strike' };
 
 // Parses the "§6Conflicts:\n§7- §cName\n§7- §cName\n\n" block real NEU-REPO
 // enchant lore carries, into a plain list of canonical display names.

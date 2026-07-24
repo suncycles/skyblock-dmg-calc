@@ -239,10 +239,10 @@ const ATOMSPLIT_MOBS = [
 ];
 
 const SLAYER_TIER_BONUSES = {
-  VOIDWALKER_KATANA: { bonusPercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
-  VOIDEDGE_KATANA: { bonusPercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
-  VORPAL_KATANA: { bonusPercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
-  ATOMSPLIT_KATANA: { bonusPercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  VOIDWALKER_KATANA: { bonusPercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
+  VOIDEDGE_KATANA: { bonusPercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
+  VORPAL_KATANA: { bonusPercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
+  ATOMSPLIT_KATANA: { bonusPercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
 
   REVENANT_SWORD: { bonusPercent: 150, condition: 'Undead' },
   REAPER_SWORD: { bonusPercent: 200, condition: 'Undead' },
@@ -790,6 +790,12 @@ function collectAttributeEntries(attributes, loadout, out) {
       source: 'Attribute',
       value: ELITE_RATE * eliteLevel,
       condition: ELITE_BOSS_MOBS.join(', '),
+      // Real lore just says "bosses and mini-bosses" — the actual
+      // matching still needs the real mob names (`condition` above,
+      // this app has no boss/miniboss flag to key off instead), but the
+      // displayed condition text (DamageSources.jsx) shows this instead
+      // of the raw 5-name list.
+      conditionLabel: 'bosses and minibosses',
     });
   }
 
@@ -963,6 +969,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         source: slotLabel,
         value: tierBonus.bonusPercent,
         condition,
+        conditionLabel,
       });
     }
 
