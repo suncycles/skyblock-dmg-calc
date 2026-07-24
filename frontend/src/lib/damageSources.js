@@ -174,11 +174,13 @@ const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 // actually built to counter. Hardcoded to the full real mob list per
 // instruction, since there's no Mob Type covering exactly this set
 // (Ender-typed mobs include plenty this weapon doesn't affect, e.g.
-// Voidgloom Seraph's own summons). Per instruction, modeled as a 3x
-// multiplicative boost rather than +300% additive — the in-game tooltip
-// phrasing ("+300% damage") is considered misleading/poorly written for
-// what the ability actually does.
+// Voidgloom Seraph's own summons). Per instruction (confirmed against
+// manual in-game damage calculations), the ability actually grants BOTH
+// a 3x multiplicative boost AND the tooltip's own +300% additive damage
+// — not one or the other — so both are modeled as separate, stacking
+// entries against the same mob list.
 const ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER = 3;
+const ATOMSPLIT_KATANA_ADDITIVE_PERCENT = 300;
 const ATOMSPLIT_KATANA_MOBS = [
   'Enderman',
   'Zealot',
@@ -839,6 +841,13 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         label: `${itemLabel} (Endermen family)`,
         source: slotLabel,
         value: ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER,
+        condition: ATOMSPLIT_KATANA_MOBS.join(', '),
+      });
+      out.additiveConditional.push({
+        id: 'atomsplit-katana-endermen-additive',
+        label: `${itemLabel} (Endermen family)`,
+        source: slotLabel,
+        value: ATOMSPLIT_KATANA_ADDITIVE_PERCENT,
         condition: ATOMSPLIT_KATANA_MOBS.join(', '),
       });
     }
