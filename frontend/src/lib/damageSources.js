@@ -863,6 +863,29 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     );
   }
 
+  // Griffin's "Sacred Strength" perk — real NEU-REPO lore (GRIFFIN;5.json,
+  // fetched this session): "Gain +{0}% Strength when above 85% Health,"
+  // {0} scaling from petnums.json's own level-1/level-100 checkpoints
+  // (0.15% -> 15% at Mythic level 100). Per instruction, the 85%-Health
+  // condition is assumed always satisfied (this app has no live player
+  // HP to gate on, same judgment as the Dominance attribute) — but unlike
+  // Dragon's Greed's Magic Find gap, pet level IS tracked here, so this
+  // scales with the player's actual entered level/rarity rather than
+  // being hardcoded to its max, same "assumed-condition, real-level"
+  // treatment as Ender Dragon's Superior perk. Applied as a % boost on
+  // the fully-summed Strength total so far, same base-stat-source-line
+  // placement as Dragon's Greed above (real Sacred Strength boosts the
+  // player's whole Strength stat, not just the pet's own).
+  if (loadout.pet?.item?.petId === 'GRIFFIN') {
+    const { item: pet, modifiers: petModifiers } = loadout.pet;
+    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+    const otherNums = computeOtherNums(levels, petModifiers.level, getMaxPetLevel(pet.petId));
+    const sacredStrengthPercent = otherNums[0] || 0;
+    if (sacredStrengthPercent) {
+      addBaseStat(out, 'strength', out.baseStats.strength * (sacredStrengthPercent / 100), 'Sacred Strength (assumed active)');
+    }
+  }
+
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
   if (combatLevelBonus) {
     out.additiveNonConditional.push({ id: 'combat-level', label: 'Combat Level', source: 'Player', value: combatLevelBonus });
