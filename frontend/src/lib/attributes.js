@@ -9,9 +9,10 @@
 // damage), the Echo chain (keyword-matching relative boosts to Ruler/
 // Elemental attributes), Strength Elemental, Deadeye (bow-only % damage),
 // Warrior (melee-only % damage — the exact inverse condition of
-// Deadeye), Elite (boss/miniboss % damage — no current mob in
-// lib/mobTypes.js has that flag, so it's always excluded/dimmed in
-// Damage Sources, not a bug), Unlimited Power/Energy (post-everything %
+// Deadeye), Elite (boss/miniboss % damage — this app's mob dataset has
+// no boss/miniboss flag on any entry, so it's scoped to the 5 real
+// Slayer bosses instead, see lib/damageSources.js's ELITE_BOSS_MOBS),
+// Unlimited Power/Energy (post-everything %
 // multipliers on Strength/Crit Damage), Almighty (keyword-matching
 // relative boost to both "Unlimited" attributes, same mechanism as the
 // Echo chain), Tuning Box (+Accessory Tuning points), and Dominance

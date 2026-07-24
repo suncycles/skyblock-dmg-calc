@@ -67,6 +67,14 @@ import {
   computeEchoBoost,
 } from './attributes';
 
+// Elite's real lore says "against bosses and mini-bosses" with no fixed
+// list of its own — this app's mob dataset (lib/mobTypes.js) has no
+// boss/miniboss flag on any entry, so per instruction it's scoped to the
+// 5 real Slayer bosses instead (matched the same way Atomsplit Katana's
+// mob list already is: literal mob names via conditionMatchesMob's
+// resolveMobKey fallback, comma-joined into one condition string).
+const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horror', 'Tarantula Broodfather', 'Sven Packmaster'];
+
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
    base stats (Damage/Strength/Crit Chance/Crit Damage, summed), % damage
@@ -661,7 +669,7 @@ function collectAttributeEntries(attributes, loadout, out) {
       label: 'Elite',
       source: 'Attribute',
       value: ELITE_RATE * eliteLevel,
-      condition: 'Bosses, Miniboss',
+      condition: ELITE_BOSS_MOBS.join(', '),
     });
   }
 
