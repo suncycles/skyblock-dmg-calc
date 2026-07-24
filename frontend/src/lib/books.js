@@ -1,4 +1,4 @@
-import { annotateStatLines } from './statLines';
+import { annotateStatLines, mergeStatIntoBase } from './statLines';
 
 // Hot Potato Book and Fuming Potato Book grant a different bonus
 // depending on what kind of gear it's applied to — verified from
@@ -43,7 +43,13 @@ export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApp
   if (bookCount && gearType !== 'equipment') {
     const perBook = gearType === 'armor' ? ARMOR_BOOK_STAT_BONUS : WEAPON_BOOK_STAT_BONUS;
     const bonuses = Object.fromEntries(Object.entries(perBook).map(([stat, value]) => [stat, value * bookCount]));
-    result = annotateStatLines(result, bonuses, BOOKS_COLOR, insertBeforeLineIdx);
+    // Merged into the item's own base stat number (a book-fed item's
+    // real tooltip shows its TOTAL stat, books included, not a separate
+    // modifier — same "improves the base stats" treatment as Reforges/
+    // Stars/Gemstones) — still annotated with its own delta on top,
+    // purely for visibility, same pattern as Reforges.
+    const merged = mergeStatIntoBase(result, bonuses, insertBeforeLineIdx);
+    result = annotateStatLines(merged, bonuses, BOOKS_COLOR, insertBeforeLineIdx);
   }
   if (artOfWarApplied && gearType === 'weapon') {
     // Recompute the insertion point — the call above may have spliced in

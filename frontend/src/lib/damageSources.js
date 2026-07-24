@@ -1,6 +1,7 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
 import { REFORGE_COLOR, FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
+import { BOOKS_COLOR } from './books';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -329,10 +330,10 @@ function cleanTargetText(raw) {
 // ("(+X)"), never merge, and annotateStatLines' own new-line case
 // matches that same "plain value, no redundant paren" convention — so
 // every "(+X)" anywhere in the final line is a genuinely additional
-// amount NOT already reflected in the leading number, with exactly one
-// exception: Reforges additionally echo their own (already-merged)
-// delta in blue purely for display (see lib/reforges.js), which would
-// double-count if summed here too.
+// amount NOT already reflected in the leading number, with two
+// exceptions: Reforges and Potato Books both additionally echo their
+// own (already-merged) delta purely for display (see lib/reforges.js/
+// lib/books.js), which would double-count if summed here too.
 function sumStatFromTooltipLines(finalLines, label) {
   const labelRe = new RegExp(`^${label}:`);
   const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
@@ -345,7 +346,7 @@ function sumStatFromTooltipLines(finalLines, label) {
   const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
   const annotationRe = /§([0-9a-fk-or])\(([+-]?[\d.]+)%?\)/g;
   const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
-    .filter((m) => m[1] !== REFORGE_COLOR)
+    .filter((m) => m[1] !== REFORGE_COLOR && m[1] !== BOOKS_COLOR)
     .map((m) => parseFloat(m[2]));
 
   return base + parenNums.reduce((a, b) => a + b, 0);
