@@ -33,7 +33,8 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats, targetMob, setTargetMob, godPotionActive, toggleGodPotion, attributes } = useBuild();
+  const { loadout, removeSlot, playerStats, targetMobs, clearTargetMobs, godPotionActive, toggleGodPotion, attributes } =
+    useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
 
@@ -125,20 +126,24 @@ export default function Landing() {
     showTooltip(lines, e.currentTarget);
   }
 
-  // Synchronous — the mob's types are already local (lib/mobTypes.js).
+  // Synchronous — every mob's types are already local (lib/mobTypes.js).
   function handleTargetMobHover(e) {
-    if (!targetMob) {
-      showTooltip(['§7Target Mob', '§8Empty — click to pick one'], e.currentTarget);
+    if (targetMobs.length === 0) {
+      showTooltip(['§7Target Mobs', '§8Empty — click to pick some'], e.currentTarget);
       return;
     }
-    const types = MOB_TYPES[targetMob] || [];
-    showTooltip([`§d§l${targetMob}`, `§7Types: §f${types.join(', ')}`], e.currentTarget);
+    const lines = ['§d§lTarget Mobs'];
+    for (const name of targetMobs) {
+      const types = MOB_TYPES[name] || [];
+      lines.push(`§f${name} §7(${types.join(', ')})`);
+    }
+    showTooltip(lines, e.currentTarget);
   }
 
   function handleTargetMobRemove(e) {
     e.stopPropagation();
     hideTooltip();
-    setTargetMob(null);
+    clearTargetMobs();
   }
 
   // One small helper covers both gear columns — same slot cell shape
@@ -341,9 +346,13 @@ export default function Landing() {
             onMouseLeave={invalidateHover}
           >
             <span className="text-[9px] font-bold text-white text-center px-1 truncate max-w-full drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-              {targetMob || 'Select Mob'}
+              {targetMobs.length === 0
+                ? 'Select Mob'
+                : targetMobs.length === 1
+                  ? targetMobs[0]
+                  : `${targetMobs.length} Mobs`}
             </span>
-            {targetMob && (
+            {targetMobs.length > 0 && (
               <span
                 className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
                 title="Remove Target Mob"
