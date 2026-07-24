@@ -5,6 +5,8 @@ import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
 import { computeFinalDamage } from '../lib/finalDamage';
 import { VANQUISHED_SET_ID } from '../lib/armorSetBonuses';
+import { FABLED_REFORGE_ID } from '../lib/damageSources';
+import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -76,6 +78,21 @@ export default function DamageSources() {
       ? { ...result, multiplicative: result.multiplicative.filter((e) => e.id !== VANQUISHED_SET_ID) }
       : null;
 
+  // Fabled's crit-hit-chance bonus (see lib/reforges.js) is randomized
+  // per hit — the main Final Damage number stays the real "no bonus"
+  // baseline (the marker entry is pushed at 1x), and a second figure is
+  // computed with that entry bumped to the real max (+15%) to show the
+  // actual damage range, same with/without technique as Vanquished above.
+  const hasFabledBonus = result?.multiplicative.some((e) => e.id === FABLED_REFORGE_ID) ?? false;
+  const withFabledMaxResult = hasFabledBonus
+    ? {
+        ...result,
+        multiplicative: result.multiplicative.map((e) =>
+          e.id === FABLED_REFORGE_ID ? { ...e, value: 1 + FABLED_CRIT_BONUS_MAX_PERCENT / 100 } : e,
+        ),
+      }
+    : null;
+
   // Final Damage is computed independently per selected mob (see
   // BuildContext.jsx's targetMobs) so a build can be checked across
   // several targets — e.g. every slayer boss — at once, rather than
@@ -83,13 +100,15 @@ export default function DamageSources() {
   const mobResults = result
     ? targetMobs.map((name) => {
         const types = MOB_TYPES[name] || null;
-        if (!types) return { name, types: null, finalDamage: null, finalDamageWithoutVanquished: null };
+        if (!types)
+          return { name, types: null, finalDamage: null, finalDamageWithoutVanquished: null, finalDamageWithFabledMax: null };
         const mob = { name, types };
         return {
           name,
           types,
           finalDamage: computeFinalDamage(result, mob),
           finalDamageWithoutVanquished: hasVanquishedBonus ? computeFinalDamage(withoutVanquishedResult, mob) : null,
+          finalDamageWithFabledMax: hasFabledBonus ? computeFinalDamage(withFabledMaxResult, mob) : null,
         };
       })
     : [];
@@ -135,7 +154,7 @@ export default function DamageSources() {
               </div>
             </div>
           ) : (
-            mobResults.map(({ name, types, finalDamage, finalDamageWithoutVanquished }) => (
+            mobResults.map(({ name, types, finalDamage, finalDamageWithoutVanquished, finalDamageWithFabledMax }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
                   <span className="text-[13px] font-bold text-black">{name}</span>
@@ -180,29 +199,34 @@ export default function DamageSources() {
                         </>
                       )}
                     </div>
-                    {finalDamageWithoutVanquished ? (
-                      <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-sm font-bold text-black">Final Damage (with Vanquished)</span>
-                          <span className="text-2xl font-mono font-bold text-black">
-                            {finalDamage.finalDamage.toLocaleString()}
-                          </span>
-                        </div>
+                    <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm font-bold text-black">
+                          Final Damage{finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}
+                        </span>
+                        <span className="text-2xl font-mono font-bold text-black">
+                          {finalDamage.finalDamage.toLocaleString()}
+                        </span>
+                      </div>
+                      {finalDamageWithoutVanquished && (
                         <div className="flex items-baseline justify-between">
                           <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
                           <span className="text-base font-mono text-neutral-700">
                             {finalDamageWithoutVanquished.finalDamage.toLocaleString()}
                           </span>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
-                        <span className="text-sm font-bold text-black">Final Damage</span>
-                        <span className="text-2xl font-mono font-bold text-black">
-                          {finalDamage.finalDamage.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
+                      )}
+                      {finalDamageWithFabledMax && (
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs text-neutral-700">
+                            Final Damage (Fabled, up to +{FABLED_CRIT_BONUS_MAX_PERCENT}%)
+                          </span>
+                          <span className="text-base font-mono text-neutral-700">
+                            {finalDamage.finalDamage.toLocaleString()} ~ {finalDamageWithFabledMax.finalDamage.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
