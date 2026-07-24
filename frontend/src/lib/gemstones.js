@@ -1,12 +1,8 @@
 import { rarityColorCode } from './mcText';
 import { GEMSTONES, TIER_TO_RARITY, getGemstoneBoost, formatGemstoneBoost } from './gemstoneData';
 
-// Real Skyblock lore marks gemstone slots as a run of bracket groups on one
-// line, e.g. "§7Gemstones: §8[] [⚔]" (2 slots) or "§7Gemstones: §8[⚔]"
-// (1 slot) — each bracket is a slot regardless of what's inside it (blank
-// for a Universal slot, a restriction icon like ⚔ for a typed one). Slot
-// *type* restrictions aren't modeled — spec says any of the 6 supported
-// gems can go in any slot for now.
+// Gemstone slots are a run of bracket groups on one lore line, e.g. "§7Gemstones: §8[] [⚔]".
+// Slot type restrictions aren't modeled — any of the 6 supported gems can go in any slot.
 function findGemstoneLine(lore) {
   return (lore || []).find((line) => line.includes('Gemstones:'));
 }
@@ -21,11 +17,7 @@ export function hasGemstoneSlots(lore) {
   return countGemstoneSlots(lore) > 0;
 }
 
-// Slots are laid out centered on the grid's middle column: 1 slot sits
-// dead center, additional slots alternate outward from there, skipping the
-// center exactly when the count is even (2 -> one left, one right of
-// center; 4 -> two on each side, center itself empty). Matches the spec's
-// worked examples (1 -> F4; 2 -> E4,G4; 3 -> E4,F4,G4).
+// Slots are centered on the grid's middle column, alternating outward (1 -> center; 2 -> one left/right of center; etc).
 export function gemstoneSlotColumnOffsets(count) {
   if (count <= 0) return [];
   const offsets = [];
@@ -44,31 +36,16 @@ function findGemIdByStatLabel(statLabel) {
   return Object.keys(GEMSTONES).find((id) => GEMSTONES[id].statLabel === statLabel);
 }
 
-// §p — a deep pink, app-only extension of the vanilla 16-color palette
-// (see lib/mcText.js's MC_COLORS) so this can stay pink without
-// colliding with 'd', the real vanilla code Enchant stat bonuses use
-// (itemTooltip.js's ENCHANT_STAT_COLOR). Real 'd' collided here once
-// already — sumStatFromTooltipLines' gemstone-echo exclusion matched on
-// color alone and also swallowed a same-line enchant's own genuine
-// paren, e.g. Critical's Crit Damage bonus silently vanishing whenever
-// Onyx was socketed on the same item.
+// App-only extension of the vanilla color palette (see lib/mcText.js's MC_COLORS) so a
+// gemstone's annotation stays pink without colliding with 'd', the code Enchant stat bonuses use.
 export const GEMSTONE_COLOR = 'p';
 
-// Rebuilds an item's lore with applied gemstones reflected: the
-// "Gemstones:" line's brackets recolor per-slot (bracket color = the
-// gemstone's tier-as-rarity, symbol color = the gemstone's own color), and
-// every boosted stat is merged directly into the item's own base number
-// (e.g. a +30 Strength item with a +16 Jasper socketed shows "Strength:
-// +46") — a socketed gemstone is a permanent part of the item's stats, not
-// a swappable modifier, same "improves the base stats" treatment Stars/
-// Reforges get — still echoed alongside it as a pink "(+X)" annotation,
-// same as Reforges' own blue echo, purely for visibility. Also echoed on
-// a brand new "§7{Stat}: §{color}+X §p(+X)" line (inserted right before
-// Gemstones:) for a stat the item doesn't already show at all — most
-// weapons have no pristine Health/Defense/True Defense line, for
-// instance, so Ruby/Amethyst/Opal would otherwise show no annotation
-// whatsoever despite genuinely applying. `gemstones` is a sparse array
-// indexed by slot position, entries are {gem, tier} or null/undefined.
+// Rebuilds an item's lore with applied gemstones reflected: the "Gemstones:" line's brackets
+// recolor per-slot, and every boosted stat merges directly into the item's own base number
+// (a socketed gemstone is a permanent part of the item's stats), echoed alongside as a pink
+// "(+X)" annotation. Also adds a brand-new stat line for a stat the item doesn't already show
+// (most weapons have no pristine Health/Defense/True Defense line). `gemstones` is a sparse
+// array indexed by slot position, entries are {gem, tier} or null/undefined.
 export function applyGemstonesToLore(lore, gemstones, itemRarity) {
   if (!lore || !gemstones || gemstones.every((g) => !g)) return lore;
 
@@ -93,9 +70,7 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
         if (!entry) return bracket;
         const gem = GEMSTONES[entry.gem];
         const bracketColor = rarityColorCode(TIER_TO_RARITY[entry.tier]);
-        // §-codes don't auto-reset, so without a trailing §8 this slot's
-        // color would bleed into whatever untouched bracket comes next
-        // (the base "§8[...] [...]" line is all dark gray by default).
+        // Trailing §8 resets color so it doesn't bleed into the next untouched bracket.
         return `§${bracketColor}[§${gem.colorCode}${gem.symbol}§${bracketColor}]§8`;
       });
     }
@@ -103,9 +78,7 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
     const plain = line.replace(/§./g, '');
     const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
     if (!labelMatch || totals[labelMatch[2]] === undefined) return line;
-    // Base number is the first §-colored token right after "Label: " —
-    // captured separately from anything after it (a "%" suffix, or a
-    // later modifier's own "(+X)" annotation) so only the base moves.
+    // Captures just the base number after "Label: ", separately from any trailing "%" or annotation.
     const numMatch = /^(.*?:\s*§.)([+-]?[\d.]+)/.exec(line);
     if (!numMatch) return line;
     matchedLabels.add(labelMatch[2]);
