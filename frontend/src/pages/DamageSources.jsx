@@ -282,14 +282,12 @@ export default function DamageSources() {
             </div>
 
             {/* Flat, manually-entered "everything else" Strength/Crit
-                Damage — Fairy Souls, Slayer/Skill level rewards, and the
-                rest of the game's long tail of small permanent bonuses
-                this calculator doesn't model individually. Folded into
-                (Base) Stats' own "Misc" source line — see
+                Damage — Slayer level rewards, specific talisman bonuses, etc
+                . Folded into (Base) Stats' own "Misc" source line — see
                 BuildContext.jsx's miscStats. */}
             <div className={`${panel} p-3 flex flex-col gap-2 w-[160px] shrink-0`}>
               <div className="text-sm font-bold text-black">Misc</div>
-              <div className="text-[11px] text-neutral-700 -mt-1 mb-1">Everything else (Fairy Souls, Slayer/Skill rewards, etc).</div>
+              <div className="text-[11px] text-neutral-700 -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-strength">
                 <span>
                   <Keyworded text="Strength" />
