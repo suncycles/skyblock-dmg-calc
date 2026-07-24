@@ -54,7 +54,18 @@ function Keyworded({ text }) {
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout, playerStats, targetMobs, toggleTargetMob, godPotionActive, attributes, miscStats, setMiscStat } = useBuild();
+  const {
+    loadout,
+    playerStats,
+    targetMobs,
+    toggleTargetMob,
+    godPotionActive,
+    attributes,
+    miscStats,
+    setMiscStat,
+    mobHpPercent,
+    setMobHpPercent,
+  } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -64,10 +75,10 @@ export default function DamageSources() {
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats).then((r) => {
+    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats]);
+  }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent]);
 
   // Vanquished's 1.1x is an undocumented hidden bonus (see
   // lib/armorSetBonuses.js) — shown alongside the real, unboosted number
@@ -304,6 +315,23 @@ export default function DamageSources() {
                   onChange={(e) => setMiscStat('crit_damage', e.target.value)}
                   className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
                 />
+              </label>
+              <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="mob-hp-percent">
+                <span className="flex justify-between">
+                  <span>Mob HP%</span>
+                  <span className="font-mono">{mobHpPercent}%</span>
+                </span>
+                <input
+                  id="mob-hp-percent"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={mobHpPercent}
+                  onChange={(e) => setMobHpPercent(e.target.value)}
+                  className="w-full"
+                />
+                <span className="text-[10px] text-neutral-600 italic">Execute/Prosecute/First Strike/Triple-Strike</span>
               </label>
             </div>
           </div>
