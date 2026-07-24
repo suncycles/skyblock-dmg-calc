@@ -52,7 +52,7 @@ function Keyworded({ text }) {
 // than silently dropped, not counted in any total above.
 export default function DamageSources() {
   const navigate = useNavigate();
-  const { loadout, playerStats, targetMob, godPotionActive, attributes, miscStats, setMiscStat } = useBuild();
+  const { loadout, playerStats, targetMobs, toggleTargetMob, godPotionActive, attributes, miscStats, setMiscStat } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
@@ -67,19 +67,43 @@ export default function DamageSources() {
     });
   }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats]);
 
-  const targetMobTypes = targetMob ? MOB_TYPES[targetMob] : null;
-  const validTarget = targetMob && targetMobTypes;
-  const finalDamage = result && validTarget ? computeFinalDamage(result, { name: targetMob, types: targetMobTypes }) : null;
   // Vanquished's 1.1x is an undocumented hidden bonus (see
   // lib/armorSetBonuses.js) — shown alongside the real, unboosted number
   // rather than silently folded into the one Final Damage figure.
   const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
-  const finalDamageWithoutVanquished =
-    result && validTarget && hasVanquishedBonus
-      ? computeFinalDamage(
-          { ...result, multiplicative: result.multiplicative.filter((e) => e.id !== VANQUISHED_SET_ID) },
-          { name: targetMob, types: targetMobTypes },
-        )
+  const withoutVanquishedResult =
+    result && hasVanquishedBonus
+      ? { ...result, multiplicative: result.multiplicative.filter((e) => e.id !== VANQUISHED_SET_ID) }
+      : null;
+
+  // Final Damage is computed independently per selected mob (see
+  // BuildContext.jsx's targetMobs) so a build can be checked across
+  // several targets — e.g. every slayer boss — at once, rather than
+  // re-picking one mob at a time.
+  const mobResults = result
+    ? targetMobs.map((name) => {
+        const types = MOB_TYPES[name] || null;
+        if (!types) return { name, types: null, finalDamage: null, finalDamageWithoutVanquished: null };
+        const mob = { name, types };
+        return {
+          name,
+          types,
+          finalDamage: computeFinalDamage(result, mob),
+          finalDamageWithoutVanquished: hasVanquishedBonus ? computeFinalDamage(withoutVanquishedResult, mob) : null,
+        };
+      })
+    : [];
+
+  // With multiple targets a source can apply to some and not others —
+  // dimming (see Row's `applied` prop) reads as "applies to at least one
+  // selected mob" rather than a single target's yes/no, undefined (grey,
+  // neutral) when no mob is selected at all.
+  const appliedToAnyMob =
+    mobResults.length > 0
+      ? mobResults.reduce((set, r) => {
+          if (r.finalDamage) for (const id of r.finalDamage.appliedIds) set.add(id);
+          return set;
+        }, new Set())
       : null;
 
   return (
@@ -99,75 +123,91 @@ export default function DamageSources() {
         <div className="w-full max-w-[700px] text-sm text-neutral-300">Calculating...</div>
       ) : (
         <div className="w-full max-w-[700px] flex flex-col gap-3">
-          <div className={`${panel} p-4 flex flex-col gap-2`}>
-            <div className="text-sm font-bold text-black">Final Damage</div>
-            {!validTarget ? (
+          {targetMobs.length === 0 ? (
+            <div className={`${panel} p-4 flex flex-col gap-2`}>
+              <div className="text-sm font-bold text-black">Final Damage</div>
               <div className="text-xs text-neutral-600 italic">
-                {targetMob && !targetMobTypes
-                  ? `"${targetMob}" is no longer in the mob data — `
-                  : 'No target selected — '}
+                No target selected —{' '}
                 <button className="underline cursor-pointer" onClick={() => navigate('/target-mob')}>
                   pick a mob
                 </button>{' '}
                 to compute Final Damage.
               </div>
-            ) : (
-              <>
+            </div>
+          ) : (
+            mobResults.map(({ name, types, finalDamage, finalDamageWithoutVanquished }) => (
+              <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
-                  <span className="text-[13px] font-bold text-black">{targetMob}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {targetMobTypes.map((t) => {
-                      const meta = MOB_TYPE_SYMBOLS[t];
-                      return (
-                        <span key={t} className="text-[10px] font-mono" style={{ color: meta.color }}>
-                          {meta.symbol} {t}
-                        </span>
-                      );
-                    })}
+                  <span className="text-[13px] font-bold text-black">{name}</span>
+                  <div className="flex items-center gap-2">
+                    {types && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {types.map((t) => {
+                          const meta = MOB_TYPE_SYMBOLS[t];
+                          return (
+                            <span key={t} className="text-[10px] font-mono" style={{ color: meta.color }}>
+                              {meta.symbol} {t}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <button
+                      className="text-[10px] px-1.5 py-0.5 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
+                      onClick={() => toggleTargetMob(name)}
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
-                  <span>Initial Damage</span>
-                  <span className="text-right font-mono">{round1(finalDamage.initialDamage)}</span>
-                  <span>Additive Multiplier</span>
-                  <span className="text-right font-mono">
-                    +{round1(finalDamage.additivePercent)}% (x{round4(finalDamage.additiveMultiplier)})
-                  </span>
-                  <span>Multiplicative Multiplier</span>
-                  <span className="text-right font-mono">{round4(finalDamage.multiplicativeMultiplier)}x</span>
-                  {finalDamage.bonusModifiers !== 0 && (
-                    <>
-                      <span>Bonus Modifiers</span>
-                      <span className="text-right font-mono">+{round1(finalDamage.bonusModifiers)}</span>
-                    </>
-                  )}
-                </div>
-                {hasVanquishedBonus ? (
-                  <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-sm font-bold text-black">Final Damage (with Vanquished)</span>
-                      <span className="text-2xl font-mono font-bold text-black">
-                        {finalDamage.finalDamage.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
-                      <span className="text-base font-mono text-neutral-700">
-                        {finalDamageWithoutVanquished.finalDamage.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
+                {!types ? (
+                  <div className="text-xs text-neutral-600 italic">"{name}" is no longer in the mob data.</div>
                 ) : (
-                  <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
-                    <span className="text-sm font-bold text-black">Final Damage</span>
-                    <span className="text-2xl font-mono font-bold text-black">
-                      {finalDamage.finalDamage.toLocaleString()}
-                    </span>
-                  </div>
+                  <>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
+                      <span>Initial Damage</span>
+                      <span className="text-right font-mono">{round1(finalDamage.initialDamage)}</span>
+                      <span>Additive Multiplier</span>
+                      <span className="text-right font-mono">
+                        +{round1(finalDamage.additivePercent)}% (x{round4(finalDamage.additiveMultiplier)})
+                      </span>
+                      <span>Multiplicative Multiplier</span>
+                      <span className="text-right font-mono">{round4(finalDamage.multiplicativeMultiplier)}x</span>
+                      {finalDamage.bonusModifiers !== 0 && (
+                        <>
+                          <span>Bonus Modifiers</span>
+                          <span className="text-right font-mono">+{round1(finalDamage.bonusModifiers)}</span>
+                        </>
+                      )}
+                    </div>
+                    {finalDamageWithoutVanquished ? (
+                      <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm font-bold text-black">Final Damage (with Vanquished)</span>
+                          <span className="text-2xl font-mono font-bold text-black">
+                            {finalDamage.finalDamage.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
+                          <span className="text-base font-mono text-neutral-700">
+                            {finalDamageWithoutVanquished.finalDamage.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
+                        <span className="text-sm font-bold text-black">Final Damage</span>
+                        <span className="text-2xl font-mono font-bold text-black">
+                          {finalDamage.finalDamage.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            ))
+          )}
 
           <div className="flex gap-3 items-start">
             <div className="flex-1">
@@ -265,7 +305,7 @@ export default function DamageSources() {
                   </>
                 }
                 source={e.source}
-                applied={finalDamage ? finalDamage.appliedIds.has(e.id) : undefined}
+                applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
               />
             ))}
           </Section>
@@ -286,7 +326,7 @@ export default function DamageSources() {
                   </>
                 }
                 source={e.source}
-                applied={finalDamage ? finalDamage.appliedIds.has(e.id) : undefined}
+                applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
               />
             ))}
           </Section>

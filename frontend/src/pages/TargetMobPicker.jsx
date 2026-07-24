@@ -33,7 +33,7 @@ function TypePills({ types }) {
 // than a paginated grid would be.
 export default function TargetMobPicker() {
   const navigate = useNavigate();
-  const { setTargetMob } = useBuild();
+  const { targetMobs, toggleTargetMob } = useBuild();
   const [query, setQuery] = useState('');
 
   const visible = useMemo(() => {
@@ -41,11 +41,6 @@ export default function TargetMobPicker() {
     if (!q) return ALL_MOB_NAMES;
     return ALL_MOB_NAMES.filter((name) => name.toLowerCase().includes(q));
   }, [query]);
-
-  function handleSelect(name) {
-    setTargetMob(name);
-    navigate('/');
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -57,10 +52,14 @@ export default function TargetMobPicker() {
           <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4 inline-block mr-1 align-[-2px]" />
           Back
         </button>
-        <h1 className="text-xl font-bold">The Hex — Target Mob</h1>
+        <h1 className="text-xl font-bold">The Hex — Target Mobs</h1>
       </header>
 
       <div className="w-full max-w-[700px] flex flex-col gap-2.5">
+        <div className="text-xs text-neutral-300">
+          Click a mob to add/remove it from your targets. Final Damage is computed against every selected mob.
+          {targetMobs.length > 0 && <span className="text-neutral-100"> ({targetMobs.length} selected)</span>}
+        </div>
         <input
           type="text"
           placeholder="Search mobs..."
@@ -75,16 +74,22 @@ export default function TargetMobPicker() {
           {visible.length === 0 ? (
             <div className="p-3 text-sm text-black italic">No mobs match "{query}".</div>
           ) : (
-            visible.map((name) => (
-              <div
-                key={name}
-                className="flex items-center justify-between gap-3 px-3 py-1.5 border-b border-neutral-500 last:border-b-0 cursor-pointer hover:bg-neutral-300"
-                onClick={() => handleSelect(name)}
-              >
-                <span className="text-sm font-bold text-black whitespace-nowrap">{name}</span>
-                <TypePills types={MOB_TYPES[name]} />
-              </div>
-            ))
+            visible.map((name) => {
+              const selected = targetMobs.includes(name);
+              return (
+                <div
+                  key={name}
+                  className={`flex items-center justify-between gap-3 px-3 py-1.5 border-b border-neutral-500 last:border-b-0 cursor-pointer hover:bg-neutral-300 ${selected ? 'bg-green-300' : ''}`}
+                  onClick={() => toggleTargetMob(name)}
+                >
+                  <span className="text-sm font-bold text-black whitespace-nowrap">
+                    {selected ? '✓ ' : ''}
+                    {name}
+                  </span>
+                  <TypePills types={MOB_TYPES[name]} />
+                </div>
+              );
+            })
           )}
         </div>
       </div>

@@ -5,19 +5,34 @@ import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attr
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
-const TARGET_MOB_KEY = 'hexTargetMob';
+const TARGET_MOB_KEY = 'hexTargetMob'; // legacy single-mob key, read once for migration
+const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 
 const BuildContext = createContext(null);
 
-// The mob Final Damage is computed against (see lib/finalDamage.js) —
-// just a canonical mob name string (a key into lib/mobTypes.js's
-// MOB_TYPES) or null, its own small persisted concern same as
-// playerStats rather than part of the equipment loadout.
-function loadInitialTargetMob() {
-  return localStorage.getItem(TARGET_MOB_KEY) || null;
+// The mob(s) Final Damage is computed against (see lib/finalDamage.js) —
+// canonical mob name strings (keys into lib/mobTypes.js's MOB_TYPES).
+// Final Damage is computed once per selected mob and shown as a list
+// (see DamageSources.jsx), rather than a single target, so builds can be
+// checked across e.g. multiple slayer bosses at once. Migrates the old
+// single-mob key (hexTargetMob) into a one-item array the first time this
+// runs after the multi-mob change, then never reads it again.
+function loadInitialTargetMobs() {
+  const stored = localStorage.getItem(TARGET_MOBS_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed.filter((n) => typeof n === 'string');
+    } catch (err) {
+      console.error('Failed to parse saved target mobs:', err);
+    }
+    return [];
+  }
+  const legacy = localStorage.getItem(TARGET_MOB_KEY);
+  return legacy ? [legacy] : [];
 }
 
 // A simple on/off toggle (see lib/godPotion.js) — not a numeric level or
@@ -174,7 +189,7 @@ function loadInitial() {
 export function BuildProvider({ children }) {
   const [loadout, setLoadout] = useState(loadInitial);
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
-  const [targetMob, setTargetMobState] = useState(loadInitialTargetMob);
+  const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
@@ -196,10 +211,21 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  const setTargetMob = useCallback((name) => {
-    setTargetMobState(name);
-    if (name) localStorage.setItem(TARGET_MOB_KEY, name);
-    else localStorage.removeItem(TARGET_MOB_KEY);
+  // Adds/removes a single mob from the selection — the picker's own click
+  // handler (see TargetMobPicker.jsx), not a full replace.
+  const toggleTargetMob = useCallback((name) => {
+    setTargetMobsState((prev) => {
+      const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
+      localStorage.setItem(TARGET_MOBS_KEY, JSON.stringify(next));
+      localStorage.removeItem(TARGET_MOB_KEY);
+      return next;
+    });
+  }, []);
+
+  const clearTargetMobs = useCallback(() => {
+    setTargetMobsState([]);
+    localStorage.setItem(TARGET_MOBS_KEY, JSON.stringify([]));
+    localStorage.removeItem(TARGET_MOB_KEY);
   }, []);
 
   const toggleGodPotion = useCallback(() => {
@@ -477,8 +503,9 @@ export function BuildProvider({ children }) {
         setForagingLevel,
         setCatacombsLevel,
         setTamingLevel,
-        targetMob,
-        setTargetMob,
+        targetMobs,
+        toggleTargetMob,
+        clearTargetMobs,
         godPotionActive,
         toggleGodPotion,
         attributes,
