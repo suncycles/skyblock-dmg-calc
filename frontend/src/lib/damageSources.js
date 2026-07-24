@@ -181,6 +181,15 @@ const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 // entries against the same mob list.
 const ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER = 3;
 const ATOMSPLIT_KATANA_ADDITIVE_PERCENT = 300;
+
+// Halberd of the Shredded's real lore ("Deal +250% damage to Undead
+// mobs.") is already picked up as a plain +250% additive entry by the
+// generic ability-text scan below — per instruction (same "confirmed via
+// manual in-game calculations" precedent as Atomsplit Katana), it also
+// grants a 2.5x multiplicative boost against the same Undead condition,
+// stacking on top of that additive bonus rather than replacing it.
+const AXE_OF_THE_SHREDDED_DAMAGE_MULTIPLIER = 2.5;
+const AXE_OF_THE_SHREDDED_CONDITION = 'Undead';
 const ATOMSPLIT_KATANA_MOBS = [
   'Enderman',
   'Zealot',
@@ -849,6 +858,16 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         source: slotLabel,
         value: ATOMSPLIT_KATANA_ADDITIVE_PERCENT,
         condition: ATOMSPLIT_KATANA_MOBS.join(', '),
+      });
+    }
+
+    if (equipped.item.id === 'AXE_OF_THE_SHREDDED') {
+      out.multiplicative.push({
+        id: 'axe-of-the-shredded-undead',
+        label: `${itemLabel} (Undead)`,
+        source: slotLabel,
+        value: AXE_OF_THE_SHREDDED_DAMAGE_MULTIPLIER,
+        condition: AXE_OF_THE_SHREDDED_CONDITION,
       });
     }
 
