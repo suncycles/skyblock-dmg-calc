@@ -1,3 +1,8 @@
 .claude
 dist
-scripts/
+node_modules/
+.wrangler/
+
+# Root-only: deploy-pages.sh and friends, not worker/scripts/ (real
+# tracked source — the old unanchored "scripts/" pattern matched both).
+/scripts/
