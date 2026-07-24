@@ -515,6 +515,51 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers, attributes.tuning_box],
   );
 
+  // Overwrites the ENTIRE build state at once — loadout, target mobs,
+  // Attributes, player levels, God Potion, Misc stats, and Mob HP% — and
+  // persists each to its existing localStorage key, same shape every
+  // individual setter above already uses. Powers Import and the
+  // /loadout/:code share-link route (see lib/loadoutCode.js's
+  // decodeLoadoutCode, which already fills in every field below with a
+  // safe default, but this re-defaults defensively too in case of a
+  // hand-edited/older-format code).
+  const loadFullState = useCallback((state) => {
+    const nextLoadout = state.loadout || {};
+    setLoadout(nextLoadout);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLoadout));
+
+    const nextPlayerStats = {
+      combatLevel: 0,
+      skyblockLevel: 0,
+      foragingLevel: 0,
+      catacombsLevel: 0,
+      tamingLevel: 0,
+      ...(state.playerStats || {}),
+    };
+    setPlayerStats(nextPlayerStats);
+    localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(nextPlayerStats));
+
+    const nextTargetMobs = state.targetMobs || [];
+    setTargetMobsState(nextTargetMobs);
+    localStorage.setItem(TARGET_MOBS_KEY, JSON.stringify(nextTargetMobs));
+    localStorage.removeItem(TARGET_MOB_KEY);
+
+    setGodPotionActiveState(!!state.godPotionActive);
+    localStorage.setItem(GOD_POTION_KEY, String(!!state.godPotionActive));
+
+    const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
+    setAttributesState(nextAttributes);
+    localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(nextAttributes));
+
+    const nextMiscStats = { strength: 0, crit_damage: 0, ...(state.miscStats || {}) };
+    setMiscStatsState(nextMiscStats);
+    localStorage.setItem(MISC_STATS_KEY, JSON.stringify(nextMiscStats));
+
+    const clampedMobHp = Math.max(0, Math.min(100, Math.round(Number(state.mobHpPercent) || 100)));
+    setMobHpPercentState(clampedMobHp);
+    localStorage.setItem(MOB_HP_PERCENT_KEY, String(clampedMobHp));
+  }, []);
+
   return (
     <BuildContext.Provider
       value={{
@@ -554,6 +599,7 @@ export function BuildProvider({ children }) {
         setPetGoldCollection,
         setAccessoryMagicalPower,
         setAccessoryTuningPoint,
+        loadFullState,
       }}
     >
       {children}
