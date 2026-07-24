@@ -359,7 +359,7 @@ export default function DamageSources() {
                 left={e.label}
                 right={
                   <>
-                    +{round1(e.value)}% to <Keyworded text={e.condition} />
+                    +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
                   </>
                 }
                 source={e.source}
@@ -370,7 +370,7 @@ export default function DamageSources() {
 
           <Section
             title="Weapon Damage Bonus"
-            subtitle="The equipped weapon's own '+X% damage' ability — its own independent multiplier, separate from Additive Damage above."
+            subtitle="The equipped weapon's '+X% damage' ability"
             empty="None equipped."
           >
             {[...result.weaponBonusNonConditional, ...result.weaponBonusConditional].map((e) => (
@@ -380,7 +380,7 @@ export default function DamageSources() {
                 right={
                   e.condition ? (
                     <>
-                      +{round1(e.value)}% to <Keyworded text={e.condition} />
+                      +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
                     </>
                   ) : (
                     `+${round1(e.value)}%`
