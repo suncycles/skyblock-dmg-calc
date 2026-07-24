@@ -44,14 +44,19 @@ function findGemIdByStatLabel(statLabel) {
   return Object.keys(GEMSTONES).find((id) => GEMSTONES[id].statLabel === statLabel);
 }
 
+// §d (pink) — distinct from Reforges' blue and Books' yellow, matches
+// the real gemstone-menu pink used elsewhere in this app.
+export const GEMSTONE_COLOR = 'd';
+
 // Rebuilds an item's lore with applied gemstones reflected: the
 // "Gemstones:" line's brackets recolor per-slot (bracket color = the
 // gemstone's tier-as-rarity, symbol color = the gemstone's own color), and
 // every boosted stat is merged directly into the item's own base number
 // (e.g. a +30 Strength item with a +16 Jasper socketed shows "Strength:
-// +46") rather than a separate "(+X)" annotation — a socketed gemstone is
-// a permanent part of the item's stats, not a swappable modifier, same
-// "improves the base stats" treatment Stars/Reforges get. Falls back to a
+// +46") — a socketed gemstone is a permanent part of the item's stats, not
+// a swappable modifier, same "improves the base stats" treatment Stars/
+// Reforges get — still echoed alongside it as a pink "(+X)" annotation,
+// same as Reforges' own blue echo, purely for visibility. Falls back to a
 // brand new "§7{Stat}: §{color}+X" line (inserted right before Gemstones:)
 // if the item doesn't already show that stat. `gemstones` is a sparse
 // array indexed by slot position, entries are {gem, tier} or null/undefined.
@@ -95,9 +100,11 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
     const numMatch = /^(.*?:\s*§.)([+-]?[\d.]+)/.exec(line);
     if (!numMatch) return line;
     matchedLabels.add(labelMatch[2]);
-    const merged = Math.round((parseFloat(numMatch[2]) + totals[labelMatch[2]]) * 10) / 10;
+    const bonus = totals[labelMatch[2]];
+    const merged = Math.round((parseFloat(numMatch[2]) + bonus) * 10) / 10;
     const sign = merged >= 0 ? '+' : '';
-    return `${numMatch[1]}${sign}${merged}${line.slice(numMatch[0].length)}`;
+    const gemId = findGemIdByStatLabel(labelMatch[2]);
+    return `${numMatch[1]}${sign}${merged}${line.slice(numMatch[0].length)} §${GEMSTONE_COLOR}(${formatGemstoneBoost(gemId, bonus)})`;
   });
 
   const newLines = Object.keys(totals)
