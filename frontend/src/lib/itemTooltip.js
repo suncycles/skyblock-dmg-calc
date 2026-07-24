@@ -3,7 +3,7 @@ import { titleCaseEnchantId, toRoman, fetchEnchantLevels, extractDescriptionLine
 import { parseEnchantStatBonus } from './enchantStats';
 import { annotateStatLines, mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
-import { applyReforgeToLore } from './reforges';
+import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore, computeDaedalusTamingBonus } from './specialWeapons';
 import { computeStarBonuses, buildStarSuffix } from './starring';
@@ -123,6 +123,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
   if (modifiers.recombobulated) lore = applyRecombToLore(lore, item.tier);
+  lore = applyFabledToLore(lore, modifiers.reforge);
 
   const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
   const starSuffix = buildStarSuffix(modifiers.stars);

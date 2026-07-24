@@ -1,6 +1,6 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
-import { REFORGE_COLOR } from './reforges';
+import { REFORGE_COLOR, FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -74,6 +74,14 @@ import {
 // mob list already is: literal mob names via conditionMatchesMob's
 // resolveMobKey fallback, comma-joined into one condition string).
 const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horror', 'Tarantula Broodfather', 'Sven Packmaster'];
+
+// Fabled's crit-hit-chance bonus (see lib/reforges.js) is randomized per
+// hit, not a fixed multiplier — modeled as a marker multiplicative entry
+// at 1x (so the single headline Final Damage number stays the real
+// "no bonus this swing" baseline) that DamageSources.jsx detects by id
+// and uses to compute a second "up to +15%" figure for the range
+// display, same technique as Vanquished's hidden-bonus with/without split.
+export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 
 /* Aggregates every damage-relevant stat/bonus across the whole loadout
    (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
@@ -811,6 +819,15 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         label: `${itemLabel} (Coins Consumed, fixed max)`,
         source: slotLabel,
         value: CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER,
+      });
+    }
+
+    if (slot === 'weapon' && equipped.modifiers.reforge === FABLED_REFORGE_NAME) {
+      out.multiplicative.push({
+        id: FABLED_REFORGE_ID,
+        label: `${itemLabel} (Fabled Crit Bonus, up to +${FABLED_CRIT_BONUS_MAX_PERCENT}%)`,
+        source: slotLabel,
+        value: 1,
       });
     }
   }
