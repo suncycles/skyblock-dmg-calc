@@ -304,7 +304,7 @@ export default function Landing() {
           <div
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.pet ? 'bg-green-400' : ''}`}
-            onClick={() => navigate('/pet')}
+            onClick={() => navigate(loadout.pet ? '/pet/detail' : '/pet')}
             onMouseEnter={handlePetHover}
             onMouseLeave={invalidateHover}
           >
