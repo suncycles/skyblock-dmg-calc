@@ -312,12 +312,15 @@ export function BuildProvider({ children }) {
 
   // Equips `item` into `slot`, resetting that slot's modifiers to defaults
   // (picking a new item for a slot starts that piece fresh) — except
-  // Accessory's own Magical Power, which carries over across switching
-  // Power Stones: comparing stats across different powers at the same
-  // Magical Power is a common thing to want to simulate, so re-entering
-  // it after every click would be real friction for no benefit (Tuning
-  // Point allocations still reset fresh, same as before, since those are
-  // genuinely power-specific investments).
+  // Accessory, whose modifiers (Magical Power AND Tuning Point
+  // allocations) carry over whole across switching Power Stones instead
+  // of resetting: comparing stats across different powers at the same
+  // Magical Power/Tuning is a common thing to want to simulate, so
+  // re-entering them after every click would be real friction for no
+  // benefit. Safe to carry over as-is since Tuning's own point cap
+  // (computeTuningPoints) is derived from Magical Power alone, not the
+  // specific power equipped, so a prior allocation is never invalidated
+  // by switching.
   const selectItem = useCallback((slot, item) => {
     setLoadout((prev) => {
       const next = {
@@ -340,7 +343,7 @@ export function BuildProvider({ children }) {
             slot === 'pet'
               ? emptyPetModifiers()
               : slot === 'accessory'
-                ? { ...emptyAccessoryModifiers(), magicalPower: prev.accessory?.modifiers?.magicalPower || 0 }
+                ? prev.accessory?.modifiers || emptyAccessoryModifiers()
                 : emptyModifiers(),
         },
       };
