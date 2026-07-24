@@ -26,6 +26,7 @@ import {
   substitutePetLore,
   getMaxPetLevel,
   applyGoldenDragonShiningScales,
+  applyEnderDragonSuperior,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
@@ -320,6 +321,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
     const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
     stats = applyPetItemStatBoost(stats, boost);
+    const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
+    stats = applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
     petStats = stats;
     addBaseStat(out, 'strength', stats.STRENGTH || 0, 'Pet');
     addBaseStat(out, 'crit_chance', stats.CRIT_CHANCE || 0, 'Pet');

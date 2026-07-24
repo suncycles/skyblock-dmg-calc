@@ -70,6 +70,32 @@ export function applyGoldenDragonShiningScales(petId, stats, goldCollection) {
   return { ...stats, STRENGTH: (stats.STRENGTH || 0) + bonus };
 }
 
+// Ender Dragon's Legendary-only "Superior" perk — real NEU-REPO lore
+// (ENDER_DRAGON;4.json, fetched this session): "Increases all Combat
+// stats and Magic Find by {3}%", where {3} is otherNums[3] (index 3 —
+// End Strike's own {0}, One With The Dragon's {1}/{2} come first),
+// scaling 0.1%/level from petnums.json's own level-1/level-100
+// checkpoints (0.1% -> 10%, i.e. reaching the real "10% at max level"
+// headline number exactly at level 100). Unlike Dragon's Greed, pet
+// level IS already tracked per-pet in this app, so this scales with the
+// player's actual entered level rather than assuming max. Multiplies the
+// pet's own already-computed Strength/Crit Chance/Crit Damage total
+// (after Shining Scales/pet-item boosts, since those are also part of
+// "the pet's stats" the ability describes itself as increasing) — call
+// this last in the pet-stat pipeline.
+export function applyEnderDragonSuperior(petId, tier, stats, otherNums) {
+  if (petId !== 'ENDER_DRAGON' || tier !== 'LEGENDARY') return stats;
+  const percent = otherNums?.[3];
+  if (!percent) return stats;
+  const factor = 1 + percent / 100;
+  return {
+    ...stats,
+    STRENGTH: (stats.STRENGTH || 0) * factor,
+    CRIT_CHANCE: (stats.CRIT_CHANCE || 0) * factor,
+    CRIT_DAMAGE: (stats.CRIT_DAMAGE || 0) * factor,
+  };
+}
+
 // Golden Dragon's "Dragon's Greed" perk — real NEU-REPO lore (fetched
 // this session): "Grants +{1}% Strength per 5 Magic Find. (Max +{2}%)",
 // where {1}/{2} are pet-level-scaled otherNums that cap at +0.5%/+5%
