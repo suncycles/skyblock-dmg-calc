@@ -22,23 +22,9 @@
 export const MAX_ATTRIBUTE_LEVEL = 10;
 
 export const RULER_RATE = 3; // %/level, "+3%-30% more Damage against <Type> mobs"
-export const RULER_ATTRIBUTES = [
-  'Skeletal',
-  'Humanoid',
-  'Undead',
-  'Woodland',
-  'Arthropod',
-  'Ender',
-  'Magmatic',
-  'Frozen',
-  'Airborne',
-  'Arcane',
-  'Animal',
-  'Subterranean',
-  'Mythological',
-  'Construct',
-  'Infernal',
-].map((mobType) => ({ id: `ruler_${mobType.toLowerCase()}`, name: `${mobType} Ruler`, mobType }));
+export const RULER_ATTRIBUTES = ['Skeletal', 'Undead', 'Woodland', 'Arthropod', 'Ender', 'Magmatic', 'Humanoid', 'Infernal'].map(
+  (mobType) => ({ id: `ruler_${mobType.toLowerCase()}`, name: `${mobType} Ruler`, mobType }),
+);
 
 export const ECHO_OF_RULER_RATE = 2; // %/level, boosts every attribute whose name contains "Ruler"
 export const ECHO_OF_ECHOES_RATE = 5; // %/level, boosts every attribute whose name contains "Echo"

@@ -311,7 +311,13 @@ export function BuildProvider({ children }) {
   }, []);
 
   // Equips `item` into `slot`, resetting that slot's modifiers to defaults
-  // (picking a new item for a slot starts that piece fresh).
+  // (picking a new item for a slot starts that piece fresh) — except
+  // Accessory's own Magical Power, which carries over across switching
+  // Power Stones: comparing stats across different powers at the same
+  // Magical Power is a common thing to want to simulate, so re-entering
+  // it after every click would be real friction for no benefit (Tuning
+  // Point allocations still reset fresh, same as before, since those are
+  // genuinely power-specific investments).
   const selectItem = useCallback((slot, item) => {
     setLoadout((prev) => {
       const next = {
@@ -330,7 +336,12 @@ export function BuildProvider({ children }) {
                     tier: item.tier,
                     lore: item.lore || [],
                   },
-          modifiers: slot === 'pet' ? emptyPetModifiers() : slot === 'accessory' ? emptyAccessoryModifiers() : emptyModifiers(),
+          modifiers:
+            slot === 'pet'
+              ? emptyPetModifiers()
+              : slot === 'accessory'
+                ? { ...emptyAccessoryModifiers(), magicalPower: prev.accessory?.modifiers?.magicalPower || 0 }
+                : emptyModifiers(),
         },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
