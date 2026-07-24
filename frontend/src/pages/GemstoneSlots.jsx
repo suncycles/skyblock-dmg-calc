@@ -1,11 +1,13 @@
+import { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
+import { useItemData } from '../context/ItemDataContext';
 import { useTooltip } from '../context/TooltipContext';
-import { rarityColorCode, formatItemName } from '../lib/mcText';
-import { countGemstoneSlots, gemstoneSlotColumnOffsets, applyGemstonesToLore } from '../lib/gemstones';
+import { formatItemName } from '../lib/mcText';
+import { countGemstoneSlots, gemstoneSlotColumnOffsets } from '../lib/gemstones';
 import { GEMSTONES } from '../lib/gemstoneData';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
-import { bumpRarity } from '../lib/recombobulator';
+import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
@@ -28,7 +30,8 @@ const CENTER_COL = 5;
 export default function GemstoneSlots() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout } = useBuild();
+  const { loadout, playerStats } = useBuild();
+  const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const modifiers = loadout[slot] && loadout[slot].modifiers;
@@ -36,11 +39,21 @@ export default function GemstoneSlots() {
   const gemstones = (modifiers && modifiers.gemstones) || [];
   const offsets = gemstoneSlotColumnOffsets(slotCount);
 
-  function handleItemHover(e) {
+  // buildFullItemTooltipLines is async (it fetches applied enchants' real
+  // per-level lore) — same capture-anchor-and-token-before-awaiting
+  // pattern as Hex.jsx/Landing.jsx, so a still-in-flight lookup from an
+  // already-ended hover can't resurrect the tooltip after the mouse left.
+  const hoverTokenRef = useRef(0);
+  async function handleItemHover(e) {
     if (!item) return;
-    const displayTier = modifiers.recombobulated ? bumpRarity(item.tier) : item.tier;
-    const lore = applyGemstonesToLore(item.lore || [], gemstones, displayTier);
-    showTooltip([`§${rarityColorCode(displayTier)}§l${formatItemName(item.name)}`, ...lore], e.currentTarget);
+    const anchor = e.currentTarget;
+    const token = ++hoverTokenRef.current;
+    const lines = await buildFullItemTooltipLines(item, modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel);
+    if (hoverTokenRef.current === token) showTooltip(lines, anchor);
+  }
+  function handleItemLeave() {
+    hoverTokenRef.current++;
+    hideTooltip();
   }
 
   const cells = [];
@@ -50,7 +63,7 @@ export default function GemstoneSlots() {
 
       if (row === ITEM_ROW && col === ITEM_COL) {
         cells.push(
-          <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleItemHover} onMouseLeave={hideTooltip}>
+          <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleItemHover} onMouseLeave={handleItemLeave}>
             {item && <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />}
           </div>,
         );
