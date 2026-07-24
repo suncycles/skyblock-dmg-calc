@@ -1,37 +1,13 @@
-// Mob Types — Hypixel Skyblock's own in-game mob classification system
-// (visible per-mob in the Bestiary), added 2025/07/31. Sourced from the
-// wiki's raw wikitext this session (not guessed):
-// https://hypixel-skyblock.fandom.com/wiki/Mob_Types (the 23 types + their
-// effective enchant) and
-// https://hypixel-skyblock.fandom.com/wiki/Mob_Types/List (the mob→type
-// table below). Fetched via the MediaWiki `api.php?action=query&prop=
-// revisions` endpoint — the wiki's `?action=raw` path is now behind a
-// Cloudflare JS challenge.
+// Mob Types — Hypixel Skyblock's in-game mob classification system (visible per-mob in the
+// Bestiary). Coverage: 211 of a reported 268 total mobs (~79%, source page is self-tagged
+// known-incomplete) — a mob missing from MOB_TYPES means undocumented, not typeless. A
+// searchable reference table lives at docs/mob-types-reference.html.
 //
-// Coverage: 211 of a reported 268 total mobs (~79%) — the source page is
-// self-tagged `{{Sectionstub}}` by its own editors, i.e. known-incomplete,
-// not just possibly stale. A mob missing from MOB_TYPES means "not yet
-// documented by the wiki," not "has no type." A maintained reference table
-// (searchable/filterable, same data) lives at docs/mob-types-reference.html
-// for re-checking coverage over time.
-//
-// Only 9 of the 23 types have a matching enchantment that grants bonus
-// damage against them — see MOB_TYPE_ENCHANTS. The rest (Humanoid, Frozen,
-// Spooky, Mythological, Subterranean, Pest, Animal, Magmatic, Elusive,
-// Construct, Arcane, Shielded, Airborne, Glacial) are flavor/lore
-// classification only, with no matching enchant.
+// Only 9 of the 23 types have a matching enchantment — see MOB_TYPE_ENCHANTS; the rest are
+// flavor/lore classification only.
 
-// Real per-level enchant lore for these 9, verified directly against
-// NEU-REPO this session: Smite/Ender Slayer/Bane of Arthropods/Smoldering/
-// Impaling/Woodsplitter were all rewritten to name the Mob Type itself
-// ("Increases damage dealt to Aquatic mobs by 5%") when Hypixel shipped
-// Mob Types — but Cubism's tooltip is still the old hand-written mob
-// enumeration ("Magma Cubes, Slimes, and Creepers"), never updated to
-// match. Keyed by the real NEU-REPO item id (lowercase) rather than
-// display name, since titleCaseEnchantId's naive "capitalize every
-// underscore-split word" would produce "Bane Of Arthropods" (capital
-// "Of"), and Woodsplitter's actual id is the legacy "arcane" (confirmed
-// via NEU-REPO — ARCANE;1.json's lore reads "Woodsplitter I").
+// Enchant id -> Mob Type(s) it grants bonus damage against. Keyed by the real NEU-REPO item
+// id (lowercase), not display name — Woodsplitter's real id is the legacy "arcane".
 export const ENCHANT_ID_MOB_TYPES = {
   smite: ['Undead', 'Skeletal', 'Wither'],
   ender_slayer: ['Ender'],
@@ -268,19 +244,13 @@ export const MOB_TYPES = {
   'Zombie Villager': ['Undead'],
 };
 
-// Case-insensitive index, built once at module load — mob names as written
-// in item lore/enchant descriptions ("Blazes", "Zombies") are often
-// pluralized or differently-cased from the wiki's singular title-case keys.
+// Case-insensitive index built once at module load, since item lore/enchant text often uses pluralized or differently-cased mob names.
 const LOOKUP = new Map();
 for (const [name, types] of Object.entries(MOB_TYPES)) {
   LOOKUP.set(name.toLowerCase(), types);
 }
 
-// Strips a trailing "s" only when the singular form is a known mob name —
-// avoids mangling names that are already plural-looking on their own
-// (e.g. "Slug" has no separate "Slug"/"Slugs" ambiguity to worry about,
-// but this guards names like "Zombies" -> "Zombie" without assuming every
-// trailing "s" is a plural marker).
+// Strips a trailing "s" only when the singular form is a known mob name (e.g. "Zombies" -> "Zombie").
 export function resolveMobKey(name) {
   const key = name.trim().toLowerCase();
   if (LOOKUP.has(key)) return key;
