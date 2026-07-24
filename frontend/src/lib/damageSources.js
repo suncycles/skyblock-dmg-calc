@@ -156,7 +156,21 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
   'WARDEN_HELMET',
+  // Katana line — additive is hardcoded in SLAYER_TIER_BONUSES against
+  // the full Enderman family, not the single "Enderman" the generic scan
+  // would resolve on its own (see that table's own header comment).
   'ATOMSPLIT_KATANA',
+  'VOIDWALKER_KATANA',
+  'VOIDEDGE_KATANA',
+  'VORPAL_KATANA',
+  // Spider line — the generic scan's target-capture regex breaks on
+  // these 4 items' real "...to and gain +Y Combat Wisdom against
+  // Arthropod mobs" phrasing (see SLAYER_TIER_BONUSES), so both halves
+  // are hardcoded there instead.
+  'RECLUSE_FANG',
+  'TARANTULA_FANG',
+  'SCORPION_FOIL',
+  'STING',
 ]);
 
 // Warden Helmet's "Brute Force" ability ("Halves your +25 Speed but
@@ -167,30 +181,43 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
 // than left unresolved in situational.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 
-// Atomsplit Katana's real lore reads "Deal +300% damage to Endermen." —
-// the generic ability-text scan would auto-resolve "Endermen" to just
-// the single mob named "Enderman" (lib/mobTypes.js's resolveMobKey),
-// missing the real Ender-dungeon "Enderman family" the weapon is
-// actually built to counter. Hardcoded to the full real mob list per
-// instruction, since there's no Mob Type covering exactly this set
-// (Ender-typed mobs include plenty this weapon doesn't affect, e.g.
-// Voidgloom Seraph's own summons). Per instruction (confirmed against
-// manual in-game damage calculations), the ability actually grants BOTH
-// a 3x multiplicative boost AND the tooltip's own +300% additive damage
-// — not one or the other — so both are modeled as separate, stacking
-// entries against the same mob list.
-const ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER = 3;
-const ATOMSPLIT_KATANA_ADDITIVE_PERCENT = 300;
-
-// Halberd of the Shredded's real lore ("Deal +250% damage to Undead
-// mobs.") is already picked up as a plain +250% additive entry by the
-// generic ability-text scan below — per instruction (same "confirmed via
-// manual in-game calculations" precedent as Atomsplit Katana), it also
-// grants a 2.5x multiplicative boost against the same Undead condition,
-// stacking on top of that additive bonus rather than replacing it.
-const AXE_OF_THE_SHREDDED_DAMAGE_MULTIPLIER = 2.5;
-const AXE_OF_THE_SHREDDED_CONDITION = 'Undead';
-const ATOMSPLIT_KATANA_MOBS = [
+// Every tiered Slayer-line weapon that grants BOTH a %-additive damage
+// bonus AND a separate Nx multiplicative boost against the same mob
+// condition, simultaneously (confirmed against manual in-game damage
+// calculations, not just the tooltip's own additive-only phrasing) —
+// per instruction, verified across all 3 real Slayer weapon lines this
+// app tracks (see SLAYER_WEAPON_IDS above for the full real-lore-
+// verified id list these are drawn from):
+//
+//  - Katana line (Voidgloom Seraph/Enderman): real lore only ever says
+//    "Deal +X% damage to Endermen." — the generic ability-text scan
+//    would resolve that to just the single mob named "Enderman"
+//    (lib/mobTypes.js's resolveMobKey), missing the real Ender-dungeon
+//    "Enderman family" this line is actually built to counter (there's
+//    no Mob Type covering exactly this set — Ender-typed mobs include
+//    plenty these weapons don't affect, e.g. Voidgloom Seraph's own
+//    summons). Hardcoded to ATOMSPLIT_MOBS and excluded from the
+//    generic scan (SPECIAL_SCAN_EXCLUDE_IDS) for all 4 tiers, not just
+//    Atomsplit, since it's the same mechanic at every tier.
+//  - Zombie line (Revenant Horror/Undead): real lore reads cleanly
+//    ("Deal(s) +X% damage to Undead mobs."), auto-resolved by the
+//    generic scan as a correct "Undead"-conditioned additive entry
+//    already (Undead is a real Mob Type) — only the multiplicative
+//    half is added here.
+//  - Spider line (Tarantula Broodfather/Arthropod): real lore's
+//    "Deal +X% Damage to and gain +Y Combat Wisdom against Arthropod
+//    mobs" phrasing breaks the generic scan's target-capture regex (it
+//    grabs "and gain +Y Combat Wisdom against Arthropod" as the
+//    "target," which never resolves to any real mob/type — verified
+//    live, the resulting entry never applies to anything). Both halves
+//    hardcoded here instead, same as the Katana line, and excluded from
+//    the generic scan.
+//
+// `condition` is either the literal Mob Type string (Zombie/Spider
+// lines) or the full ATOMSPLIT_MOBS array (Katana line, joined at push
+// time). `additivePercent` is omitted for the Zombie line entries since
+// that half already comes from the generic scan.
+const ATOMSPLIT_MOBS = [
   'Enderman',
   'Zealot',
   'Zealot Bruiser',
@@ -200,6 +227,22 @@ const ATOMSPLIT_KATANA_MOBS = [
   'Voidling Fanatic',
   'Voidling Extremist',
 ];
+
+const SLAYER_TIER_BONUSES = {
+  VOIDWALKER_KATANA: { multiplier: 1.5, additivePercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  VOIDEDGE_KATANA: { multiplier: 2, additivePercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  VORPAL_KATANA: { multiplier: 2.5, additivePercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+  ATOMSPLIT_KATANA: { multiplier: 3, additivePercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen family' },
+
+  REVENANT_SWORD: { multiplier: 1.5, condition: 'Undead' },
+  REAPER_SWORD: { multiplier: 2, condition: 'Undead' },
+  AXE_OF_THE_SHREDDED: { multiplier: 2.5, condition: 'Undead' },
+
+  RECLUSE_FANG: { multiplier: 1.5, additivePercent: 150, condition: 'Arthropod' },
+  TARANTULA_FANG: { multiplier: 2, additivePercent: 200, condition: 'Arthropod' },
+  SCORPION_FOIL: { multiplier: 2.5, additivePercent: 250, condition: 'Arthropod' },
+  STING: { multiplier: 3, additivePercent: 300, condition: 'Arthropod' },
+};
 
 // Crown of Avarice's "Celebration" skin (raffle/giveaway cosmetic
 // variant, real NEU-REPO id CROWN_OF_AVARICE_CELEBRATION) ships with a
@@ -844,31 +887,27 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       });
     }
 
-    if (equipped.item.id === 'ATOMSPLIT_KATANA') {
+    const tierBonus = SLAYER_TIER_BONUSES[equipped.item.id];
+    if (tierBonus) {
+      const conditionLabel = tierBonus.conditionLabel || tierBonus.condition;
+      const condition = Array.isArray(tierBonus.condition) ? tierBonus.condition.join(', ') : tierBonus.condition;
+      const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
       out.multiplicative.push({
-        id: 'atomsplit-katana-endermen',
-        label: `${itemLabel} (Endermen family)`,
+        id: `${idBase}-tier-mult`,
+        label: `${itemLabel} (${conditionLabel})`,
         source: slotLabel,
-        value: ATOMSPLIT_KATANA_DAMAGE_MULTIPLIER,
-        condition: ATOMSPLIT_KATANA_MOBS.join(', '),
+        value: tierBonus.multiplier,
+        condition,
       });
-      out.additiveConditional.push({
-        id: 'atomsplit-katana-endermen-additive',
-        label: `${itemLabel} (Endermen family)`,
-        source: slotLabel,
-        value: ATOMSPLIT_KATANA_ADDITIVE_PERCENT,
-        condition: ATOMSPLIT_KATANA_MOBS.join(', '),
-      });
-    }
-
-    if (equipped.item.id === 'AXE_OF_THE_SHREDDED') {
-      out.multiplicative.push({
-        id: 'axe-of-the-shredded-undead',
-        label: `${itemLabel} (Undead)`,
-        source: slotLabel,
-        value: AXE_OF_THE_SHREDDED_DAMAGE_MULTIPLIER,
-        condition: AXE_OF_THE_SHREDDED_CONDITION,
-      });
+      if (tierBonus.additivePercent != null) {
+        out.additiveConditional.push({
+          id: `${idBase}-tier-additive`,
+          label: `${itemLabel} (${conditionLabel})`,
+          source: slotLabel,
+          value: tierBonus.additivePercent,
+          condition,
+        });
+      }
     }
 
     if (equipped.item.id === 'CROWN_OF_AVARICE_CELEBRATION') {
