@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
@@ -15,6 +15,7 @@ import { GOD_POTION_TOOLTIP_LINES } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
+import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
 import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
@@ -33,10 +34,66 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // app.
 export default function Landing() {
   const navigate = useNavigate();
-  const { loadout, removeSlot, playerStats, targetMobs, clearTargetMobs, godPotionActive, toggleGodPotion, attributes } =
-    useBuild();
+  const {
+    loadout,
+    removeSlot,
+    playerStats,
+    targetMobs,
+    clearTargetMobs,
+    godPotionActive,
+    toggleGodPotion,
+    attributes,
+    miscStats,
+    mobHpPercent,
+    loadFullState,
+  } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
+  const [exportStatus, setExportStatus] = useState(null);
+  const [importStatus, setImportStatus] = useState(null);
+
+  // Export: encode the ENTIRE current build (see lib/loadoutCode.js) and
+  // copy a shareable /loadout/:code link to the clipboard — a full URL
+  // rather than the bare code, so it can be pasted straight into a
+  // browser or chat with no manual reconstruction needed.
+  async function handleExportLoadout() {
+    setExportStatus('Copying...');
+    try {
+      const code = await encodeLoadout({ loadout, targetMobs, attributes, playerStats, godPotionActive, miscStats, mobHpPercent });
+      await navigator.clipboard.writeText(`${window.location.origin}/loadout/${code}`);
+      setExportStatus('Copied!');
+    } catch (err) {
+      console.error('Failed to export loadout:', err);
+      setExportStatus('Failed');
+    }
+    setTimeout(() => setExportStatus(null), 2000);
+  }
+
+  // Import: reads the clipboard (accepting either a bare code or a full
+  // /loadout/:code URL someone pasted), decodes it, and — unlike opening
+  // a share link directly — confirms before applying, since this
+  // silently replaces whatever the player already has built here.
+  async function handleImportLoadout() {
+    setImportStatus('Reading clipboard...');
+    let decoded;
+    try {
+      const clipboardText = (await navigator.clipboard.readText()).trim();
+      const match = clipboardText.match(/\/loadout\/([A-Za-z0-9_-]+)/);
+      decoded = await decodeLoadoutCode(match ? match[1] : clipboardText, itemData);
+    } catch (err) {
+      console.error('Failed to import loadout:', err);
+      window.alert('Could not read a valid loadout from your clipboard.');
+      setImportStatus(null);
+      return;
+    }
+    if (!window.confirm('Import this loadout? This will replace your current build.')) {
+      setImportStatus(null);
+      return;
+    }
+    loadFullState(decoded);
+    setImportStatus('Imported!');
+    setTimeout(() => setImportStatus(null), 2000);
+  }
 
   // buildFullItemTooltipLines is async (it fetches applied enchants' real
   // per-level lore to compute their stat bonuses) — one hover token
@@ -436,6 +493,25 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
+      {/* Same fixed-corner precedent as App.jsx's "Latest deploy" footer —
+          not part of the centered grid layout, so it stays put regardless
+          of viewport width. */}
+      <div className="fixed top-2 left-2 flex flex-col gap-1 z-10">
+        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide">Loadouts</span>
+        <button
+          className="text-[11px] px-2 py-1 bg-neutral-800 text-white hover:brightness-110 cursor-pointer whitespace-nowrap"
+          onClick={handleExportLoadout}
+        >
+          {exportStatus || 'Export Loadout'}
+        </button>
+        <button
+          className="text-[11px] px-2 py-1 bg-neutral-800 text-white hover:brightness-110 cursor-pointer whitespace-nowrap"
+          onClick={handleImportLoadout}
+        >
+          {importStatus || 'Import Loadout'}
+        </button>
+      </div>
+
       <header className="w-full max-w-[700px] mb-4 text-center">
         <h1 className="text-3xl font-bold"></h1>
       </header>
