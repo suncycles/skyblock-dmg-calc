@@ -642,6 +642,18 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
       value: bonus,
       condition: 'Mythological',
     });
+    // Per manual calculations (not published in the item's own lore): the
+    // same Bestiary bonus also grants a multiplicative factor equal to
+    // 1% of its additive percent, e.g. a 245% additive bonus is also a
+    // 2.45x multiplier — stacked on top of, not instead of, the additive
+    // entry above, same Mythological-only condition.
+    out.multiplicative.push({
+      id: `${item.id}-special-mult`,
+      label: `${itemLabel} (Bestiary)`,
+      source: slotLabel,
+      value: bonus * 0.01,
+      condition: 'Mythological',
+    });
   } else if (config.kind === 'crownOfAvarice') {
     const { damageMultiplier } = crownOfAvariceStats(config, bonus);
     // Real lore: "...deal +0.015x Damage for each digit of Coins
