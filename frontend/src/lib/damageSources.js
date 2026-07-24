@@ -69,60 +69,25 @@ import {
   computeEchoBoost,
 } from './attributes';
 
-// Elite's real lore says "against bosses and mini-bosses" with no fixed
-// list of its own — this app's mob dataset (lib/mobTypes.js) has no
-// boss/miniboss flag on any entry, so per instruction it's scoped to the
-// 5 real Slayer bosses instead (matched the same way Atomsplit Katana's
-// mob list already is: literal mob names via conditionMatchesMob's
-// resolveMobKey fallback, comma-joined into one condition string).
+// Elite's boss/miniboss condition, scoped to the 5 real Slayer bosses (no boss/miniboss flag exists on mobs).
 const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horror', 'Tarantula Broodfather', 'Sven Packmaster'];
 
-// Fabled's crit-hit-chance bonus (see lib/reforges.js) is randomized per
-// hit, not a fixed multiplier — modeled as a marker multiplicative entry
-// at 1x (so the single headline Final Damage number stays the real
-// "no bonus this swing" baseline) that DamageSources.jsx detects by id
-// and uses to compute a second "up to +15%" figure for the range
-// display, same technique as Vanquished's hidden-bonus with/without split.
+// Marker id for Fabled's randomized crit-damage bonus — pushed at 1x so the headline Final
+// Damage stays the no-bonus baseline; DamageSources.jsx uses this id to compute the +15% max range.
 export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 
-/* Aggregates every damage-relevant stat/bonus across the whole loadout
-   (weapon + 4 armor + 4 equipment + pet) into one categorized breakdown:
-   base stats (Damage/Strength/Crit Chance/Crit Damage, summed), % damage
-   bonuses split into non-conditional (Sharpness, Giant Killer at its
-   capped/"100% uptime" value) vs conditional (Smite -> Wither/Undead/
-   Skeletal), a separate pair of weaponBonus buckets for the equipped
-   WEAPON's own "+X% damage [to Y]" ability text specifically (Hyperion-
-   line's "+50% damage to Wither mobs", every tiered Slayer weapon,
-   Daedalus Blade's Bestiary bonus, etc. — see lib/finalDamage.js's header
-   comment for why these apply as their own independent factor rather than
-   joining the shared additive pool), multiplicative sources (Crown of
-   Avarice's Nx), and a situational list for formula-based sources with no
-   fixed value (Execute's %-per-missing-HP, or any "damage"-mentioning
-   text that didn't match a known pattern) — excluded from the totals but
-   kept structured (formula/basis/rate) so a future mob-HP simulator can
-   resolve them without re-deriving anything.
-
-   Coverage is pattern-based against real, verified NEU-REPO phrasings,
-   not a hand-curated table of every enchant/item — see the regexes below
-   for exactly what's recognized. Anything mentioning "damage" that isn't
-   recognized lands in `situational` with its raw text shown rather than
-   being silently dropped; anything not mentioning "damage" at all (pure
-   Ferocity/Defense-shred/utility effects) is out of scope entirely. */
+/* Aggregates every damage-relevant stat/bonus across the loadout into: base stats (summed),
+   % additive damage split into non-conditional vs conditional, a separate weaponBonus pair
+   for the equipped weapon's own "+X% damage" abilities, multiplicative sources, and a
+   situational list for formula-based sources with no fixed value. Coverage is pattern-based
+   against real NEU-REPO phrasings; anything mentioning "damage" that doesn't match a known
+   pattern lands in situational rather than being dropped. */
 
 const GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS];
 const SLOT_LABELS = { weapon: 'Weapon', ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS };
 const TRACKED_STATS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
 
-// Habanero Tactics (Ultimate armor enchant) grants its damage/Combat
-// Wisdom bonus only "with Slayer weapons" — real NEU-REPO lore names no
-// fixed list, but every actual Slayer-reward weapon's own base lore
-// carries a "Combat Wisdom" stat line, so that's the real identifying
-// trait (per instruction) rather than a hand-picked name list. Derived by
-// grepping worker/src/data/weapons.json for "Combat Wisdom" directly:
-// the Katana line (Voidgloom Seraph), Shredded/Falchion line (Revenant
-// Horror), Shaman/Pooch Sword (Tarantula Broodfather), the 6 Blaze
-// Daggers (Inferno Demonlord), and the Tarantula Broodfather's own
-// Foil/Sting/Fang trio.
+// Real Slayer-reward weapons (identified by their own "Combat Wisdom" stat line) — the set Habanero Tactics' bonus requires.
 const SLAYER_WEAPON_IDS = new Set([
   'ATOMSPLIT_KATANA',
   'VOIDEDGE_KATANA',
@@ -142,18 +107,11 @@ const SLAYER_WEAPON_IDS = new Set([
   'TARANTULA_FANG',
 ]);
 
-// Real per-level lore (ULTIMATE_HABANERO_TACTICS;4/5.json, fetched this
-// session): "+20% damage with Slayer weapons" at IV, "+25%" at V — a flat
-// 5%/level rate (only levels 4-5 exist). "Applied To: Armor" — stacks
-// once per equipped piece carrying it, same as e.g. Fierce/Renowned
-// reforges stacking per-piece in the real game.
+// Habanero Tactics: +20%/25% damage with Slayer weapons at level IV/V (5%/level), stacks per armor piece.
 const HABANERO_TACTICS_PERCENT_PER_LEVEL = 5;
 
-// Fully handled by collectBaseStats/collectSpecialMechanicEntries below
-// (their bonus is either merged into base stats already, per last
-// session's work, or computed exactly from the real player-entered
-// value) — excluded from the generic ability-text scan so the same
-// mechanic doesn't also get loosely re-parsed a second time.
+// Weapons whose bonus is computed elsewhere (merged into base stats, or hardcoded below) —
+// excluded here so the generic ability-text scan doesn't double up.
 const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'DAEDALUS_AXE',
   'STARRED_DAEDALUS_AXE',
@@ -163,11 +121,7 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
   'WARDEN_HELMET',
-  // All 11 Slayer-line tiered weapons (Katana/Zombie/Spider lines) — each
-  // one's own weaponBonus entry is hardcoded in SLAYER_TIER_BONUSES
-  // instead (see that table's own header comment for why, including why
-  // the Zombie line is excluded here too despite the generic scan being
-  // able to resolve it correctly on its own).
+  // Slayer-line weapons — hardcoded in SLAYER_TIER_BONUSES instead.
   'ATOMSPLIT_KATANA',
   'VOIDWALKER_KATANA',
   'VOIDEDGE_KATANA',
@@ -181,52 +135,15 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STING',
 ]);
 
-// Warden Helmet's "Brute Force" ability ("Halves your +25 Speed but
-// grants +20% base weapon damage for every +25 Speed") scales with
-// however much Speed the player stacks — no fixed value, and this app
-// has no aggregate Speed total to derive it from. Per instruction,
-// assumed always at its max real-game boost (8 stacks = +160%) rather
-// than left unresolved in situational.
+// Warden Helmet's Brute Force ability, assumed at its real max boost (+160%) since Speed isn't tracked.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
 
-// Every tiered Slayer-line weapon's own "+X% damage" bonus against its
-// line's mob family — no additive contribution at all any more (per
-// instruction: Slayer weapons no longer give any additive bonus), just
-// the weapon's own independent (1 + X/100) factor, same treatment as
-// every other weapon with a stated damage bonus (see the weaponBonus
-// buckets' header comment). `bonusPercent` is the exact number the
-// item's own real lore states (e.g. Atomsplit's real "+300% damage to
-// Endermen" -> bonusPercent: 300 -> a (1+3) = 4x factor), covering all
-// 11 tiers/lines this app tracks (see SLAYER_WEAPON_IDS above for the
-// full real-lore-verified id list these are drawn from).
-//
-// All 11 are hardcoded here (and excluded from the generic ability-text
-// scan, see SPECIAL_SCAN_EXCLUDE_IDS) rather than left to that scan to
-// resolve on its own:
-//  - Katana line (Voidgloom Seraph/Enderman): real lore only ever says
-//    "Deal +X% damage to Endermen." — the generic scan would resolve
-//    that to just the single mob named "Enderman" (lib/mobTypes.js's
-//    resolveMobKey), missing the real Ender-dungeon "Enderman family"
-//    this line is actually built to counter (there's no Mob Type
-//    covering exactly this set — Ender-typed mobs include plenty these
-//    weapons don't affect, e.g. Voidgloom Seraph's own summons).
-//    Hardcoded to ATOMSPLIT_MOBS instead.
-//  - Spider line (Tarantula Broodfather/Arthropod): real lore's
-//    "Deal +X% Damage to and gain +Y Combat Wisdom against Arthropod
-//    mobs" phrasing breaks the generic scan's target-capture regex (it
-//    grabs "and gain +Y Combat Wisdom against Arthropod" as the
-//    "target," which never resolves to any real mob/type — verified
-//    live, the resulting entry never applies to anything).
-//  - Zombie line (Revenant Horror/Undead, real names Revenant/Reaper
-//    Falchion and the Axe of the Shredded): real lore reads cleanly
-//    ("Deal(s) +X% damage to Undead mobs.") and the generic scan WOULD
-//    resolve it correctly on its own, but it's still hardcoded here (and
-//    still excluded from the scan) purely so all 11 tiers share one
-//    lookup table rather than splitting sourcing by line.
-//
-// `condition` is either the literal Mob Type string (Zombie/Spider
-// lines) or the full ATOMSPLIT_MOBS array (Katana line, joined at push
-// time).
+// Each tiered Slayer weapon's own damage bonus against its line's mob family, applied as an
+// independent (1 + bonusPercent/100) factor rather than an additive contribution. Hardcoded
+// (and excluded from the generic scan) rather than resolved automatically: the Katana line's
+// real mob list doesn't match any single Mob Type, the Spider line's phrasing breaks the
+// scan's regex, and the Zombie line is included here too just so all 11 tiers share one table.
+// `condition` is a Mob Type string, or the full ATOMSPLIT_MOBS list for the Katana line.
 const ATOMSPLIT_MOBS = [
   'Enderman',
   'Zealot',
@@ -254,14 +171,7 @@ const SLAYER_TIER_BONUSES = {
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
 
-// Crown of Avarice's "Celebration" skin (raffle/giveaway cosmetic
-// variant, real NEU-REPO id CROWN_OF_AVARICE_CELEBRATION) ships with a
-// fixed "Coins Consumed: 61,000,000,000" already baked into its own
-// pristine lore — well past the base item's 1B perk-change cap, i.e.
-// permanently maxed rather than a player-tracked counter. SPECIAL_
-// WEAPON_CONFIG (lib/specialWeapons.js) only covers the base
-// CROWN_OF_AVARICE id, so this variant got no bonus at all before —
-// hardcoded here to its own real max value ("+1.15x Damage").
+// Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) — its own damage multiplier.
 const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
 
 function stripToPlain(lines) {
@@ -287,16 +197,7 @@ function splitParagraphs(lore) {
   return paragraphs.filter((p) => p.length > 0);
 }
 
-// Ability paragraphs almost always lead with a header line before the
-// actual effect text — weapons/armor use "§6Ability: Name" (Crown of
-// Avarice: "Ability: Overindulgence"), pets just the bare name (Golden
-// Dragon: "Legendary Treasure", Ender Dragon: "End Strike") — left in,
-// that header text ends up glued onto the front of a subject-first "X
-// mobs deal Nx damage" condition capture, since the whole paragraph is
-// joined into one string before matching. A header line never itself
-// contains a digit/"%"/"damage"/"mobs" (the only things any regex below
-// matches on), so dropping any such leading line can't lose information
-// either pattern would have used.
+// Strips a paragraph's leading ability-name header line (e.g. "Ability: Name") before damage-text matching.
 function stripLeadingHeaderLine(lines) {
   if (!lines || lines.length < 2) return lines;
   const first = lines[0].replace(/§./g, '').trim();
@@ -304,13 +205,7 @@ function stripLeadingHeaderLine(lines) {
   return looksLikeHeader ? lines.slice(1) : lines;
 }
 
-// A stat-block paragraph (item's own Damage/Strength/Gemstones/etc, or a
-// pet's own Strength/Crit Chance/Crit Damage block) always leads with a
-// "Label: value" line — detected by shape rather than assumed to always
-// be paragraph 0, since pets have an unrelated "Combat Pet" paragraph
-// before their real stat block. Filtered out of ability-text scanning so
-// e.g. a pet's own "Crit Damage: +50%" stat line can't trip the generic
-// "mentions damage" situational catch-all below.
+// True if a paragraph is the item/pet's own stat block (starts with "Label: value") — excluded from ability-text scanning.
 function isStatBlockParagraph(paragraph) {
   if (!paragraph || paragraph.length === 0) return false;
   return /^[A-Za-z ]+:\s*[+-]?[\d.]/.test(paragraph[0].replace(/§./g, '').trim());
@@ -327,23 +222,11 @@ function cleanTargetText(raw) {
 }
 
 // ---------------------------------------------------------------------
-// Base stats: reuses buildFullItemTooltipLines (already the single
-// source of truth for "what does this item's tooltip actually show",
-// tested throughout this session) rather than re-deriving numbers from
-// each of gemstones.js/reforges.js/books.js/statLines.js/starring.js
-// separately. Gemstones/Reforges/Stars/Wither-blade-Catacombs/Daedalus-
-// Taming all merge their bonus directly into the line's own leading
-// number (mergeStatIntoBase) — a brand new line for a stat the item
-// doesn't otherwise show is just that bonus's plain value, no "(+X)".
-// Books/Art of War/Peace/Enchant stat bonuses only ever annotate
-// ("(+X)"), never merge, and annotateStatLines' own new-line case
-// matches that same "plain value, no redundant paren" convention — so
-// every "(+X)" anywhere in the final line is a genuinely additional
-// amount NOT already reflected in the leading number, with three
-// exceptions: Reforges, Potato Books, and Gemstones all additionally
-// echo their own (already-merged) delta purely for display (see
-// lib/reforges.js/lib/books.js/lib/gemstones.js), which would
-// double-count if summed here too.
+// Base stats: reuses buildFullItemTooltipLines (the single source of truth for an item's
+// tooltip) rather than re-deriving numbers from gemstones/reforges/books/statLines/starring
+// separately. Every "(+X)" in a tooltip line is a genuinely additional amount not already in
+// the leading number, except Reforges/Books/Gemstones which also echo their own already-
+// merged delta for display — excluded here to avoid double-counting.
 function sumStatFromTooltipLines(finalLines, label) {
   const labelRe = new RegExp(`^${label}:`);
   const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
@@ -362,22 +245,11 @@ function sumStatFromTooltipLines(finalLines, label) {
   return base + parenNums.reduce((a, b) => a + b, 0);
 }
 
-// Chimera ultimate enchant — real NEU-REPO lore (fetched this session):
-// "Copies 20%/40%/60%/80%/100% of your active pet's stats" at levels
-// I-V respectively, i.e. a flat 20% per level. Applied here (rather than
-// collectEnchantEntries' generic ability-text scan, which can't turn a
-// "copies pet stats" sentence into a %-damage entry) as a SEPARATE
-// addition on top of the pet's own normal contribution above — the
-// enchant genuinely stacks a partial second copy of the pet's stats, it
-// doesn't replace anything.
+// Chimera enchant: copies 20%/level of the active pet's Strength/Crit Chance/Crit Damage, stacked on top of the pet's own contribution.
 const CHIMERA_PERCENT_PER_LEVEL = 20;
 
-// Records WHERE a (Base) Stats number came from, not just the total —
-// out.baseStatSources[statKey] is a {label, value} list DamageSources.jsx
-// shows when a stat row is clicked. Contributions sharing a label (e.g.
-// every Ruler/Strength-Elemental attribute folding into one "Attributes"
-// line) are merged into a running total rather than one row each, same
-// "grouped, not itemized per-enchant" granularity the user asked for.
+// Adds to a base stat's running total and records the source for DamageSources.jsx's
+// per-stat breakdown, merging entries that share a label into one running total.
 function addBaseStat(out, statKey, value, label) {
   if (!value) return;
   out.baseStats[statKey] += value;
@@ -388,9 +260,7 @@ function addBaseStat(out, statKey, value, label) {
 }
 
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, out) {
-  // Computed up front (rather than after the gear loop) so Chimera,
-  // found while scanning a weapon's applied enchants below, can copy a
-  // percentage of the pet's own final (post-item-boost) stats.
+  // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
   let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
   if (loadout.pet) {
     const { item: pet, modifiers } = loadout.pet;
@@ -418,9 +288,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     for (const statKey of TRACKED_STATS) {
       addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
     }
-    // Emerald Blade's ability bonus is shown under its own "Current
-    // Damage Bonus:" line, not a "Damage:" stat line, so the generic
-    // label-matching above can't see it.
+    // Emerald Blade's bonus lives on its own "Current Damage Bonus:" line, not a "Damage:" stat line.
     if (equipped.item.id === 'EMERALD_BLADE') {
       const config = getSpecialConfig(equipped.item.id);
       addBaseStat(out, 'damage', computeSpecialBonus(config, equipped.modifiers.special), slotLabel);
@@ -449,37 +317,17 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 }
 
 // ---------------------------------------------------------------------
-// Enchants: real per-level lore fetched the same way itemTooltip.js's
-// computeEnchantStatBonuses already does. Two known formula shapes,
-// verified directly against NEU-REPO this session:
-//  - "Increases [melee/ranged] damage dealt [to X] by Y%" (Sharpness has
-//    no target -> non-conditional; Smite/Bane of Arthropods/Cubism/Ender
-//    Slayer name one or more targets -> conditional, one shared % across
-//    all of them, not a separate % per target).
-//  - "Increases damage dealt by Y% for each percent of <basis>[, up to
-//    Z%]" (Giant Killer has an explicit cap; Execute has the same shape
-//    with no cap). Only Giant Killer gets a resolved value here (its cap,
-//    per the "100% uptime" instruction) — anything else matching this
-//    shape has no natural fixed value and goes to situational, structured
-//    for a future mob-HP simulator to resolve exactly.
+// Enchants: parses each applied enchant's real per-level lore for a %-damage bonus, either
+// conditional (Smite-style) or not. Giant Killer's per-missing-HP rate gets its capped value;
+// anything else of that shape (e.g. Execute) has no fixed value and goes to situational.
 const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+)?damage\s+dealt(?:\s+to\s+(.+?))?\s+by\s+\+?([\d.]+)%/i;
 const PER_TARGET_STAT_RE =
   /Increases\s+damage\s+dealt\s+by\s+\+?([\d.]+)%\s+for\s+each\s+(?:percent|%)\s+of\s+(.+?)(?:,?\s+up\s+to\s+\+?([\d.]+)%)?\.?\s*$/i;
 
-// One For All — real NEU-REPO lore (fetched this session): "Removes all
-// other enchants but increases your weapon damage by 500%." A single
-// fixed level (no I/II/... scaling), phrased as "weapon damage" rather
-// than the "damage dealt [to X]" shape every other %-damage enchant
-// uses, so it can't be picked up by either regex below — hardcoded
-// instead of extending those patterns for one enchant. The "removes all
-// other enchants" half is already handled at the UI layer (see
-// computeConflictingEntries in lib/enchantEffects.js).
+// One For All: fixed +500% weapon damage, hardcoded since its lore phrasing doesn't match the generic regexes.
 const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
 
-// First Strike/Triple-Strike's "for the first hit(s) on a mob" bonus
-// only ever applies at the start of a fight — modeled as active only
-// when the mob HP slider (see BuildContext.jsx's mobHpPercent) reads
-// 100%, per instruction, rather than trying to model per-hit sequencing.
+// First Strike/Triple Strike only apply on the first hit(s) of a fight — modeled as active only at 100% mob HP.
 const FIRST_HIT_ENCHANT_IDS = new Set(['first_strike', 'triple_strike']);
 
 async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out, mobHpPercent) {
@@ -502,27 +350,14 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
     const source = `${itemLabel} (${slotLabel})`;
     const id = `${slotLabel}-${entry.id}`;
 
-    // Checked first: PERCENT_TO_TARGET_RE's "damage dealt by Y%" prefix
-    // is a structural subset of this pattern's own "damage dealt by Y%
-    // for each percent of..." text, so Giant Killer/Execute would
-    // otherwise match it first and get their per-point rate treated as
-    // if it were the whole (non-conditional) bonus.
+    // Checked first since PER_TARGET_STAT_RE's shape is a superset of PERCENT_TO_TARGET_RE's.
     let m = PER_TARGET_STAT_RE.exec(text);
     if (m) {
       const ratePerLevel = parseFloat(m[1]);
       const basis = m[2].trim();
       const cap = m[3] != null ? parseFloat(m[3]) : null;
       const key = entry.id.toLowerCase();
-      // Execute/Prosecute's own lore text already gives this level's
-      // real, already-scaled rate (ratePerLevel) — not a per-level
-      // formula constant needing further multiplication. Resolved
-      // against the mob HP slider: Execute scales off missing HP
-      // (100 - mobHpPercent), Prosecute off current HP (mobHpPercent) —
-      // real lore confirms both ("...missing on your target" vs
-      // "...your target has"), verified this session against
-      // EXECUTE/PROSECUTE;1-6.json (rates aren't linear across levels —
-      // e.g. Prosecute VI is 1%/point, not 6x level I's 0.1% — so the
-      // fetched per-level text is trusted over any formula).
+      // Execute scales off missing HP, Prosecute off current HP; each level's real per-point rate is used directly.
       if (key === 'execute' || key === 'prosecute') {
         const hpBasis = key === 'execute' ? 100 - mobHpPercent : mobHpPercent;
         const value = Math.round(ratePerLevel * hpBasis * 100) / 100;
@@ -541,19 +376,12 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
     if (m) {
       const value = parseFloat(m[2]);
       if (m[1]) {
-        // Prefer the canonical Mob Type name(s) over whatever the lore
-        // text itself says — most of these 9 enchants already say the
-        // type name verbatim (Hypixel rewrote them when Mob Types
-        // shipped), but Cubism's tooltip is still the old hand-written
-        // mob enumeration and never got updated. This keeps all 9
-        // consistent regardless of which text style Hypixel currently uses.
+        // Prefers the canonical Mob Type name over the enchant's own lore text (a few tooltips are stale).
         const mobTypes = ENCHANT_ID_MOB_TYPES[entry.id.toLowerCase()];
         const condition = mobTypes ? mobTypes.join(', ') : cleanTargetText(m[1]);
         out.additiveConditional.push({ id, label: name, source, value, condition });
       } else if (FIRST_HIT_ENCHANT_IDS.has(entry.id.toLowerCase())) {
-        // Only counted at 100% mob HP (see FIRST_HIT_ENCHANT_IDS above);
-        // silently excluded otherwise, same "no partial credit" treatment
-        // as Habanero Tactics' weapon-gated bonus.
+        // Only counted at 100% mob HP.
         if (mobHpPercent === 100) {
           out.additiveNonConditional.push({ id, label: `${name} (first hit, 100% HP)`, source, value });
         }
@@ -570,27 +398,11 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 }
 
 // ---------------------------------------------------------------------
-// Item/pet ability text: two real phrasings for the same "bonus damage
-// vs a mob category" mechanic, verified against Necron's Blade-family
-// weapons (object-last: "Deals +50% damage to Wither mobs") and a
-// subject-first "X mobs take Nx damage" shape (the player dealing more
-// damage TO those mobs).
-//
-// "X mobs DEAL Nx damage", despite the superficially similar shape, means
-// the opposite: those mobs deal that damage TO THE PLAYER — an incoming-
-// damage penalty, not a player damage-output source. Verified directly:
-// Crown of Avarice's own lore says "Mythological mobs deal 1.5x damage"
-// for the exact same mechanic Crown of Greed spells out unambiguously as
-// "but you take 1.25x damage from them". Excluded entirely (not even
-// shown as situational — it isn't a damage-dealt source at all, so it's
-// out of this tool's scope rather than merely unresolved).
+// Item/pet ability text: two real damage-bonus phrasings — object-last ("deals +X% damage to
+// Y") and subject-first ("Y mobs take Nx damage"). A third shape, "Y mobs DEAL Nx damage," is
+// an incoming-damage penalty rather than a player bonus, so it's excluded entirely.
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
-// "to X mobs" (Necron's Blade family) and "against X" (Demonslayer
-// Gauntlet: "Deal +10% damage against Blazes.") are the same mechanic —
-// the target isn't always suffixed with the generic word "mobs" (a
-// specific plural mob name like "Blazes" stands alone), so that suffix
-// is optional, bounded by a lookahead to the next period/end of string
-// rather than consumed, so it doesn't get pulled into the captured name.
+// "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional.
 const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
@@ -611,14 +423,7 @@ function matchDamageParagraph(text) {
   return null;
 }
 
-// `asWeaponBonus`: true when `text` comes from the equipped WEAPON's own
-// lore (not armor/equipment/pet) — a "+X% damage [to Y]" match found
-// there is the weapon's own damage-bonus ability (Hyperion-line's "+50%
-// to Wither", a Slayer weapon's own tier text, etc.), so it's routed
-// into the weaponBonus buckets instead of the general additive ones. The
-// "Nx damage" multiplicative shape (matchDamageParagraph's `multiplicative`
-// branch) isn't redirected — no currently-tracked weapon uses that
-// phrasing on itself, and it's a structurally different real mechanic.
+// `asWeaponBonus`: routes a weapon-slot "+X% damage" match into the weaponBonus buckets instead of the general additive ones.
 function pushParagraphMatch(out, text, label, source, id, asWeaponBonus) {
   const match = matchDamageParagraph(text);
   if (!match) return;
@@ -644,10 +449,7 @@ function scanItemAbilityText(lore, label, source, out, idPrefix, asWeaponBonus) 
 }
 
 // ---------------------------------------------------------------------
-// Special-mechanic weapons (lib/specialWeapons.js) already have their
-// bonus correctly computed as a real number from the player's entered
-// value — pulled directly here rather than re-derived by regex over
-// static lore text, to avoid drift/double-counting.
+// Special-mechanic weapons already have their bonus computed from the player's entered value (lib/specialWeapons.js) — read directly rather than re-parsed from lore.
 function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, out) {
   const config = getSpecialConfig(item.id);
   if (!config) return;
@@ -655,11 +457,7 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
   if (!bonus) return;
 
   if (config.kind === 'bestiary') {
-    // Daedalus Blade's Bestiary bonus is the weapon's own "+X% damage"
-    // ability — no separate additive contribution any more, same
-    // independent (1 + X/100) treatment as every other weapon with a
-    // stated damage bonus (see the weaponBonus buckets' header comment),
-    // Mythological-only per the item's own real lore.
+    // Daedalus Blade's Bestiary bonus: the weapon's own damage bonus, Mythological-only.
     out.weaponBonusConditional.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Bestiary)`,
@@ -669,11 +467,7 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
     });
   } else if (config.kind === 'crownOfAvarice') {
     const { damageMultiplier } = crownOfAvariceStats(config, bonus);
-    // Real lore: "...deal +0.015x Damage for each digit of Coins
-    // consumed" and "Grants +2.5 Magic Find against Mythological mobs"
-    // read as one clause but are two separate mechanics — the damage
-    // multiplier applies to all mobs; only the (unmodeled) Magic Find
-    // bonus is Mythological-restricted.
+    // Coins Consumed's damage multiplier applies to all mobs; only its Magic Find bonus is Mythological-only.
     out.multiplicative.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Coins Consumed)`,
@@ -681,20 +475,13 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
       value: damageMultiplier,
     });
   }
-  // midasSword/midasStaff: already merged into base stats (see
-  // lib/statLines.js's mergeStatIntoBase) — nothing more to add.
+  // midasSword/midasStaff are already merged into base stats — nothing more to add.
 }
 
 // ---------------------------------------------------------------------
-// Pet: base Strength/Crit Chance/Crit Damage handled in collectBaseStats
-// above; this covers the pet's own ability text (e.g. Ender Dragon's
-// "End Strike: Deal 200% more damage to Ender mobs", picked up by the
-// same generic scan as items) plus Golden Dragon's "Legendary Treasure"
-// (%damage per million bank coins, capped) — its rate/cap are already-
-// substituted real numbers straight from the pet's own lore (the
-// {3}%/{4}% placeholders lib/petData.js's substitutePetLore already
-// fills in for the current level), not hardcoded, so they track the
-// equipped Golden Dragon's real level automatically.
+// Pet: base Strength/Crit Chance/Crit Damage handled in collectBaseStats above; this covers
+// the pet's own ability text (e.g. Ender Dragon's End Strike, via the generic scan) plus
+// Golden Dragon's Legendary Treasure (%damage per million bank coins, capped).
 const GOLDEN_DRAGON_TREASURE_RE =
   /Gain\s+\+?([\d.]+)%\s+damage\s+for\s+every\s+million\s+coins\s+in\s+your\s+bank\.?\s*(?:\(Max\s+\+?([\d.]+)%\))?/i;
 
@@ -739,13 +526,9 @@ async function collectPetEntries(loadout, itemData, out) {
 }
 
 // ---------------------------------------------------------------------
-// Attributes (lib/attributes.js) — account-wide, not tied to any equipped
-// item, so this reads straight from BuildContext's `attributes` state
-// rather than the loadout. The Echo chain is computed once up front
-// (Echo of Ruler/Echo of Elemental are each boosted by Echo of Echoes,
-// never by themselves) and applied to every Ruler/Strength-Elemental
-// attribute's own value before it's pushed/summed — see
-// lib/attributes.js's computeEchoBoost for the verified formula.
+// Account-wide Attributes (lib/attributes.js), read from BuildContext state rather than the
+// loadout. The Echo chain is computed once and applied to every Ruler/Strength-Elemental
+// attribute's value before it's pushed/summed.
 function collectAttributeEntries(attributes, loadout, out) {
   if (!attributes) return;
 
@@ -760,8 +543,7 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveConditional.push({ id: `attr-${id}`, label: name, source: 'Attribute', value, condition: mobType });
   }
 
-  // Folded into one "Attributes" base-stat source line rather than one
-  // per Elemental attribute — see addBaseStat.
+  // Folded into one "Attributes" base-stat source line.
   for (const { id } of STRENGTH_ELEMENTAL_ATTRIBUTES) {
     const level = attributes[id] || 0;
     if (!level) continue;
@@ -774,9 +556,7 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveNonConditional.push({ id: 'attr-deadeye', label: 'Deadeye', source: 'Attribute', value: DEADEYE_RATE * deadeyeLevel });
   }
 
-  // Warrior is Deadeye's exact inverse condition — "melee damage" means
-  // any equipped weapon that isn't a bow, reusing the same isBowEquipped
-  // check already established for that split.
+  // Warrior is Deadeye's inverse: any non-bow weapon.
   const warriorLevel = attributes.warrior || 0;
   if (warriorLevel && !isBowEquipped(loadout)) {
     out.additiveNonConditional.push({ id: 'attr-warrior', label: 'Warrior', source: 'Attribute', value: WARRIOR_RATE * warriorLevel });
@@ -790,11 +570,7 @@ function collectAttributeEntries(attributes, loadout, out) {
       source: 'Attribute',
       value: ELITE_RATE * eliteLevel,
       condition: ELITE_BOSS_MOBS.join(', '),
-      // Real lore just says "bosses and mini-bosses" — the actual
-      // matching still needs the real mob names (`condition` above,
-      // this app has no boss/miniboss flag to key off instead), but the
-      // displayed condition text (DamageSources.jsx) shows this instead
-      // of the raw 5-name list.
+      // Displayed condition text; matching still uses the real boss names above.
       conditionLabel: 'bosses and minibosses',
     });
   }
@@ -804,17 +580,9 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveNonConditional.push({ id: 'attr-dominance', label: 'Dominance', source: 'Attribute', value: DOMINANCE_RATE * dominanceLevel });
   }
 
-  // Unlimited Power/Energy apply after everything else — a true
-  // multiplier on the fully-summed Strength/Crit Damage (every source
-  // above, including this function's own Ruler/Elemental contributions)
-  // — baked directly into baseStats itself (as its own "Unlimited Power"/
-  // "Unlimited Energy" source line) rather than kept as a separate
-  // percent for lib/finalDamage.js to apply on top; that way the (Base)
-  // Stats total shown in Damage Sources already reflects it. Almighty
-  // ('Your "Unlimited" Attributes are +5%-50% stronger') is the same
-  // keyword-matching relative-boost mechanism as the Echo chain, just
-  // targeting both Unlimited attributes directly instead of a family —
-  // it isn't itself named "Echo" so Echo of Echoes doesn't boost it back.
+  // Unlimited Power/Energy apply last, as a true multiplier on the fully-summed Strength/Crit
+  // Damage — baked into baseStats directly rather than left for finalDamage.js to apply.
+  // Almighty boosts both, same keyword-matching mechanism as the Echo chain.
   const almightyBoost = ALMIGHTY_RATE * (attributes.almighty || 0);
   const unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
   const unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
@@ -829,14 +597,8 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
     additiveNonConditional: [],
     additiveConditional: [],
-    // The equipped weapon's own "+X% damage" ability bonuses (Atomsplit,
-    // Daedalus's Bestiary tiers, Hyperion-line's Wither bonus, Slayer
-    // weapon tiers, etc.) — kept in their own pair of buckets, same
-    // conditional/non-conditional split as the additive ones, rather than
-    // folded into the general additive pool. See lib/finalDamage.js's
-    // header comment for why: these apply as their own independent
-    // (1 + weaponBonus/100) factor in the formula, not summed together
-    // with enchants/attributes/etc.
+    // The equipped weapon's own "+X% damage" ability bonuses — kept separate from the
+    // additive pool since they apply as their own independent factor (see lib/finalDamage.js).
     weaponBonusNonConditional: [],
     weaponBonusConditional: [],
     multiplicative: [],
@@ -846,22 +608,14 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
-  // Every player starts with these two stats before any gear at all —
-  // real Hypixel base stats, unlike Damage/Strength which start at 0.
+  // Real Hypixel base stats before any gear.
   addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');
   addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
-  // Flat, player-entered "everything else" (Fairy Souls, Slayer/Skill
-  // level rewards, etc.) — see BuildContext.jsx's miscStats.
+  // Player-entered "everything else" total.
   addBaseStat(out, 'strength', miscStats?.strength || 0, 'Misc');
   addBaseStat(out, 'crit_damage', miscStats?.crit_damage || 0, 'Misc');
 
-  // God Potion — a flat on/off toggle, not a level. Only the pieces this
-  // app tracks as aggregate base stats (Strength/Crit Chance/Crit
-  // Damage) are wired in; see lib/godPotion.js for what's excluded and
-  // why. Archery IV's bow damage is a genuine %-damage bonus (not a raw
-  // stat), so it's itemized in additiveNonConditional like every other
-  // enchant/ability — but only when a bow is actually equipped, since
-  // it's conditional on the player's own weapon, not the target mob.
+  // God Potion's aggregate-stat pieces plus Archery IV's bow-only damage bonus.
   if (godPotionActive) {
     addBaseStat(out, 'strength', GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH, 'God Potion');
     addBaseStat(out, 'crit_chance', GOD_POTION_CRIT_CHANCE, 'God Potion');
@@ -876,13 +630,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
   }
 
-  // Golden Dragon's "Dragon's Greed" — assumed always active at its real
-  // max (+5% Strength, see lib/petData.js) since this app has no
-  // aggregate Magic Find total to scale it off of. Applied as a flat %
-  // boost on the fully-summed Strength total so far (gear/pet/accessory/
-  // Foraging/Skyblock Level/God Potion), added as its own base-stat
-  // source line — computed here rather than inside collectBaseStats so
-  // it captures the player's full Strength, not just the pet's own.
+  // Dragon's Greed: assumed always active at its real max (+5% Strength), applied to the fully-summed Strength total so far.
   if (loadout.pet?.item?.petId === 'GOLDEN_DRAGON') {
     addBaseStat(
       out,
@@ -892,19 +640,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     );
   }
 
-  // Griffin's "Sacred Strength" perk — real NEU-REPO lore (GRIFFIN;5.json,
-  // fetched this session): "Gain +{0}% Strength when above 85% Health,"
-  // {0} scaling from petnums.json's own level-1/level-100 checkpoints
-  // (0.15% -> 15% at Mythic level 100). Per instruction, the 85%-Health
-  // condition is assumed always satisfied (this app has no live player
-  // HP to gate on, same judgment as the Dominance attribute) — but unlike
-  // Dragon's Greed's Magic Find gap, pet level IS tracked here, so this
-  // scales with the player's actual entered level/rarity rather than
-  // being hardcoded to its max, same "assumed-condition, real-level"
-  // treatment as Ender Dragon's Superior perk. Applied as a % boost on
-  // the fully-summed Strength total so far, same base-stat-source-line
-  // placement as Dragon's Greed above (real Sacred Strength boosts the
-  // player's whole Strength stat, not just the pet's own).
+  // Griffin's Sacred Strength: +% Strength scaled by pet level, assumed always active (HP isn't tracked), applied to the player's whole Strength total.
   if (loadout.pet?.item?.petId === 'GRIFFIN') {
     const { item: pet, modifiers: petModifiers } = loadout.pet;
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
@@ -940,10 +676,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
 
     if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {
-      // A weapon's own "+X% damage [to Y]" ability text is the weapon's
-      // own damage bonus (see the weaponBonus buckets' own comment) —
-      // only the weapon slot gets this treatment, armor/equipment/pet
-      // ability text stays in the general additive pool as before.
+      // Only the weapon slot's ability text is treated as a weapon-bonus.
       scanItemAbilityText(equipped.item.lore, itemLabel, slotLabel, out, `${slot}-ability`, slot === 'weapon');
     }
 
@@ -992,9 +725,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
   }
 
-  // Habanero Tactics — summed across every armor piece carrying it, only
-  // applied at all if the equipped weapon is a real Slayer weapon (see
-  // SLAYER_WEAPON_IDS above); no partial credit for other weapons.
+  // Habanero Tactics: summed across armor, only applied with a real Slayer weapon equipped.
   if (loadout.weapon?.item?.id && SLAYER_WEAPON_IDS.has(loadout.weapon.item.id)) {
     let habaneroPercent = 0;
     for (const slot of ARMOR_SLOTS) {
@@ -1013,9 +744,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     }
   }
 
-  // Full-set bonuses — checked positionally against ARMOR_SLOTS/
-  // EQUIPMENT_SLOTS (see lib/armorSetBonuses.js), since each only
-  // applies with the exact 4 real pieces equipped.
+  // Full-set bonuses, checked positionally against the exact 4 real pieces.
   if (hasFullSet(loadout, ARMOR_SLOTS, FINAL_DESTINATION_SET)) {
     addBaseStat(out, 'strength', FINAL_DESTINATION_STRENGTH, 'Final Destination (Full Set)');
     out.additiveConditional.push({
