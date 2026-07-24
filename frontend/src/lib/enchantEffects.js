@@ -174,6 +174,29 @@ export function resolveEnchantCategory(category) {
   return ENCHANT_CATEGORY_ALIASES[category] || category;
 }
 
+// NEU-REPO's per-category enchant lists are occasionally missing an
+// enchant entirely, not just filed under an alternate id — verified
+// against the enchant's own real lore/wiki page. Habanero Tactics'
+// pristine lore (ULTIMATE_HABANERO_TACTICS;4/5.json) reads "Applied To:
+// Armor," and its wiki page confirms it can go on any armor piece, but
+// NEU's HELMET/CHESTPLATE/LEGGINGS/BOOTS category lists have no entry
+// for it at all (checked directly, not just under a different id).
+const MISSING_CATEGORY_ENCHANTS = {
+  HELMET: ['ultimate_habanero_tactics'],
+  CHESTPLATE: ['ultimate_habanero_tactics'],
+  LEGGINGS: ['ultimate_habanero_tactics'],
+  BOOTS: ['ultimate_habanero_tactics'],
+};
+
+// Same {enchants: {CATEGORY: [ids]}} shape as itemData.enchants, patched
+// with the above — callers should use this instead of reading
+// enchantsMeta.enchants[category] directly.
+export function getCategoryEnchantIds(enchantsMeta, category) {
+  const base = (enchantsMeta && enchantsMeta.enchants && enchantsMeta.enchants[category]) || [];
+  const missing = (MISSING_CATEGORY_ENCHANTS[category] || []).filter((id) => !base.includes(id));
+  return missing.length > 0 ? [...base, ...missing] : base;
+}
+
 // NEU-REPO's category-list enchant ids don't always match the enchant's real
 // current display name, and titleCaseEnchantId's default "strip ultimate_,
 // title-case the rest" rule is wrong for a few specific ids. Verified against

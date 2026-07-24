@@ -13,6 +13,7 @@ import {
   computeConflictingEntries,
   resolveEnchantCategory,
   getEnchantCaption,
+  getCategoryEnchantIds,
 } from '../lib/enchantEffects';
 import { SLOT_TEXTURES, ENCHANTED_BOOK_ICON } from '../lib/icons';
 import { formatItemName } from '../lib/mcText';
@@ -45,9 +46,8 @@ export default function EnchantList({ ultimate }) {
   const category = item && item.category;
 
   const enchantIds = useMemo(() => {
-    const byCategory = (itemData.enchants && itemData.enchants.enchants) || {};
     const resolvedCategory = category && resolveEnchantCategory(category);
-    const all = resolvedCategory && byCategory[resolvedCategory] ? byCategory[resolvedCategory] : [];
+    const all = resolvedCategory ? getCategoryEnchantIds(itemData.enchants, resolvedCategory) : [];
     return all.filter((id) => isUltimateEnchant(id) === ultimate && !isHiddenEnchant(id));
   }, [itemData.enchants, category, ultimate]);
 
