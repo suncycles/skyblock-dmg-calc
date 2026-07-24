@@ -89,6 +89,42 @@ const GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS];
 const SLOT_LABELS = { weapon: 'Weapon', ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS };
 const TRACKED_STATS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
 
+// Habanero Tactics (Ultimate armor enchant) grants its damage/Combat
+// Wisdom bonus only "with Slayer weapons" — real NEU-REPO lore names no
+// fixed list, but every actual Slayer-reward weapon's own base lore
+// carries a "Combat Wisdom" stat line, so that's the real identifying
+// trait (per instruction) rather than a hand-picked name list. Derived by
+// grepping worker/src/data/weapons.json for "Combat Wisdom" directly:
+// the Katana line (Voidgloom Seraph), Shredded/Falchion line (Revenant
+// Horror), Shaman/Pooch Sword (Tarantula Broodfather), the 6 Blaze
+// Daggers (Inferno Demonlord), and the Tarantula Broodfather's own
+// Foil/Sting/Fang trio.
+const SLAYER_WEAPON_IDS = new Set([
+  'ATOMSPLIT_KATANA',
+  'VOIDEDGE_KATANA',
+  'VORPAL_KATANA',
+  'AXE_OF_THE_SHREDDED',
+  'REAPER_SWORD',
+  'SHAMAN_SWORD',
+  'POOCH_SWORD',
+  'BURSTFIRE_DAGGER',
+  'BURSTMAW_DAGGER',
+  'FIREDUST_DAGGER',
+  'HEARTFIRE_DAGGER',
+  'HEARTMAW_DAGGER',
+  'MAWDUST_DAGGER',
+  'SCORPION_FOIL',
+  'STING',
+  'TARANTULA_FANG',
+]);
+
+// Real per-level lore (ULTIMATE_HABANERO_TACTICS;4/5.json, fetched this
+// session): "+20% damage with Slayer weapons" at IV, "+25%" at V — a flat
+// 5%/level rate (only levels 4-5 exist). "Applied To: Armor" — stacks
+// once per equipped piece carrying it, same as e.g. Fierce/Renowned
+// reforges stacking per-piece in the real game.
+const HABANERO_TACTICS_PERCENT_PER_LEVEL = 5;
+
 // Fully handled by collectBaseStats/collectSpecialMechanicEntries below
 // (their bonus is either merged into base stats already, per last
 // session's work, or computed exactly from the real player-entered
@@ -765,6 +801,27 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         label: `${itemLabel} (Coins Consumed, fixed max)`,
         source: slotLabel,
         value: CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER,
+      });
+    }
+  }
+
+  // Habanero Tactics — summed across every armor piece carrying it, only
+  // applied at all if the equipped weapon is a real Slayer weapon (see
+  // SLAYER_WEAPON_IDS above); no partial credit for other weapons.
+  if (loadout.weapon?.item?.id && SLAYER_WEAPON_IDS.has(loadout.weapon.item.id)) {
+    let habaneroPercent = 0;
+    for (const slot of ARMOR_SLOTS) {
+      const enchant = loadout[slot]?.modifiers?.ultimateEnchantment;
+      if (enchant && enchant.id.toLowerCase() === 'ultimate_habanero_tactics') {
+        habaneroPercent += enchant.level * HABANERO_TACTICS_PERCENT_PER_LEVEL;
+      }
+    }
+    if (habaneroPercent > 0) {
+      out.additiveNonConditional.push({
+        id: 'habanero-tactics',
+        label: 'Habanero Tactics (Slayer weapon)',
+        source: 'Armor',
+        value: habaneroPercent,
       });
     }
   }
