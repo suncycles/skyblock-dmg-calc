@@ -10,13 +10,8 @@ export const MC_COLORS = {
   4: '#aa0000', 5: '#aa00aa', 6: '#ffaa00', 7: '#aaaaaa',
   8: '#555555', 9: '#5555ff', a: '#55ff55', b: '#55ffff',
   c: '#ff5555', d: '#ff55ff', e: '#ffff55', f: '#ffffff',
-  // 'p' isn't a real vanilla code (all 16 real §-slots above are already
-  // spoken for) — a deliberate app-only extension so Gemstones' bonus
-  // annotation can stay pink without colliding with 'd' (Enchant stat
-  // bonuses' real light-purple), the collision that silently dropped
-  // Critical's Crit Damage bonus whenever Onyx was also socketed. See
-  // lib/gemstones.js's GEMSTONE_COLOR.
-  p: '#ff1493',
+  // 'p' is separate from 'd' to prevent color-collision with Gemstone stats.
+  p: '#ff55fe',
 };
 
 export const RARITY_COLORS = {
