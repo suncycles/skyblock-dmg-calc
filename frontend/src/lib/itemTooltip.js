@@ -1,7 +1,7 @@
 import { rarityColorCode, formatItemName } from './mcText';
 import { titleCaseEnchantId, toRoman, fetchEnchantLevels, extractDescriptionLines } from './enchantEffects';
 import { parseEnchantStatBonus } from './enchantStats';
-import { annotateStatLines, mergeStatIntoBase } from './statLines';
+import { mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
@@ -10,12 +10,6 @@ import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
-
-// §d (light purple) — distinct from Reforges' blue, Books' yellow, Art of
-// War's gold, and matches the pink Ultimate-enchant name color, so
-// enchant-sourced annotations read as visually related to the enchant
-// system.
-const ENCHANT_STAT_COLOR = 'd';
 
 // Applied enchants, formatted for the tooltip: ultimate first (always bold
 // pink, matching its real in-game color regardless of level), then normal
@@ -118,8 +112,14 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
 
+  // Merged straight into the base number, same "improves the item's own
+  // base stats" treatment as Stars/Wither Blade/Daedalus above — no
+  // separate colored annotation, unlike Reforges/Books/Gemstones: an
+  // enchant's own stat bonus (Critical's +Crit Damage%, etc.) isn't a
+  // swappable gear modifier the player is choosing between, it just reads
+  // as part of the weapon's real total the same way a pristine stat would.
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
-  lore = annotateStatLines(lore, enchantStatBonuses, ENCHANT_STAT_COLOR, lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
   if (modifiers.recombobulated) lore = applyRecombToLore(lore, item.tier);
