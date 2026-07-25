@@ -1,17 +1,9 @@
-// Full-armor/equipment-set damage bonuses — real NEU-REPO ids/values
-// fetched this session, keyed in ARMOR_SLOTS/EQUIPMENT_SLOTS order
-// (helmet/chestplate/leggings/boots, necklace/cloak/belt/gloves) so
-// membership can be checked positionally against the loadout.
+// Full-armor/equipment-set damage bonuses, keyed in ARMOR_SLOTS/EQUIPMENT_SLOTS order
+// (helmet/chestplate/leggings/boots, necklace/cloak/belt/gloves) so membership can be
+// checked positionally against the loadout.
 
-// Final Destination's own real lore: "Full Set Bonus: Vivacious
-// Darkness (0/4) — Costs 2 Soulflow per 5s in combat while sneaking:
-// +30 Strength, +20 Attack Speed, +10 Speed, Multiply Intelligence by
-// 1.25x, +200 Ferocity against Endermen, +100% damage against
-// Endermen." The Soulflow-cost/sneaking gate is treated as always
-// active (same "assumed uptime" precedent as Dominance/Warden Helmet);
-// only the two damage-relevant pieces are modeled — Strength
-// unconditional, the +100% damage kept scoped to Ender-type mobs
-// exactly as the real ability describes (not a blanket bonus).
+// Final Destination's Vivacious Darkness set bonus: +30 Strength (unconditional) and +100%
+// damage against Ender-type mobs. The Soulflow-cost/sneaking gate is assumed always active.
 export const FINAL_DESTINATION_SET = [
   'FINAL_DESTINATION_HELMET',
   'FINAL_DESTINATION_CHESTPLATE',
@@ -21,11 +13,8 @@ export const FINAL_DESTINATION_SET = [
 export const FINAL_DESTINATION_STRENGTH = 30;
 export const FINAL_DESTINATION_ENDER_DAMAGE_PERCENT = 100;
 
-// Vanquished gear's own lore has no "Full Set Bonus" section at all —
-// this 1.1x is an undocumented/hidden bonus per instruction, not stated
-// anywhere in-game, so Damage Sources shows Final Damage both with and
-// without it applied (see DamageSources.jsx) rather than silently
-// folding it in.
+// Vanquished's 1.1x is an undocumented hidden bonus (not stated in-game) — Damage Sources
+// shows Final Damage both with and without it rather than silently folding it in.
 export const VANQUISHED_SET = [
   'VANQUISHED_MAGMA_NECKLACE',
   'VANQUISHED_GHAST_CLOAK',
@@ -35,18 +24,15 @@ export const VANQUISHED_SET = [
 export const VANQUISHED_SET_MULTIPLIER = 1.1;
 export const VANQUISHED_SET_ID = 'vanquished-set-hidden-bonus';
 
-// Monster Hunter/Monster Raider — undocumented "hidden" set bonuses per
-// instruction (neither set's own pieces mention one in their real
-// lore); the two sets share their first 3 pieces and differ only in
-// boots, so they're mutually exclusive by construction.
+// Monster Hunter/Monster Raider: undocumented hidden set bonuses. The two sets share their
+// first 3 pieces and differ only in boots, so they're mutually exclusive by construction.
 export const MONSTER_HUNTER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'SPIDER_BOOTS'];
 export const MONSTER_HUNTER_MULTIPLIER = 1.25;
 
 export const MONSTER_RAIDER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'TARANTULA_BOOTS'];
 export const MONSTER_RAIDER_MULTIPLIER = 1.35;
 
-// `slots` is ARMOR_SLOTS or EQUIPMENT_SLOTS (positionally matched
-// against `setIds`); `loadout` is BuildContext's own loadout object.
+// `slots` is ARMOR_SLOTS or EQUIPMENT_SLOTS, matched positionally against `setIds`.
 export function hasFullSet(loadout, slots, setIds) {
   return slots.every((slot, i) => loadout[slot]?.item?.id === setIds[i]);
 }

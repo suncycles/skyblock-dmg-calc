@@ -1,19 +1,10 @@
 import { STAT_LABELS, formatStatValue } from './reforgeData';
 
-// Appends a "§{color}(+X)" annotation to each lore line whose stat label
-// matches a key in `bonuses` (a {statKey: numericValue} map using
-// reforgeData's NEU stat keys, e.g. {damage: 50, strength: 15}), or adds a
-// brand new "§7Label: §{valueColor}+X" line (no redundant "(+X)" — there's
-// nothing else on that line to call the addition out against, same as
-// mergeStatIntoBase's own new-line case below) for any bonus the item's
-// lore doesn't already show a line for. Mirrors gemstones.js's
-// applyGemstonesToLore but for flat/percent bonuses keyed by STAT_LABELS
-// instead of gemstone-specific bracket handling; used by Reforges/Books/
-// Enchant stat bonuses so those features don't each reimplement this
-// line-matching/insertion logic. Every "(+X)" this produces represents a
-// genuinely additional amount NOT already reflected in the line's leading
-// number — lib/damageSources.js's sumStatFromTooltipLines relies on that
-// invariant to sum an item's total without double-counting.
+// Appends a "§{color}(+X)" annotation to each lore line whose stat label matches a key in
+// `bonuses` ({statKey: numericValue}), or adds a brand-new "§7Label: §{color}+X" line for any
+// bonus the item's lore doesn't already show. Used by Reforges/Books/Enchant stat bonuses.
+// Every "(+X)" this produces is a genuinely additional amount not already reflected in the
+// line's leading number — sumStatFromTooltipLines relies on that to avoid double-counting.
 export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => v);
   if (!lore || entries.length === 0) return lore;
@@ -49,13 +40,9 @@ export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
   return [...result.slice(0, idx), ...newLines, ...result.slice(idx)];
 }
 
-// Same line-matching as annotateStatLines, but instead of appending a
-// separate "(+X)" annotation, rewrites the base number itself in place
-// (e.g. "§7Damage: §c+170" + {damage: 120} -> "§7Damage: §c+290") — for
-// bonuses that should read as part of the item's own base stat rather
-// than an external modifier (see Midas Sword's price-paid bonus). Any
-// text already following the number on that line (a trailing "%", or an
-// annotation appended by an earlier-applied modifier) is preserved as-is.
+// Same line-matching as annotateStatLines, but rewrites the base number itself in place
+// instead of appending an annotation — for bonuses that read as part of the item's own base
+// stat. Text already following the number (a "%" suffix, or another modifier's annotation) is preserved.
 export function mergeStatIntoBase(lore, bonuses, insertBeforeLineIdx) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => v);
   if (!lore || entries.length === 0) return lore;
@@ -72,9 +59,7 @@ export function mergeStatIntoBase(lore, bonuses, insertBeforeLineIdx) {
     const plain = line.replace(/§./g, '');
     const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
     if (!labelMatch || !byLabel[labelMatch[2]]) return line;
-    // Base number is the first §-colored token right after "Label: " —
-    // captured separately from anything after it (a "%" suffix, or a
-    // later modifier's own "(+X)" annotation) so only the base moves.
+    // Captures just the base number after "Label: ", separate from any trailing "%" or annotation.
     const numMatch = /^(.*?:\s*§.)([+-]?[\d.]+)/.exec(line);
     if (!numMatch) return line;
     matchedLabels.add(labelMatch[2]);
