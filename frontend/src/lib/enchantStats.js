@@ -1,21 +1,10 @@
 import { STAT_LABELS } from './reforgeData';
 
-// Some enchants grant a flat/percent stat bonus per level (parsed from
-// the same real per-level NEU-REPO description text lib/enchantEffects.js
-// already fetches for the enchant-picker's own preview tooltip — e.g.
-// "Increases Crit Damage by 10%." for Critical I, "Grants +3 Health."
-// for Prosperity I) rather than only being a described ability. Those
-// should show up as a normal "(+X)" annotation on the item's own stat
-// lines, same as Reforges/Books — this is a lightweight text parser for
-// the two real phrasings NEU-REPO consistently uses for that, not a
-// hardcoded per-enchant table, so any other stat-granting enchant picks
-// this up for free.
-//
-// Deliberately returns null for anything that doesn't cleanly resolve to
-// "one fixed number attached to one known stat name" — e.g. Cayenne's
-// "+0.8 Health ... per digit in your Magical Power" scales off Magical
-// Power, a game-progression stat this calculator has no input for
-// anywhere, so it's correctly left unparsed/skipped rather than guessed.
+// Some enchants grant a flat/percent stat bonus per level (e.g. "Increases Crit Damage by
+// 10%.", "Grants +3 Health.") — parsed generically from the two real NEU-REPO phrasings
+// rather than a hardcoded per-enchant table, so any stat-granting enchant picks this up for
+// free. Returns null for anything that doesn't resolve to one fixed number on one known stat
+// (e.g. Cayenne's Magical-Power-scaled bonus, which this calculator has no input for).
 function stripToPlainText(loreLines) {
   return loreLines
     .join(' ')

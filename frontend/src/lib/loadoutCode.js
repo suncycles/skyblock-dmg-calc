@@ -1,26 +1,11 @@
 import { derivePetDisplayName } from './petData';
 import { getPowerById } from './accessoryPowers';
 
-/* Encodes the entire build (loadout + target mobs + Attributes + player
-   levels + God Potion + Misc stats + Mob HP%) into one compact, URL-safe
-   string, and decodes it back — powers the "Loadouts" Export/Import
-   buttons (Landing.jsx) and the /loadout/:code share-link route
-   (LoadoutLoader.jsx).
-
-   Deliberately NOT a hand-rolled fixed-width bit-packer (the kind
-   wynnbuilder's build-string format uses) — that works well for
-   Wynncraft's small, rigid set of build fields, but this app's modifiers
-   are much more heterogeneous and variable-length per slot (a variable
-   number of enchants, a sparse gemstone array, etc.), which a fixed-width
-   packer handles poorly and is painful to extend. Instead: build a
-   compact JSON object (only `item.id`/`petId`+`tier`/power `id` for each
-   gear/pet/accessory slot — never the item's own heavy `lore` array,
-   which is reconstructed from itemData on decode instead), gzip it with
-   the browser's native CompressionStream, and base64url-encode the
-   result. Every other field (enchants, gemstones, tuning, etc.) is
-   already plain JSON-safe data straight from BuildContext's own state
-   shape, so it passes through unchanged — no per-field reshaping needed,
-   which keeps this file's surface for bugs small. */
+/* Encodes the entire build into one compact, URL-safe string and decodes it back — powers
+   the "Loadouts" Export/Import buttons and the /loadout/:code share-link route. Only
+   `item.id`/`petId`+`tier`/power `id` is stored per slot (never the item's heavy `lore`
+   array, reconstructed from itemData on decode); everything else passes through as plain
+   JSON. Gzipped via the browser's native CompressionStream, then base64url-encoded. */
 
 const FORMAT_VERSION = 1;
 
@@ -65,15 +50,10 @@ function buildEncodableState({ loadout, targetMobs, attributes, playerStats, god
   };
 }
 
-// Expands the decoded compact object back into the exact shape
-// BuildContext's own state uses — reconstructing each item's full record
-// (name/material/category/tier/lore) from itemData rather than trusting
-// anything the encoded string itself claims about them, same "itemData is
-// the source of truth" principle every picker already follows. A gear/
-// pet/accessory id that no longer resolves against the current itemData
-// (removed or renamed since the link was shared) is silently skipped
-// rather than left half-populated or thrown as a fatal error — one stale
-// slot in a shared build shouldn't block loading the rest of it.
+// Expands the decoded compact object back into BuildContext's own state shape,
+// reconstructing each item's full record from itemData. A gear/pet/accessory id that no
+// longer resolves (removed/renamed since the link was shared) is silently skipped rather
+// than blocking the rest of the build from loading.
 function expandState(compact, itemData) {
   const loadout = {};
 
@@ -181,10 +161,8 @@ export async function encodeLoadout(state) {
   return bytesToBase64Url(compressed);
 }
 
-// Returns the expanded state (see expandState above), or throws if `code`
-// doesn't decode to valid JSON, is an unsupported format version, or
-// isn't even the right shape — callers should catch and show a friendly
-// error rather than let a corrupted/hand-edited code crash the app.
+// Returns the expanded state, or throws if `code` doesn't decode to valid JSON, is an
+// unsupported format version, or isn't the right shape — callers should catch and show a friendly error.
 export async function decodeLoadoutCode(code, itemData) {
   const compressed = base64UrlToBytes(code);
   const bytes = await gunzip(compressed);
