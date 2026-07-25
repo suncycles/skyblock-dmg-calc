@@ -1,23 +1,11 @@
-// Hypixel Skyblock Attributes — Hunting skill shards syphoned to level an
-// account-wide, non-item-bound attribute 1-10 (toggled on/off in its own
-// in-game menu, unlike every other per-item modifier system in this app).
-// Real per-level rates sourced directly from hypixelskyblock.minecraft.wiki's
-// Attributes page + its 5 rarity sub-pages this session (not guessed) —
-// every rate below is a real, verified linear rate x level (1-10).
-//
-// Only the damage-relevant subset is modeled: Ruler (per-Mob-Type %
-// damage), the Echo chain (keyword-matching relative boosts to Ruler/
-// Elemental attributes), Strength Elemental, Deadeye (bow-only % damage),
-// Warrior (melee-only % damage — the exact inverse condition of
-// Deadeye), Elite (boss/miniboss % damage — this app's mob dataset has
-// no boss/miniboss flag on any entry, so it's scoped to the 5 real
-// Slayer bosses instead, see lib/damageSources.js's ELITE_BOSS_MOBS),
-// Unlimited Power/Energy (post-everything %
-// multipliers on Strength/Crit Damage), Almighty (keyword-matching
-// relative boost to both "Unlimited" attributes, same mechanism as the
-// Echo chain), Tuning Box (+Accessory Tuning points), and Dominance
-// (treated as always-active per instruction). Lifeline is explicitly
-// out of scope, not modeled at all.
+// Hypixel Skyblock Attributes — Hunting skill shards syphoned to level an account-wide,
+// non-item-bound attribute 1-10. Only the damage-relevant subset is modeled: Ruler (per-Mob-
+// Type % damage), the Echo chain (relative boosts to Ruler/Elemental attributes), Strength
+// Elemental, Deadeye (bow-only % damage), Warrior (melee-only, Deadeye's inverse), Elite
+// (boss/miniboss % damage, scoped to the 5 real Slayer bosses — see
+// lib/damageSources.js's ELITE_BOSS_MOBS), Unlimited Power/Energy (post-everything %
+// multipliers on Strength/Crit Damage), Almighty (relative boost to both Unlimited
+// attributes), Tuning Box (+Accessory Tuning points), and Dominance (always-active). Lifeline is out of scope.
 
 export const MAX_ATTRIBUTE_LEVEL = 10;
 
@@ -45,9 +33,7 @@ export const ALMIGHTY_RATE = 5; // %/level, 'Your "Unlimited" Attributes are +5%
 export const TUNING_BOX_RATE = 1; // Tuning Points/level, "+1-10 Tuning Points"
 export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" — treated as always-active
 
-// Non-Ruler/Elemental/Echo attributes this page needs a single number
-// input for — shared shape so pages/Attributes.jsx can render them
-// generically rather than one-off per attribute.
+// Non-Ruler/Elemental/Echo attributes needing a single number input — shared shape for pages/Attributes.jsx to render generically.
 export const OTHER_ATTRIBUTES = [
   { id: 'deadeye', name: 'Deadeye', rate: DEADEYE_RATE, unit: '%' },
   { id: 'warrior', name: 'Warrior', rate: WARRIOR_RATE, unit: '%' },
@@ -68,11 +54,7 @@ export const ATTRIBUTE_IDS = [
   ...OTHER_ATTRIBUTES.map((a) => a.id),
 ];
 
-// Echo of Ruler/Echo of Elemental are themselves boosted by Echo of
-// Echoes (never by themselves) before boosting their own target family —
-// verified against the user's own worked example: Echo of Ruler 10 (20%)
-// boosted by Echo of Echoes 10 (50%) -> 20*1.5=30, which then boosts a
-// 30%-base Ruler attribute to 30*1.3=39%.
+// Echo of Ruler/Echo of Elemental are themselves boosted by Echo of Echoes before boosting their own target family.
 export function computeEchoBoost(baseRate, level, echoOfEchoesLevel) {
   const own = baseRate * (level || 0);
   const echoOfEchoesBonus = ECHO_OF_ECHOES_RATE * (echoOfEchoesLevel || 0);
