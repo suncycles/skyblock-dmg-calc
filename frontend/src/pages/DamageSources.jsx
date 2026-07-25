@@ -27,10 +27,7 @@ function Section({ title, subtitle, children, empty }) {
 
 const BASE_STAT_KEYS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
 
-// Prefixes every stat/mob-type keyword mention (lib/damageSymbols.js) with
-// its colored glyph — used for base-stat labels, conditional/multiplicative
-// condition text ("Undead, Skeletal, Wither", "Cubic"), and situational
-// notes, since any of those can name a keyword.
+// Prefixes every stat/mob-type keyword mention with its colored glyph (lib/damageSymbols.js).
 function Keyworded({ text }) {
   return splitKeywords(text).map((part, i) =>
     typeof part === 'string' ? (
@@ -43,15 +40,8 @@ function Keyworded({ text }) {
   );
 }
 
-// Cross-loadout damage-source breakdown — every equipped item/enchant/
-// pet ability that contributes bonus damage, categorized the same way
-// lib/damageSources.js computes it: (Base) stats summed across every
-// slot; non-conditional vs conditional % additive damage (condition
-// shown per entry, e.g. Smite -> "Wither, Undead, Skeletal"); Nx
-// multiplicative sources; and a collapsed-by-default situational list
-// for formula-based sources this app can't resolve to a fixed value yet
-// (Execute's %-per-missing-HP, etc.) — shown for transparency rather
-// than silently dropped, not counted in any total above.
+// Cross-loadout damage-source breakdown: (Base) stats, non-conditional/conditional % additive damage,
+// Nx multiplicative sources, and a collapsed-by-default situational list for sources not resolvable to a fixed value.
 export default function DamageSources() {
   const navigate = useNavigate();
   const {
@@ -80,20 +70,14 @@ export default function DamageSources() {
     });
   }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent]);
 
-  // Vanquished's 1.1x is an undocumented hidden bonus (see
-  // lib/armorSetBonuses.js) — shown alongside the real, unboosted number
-  // rather than silently folded into the one Final Damage figure.
+  // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than silently folded in.
   const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
   const withoutVanquishedResult =
     result && hasVanquishedBonus
       ? { ...result, multiplicative: result.multiplicative.filter((e) => e.id !== VANQUISHED_SET_ID) }
       : null;
 
-  // Fabled's crit-hit-chance bonus (see lib/reforges.js) is randomized
-  // per hit — the main Final Damage number stays the real "no bonus"
-  // baseline (the marker entry is pushed at 1x), and a second figure is
-  // computed with that entry bumped to the real max (+15%) to show the
-  // actual damage range, same with/without technique as Vanquished above.
+  // Fabled's crit-hit-chance bonus is randomized per hit — main figure stays at the "no bonus" baseline, second figure shows the real max.
   const hasFabledBonus = result?.multiplicative.some((e) => e.id === FABLED_REFORGE_ID) ?? false;
   const withFabledMaxResult = hasFabledBonus
     ? {
@@ -104,10 +88,7 @@ export default function DamageSources() {
       }
     : null;
 
-  // Final Damage is computed independently per selected mob (see
-  // BuildContext.jsx's targetMobs) so a build can be checked across
-  // several targets — e.g. every slayer boss — at once, rather than
-  // re-picking one mob at a time.
+  // Final Damage is computed independently per selected mob, so a build can be checked across several targets at once.
   const mobResults = result
     ? targetMobs.map((name) => {
         const types = MOB_TYPES[name] || null;
@@ -124,10 +105,7 @@ export default function DamageSources() {
       })
     : [];
 
-  // With multiple targets a source can apply to some and not others —
-  // dimming (see Row's `applied` prop) reads as "applies to at least one
-  // selected mob" rather than a single target's yes/no, undefined (grey,
-  // neutral) when no mob is selected at all.
+  // Dimming (Row's `applied` prop) reads as "applies to at least one selected mob"; undefined when no mob is selected.
   const appliedToAnyMob =
     mobResults.length > 0
       ? mobResults.reduce((set, r) => {
@@ -289,10 +267,6 @@ export default function DamageSources() {
               </Section>
             </div>
 
-            {/* Flat, manually-entered "everything else" Strength/Crit
-                Damage — Slayer level rewards, specific talisman bonuses, etc
-                . Folded into (Base) Stats' own "Misc" source line — see
-                BuildContext.jsx's miscStats. */}
             <div className={`${panel} p-3 flex flex-col gap-2 w-[160px] shrink-0`}>
               <div className="text-sm font-bold text-black">Misc</div>
               <div className="text-[11px] text-neutral-700 -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
@@ -449,17 +423,12 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
-// Multiplicative sources can be much finer-grained than the 1-decimal %
-// entries (Skyblock Level is only +0.0001x per level) — 1 decimal would
-// silently flatten a real bonus down to "1x".
+// Multiplicative sources can be much finer-grained than 1-decimal % entries (Skyblock Level is +0.0001x/level).
 function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
 
-// `applied` is only meaningful once a target mob is selected (see
-// lib/finalDamage.js's appliedIds) — undefined (no target yet) renders
-// normally, false dims the row to show it isn't contributing to the
-// Final Damage number above.
+// `applied` is only meaningful once a target mob is selected — undefined renders normally, false dims the row.
 function Row({ left, right, source, applied }) {
   return (
     <div className={`flex justify-between items-baseline text-[13px] text-black gap-2 ${applied === false ? 'opacity-40' : ''}`}>
