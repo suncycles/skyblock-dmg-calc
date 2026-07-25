@@ -5,7 +5,7 @@ import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attr
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
-const TARGET_MOB_KEY = 'hexTargetMob'; // legacy single-mob key, read once for migration
+const TARGET_MOB_KEY = 'hexTargetMob'; // legacy single-mob key, migrated once then unused
 const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
 const ATTRIBUTES_KEY = 'hexAttributes';
@@ -14,13 +14,7 @@ const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 
 const BuildContext = createContext(null);
 
-// The mob(s) Final Damage is computed against (see lib/finalDamage.js) —
-// canonical mob name strings (keys into lib/mobTypes.js's MOB_TYPES).
-// Final Damage is computed once per selected mob and shown as a list
-// (see DamageSources.jsx), rather than a single target, so builds can be
-// checked across e.g. multiple slayer bosses at once. Migrates the old
-// single-mob key (hexTargetMob) into a one-item array the first time this
-// runs after the multi-mob change, then never reads it again.
+// Loads the selected target mob names, migrating the legacy single-mob key into the array format.
 function loadInitialTargetMobs() {
   const stored = localStorage.getItem(TARGET_MOBS_KEY);
   if (stored) {
@@ -36,33 +30,19 @@ function loadInitialTargetMobs() {
   return legacy ? [legacy] : [];
 }
 
-// A simple on/off toggle (see lib/godPotion.js) — not a numeric level or
-// an equipped item, so it gets its own small persisted boolean rather
-// than living in playerStats or loadout.
+// Loads the God Potion on/off toggle (see lib/godPotion.js).
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
 }
 
-// The target's current HP%, 0-100 — resolves Execute/Prosecute's real
-// "% per point of missing/current HP" formulas into a fixed number
-// (see lib/damageSources.js), and gates First Strike/Triple-Strike's
-// "first hit(s) on a mob" bonus to only apply at 100 (a fresh, full-
-// health target). Global to the whole calc, not per selected target
-// mob, same "one small persisted concern" precedent as godPotionActive.
-// Defaults to 100 — a fresh engagement, matching First Strike/Triple-
-// Strike's own default-active assumption.
+// Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
 function loadInitialMobHpPercent() {
   const stored = localStorage.getItem(MOB_HP_PERCENT_KEY);
   const parsed = stored != null ? Number(stored) : 100;
   return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 100;
 }
 
-// Flat, manually-entered "everything else" Strength/Crit Damage — the
-// real game has a long tail of small permanent bonuses (Fairy Souls,
-// Slayer level rewards, Skill level rewards, etc.) this calculator
-// doesn't model individually; rather than chase down every one, the
-// player enters their own known total here. See Damage Sources' panel
-// next to (Base) Stats.
+// Loads the manually-entered "everything else" Strength/Crit Damage total (Fairy Souls, skill rewards, etc.).
 function loadInitialMiscStats() {
   const stored = localStorage.getItem(MISC_STATS_KEY);
   if (!stored) return { strength: 0, crit_damage: 0 };
@@ -78,10 +58,7 @@ function loadInitialMiscStats() {
   }
 }
 
-// Attributes (see lib/attributes.js) are account-wide, not tied to any
-// equipped item — {[attributeId]: level 0-10}, own persisted object same
-// as playerStats, defaulting every known id to 0 so new ids introduced
-// later don't need a migration.
+// Loads account-wide Attribute levels (see lib/attributes.js), defaulting every known id to 0.
 function loadInitialAttributes() {
   const defaults = Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0]));
   const stored = localStorage.getItem(ATTRIBUTES_KEY);
@@ -98,9 +75,7 @@ function loadInitialAttributes() {
   }
 }
 
-// Global, not tied to any equipped item/pet — Combat Level, Skyblock
-// Level, etc (see lib/playerStats.js) — persisted separately from the
-// slot-keyed loadout since it isn't "equipment."
+// Loads global player levels (Combat, Skyblock, Foraging, Catacombs, Taming — see lib/playerStats.js).
 function loadInitialPlayerStats() {
   const defaults = { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0, tamingLevel: 0 };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
@@ -123,11 +98,11 @@ function loadInitialPlayerStats() {
 function emptyModifiers() {
   return {
     hexEnchantments: [], // [{id, level, maxLevel}], normal enchants
-    ultimateEnchantment: null, // {id, level, maxLevel} | null — only one allowed
+    ultimateEnchantment: null, // {id, level, maxLevel} | null
     gemstones: [],
     books: 0, // Hot/Fuming Potato Book count, 0-15
-    artOfWar: false, // The Art of War — one-time-use, +5 Strength, weapons only
-    artOfPeace: false, // The Art of Peace — one-time-use, +40 Health, armor only
+    artOfWar: false, // +5 Strength, weapons only
+    artOfPeace: false, // +40 Health, armor only
     special: 0, // weapon-specific ability input — see lib/specialWeapons.js
     recombobulated: false,
     reforge: null, // reforge name string | null
@@ -135,9 +110,7 @@ function emptyModifiers() {
   };
 }
 
-// Pets don't have enchants/gemstones/reforges/etc — just a level and an
-// optional held pet item — so they get their own, much smaller modifiers
-// shape rather than carrying 8 unused weapon/armor-only fields.
+// Pets' own modifiers shape: just a level and optional held pet item, no enchants/gemstones/reforges.
 function emptyPetModifiers() {
   return {
     level: 1,
@@ -147,10 +120,7 @@ function emptyPetModifiers() {
   };
 }
 
-// Accessory Powers (see lib/accessoryPowers.js) — a chosen power id, the
-// player's Magical Power, and Tuning Point allocation. No enchants/
-// gemstones/reforge concept at all, same "own small shape" precedent as
-// pets.
+// Accessory Powers' own modifiers shape: chosen power id, Magical Power, and Tuning Point allocation.
 function emptyAccessoryModifiers() {
   return {
     magicalPower: 0,
@@ -167,10 +137,7 @@ function emptyAccessoryModifiers() {
   };
 }
 
-// Sparse: a slot key ('weapon' | 'helmet' | 'chestplate' | 'leggings' |
-// 'boots' | 'pet') is simply absent from the loadout until something's
-// picked for it — no null placeholders for the other slots while working
-// on one.
+// Loads the loadout — a sparse map, absent slot keys meaning nothing equipped there.
 function loadInitial() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return {};
@@ -179,10 +146,7 @@ function loadInitial() {
     const next = {};
     for (const slot of Object.keys(parsed || {})) {
       const entry = parsed[slot];
-      // Discard entries saved under an older schema (hexEnchantments used to
-      // be a fixed {damage_boosts,utility,defense} object, not a list; books
-      // used to be a list too, not a plain count) rather than risk operating
-      // on a shape the setters below don't expect.
+      // Discard entries saved under an older schema shape.
       if (!entry?.item) continue;
       if (slot === 'pet') {
         if (typeof entry?.modifiers?.level !== 'number') continue;
@@ -233,8 +197,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Adds/removes a single mob from the selection — the picker's own click
-  // handler (see TargetMobPicker.jsx), not a full replace.
+  // Adds/removes a single mob from the selection.
   const toggleTargetMob = useCallback((name) => {
     setTargetMobsState((prev) => {
       const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
@@ -298,9 +261,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Shared by every modifier setter below: no-ops if the slot has nothing
-  // equipped yet, otherwise runs `updater` over that slot's current
-  // modifiers and persists the whole loadout.
+  // Shared by every modifier setter below: no-ops if the slot is empty, otherwise runs `updater` over its modifiers and persists.
   const updateSlotModifiers = useCallback((slot, updater) => {
     setLoadout((prev) => {
       if (!prev[slot]) return prev;
@@ -310,17 +271,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Equips `item` into `slot`, resetting that slot's modifiers to defaults
-  // (picking a new item for a slot starts that piece fresh) — except
-  // Accessory, whose modifiers (Magical Power AND Tuning Point
-  // allocations) carry over whole across switching Power Stones instead
-  // of resetting: comparing stats across different powers at the same
-  // Magical Power/Tuning is a common thing to want to simulate, so
-  // re-entering them after every click would be real friction for no
-  // benefit. Safe to carry over as-is since Tuning's own point cap
-  // (computeTuningPoints) is derived from Magical Power alone, not the
-  // specific power equipped, so a prior allocation is never invalidated
-  // by switching.
+  // Equips `item` into `slot`, resetting modifiers to defaults — except Accessory, whose Magical Power/Tuning carry over across Power Stone switches.
   const selectItem = useCallback((slot, item) => {
     setLoadout((prev) => {
       const next = {
@@ -352,10 +303,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Fully unequips a slot (as opposed to selectItem, which replaces it) —
-  // the slot key is dropped from the loadout entirely rather than set to
-  // null, matching loadInitial/the rest of the app's "absent = nothing
-  // equipped" convention.
+  // Fully unequips a slot, dropping its key from the loadout entirely.
   const removeSlot = useCallback((slot) => {
     setLoadout((prev) => {
       if (!prev[slot]) return prev;
@@ -366,11 +314,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Applies (or replaces) a chosen level for one enchant. Ultimate enchants
-  // occupy their own single slot (an item can only hold one); normal
-  // enchants upsert into the list by id. removeIds (from
-  // computeConflictingEntries) are dropped first, so the "X will be removed"
-  // warning shown on hover is never a broken promise.
+  // Applies (or replaces) a chosen level for one enchant. Ultimate enchants occupy their own single slot; normal enchants upsert by id. removeIds (conflicting enchants) are dropped first.
   const applyEnchant = useCallback(
     (slot, id, level, maxLevel, removeIds = []) => {
       updateSlotModifiers(slot, (modifiers) => {
@@ -394,9 +338,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Sets (or replaces) the gemstone in one slot index. gemstones is a sparse
-  // array indexed by slot position, matching the order slots are laid out
-  // in on the Gemstones screen.
+  // Sets (or replaces) the gemstone in one slot index — gemstones is a sparse array indexed by slot position.
   const applyGemstone = useCallback(
     (slot, slotIndex, gemId, tier) => {
       updateSlotModifiers(slot, (modifiers) => {
@@ -419,11 +361,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Hot/Fuming Potato Book count — a single combined counter since both
-  // grant the same bonus per application and share one limit in the real
-  // game (Hot Potato Books alone cap at 10; Fuming Potato Books are what
-  // let that limit go up to 15). See lib/reforgeData.js's STAT_LABELS for
-  // the bonus itself.
+  // Sets the combined Hot/Fuming Potato Book count (0-15).
   const setBookCount = useCallback(
     (slot, count) => {
       updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, books: count }));
@@ -459,8 +397,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // name === null clears the reforge (used by a "Remove Reforge" slot,
-  // matching removeGemstone's pattern).
+  // name === null clears the reforge.
   const applyReforge = useCallback(
     (slot, name) => {
       updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, reforge: name }));
@@ -511,10 +448,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Clamped so the sum of every stat's assigned points never exceeds what
-  // the current Magical Power actually grants — matches the real "remove
-  // points to reinvest them elsewhere" behavior rather than letting the
-  // total silently overshoot.
+  // Clamped so the sum of every stat's assigned points never exceeds the current Magical Power's total.
   const setAccessoryTuningPoint = useCallback(
     (statKey, points) => {
       updateSlotModifiers('accessory', (modifiers) => {
@@ -529,14 +463,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers, attributes.tuning_box],
   );
 
-  // Overwrites the ENTIRE build state at once — loadout, target mobs,
-  // Attributes, player levels, God Potion, Misc stats, and Mob HP% — and
-  // persists each to its existing localStorage key, same shape every
-  // individual setter above already uses. Powers Import and the
-  // /loadout/:code share-link route (see lib/loadoutCode.js's
-  // decodeLoadoutCode, which already fills in every field below with a
-  // safe default, but this re-defaults defensively too in case of a
-  // hand-edited/older-format code).
+  // Overwrites the entire build state at once (loadout, target mobs, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
   const loadFullState = useCallback((state) => {
     const nextLoadout = state.loadout || {};
     setLoadout(nextLoadout);
