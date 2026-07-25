@@ -1,9 +1,5 @@
-/* Minecraft/Skyblock §-color-code parsing. Color table is vanilla
-   Minecraft's 16 §-codes, plus one app-only extension ('p', see below —
-   the parser treats it identically to a real code, it just isn't one).
-   Rarity colors are Hypixel Skyblock's, verified against NEU-REPO's own
-   constants/misc.json "tier_colors" (the same data source the worker
-   pulls from). */
+/* Minecraft/Skyblock §-color-code parsing. Color table is vanilla Minecraft's 16 §-codes
+   plus one app-only extension ('p', below). Rarity colors are Hypixel Skyblock's own. */
 
 export const MC_COLORS = {
   0: '#000000', 1: '#0000aa', 2: '#00aa00', 3: '#00aaaa',
@@ -23,21 +19,14 @@ export function rarityColorCode(tier) {
   return RARITY_COLORS[(tier || 'common').toLowerCase()] || 'f';
 }
 
-// Hypixel renders max-stat "starred" items with a leading glyph from its own
-// bundled font (U+E068, Private Use Area) — without that font it shows as
-// tofu/nothing in a browser, so swap it for a real, renderable symbol
-// wherever an item name is displayed as plain text.
+// Max-stat "starred" items lead with a glyph from Hypixel's own font (tofu in a browser) — swapped for a real renderable symbol.
 const STARRED_GLYPH = '';
 export function formatItemName(name) {
   if (!name) return name;
   return name.replace(STARRED_GLYPH, '⚕');
 }
 
-// Parses a single line of real Minecraft §-formatted text (colors 0-9a-f,
-// plus l/o/n/m for bold/italic/underline/strikethrough, r to reset) into
-// an array of {text, color, bold, italic, underline, strikethrough}
-// segments. A color code resets active formatting, matching vanilla
-// behavior. Framework-agnostic — callers render the segments.
+// Parses a §-formatted line into {text, color, bold, italic, underline, strikethrough} segments. Framework-agnostic.
 export function parseMinecraftLine(text) {
   const segments = [];
   let color = MC_COLORS[7];
