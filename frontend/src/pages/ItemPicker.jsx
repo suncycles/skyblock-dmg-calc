@@ -2,18 +2,12 @@ import { useMemo, useState } from 'react';
 import WeaponIcon from '../components/WeaponIcon';
 import { formatItemName } from '../lib/mcText';
 
-// Starred (max-reforge-stat) items carry a leading Hypixel custom-font glyph
-// before the name (e.g. " Daedalus Blade" for the starred variant of
-// "Daedalus Blade") — strip any such leading non-alphanumeric run so search
-// still matches on the real first letter of the name.
+// Strips a starred item's leading Hypixel custom-font glyph so search still matches on the real first letter.
 function stripLeadingSymbol(name) {
   return name.replace(/^[^A-Za-z0-9]+/, '');
 }
 
-// Generic search-box-plus-full-grid item picker, shared by the weapon
-// picker and each armor slot's picker (see WeaponPicker.jsx/
-// ArmorItemPicker.jsx) — this component itself knows nothing about
-// BuildContext or routing, it just renders `items` and calls `onSelect`.
+// Generic search-box-plus-full-grid item picker, shared by weapon/armor pickers. Knows nothing about BuildContext or routing.
 export default function ItemPicker({ items, title, placeholder, loading, error, onSelect, onBack }) {
   const [query, setQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);

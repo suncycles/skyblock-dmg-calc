@@ -8,12 +8,7 @@ import { SLOT_TEXTURES } from '../lib/icons';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Weapon-specific ability mechanics (Daedalus Blade, Midas' Sword/Staff,
-// Emerald Blade — see lib/specialWeapons.js) each take a single free-form
-// number rather than a pick from a fixed list, so unlike every other Hex
-// sub-screen this isn't a slot grid — just a labeled number input with a
-// live bonus preview, saved on every change (same instant-apply feel as
-// Books/Modifiers).
+// Weapon-specific ability mechanics each take a single free-form number, so unlike other Hex sub-screens this is a labeled input with a live bonus preview, saved on every change.
 export default function SpecialPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
