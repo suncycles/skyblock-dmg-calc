@@ -19,8 +19,7 @@ export function TooltipProvider({ children }) {
 
   const hideTooltip = useCallback(() => setTooltip(null), []);
 
-  // A route change can happen without a natural mouseleave on the anchor
-  // (e.g. a click that navigates away) — never leave a stale tooltip up.
+  // Clears the tooltip on route change, since a click that navigates away skips the natural mouseleave.
   useEffect(() => {
     setTooltip(null);
   }, [location.pathname]);

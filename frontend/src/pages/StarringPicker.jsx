@@ -8,9 +8,7 @@ import McTooltipLines from '../components/McTooltipLines';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Dungeon-style Starring (see lib/starring.js) — a single bounded number
-// input plus a live preview of the ✪ suffix and its color banding, same
-// free-form-number shape as SpecialPicker.jsx rather than a slot grid.
+// Dungeon-style Starring: a bounded number input plus a live preview of the ✪ suffix and its color banding.
 export default function StarringPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();

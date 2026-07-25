@@ -29,9 +29,7 @@ import TargetMobPicker from './pages/TargetMobPicker';
 import Attributes from './pages/Attributes';
 import LoadoutLoader from './pages/LoadoutLoader';
 
-// __BUILD_TIME__ is injected by vite.config.js's `define` at build time —
-// a fixed instant, not "now", so this reads the same on every page load
-// until the next deploy.
+// __BUILD_TIME__ is injected by vite.config.js's `define` at build time — a fixed instant, not "now".
 const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default function App() {

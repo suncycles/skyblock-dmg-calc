@@ -22,11 +22,7 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Step 2 of picking a pet: choose the rarity, only offering the ones
-// petnums.json actually has data for (most pets don't go up to Mythic).
-// Hovers a level-1 preview of the real NEU-REPO lore (level itself is set
-// after, on PetDetail) — same "preview before you've customized further"
-// feel as ReforgesPicker's real stone-lore hover.
+// Step 2 of picking a pet: choose the rarity, only offering ones petnums.json has data for. Hovers a level-1 preview of the real lore.
 export default function PetRarityPicker() {
   const { petId } = useParams();
   const navigate = useNavigate();
@@ -51,7 +47,7 @@ export default function PetRarityPicker() {
 
     const loreId = petLoreItemId(petId, rarity);
     fetchNeuItem(loreId).then((data) => {
-      if (hoveredRarityRef.current !== rarity) return; // moved on before this resolved
+      if (hoveredRarityRef.current !== rarity) return;
       if (data && data.lore && data.lore.length > 0) {
         const levels = itemData.pets?.[petId]?.[rarity];
         const stats = computeAllPetStats(levels, 1);

@@ -13,9 +13,7 @@ export default function ArmorItemPicker() {
   const navigate = useNavigate();
 
   const rawItems = useMemo(() => itemsForArmorSlot(itemData.armor, slot), [itemData.armor, slot]);
-  // The 5 Blaze Slayer armor sets each carry 5 power tiers (see
-  // lib/armorVariants.js) — collapsed to one family tile here; picking one
-  // opens ArmorVariantTierPicker to choose the actual tier.
+  // Collapses each Blaze Slayer variant family's 5 power tiers into one tile; picking opens ArmorVariantTierPicker.
   const items = useMemo(() => groupArmorVariants(rawItems, slot), [rawItems, slot]);
   const label = ARMOR_SLOT_LABELS[slot] || 'Armor';
 

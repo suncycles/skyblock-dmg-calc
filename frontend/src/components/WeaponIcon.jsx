@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getWeaponIcon, getSkyblockIcon, FALLBACK_ICON } from '../lib/icons';
 
-// Tries the item's bespoke SkyBlock texture first (if it has an id and one
-// exists in the Hypixel resource pack subset we bundled), then the generic
-// vanilla-material icon, then the inline placeholder — in that order.
+// Tries the item's bespoke SkyBlock texture first, then the generic vanilla-material icon, then the inline placeholder.
 function buildCandidates(id, material) {
   const candidates = [];
   const skyblockIcon = getSkyblockIcon(id);

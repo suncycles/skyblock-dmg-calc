@@ -10,9 +10,7 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Step 1 of applying a gemstone: pick which of the 6 supported gem types
-// goes in this slot. Spec allows any gem in any slot for now, so this
-// doesn't check the slot's restriction icon.
+// Step 1 of applying a gemstone: pick which of the 6 supported gem types goes in this slot. Any gem is allowed in any slot for now.
 export default function GemstoneTypePicker() {
   const { slot, slotIndex } = useParams();
   const navigate = useNavigate();
