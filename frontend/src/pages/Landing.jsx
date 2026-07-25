@@ -23,15 +23,9 @@ const slotBase =
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// One-page character screen: 6 rows x 9 columns, real chest-GUI styling.
-// Column B: the 4 equipment slots (Necklace/Cloak/Belt/Gloves — a second,
-// parallel gear set alongside armor, same enchant/reforge/gemstone/book
-// eligibility, see lib/equipmentSlots.js). Column C: the 4 armor slots
-// (was ArmorSlotPicker's own page — folded in here). Column D: weapon
-// (row 4) and pet (row 5). Columns F/G/H: decorative mob-head filler with
-// no function, purely to balance out the grid. Everything else is an
-// inert dark-grey glass pane, same "empty" texture used elsewhere in the
-// app.
+// One-page character screen: 6 rows x 9 columns, real chest-GUI styling. Column B: equipment
+// slots. Column C: armor slots. Column D: accessories/weapon/pet. Columns F/G/H: decorative
+// mob-head filler. Everything else is an inert dark-grey glass pane.
 export default function Landing() {
   const navigate = useNavigate();
   const {
@@ -52,10 +46,7 @@ export default function Landing() {
   const [exportStatus, setExportStatus] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
 
-  // Export: encode the ENTIRE current build (see lib/loadoutCode.js) and
-  // copy a shareable /loadout/:code link to the clipboard — a full URL
-  // rather than the bare code, so it can be pasted straight into a
-  // browser or chat with no manual reconstruction needed.
+  // Encodes the current build and copies a shareable /loadout/:code URL to the clipboard.
   async function handleExportLoadout() {
     setExportStatus('Copying...');
     try {
@@ -69,10 +60,7 @@ export default function Landing() {
     setTimeout(() => setExportStatus(null), 2000);
   }
 
-  // Import: reads the clipboard (accepting either a bare code or a full
-  // /loadout/:code URL someone pasted), decodes it, and — unlike opening
-  // a share link directly — confirms before applying, since this
-  // silently replaces whatever the player already has built here.
+  // Reads a loadout code (or full /loadout/:code URL) from the clipboard, decodes it, and confirms before applying.
   async function handleImportLoadout() {
     setImportStatus('Reading clipboard...');
     let decoded;
@@ -95,21 +83,14 @@ export default function Landing() {
     setTimeout(() => setImportStatus(null), 2000);
   }
 
-  // buildFullItemTooltipLines is async (it fetches applied enchants' real
-  // per-level lore to compute their stat bonuses) — one hover token
-  // shared by every gear/weapon slot on this page (only one can be
-  // hovered at a time) so a still-in-flight lookup from an ended hover
-  // can't clobber a newer one or resurrect the tooltip after the mouse
-  // has left. See Hex.jsx for the same pattern.
+  // Shared hover token so a still-in-flight tooltip lookup can't clobber a newer hover or resurrect after the mouse leaves.
   const hoverTokenRef = useRef(0);
   function invalidateHover() {
     hoverTokenRef.current++;
     hideTooltip();
   }
 
-  // Shared by both the armor and equipment columns — they're two
-  // functionally identical gear sets (enchants/reforges/gemstones/books
-  // all apply the same way), just filtered from different item lists.
+  // Shared by both the armor and equipment columns.
   function handleGearClick(slot, pickerPath) {
     navigate(loadout[slot] ? `/hex/${slot}` : pickerPath);
   }
@@ -147,9 +128,6 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
-  // Same real-lore-with-stats-substituted tooltip PetDetail's inline panel
-  // shows (see lib/petData.js's buildPetTooltipLines) — fetched fresh per
-  // hover rather than cached, same as gear/weapon hover above.
   async function handlePetHover(e) {
     if (!loadout.pet) {
       showTooltip(['§7Pet', '§8Empty — click to pick one'], e.currentTarget);
@@ -164,8 +142,6 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
-  // Synchronous, no fetch needed — the power table + formula are all
-  // local (lib/accessoryPowers.js).
   function handleAccessoryHover(e) {
     if (!loadout.accessory) {
       showTooltip(['§7Accessories', '§8Empty — click to pick a power'], e.currentTarget);
@@ -183,7 +159,6 @@ export default function Landing() {
     showTooltip(lines, e.currentTarget);
   }
 
-  // Synchronous — every mob's types are already local (lib/mobTypes.js).
   function handleTargetMobHover(e) {
     if (targetMobs.length === 0) {
       showTooltip(['§7Target Mobs', '§8Empty — click to pick some'], e.currentTarget);
@@ -203,9 +178,7 @@ export default function Landing() {
     clearTargetMobs();
   }
 
-  // One small helper covers both gear columns — same slot cell shape
-  // (icon + bottom label + remove button when equipped), just a
-  // different slot list/label map/picker route per column.
+  // Renders one gear slot cell (icon + bottom label + remove button when equipped) — shared by both gear columns.
   function renderGearSlot(key, slot, label, pickerPath) {
     const equipped = loadout[slot];
     return (
@@ -242,25 +215,21 @@ export default function Landing() {
     for (let col = 0; col < 9; col++) {
       const key = `${row}-${col}`;
 
-      // Column B (index 1): the 4 equipment slots, rows 2-5 (index 1-4).
+      // Column B: the 4 equipment slots, rows 2-5.
       if (col === 1 && row >= 1 && row <= 4) {
         const slot = EQUIPMENT_SLOTS[row - 1];
         cells.push(renderGearSlot(key, slot, EQUIPMENT_SLOT_LABELS[slot], `/equipment/${slot}`));
         continue;
       }
 
-      // Column C (index 2): the 4 armor slots, rows 2-5 (index 1-4).
+      // Column C: the 4 armor slots, rows 2-5.
       if (col === 2 && row >= 1 && row <= 4) {
         const slot = ARMOR_SLOTS[row - 1];
         cells.push(renderGearSlot(key, slot, ARMOR_SLOT_LABELS[slot], `/armor/${slot}`));
         continue;
       }
 
-      // Column D (index 3), row 1: Player Levels (Combat/Skyblock/
-      // Foraging) — directly above Accessories. Shows the Skyblock Level
-      // number colored by its real in-game level-color bracket (see
-      // lib/playerStats.js's getSkyblockLevelColor); click opens the
-      // small edit page for all three levels.
+      // Column D, row 1: Player Levels — shows Skyblock Level colored by its level-color bracket; click opens the edit page.
       if (col === 3 && row === 1) {
         cells.push(
           <div
@@ -283,8 +252,7 @@ export default function Landing() {
         continue;
       }
 
-      // Column D (index 3): Accessories directly above the weapon (row 3,
-      // index 2), weapon at row 4 (index 3), pet at row 5 (index 4).
+      // Column D: Accessories (row 2), weapon (row 3), pet (row 4).
       if (col === 3 && row === 2) {
         cells.push(
           <div
@@ -387,12 +355,7 @@ export default function Landing() {
         continue;
       }
 
-      // Column F (index 5), row 1: Target Mob — the mob Final Damage
-      // (see lib/finalDamage.js) is computed against, picked from the
-      // wiki-scraped roster in lib/mobTypes.js. Takes over the first cell
-      // of the otherwise-decorative mob-head filler block below; no icon
-      // assets exist for named mobs so this is a plain colored-text tile
-      // like the Skyblock Level slot, not an image.
+      // Column F, row 1: Target Mob — plain colored-text tile, no icon assets exist for named mobs.
       if (col === 5 && row === 1) {
         cells.push(
           <div
@@ -426,8 +389,7 @@ export default function Landing() {
         continue;
       }
 
-      // Columns F/G/H (index 5-7): purely decorative mob-head filler,
-      // rows 2-5 (index 1-4) — no click/hover behavior.
+      // Columns F/G/H: purely decorative mob-head filler, no click/hover behavior.
       if (col >= 5 && col <= 7 && row >= 1 && row <= 4) {
         cells.push(
           <div key={key} className={slotBase}>
@@ -437,9 +399,7 @@ export default function Landing() {
         continue;
       }
 
-      // Top-left corner (row 0, col 0): Attributes (see lib/attributes.js)
-      // — account-wide, not tied to any equipped item, so this is a plain
-      // text tile like Target Mob/Skyblock Level rather than an icon slot.
+      // Top-left corner: Attributes — plain text tile, account-wide rather than tied to an item.
       if (col === 0 && row === 0) {
         const leveledCount = Object.values(attributes).filter((v) => v > 0).length;
         cells.push(
@@ -465,9 +425,7 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-left (row 5, col 0): God Potion — a plain on/off toggle,
-      // not a picker (see lib/godPotion.js), so clicking it flips state
-      // in place rather than navigating anywhere.
+      // Bottom-left: God Potion — a plain on/off toggle, clicking flips state in place.
       if (col === 0 && row === 5) {
         cells.push(
           <div
@@ -493,9 +451,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      {/* Same fixed-corner precedent as App.jsx's "Latest deploy" footer —
-          not part of the centered grid layout, so it stays put regardless
-          of viewport width. */}
+      {/* Fixed corner, outside the centered grid layout. */}
       <div className="fixed top-2 left-2 flex flex-col gap-1 z-10">
         <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide">Loadouts</span>
         <button
@@ -522,8 +478,6 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Deliberately small/muted, not a second focal element next to the
-          grid — see lib/damageSources.js for what it aggregates. */}
       <button
         className="mt-2 text-[11px] text-neutral-400 hover:text-neutral-200 cursor-pointer underline"
         onClick={() => navigate('/damage-sources')}
