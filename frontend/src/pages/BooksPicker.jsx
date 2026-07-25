@@ -25,11 +25,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 
 const MAX_BOOKS = 15;
 
-// Hot Potato Book (up to 10) and Fuming Potato Book (extends the same
-// counter to 15) grant an identical bonus per application and share one
-// combined limit in the real game — see lib/books.js — so this is a single
-// "how many total" picker, not two separate counters. Same grid-of-levels
-// UX as EnchantLevels.jsx: pick a count, apply, back out.
+// Hot/Fuming Potato Books share one combined 0-15 counter (identical bonus per application).
 export default function BooksPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
@@ -40,19 +36,13 @@ export default function BooksPicker() {
   const artOfPeaceApplied = Boolean(loadout[slot]?.modifiers?.artOfPeace);
   const hoveringArtOfWarRef = useRef(false);
   const hoveringArtOfPeaceRef = useRef(false);
-  // Reachable for weapon and armor slots only — Hex.jsx already disables
-  // the Books icon entirely for equipment (can't take Potato Books, the
-  // Art of War, or the Art of Peace at all in the real game, see
-  // lib/books.js) — but this is still gear-type-aware defensively rather
-  // than assuming weapon.
+  // Reachable for weapon/armor slots only, but stays gear-type-aware defensively rather than assuming weapon.
   const gearType = getGearType(loadout[slot]?.item?.category);
   const isWeapon = gearType === 'weapon';
   const isArmor = gearType === 'armor';
   const bookBonus = isWeapon ? WEAPON_BOOK_STAT_BONUS : ARMOR_BOOK_STAT_BONUS;
 
-  // Picking an actual count stays on screen — the user might want to also
-  // toggle Art of War/Peace or try a different count without re-entering.
-  // Removing (0/none) is a "done here" action, so that one still backs out.
+  // Picking a count stays on screen; removing (0) is a "done here" action that backs out.
   function handleSelectCount(count) {
     setBookCount(slot, count);
   }
@@ -83,8 +73,7 @@ export default function BooksPicker() {
     ];
   }
 
-  // Fallback if the live NEU-REPO fetch fails — synthesized from the same
-  // stat table applyBooksToLore uses, colored to match its §6 annotation.
+  // Fallback if the live NEU-REPO fetch fails.
   function artOfWarFallbackLines() {
     return [
       `§${ART_OF_WAR_COLOR}The Art of War`,
@@ -93,16 +82,13 @@ export default function BooksPicker() {
     ];
   }
 
-  // The Art of War's real item lore (ability text, flavor quote, rarity
-  // tag) is fetched live from NEU-REPO, same on-hover pattern as
-  // ReforgesPicker's stone tooltips — see lib/neuItems.js.
   function handleArtOfWarHover(e) {
     const anchor = e.currentTarget;
     hoveringArtOfWarRef.current = true;
     showTooltip([`§${ART_OF_WAR_COLOR}The Art of War`, '', '§7Loading...'], anchor);
 
     fetchNeuItem(ART_OF_WAR_ITEM_ID).then((data) => {
-      if (!hoveringArtOfWarRef.current) return; // moved on before this resolved
+      if (!hoveringArtOfWarRef.current) return;
       if (data && data.lore && data.lore.length > 0) {
         showTooltip([data.displayname || `§${ART_OF_WAR_COLOR}The Art of War`, ...data.lore], anchor);
       } else {
@@ -116,8 +102,7 @@ export default function BooksPicker() {
     hideTooltip();
   }
 
-  // Fallback if the live NEU-REPO fetch fails — synthesized from the same
-  // stat table applyBooksToLore uses, colored to match its §6 annotation.
+  // Fallback if the live NEU-REPO fetch fails.
   function artOfPeaceFallbackLines() {
     return [
       `§${ART_OF_PEACE_COLOR}The Art of Peace`,
@@ -126,15 +111,13 @@ export default function BooksPicker() {
     ];
   }
 
-  // The Art of Peace's real item lore is fetched live from NEU-REPO, same
-  // on-hover pattern as the Art of War above.
   function handleArtOfPeaceHover(e) {
     const anchor = e.currentTarget;
     hoveringArtOfPeaceRef.current = true;
     showTooltip([`§${ART_OF_PEACE_COLOR}The Art of Peace`, '', '§7Loading...'], anchor);
 
     fetchNeuItem(ART_OF_PEACE_ITEM_ID).then((data) => {
-      if (!hoveringArtOfPeaceRef.current) return; // moved on before this resolved
+      if (!hoveringArtOfPeaceRef.current) return;
       if (data && data.lore && data.lore.length > 0) {
         showTooltip([data.displayname || `§${ART_OF_PEACE_COLOR}The Art of Peace`, ...data.lore], anchor);
       } else {
@@ -155,13 +138,7 @@ export default function BooksPicker() {
       const isInteriorRow = row >= 1 && row <= 4;
       const isInteriorCol = col >= 1 && col <= 7;
 
-      // Art of War sits centered directly below the potato-book grid
-      // (col 4 is the middle of the books' col 1-7 span, row 3 is the row
-      // right under the last book row); Art of Peace sits at the right
-      // edge of that same row (col 7, the books' rightmost column) —
-      // both checked ahead of the generic book-slot branch below since
-      // it'd otherwise claim these cells too (as empty overflow slots
-      // past MAX_BOOKS).
+      // Art of War sits centered below the book grid; Art of Peace at the right edge of that row.
       if (row === 3 && col === 4) {
         cells.push(
           isWeapon ? (

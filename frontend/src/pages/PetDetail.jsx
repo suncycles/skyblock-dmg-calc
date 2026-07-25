@@ -16,27 +16,15 @@ const panel =
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
 
-// Compact panel, not the 6x9 chest grid — a level number input and a
-// pick-one pet-item row don't fit the grid paradigm any better here than
-// SpecialPicker's price/tier inputs did, so this follows that same
-// precedent instead. The pet's real NEU-REPO lore (see lib/petData.js's
-// petLoreItemId/substitutePetLore) is shown permanently side-by-side
-// with the controls, not behind a hover — {LVL}/stat/ability-number
-// placeholders filled in for the current level, same real-tooltip
-// convention as every equipped item elsewhere in the app.
+// Compact panel with a level input and pet-item row. The pet's real NEU-REPO lore is shown
+// permanently side-by-side with the controls, {LVL}/stat/ability-number placeholders filled in.
 export default function PetDetail() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { loadout, setPetLevel, setPetItem, setPetBankCoins, setPetGoldCollection } = useBuild();
   const { hideTooltip } = useTooltip();
 
-  // This page shows its own tooltip permanently, inline (see the mc-tooltip
-  // side panel below) rather than on hover — but a hover-triggered
-  // tooltip from whatever was last hovered on the previous page (e.g. a
-  // rarity cell on PetRarityPicker, clicked to navigate here) can still be
-  // showing when this page mounts, since a click-driven route change
-  // doesn't fire a natural mouseleave to clear it. Explicitly clear it on
-  // mount so it can never show duplicated alongside the inline one.
+  // Clears any hover tooltip left over from the previous page (a click-driven route change doesn't fire mouseleave).
   useEffect(() => {
     hideTooltip();
   }, [hideTooltip]);
@@ -48,12 +36,7 @@ export default function PetDetail() {
   const goldCollection = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.goldCollection) || 0;
   const maxLevel = pet ? getMaxPetLevel(pet.petId) : MAX_PET_LEVEL;
 
-  // Decoupled from `level` itself so the field can sit empty mid-edit
-  // (e.g. backspacing "1" to retype "29") without every keystroke
-  // snapping it back to a clamped number — only committed to
-  // BuildContext (and re-synced here) once it parses to a real number,
-  // and normalized to "0" on blur if left empty. 0 doesn't exist as a
-  // real pet level in-game, but is allowed here as the empty state.
+  // Decoupled from `level` so the field can sit empty mid-edit; committed to BuildContext once it parses, normalized to "0" on blur.
   const [levelInput, setLevelInput] = useState(String(level));
   useEffect(() => {
     setLevelInput(String(level));
@@ -73,9 +56,6 @@ export default function PetDetail() {
     };
   }, [loreId]);
 
-  // Shared with Landing's hover tooltip (lib/petData.js's
-  // buildPetTooltipLines) so both show the exact same real-lore-with-
-  // stats-substituted content for the same pet.
   const tooltipLines = useMemo(() => {
     if (!pet || !loadout.pet) return [];
     return buildPetTooltipLines(pet, loadout.pet.modifiers, itemData, rawLore);
@@ -107,11 +87,7 @@ export default function PetDetail() {
     if (Number.isNaN(num)) return;
     const clamped = Math.max(0, Math.min(maxLevel, Math.floor(num)));
     setPetLevel(clamped);
-    // Only the out-of-range case needs an explicit re-sync: if `clamped`
-    // happens to equal whatever `level` already was (e.g. typing "250"
-    // when already at the 200 cap), the level-changed effect below won't
-    // fire (the number genuinely didn't change), so the field would
-    // otherwise keep showing the raw unclamped "250" forever.
+    // Explicit re-sync for the out-of-range case, since the level-changed effect won't fire if the clamped value matches the prior level.
     if (clamped !== num) setLevelInput(String(clamped));
   }
 
@@ -132,9 +108,6 @@ export default function PetDetail() {
         <div className={`${panel} p-3 flex flex-col gap-2 w-full max-w-[260px] text-[13px]`}>
           <div className="flex items-center gap-2">
             <div className={`${slotBase} w-8 h-8`}>
-              {/* icon keyed by the bare species id (pet.id is "<petId>_<rarity>") —
-                  every rarity shares one baked head icon, see
-                  worker/scripts/apply-skull-head-icons.mjs */}
               <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[70%] h-[70%] object-contain pixelated" />
             </div>
             <div className="font-bold text-sm" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
@@ -177,14 +150,7 @@ export default function PetDetail() {
             </div>
           </div>
 
-          {/* Legendary Treasure ("Gain X% damage for every million coins
-              in your bank, Max Y%") and Shining Scales ("Grants Strength
-              and Magic Find for each digit in your Gold Collection, Max
-              100M") are Golden Dragon's two perks with a real, fixed
-              formula (see lib/damageSources.js / lib/petData.js) — every
-              other perk either isn't a damage bonus or depends on state
-              this app doesn't track (Magic Find), so these are the only
-              pet-specific inputs, shown only for this one species. */}
+          {/* Golden Dragon's two perks with a real, fixed formula: Legendary Treasure and Shining Scales. */}
           {pet.petId === 'GOLDEN_DRAGON' && (
             <div className="border-t border-neutral-500 pt-2 flex flex-col gap-2">
               <div>
@@ -225,9 +191,6 @@ export default function PetDetail() {
             >
               Back
             </button>
-            {/* Detail is 2 levels deep (species list, then rarity) from
-                the home grid — a direct shortcut beats clicking Back
-                twice. */}
             <button
               className="px-3 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
               onClick={() => navigate('/')}
