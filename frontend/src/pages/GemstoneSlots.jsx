@@ -16,17 +16,12 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Item sits at B3, gemstone slots are centered on column F (index 5),
-// both on the grid's 3rd row (index 2) — see lib/gemstones.js for how the
-// column spread for >1 slot is derived.
+// Item sits at B3, gemstone slots centered on column F (index 5), both on the grid's 3rd row.
 const ITEM_ROW = 2;
 const ITEM_COL = 1;
 const CENTER_COL = 5;
 
-// The "screen" opened by the Gemstones icon: the item plus one slot per
-// gemstone slot the item has, laid out per spec. Clicking an empty or
-// filled slot opens the gem-type picker (GemstoneTypePicker) for that slot
-// index; applying a gem there (via the tier picker) navigates back here.
+// The item plus one slot per gemstone slot it has. Clicking a slot opens the gem-type picker for that index.
 export default function GemstoneSlots() {
   const { slot } = useParams();
   const navigate = useNavigate();
@@ -39,10 +34,6 @@ export default function GemstoneSlots() {
   const gemstones = (modifiers && modifiers.gemstones) || [];
   const offsets = gemstoneSlotColumnOffsets(slotCount);
 
-  // buildFullItemTooltipLines is async (it fetches applied enchants' real
-  // per-level lore) — same capture-anchor-and-token-before-awaiting
-  // pattern as Hex.jsx/Landing.jsx, so a still-in-flight lookup from an
-  // already-ended hover can't resurrect the tooltip after the mouse left.
   const hoverTokenRef = useRef(0);
   async function handleItemHover(e) {
     if (!item) return;
