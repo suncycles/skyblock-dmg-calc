@@ -8,16 +8,9 @@ import { SLOT_TEXTURES } from '../lib/icons';
 
 const ALL_MOB_NAMES = Object.keys(MOB_TYPES).sort((a, b) => a.localeCompare(b));
 
-// Picking the mob(s) lib/finalDamage.js computes Final Damage against — a
-// chest-GUI-style grid, matching every other picker in the app, rather
-// than the flat search list this used to be. Mobs have no unique head/
-// skin asset anywhere in this app's data (NEU-REPO only covers items),
-// so each tile shows a Minecraft-style "spawn egg" icon for the mob's
-// classified underlying vanilla entity instead (see lib/mobIcons.js) —
-// approximate, not exact art, but far more scannable than plain text
-// across 211 entries. Click toggles a mob in/out of the multi-select
-// target list (BuildContext's targetMobs) rather than picking one and
-// navigating away.
+// Picking the mob(s) Final Damage is computed against. Each tile shows a spawn-egg icon for the
+// mob's classified vanilla entity (no real head/skin data exists for named mobs). Click toggles a
+// mob in/out of the multi-select target list.
 export default function TargetMobPicker() {
   const navigate = useNavigate();
   const { targetMobs, toggleTargetMob } = useBuild();

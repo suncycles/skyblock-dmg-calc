@@ -6,19 +6,9 @@ import { SLOT_TEXTURES } from '../lib/icons';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Combat/Skyblock/Foraging/Catacombs/Taming Level — grouped on one small
-// edit page behind the grid slot above Accessories (see Landing.jsx),
-// same "click a slot, edit on its own page" pattern as Stat Tuning.
-// Combat and Skyblock Level behave exactly as before (see
-// lib/playerStats.js); Foraging Level only feeds a flat Strength bonus
-// into Damage Sources' (base) Stats. Catacombs Level feeds the Ancient
-// reforge's real +1 Crit Damage-per-level bonus (lib/reforges.js) and
-// the Wither blades' own per-level base stats (lib/witherBladeBonuses.js)
-// — its separate overall stat-multiplier scaling is deliberately
-// unimplemented, see the comment above lib/playerStats.js's file-level
-// note on it. Taming Level feeds Daedalus Blade's +4/+5 Damage-per-level
-// base stat (lib/specialWeapons.js). None of these five have a slot of
-// their own to click through to.
+// Combat/Skyblock/Foraging/Catacombs/Taming Level, grouped on one small edit page. Foraging feeds a
+// flat Strength bonus; Catacombs feeds Ancient reforge/Wither blade per-level bonuses; Taming feeds
+// Daedalus Blade's per-level base stat.
 export default function PlayerLevels() {
   const navigate = useNavigate();
   const { playerStats, setCombatLevel, setSkyblockLevel, setForagingLevel, setCatacombsLevel, setTamingLevel } = useBuild();

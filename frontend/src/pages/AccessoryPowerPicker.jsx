@@ -20,9 +20,7 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Base stat lines shown for every power (Default and Stone alike) — the
-// same one, two, or ten stats a real power actually grants, in the same
-// "Label: +X" format the rest of this app already uses.
+// Base stat lines shown for every power (Default and Stone alike).
 function buildBaseStatLines(power, heading) {
   const lines = [`§6${heading}`];
   for (const [key, value] of Object.entries(power.baseStats)) {
@@ -44,15 +42,9 @@ function buildUniqueBonusLines(power) {
   return lines;
 }
 
-// Picking one of the 31 real Accessory Powers (10 Default + 21 Stone —
-// see lib/accessoryPowers.js) — a chest-GUI grid like Hex.jsx/
-// EnchantList.jsx rather than the flexible ItemPicker list, since there's
-// a dedicated bottom-left "Tuning" cell (row 5, col 0) navigating to
-// /accessory/tuning. Hovering a Stone Power cell fetches its real
-// NEU-REPO item lore (same on-demand pattern ReforgesPicker.jsx already
-// uses for reforge stones) and appends a synthesized base-stats block;
-// Default Powers (no physical item) only get the synthesized block since
-// no real lore exists for them.
+// Picking one of the 31 real Accessory Powers (10 Default + 21 Stone) via a chest-GUI grid, with a
+// dedicated bottom-left "Tuning" cell. Stone Power hovers fetch real NEU-REPO lore; Default Powers
+// (no physical item) only get a synthesized base-stats block.
 export default function AccessoryPowerPicker() {
   const navigate = useNavigate();
   const { loadout, selectItem, setAccessoryMagicalPower } = useBuild();
@@ -66,9 +58,7 @@ export default function AccessoryPowerPicker() {
   const totalPages = Math.max(1, Math.ceil(ALL_POWERS.length / PAGE_SIZE));
   const pagePowers = useMemo(() => ALL_POWERS.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE), [page]);
 
-  // Stays on screen after picking — lets the player compare powers or
-  // change their mind without re-entering; same "select stays, only
-  // explicit Close backs out" precedent as BooksPicker.jsx.
+  // Stays on screen after picking, so the player can compare powers or change their mind.
   function handleSelect(power) {
     selectItem('accessory', {
       id: power.id,
@@ -92,7 +82,7 @@ export default function AccessoryPowerPicker() {
 
     showTooltip([`§d§l${power.name}`, '', '§7Loading...'], anchor);
     fetchNeuItem(power.sourceItemId).then((data) => {
-      if (hoveredIdRef.current !== power.id) return; // moved on before this resolved
+      if (hoveredIdRef.current !== power.id) return;
       const realLore = data && data.lore && data.lore.length > 0 ? [formatItemName(data.displayname || power.sourceName), ...data.lore, ''] : [];
       showTooltip([...realLore, ...statLines, ...uniqueLines, ...footer], anchor);
     });
