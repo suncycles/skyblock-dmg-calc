@@ -16,24 +16,9 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Shared by /reforges and /reforges/blacksmith — the real game splits
-// reforges into two mechanically distinct sources: reforge STONE items
-// (Dragon Claw -> "Fabled", Wither Blood -> "Withered", etc.), applied
-// directly to the weapon, and the ~50 the Blacksmith NPC can instead roll
-// for free at an anvil. worker/src/index.js keeps them as two separate
-// maps (itemData.reforgeStones / itemData.reforges) for exactly this
-// split. Reforge stones are the base access point (this is what "Reforges"
-// on the Hex screen opens); the anvil slot — a blacksmith's tool, not a
-// stone's — opens the Blacksmith sub-screen instead.
-//
-// Every applicable reforge for the current weapon is one apply-and-close
-// step (unlike Enchants' list-then-level split, a reforge has no further
-// choice to make once picked) — same chest-GUI list/pagination shape as
-// EnchantList.jsx. Stone slots show that stone's own icon (getReforgeStoneIcon,
-// added manually per stone — see icons.js) falling back to the generic
-// Reforges icon for any not added yet; blacksmith reforges have no
-// physical item, so they always use the generic icon, same as EnchantList
-// reuses one icon for every enchant slot.
+// Shared by /reforges and /reforges/blacksmith — reforge stone items applied directly to the weapon
+// vs. the Blacksmith NPC's free anvil rolls, kept as two separate itemData maps. Picking a reforge
+// applies and closes immediately (no further choice like Enchants' level picker).
 export default function ReforgesPicker({ blacksmith }) {
   const { slot } = useParams();
   const navigate = useNavigate();
@@ -60,10 +45,7 @@ export default function ReforgesPicker({ blacksmith }) {
     navigate(`/hex/${slot}`);
   }
 
-  // Fallback shown for blacksmith reforges (no physical item to fetch lore
-  // for) and if a stone's own item fetch below fails: the reforge's own
-  // name/stat table, synthesized into stat lines the same way the Hex
-  // tooltip's reforge annotations are colored (see reforgeData.js).
+  // Fallback for blacksmith reforges (no physical item) and if a stone's item fetch fails.
   function synthesizedLines(reforge) {
     const tierColor = rarityColorCode(weapon.tier);
     const bonus = getReforgeStatBonus(reforge, weapon.tier);
@@ -75,12 +57,7 @@ export default function ReforgesPicker({ blacksmith }) {
     return [`§${tierColor}§l${reforge.name}`, '', ...statLines];
   }
 
-  // Stone slots show the real physical item's own lore (ability
-  // description, flavor text, level requirement — everything, not just
-  // the stat table) fetched live from NEU-REPO and matched by stoneId,
-  // the stone's real internal item id — see reforgeStoneItems.js.
-  // Blacksmith reforges have no physical item, so they always use the
-  // synthesized fallback.
+  // Stone slots show the real physical item's lore fetched live from NEU-REPO; blacksmith reforges always use the synthesized fallback.
   function handleHover(reforge, e) {
     const anchor = e.currentTarget;
     hoveredNameRef.current = reforge.name;
@@ -92,7 +69,7 @@ export default function ReforgesPicker({ blacksmith }) {
 
     showTooltip([`§${rarityColorCode(weapon.tier)}§l${reforge.name}`, '', '§7Loading...'], anchor);
     fetchNeuItem(reforge.stoneId).then((data) => {
-      if (hoveredNameRef.current !== reforge.name) return; // moved on before this resolved
+      if (hoveredNameRef.current !== reforge.name) return;
       if (data && data.lore && data.lore.length > 0) {
         showTooltip([data.displayname || reforge.name, ...data.lore], anchor);
       } else {
