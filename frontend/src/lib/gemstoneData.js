@@ -1,20 +1,12 @@
-/* Gemstone stat-boost table, sourced from wiki.hypixel.net/Gemstone's
-   "Stat Boosts" section (one sub-table per tier: Rough/Flawed/Fine/
-   Flawless/Perfect, each listing COMMON..DIVINE bonus columns per
-   gemstone). Only the 6 "combat" gemstones are wired up per spec — the
-   other 6 (Amber/Topaz/Jade/Aquamarine/Citrine/Peridot) boost
-   mining/foraging/farming stats this calculator doesn't model yet.
-
-   Bonuses only go up to LEGENDARY here (the calculator's rarity scale) —
-   MYTHIC/DIVINE columns exist on the wiki but aren't needed. */
+/* Gemstone stat-boost table (Rough/Flawed/Fine/Flawless/Perfect tiers x COMMON-LEGENDARY item
+   rarity). Only the 6 "combat" gemstones are wired up — the other 6 boost mining/foraging/
+   farming stats this calculator doesn't model. */
 
 export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 export const GEMSTONE_TIERS = ['rough', 'flawed', 'fine', 'flawless', 'perfect'];
 
-// A gemstone's own tier doubles as an item rarity for color purposes —
-// Rough/Flawed/Fine/Flawless/Perfect gemstone items are themselves
-// Common/Uncommon/Rare/Epic/Legendary rarity, so bracket coloring reuses
-// rarityColorCode() from mcText.js against this mapping.
+// A gemstone's own tier doubles as an item rarity for bracket-color purposes (Rough =
+// Common, ... Perfect = Legendary), reusing rarityColorCode() from mcText.js.
 export const TIER_TO_RARITY = {
   rough: 'common',
   flawed: 'uncommon',
@@ -23,17 +15,9 @@ export const TIER_TO_RARITY = {
   perfect: 'legendary',
 };
 
-// Symbols match each gemstone's real slot-type icon from the wiki's
-// "Gemstone Slot Types" table (Ruby Slot: ❤, Jasper Slot: ❁, etc.) —
-// reused here as the "gem is equipped" icon since Hypixel's actual
-// per-gem equipped-icon glyphs live in a custom font this project has no
-// access to. Colors match htmlcolorcodes.com/minecraft-color-codes.
-// valueColor is the color a stat's *value* is shown in on a real item
-// tooltip (distinct from colorCode, the gem's own identity color used for
-// the equipped-slot symbol) — verified against real NEU-REPO item lore,
-// e.g. Hyperion's "§7Intelligence: §b+350" and "§7Strength: §c+150".
-// Used when a gemstone boosts a stat the item's lore doesn't already show,
-// so the newly-created line matches how that stat is normally colored.
+// `symbol`/`colorCode` are the gem's own slot-type icon/identity color. `valueColor` is the
+// color a stat's value is shown in on a real item tooltip (e.g. Strength = red) — used when
+// a gemstone creates a brand-new stat line so it matches how that stat is normally colored.
 export const GEMSTONES = {
   RUBY: {
     label: 'Ruby',
@@ -129,8 +113,7 @@ export const GEMSTONES = {
 
 export const GEMSTONE_IDS = Object.keys(GEMSTONES);
 
-// Item rarities beyond LEGENDARY (Mythic, Divine, Special...) aren't in
-// RARITY_ORDER — clamp to the last (Legendary) column rather than guess.
+// Item rarities beyond LEGENDARY aren't in RARITY_ORDER — clamped to the last column.
 export function getGemstoneBoost(gemId, tier, itemRarity) {
   const gem = GEMSTONES[gemId];
   if (!gem) return 0;

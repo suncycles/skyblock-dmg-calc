@@ -1,11 +1,7 @@
 import { rarityColorCode } from './mcText';
 
-// Recombobulator 3000's own NEU-REPO lore is just "Permanently increases
-// the rarity of an item. Can only be applied to an item once." — no flat
-// stat bonus of its own (unlike Books/Reforges/Gemstones). Its real effect
-// here is bumping which rarity's reforge-stat column a reforge reads from
-// (reforge bonuses scale with rarity), plus the rarity color/label shown
-// on the tooltip — so it doesn't get its own "(+x)" annotation.
+// Recombobulator 3000 has no flat stat bonus of its own — its real effect is bumping which
+// rarity's reforge-stat column a reforge reads from, plus the rarity color/label on the tooltip.
 const RARITY_UPGRADE_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 export function canRecombobulate(tier) {
@@ -20,16 +16,8 @@ export function bumpRarity(tier) {
   return RARITY_UPGRADE_ORDER[idx + 1].toUpperCase();
 }
 
-// Real item lore always ends with a "§{color}§l{RARITY} {CATEGORY}" tag
-// line (e.g. "§6§lLEGENDARY SWORD") — only that line is touched, both to
-// avoid false-positive matches of the rarity word elsewhere in ability
-// text and because it's the one line real Recombobulated items actually
-// show updated.
-//
-// The "$ ... $" flanking and trailing "Rarity Upgraded" note are purely a
-// calculator-UI visual marker (not a real Hypixel convention) so a
-// recombobulated item's rarity tag is instantly distinguishable at a
-// glance from an item that's naturally that rarity.
+// Rewrites the item's trailing "§{color}§l{RARITY} {CATEGORY}" tag line, and flags it with a
+// "$ ... $" marker + "Rarity Upgraded" note (a calculator-UI convention, not a real Hypixel one).
 export function applyRecombToLore(lore, originalTier) {
   if (!lore || lore.length === 0) return lore;
   const newTier = bumpRarity(originalTier);
