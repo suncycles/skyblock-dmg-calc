@@ -26,11 +26,8 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Shared by /enchants and /ultimate-enchants — same chest-GUI layout,
-// filtered by whether the enchant id has the "ultimate_" prefix. Clicking a
-// slot opens the level-picker (/enchant-levels/:id) instead of toggling a
-// local selection; the applied enchant (if any) is read from BuildContext
-// so it stays highlighted after coming back from the picker.
+// Shared by /enchants and /ultimate-enchants, filtered by whether the enchant id has the
+// "ultimate_" prefix. Clicking a slot opens the level-picker (/enchant-levels/:id).
 export default function EnchantList({ ultimate }) {
   const { slot } = useParams();
   const navigate = useNavigate();
@@ -51,9 +48,7 @@ export default function EnchantList({ ultimate }) {
     return all.filter((id) => isUltimateEnchant(id) === ultimate && !isHiddenEnchant(id));
   }, [itemData.enchants, category, ultimate]);
 
-  // Maps id -> its currently-applied {id, level, maxLevel} entry (not just
-  // a membership set) so caption color can reflect how close the applied
-  // tier is to max — see captionColorClass below.
+  // Maps id -> its currently-applied {id, level, maxLevel} entry, so caption color can reflect proximity to max.
   const appliedEntries = useMemo(() => {
     const map = new Map();
     if (modifiers && modifiers.ultimateEnchantment) {
@@ -63,10 +58,7 @@ export default function EnchantList({ ultimate }) {
     return map;
   }, [modifiers]);
 
-  // Ultimate captions always stay pink regardless of tier (One For All
-  // has no leveling at all, so "max" would be meaningless there anyway).
-  // Non-ultimate: chroma at true max tier, gold one below max, plain
-  // white otherwise (including not-yet-applied).
+  // Ultimate captions always stay pink. Non-ultimate: chroma at max tier, gold one below max, white otherwise.
   function captionColorClass(id) {
     if (ultimate) return 'text-fuchsia-400';
     const applied = appliedEntries.get(id);
@@ -86,37 +78,16 @@ export default function EnchantList({ ultimate }) {
       ? `Enchanting: ${formatItemName(item.name)} — no cached ${noun} for category "${category}".`
       : `Enchanting: ${formatItemName(item.name)} (${enchantIds.length} ${noun} available)`;
 
-  // [T6]-specific deviations from the generic "max tier - 1" rule, per
-  // instruction: Giant Killer (not Titan Killer) and Drain/"syphon" (not
-  // Life Steal/Mana Steal) win their conflict groups instead of whichever
-  // the alphabetical default would otherwise pick, both at their own
-  // explicit level rather than max-1; Impaling is forced to its true max
-  // instead of max-1; Divine Gift and Knockback are skipped entirely.
+  // [T6]-specific overrides: Giant Killer/Drain win their conflict groups at explicit levels, Impaling forced to true max, Divine Gift/Knockback skipped.
   const T6_LEVEL_OVERRIDES = { giant_killer: 6, syphon: 4, impaling: 5 };
   const T6_EXCLUDED_IDS = new Set(['divine_gift', 'knockback', 'titan_killer', 'life_steal', 'mana_steal']);
 
-  // [T7]-specific deviations, per instruction: Giant Killer and Drain
-  // ("syphon") again win their conflict groups over Titan Killer/Life
-  // Steal/Mana Steal — no explicit level needed since T7 already applies
-  // every enchant at its own true max — and Knockback is skipped
-  // entirely (Divine Gift and Impaling aren't overridden for T7).
+  // [T7]-specific overrides: Giant Killer/Drain win their conflict groups (every enchant applies at true max), Knockback skipped.
   const T7_EXCLUDED_IDS = new Set(['knockback', 'titan_killer', 'life_steal', 'mana_steal']);
 
-  // [T6]/[T7] — applies every normal enchant available for this item at
-  // (max tier - offset), alphabetically by displayed name so conflicting
-  // pairs (Life Steal/Drain, Execute/Prosecute, Giant Killer/Titan
-  // Killer, Thunderlord/Thunderbolt, First Strike/Triple-Strike) resolve
-  // exactly like clicking through the list by hand would: the later
-  // letter wins, same computeConflictingEntries removal EnchantLevels.jsx
-  // already uses per-click — unless overridden per `levelOverrides`/
-  // `excludeIds` (see T6_LEVEL_OVERRIDES/T6_EXCLUDED_IDS above). An
-  // excluded id is just never applied by this run — it doesn't clear an
-  // already-equipped one — but an override id's own real "Conflicts:"
-  // lore still removes whatever it actually conflicts with, same as any
-  // other application. `simulated` tracks modifiers locally as the loop
-  // goes (React's real state won't have re-rendered mid-loop) so each
-  // step's conflict check sees everything already applied earlier in
-  // this same run, not the stale pre-click snapshot.
+  // [T6]/[T7]: applies every normal enchant at (max tier - offset), alphabetically so conflicting pairs resolve like
+  // clicking through by hand — later letter wins — unless overridden via levelOverrides/excludeIds. `simulated`
+  // tracks modifiers locally through the loop so each step's conflict check sees what was applied earlier in this run.
   async function applyMassTier(offsetFromMax, { levelOverrides = {}, excludeIds } = {}) {
     if (!modifiers || enchantIds.length === 0 || massApplying) return;
     setMassApplying(true);
@@ -152,7 +123,7 @@ export default function EnchantList({ ultimate }) {
     showTooltip([`§b§l${displayName}`, '', '§7Loading effect...'], anchor);
 
     fetchEnchantLevels(id, itemData.enchants).then((levels) => {
-      if (hoveredIdRef.current !== id) return; // moved on before this resolved
+      if (hoveredIdRef.current !== id) return;
       const effect = buildEffectLines(levels);
       const lines = [`§b§l${displayName}`, '', ...(effect || ['§7No effect data available.'])];
 
@@ -180,12 +151,7 @@ export default function EnchantList({ ultimate }) {
       const isNavRow = row === 5;
       const key = `${row}-${col}`;
 
-      // Mass-apply shortcuts — top-right corner of the grid (T6 in the
-      // corner itself, T7 in the slot to its left), rather than a
-      // separate control row below the chest GUI. Ultimate enchants only
-      // ever occupy one slot each, so "every enchant at tier X" only
-      // makes sense for the normal list — both cells fall through to
-      // plain empty filler on /ultimate-enchants.
+      // Mass-apply shortcuts (T6/T7), top-right of the grid — normal-list only, empty filler on /ultimate-enchants.
       if (row === 0 && col === 8 && !ultimate) {
         const disabled = !item || enchantIds.length === 0 || massApplying;
         cells.push(
