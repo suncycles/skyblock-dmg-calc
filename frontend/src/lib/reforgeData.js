@@ -1,36 +1,17 @@
-/* Reforge stat tables come from NEU-REPO's constants/reforges.json (the
-   ~50 "free" reforges the blacksmith NPC can roll) and constants/
-   reforgestones.json (the ~81 that instead need a specific reforge-stone
-   item applied, e.g. Dragon Claw -> "Fabled") — worker/src/index.js keeps
-   these as two separate {[reforgeName]: {itemTypes, requiredRarities,
-   reforgeStats}} maps (`reforges` and `reforgeStones`) rather than
-   merging them, matching the real game's UI split; both have the same
-   shape, so every helper here takes whichever map the caller wants
-   filtered.
+/* Reforge stat tables come from NEU-REPO's constants/reforges.json (the ~50 "free" reforges
+   the blacksmith can roll) and constants/reforgestones.json (the ~81 that need a specific
+   reforge-stone item) — worker/src/index.js keeps these as two separate
+   {[reforgeName]: {itemTypes, requiredRarities, reforgeStats}} maps, matching the real game's
+   UI split.
 
-   itemTypes is usually a plain string, but the two sources don't agree on
-   its exact spelling for the same weapon type: reforges.json uses
-   "SWORD/ROD" (rods share the sword table), reforgestones.json just uses
-   "SWORD" — getApplicableReforges checks a category against every
-   spelling it might show up as, not one fixed string. For a handful of
-   item-exclusive reforges (e.g. "Entropy Suppressor", only for the Blaze
-   Slayer daggers) itemTypes is instead {internalName: [...ids]} — also
-   handled there, matched against our own item.id.
+   itemTypes is usually a plain string, but the two sources spell the same weapon type
+   differently (reforges.json's "SWORD/ROD" vs reforgestones.json's "SWORD") —
+   getApplicableReforges checks every spelling. A few item-exclusive reforges use
+   {internalName: [...ids]} or {itemId: [...]} instead, matched against item.id directly
+   rather than item.material (material is just this project's icon-fallback field, shared by
+   many unrelated weapons, so matching on it produces false positives). */
 
-   A few of these object-shaped restrictions use {itemId: [...]} instead
-   (raw "minecraft:x" ids, e.g. "Fanged" -> ["minecraft:iron_sword"]).
-   That's deliberately NOT matched against item.material: material is
-   just this project's icon-fallback field (which vanilla block/item icon
-   to show when there's no bespoke texture) and is shared by dozens of
-   unrelated named legendary/epic weapons — matching on it produced false
-   positives (e.g. every IRON_SWORD-icon weapon "qualifying" for a reforge
-   meant for one specific unmodified vanilla Iron Sword). None of our
-   catalogued weapons are actually that plain vanilla item, so itemId
-   restrictions correctly resolve to zero matches here rather than being
-   approximated. */
-
-// Maps our weapons.json/armor.json/equipment.json `category` values to
-// every reforge-table itemTypes spelling that should match it.
+// Maps our weapons/armor/equipment `category` values to every reforge-table itemTypes spelling that should match it.
 const CATEGORY_TO_REFORGE_TYPES = {
   SWORD: ['SWORD/ROD', 'SWORD'],
   'DUNGEON SWORD': ['SWORD/ROD', 'SWORD'],
@@ -39,9 +20,6 @@ const CATEGORY_TO_REFORGE_TYPES = {
   WAND: ['SWORD/ROD', 'SWORD'], // Wands/Staffs reforge off the same table as swords in the real game
   BOW: ['BOW'],
   'DUNGEON BOW': ['BOW'],
-  // Armor reforges mostly share one generic 'ARMOR' itemTypes bucket in
-  // both reforges.json and reforgestones.json; reforgestones.json also has
-  // piece-specific 'HELMET'/'CHESTPLATE' strings for a handful of entries.
   HELMET: ['ARMOR', 'HELMET'],
   'DUNGEON HELMET': ['ARMOR', 'HELMET'],
   CHESTPLATE: ['ARMOR', 'CHESTPLATE'],
@@ -50,11 +28,6 @@ const CATEGORY_TO_REFORGE_TYPES = {
   'DUNGEON LEGGINGS': ['ARMOR'],
   BOOTS: ['ARMOR'],
   'DUNGEON BOOTS': ['ARMOR'],
-  // Equipment (Necklace/Cloak/Belt/Gloves) reforges mostly share one
-  // generic 'EQUIPMENT' itemTypes bucket, the same way armor shares
-  // 'ARMOR' — 'CLOAK' and 'BELT' also each have a handful of
-  // piece-specific entries (verified against a NEU-REPO snapshot; no
-  // piece-specific 'NECKLACE' or 'GLOVES' entries exist).
   NECKLACE: ['EQUIPMENT'],
   'DUNGEON NECKLACE': ['EQUIPMENT'],
   CLOAK: ['EQUIPMENT', 'CLOAK'],
@@ -65,13 +38,7 @@ const CATEGORY_TO_REFORGE_TYPES = {
   'DUNGEON GLOVES': ['EQUIPMENT'],
 };
 
-// Stat-line label + color a reforge bonus should render with when
-// annotating an item's tooltip — verified against this project's own
-// bundled weapon/armor lore (Damage/Strength/Intelligence/Defense/
-// Ferocity/Speed/Health) and real NEU-REPO item lore for the rest
-// (Crit Chance/Crit Damage/True Defense/Magic Find/Ability Damage from
-// reforge "reforgeAbility" description text, Attack Speed from Livid
-// Dagger's own base stat line "§7Attack Speed: §e+50%").
+// Stat-line label + color a reforge bonus renders with when annotating an item's tooltip.
 export const STAT_LABELS = {
   damage: { label: 'Damage', color: 'c', isPercent: false },
   strength: { label: 'Strength', color: 'c', isPercent: false },
@@ -94,18 +61,12 @@ export function formatStatValue(statKey, value) {
   return meta && meta.isPercent ? `${sign}${value}%` : `${sign}${value}`;
 }
 
-// Reforges applicable to a given weapon: matching itemTypes (its category's
-// table, or an explicit item-id allowlist for item-exclusive reforges) and
-// requiring a rarity the item actually has.
+// Reforges applicable to a given weapon: matching itemTypes and requiring a rarity the item actually has.
 export function getApplicableReforges(reforges, item) {
   if (!reforges || !item) return [];
   const categoryTypes = CATEGORY_TO_REFORGE_TYPES[item.category] || [];
   const rarity = (item.tier || '').toUpperCase();
-  // No recognized rarity (e.g. quest-NPC items with tier: null, or
-  // "SPECIAL" one-offs outside the normal common..mythic scale) means we
-  // can't check requiredRarities membership at all — treat as
-  // not-reforgeable rather than incorrectly showing every reforge as
-  // applicable.
+  // No recognized rarity means treat as not-reforgeable rather than showing every reforge as applicable.
   if (!rarity) return [];
 
   return Object.entries(reforges)
@@ -128,9 +89,7 @@ export function getApplicableReforges(reforges, item) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// A reforge's stat bonus at a given item rarity, or null if that rarity
-// isn't in its table (shouldn't happen for anything getApplicableReforges
-// already filtered in, but callers may look up a stale/removed reforge).
+// A reforge's stat bonus at a given item rarity, or null if not in its table.
 export function getReforgeStatBonus(reforge, tier) {
   if (!reforge || !reforge.reforgeStats) return null;
   return reforge.reforgeStats[(tier || '').toUpperCase()] || null;
