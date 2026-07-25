@@ -1,17 +1,8 @@
-// Some Pet Items grant a percentage boost to one or all of a pet's own
-// combat stats (e.g. "Antique Remedies": "Increases the pet's Strength
-// by 80%.", "Minos Relic": "Increases all pet stats by 33.3%.") rather
-// than an XP/coin boost. Parsed from the item's own real NEU-REPO lore
-// (already bundled in itemData.petItems — no extra fetch needed) so the
-// boosted value can be applied before the pet's own lore gets its
-// {STAT_NAME} placeholders filled in (see lib/petData.js).
-//
-// Maps the stat name as it appears in a pet item's lore sentence to the
-// matching raw NEU stat key computeAllPetStats already produces (e.g.
-// "Strength" -> "STRENGTH") — deliberately a small fixed table rather
-// than reusing reforgeData's STAT_LABELS, since pet stats are keyed by
-// petnums.json's own uppercase names directly, not this app's lowercase
-// internal keys.
+// Some Pet Items grant a % boost to one or all of a pet's own combat stats (e.g. "Increases
+// the pet's Strength by 80%.") rather than an XP/coin boost — parsed from the item's own
+// real lore before the pet's own {STAT_NAME} placeholders get filled in (see lib/petData.js).
+
+// Maps a pet item's lore stat name to petnums.json's own uppercase stat key.
 const PET_STAT_NAME_TO_KEY = {
   strength: 'STRENGTH',
   health: 'HEALTH',
@@ -35,10 +26,7 @@ function stripToPlainText(loreLines) {
     .trim();
 }
 
-// Returns { type: 'all', percent } | { type: 'single', statKey, percent }
-// | null (a pure XP/coin/cosmetic pet item, or any phrasing this doesn't
-// recognize — left unparsed rather than guessed, same judgment call as
-// lib/enchantStats.js's Cayenne case).
+// Returns { type: 'all', percent } | { type: 'single', statKey, percent } | null (a pure XP/coin/cosmetic pet item, or unrecognized phrasing).
 export function parsePetItemStatBoost(lore) {
   if (!lore || lore.length === 0) return null;
   const text = stripToPlainText(lore);
@@ -55,9 +43,7 @@ export function parsePetItemStatBoost(lore) {
   return null;
 }
 
-// Splits lore into blank-line-bounded paragraphs, same shape every pet
-// item's lore is authored in (an intro paragraph, the effect paragraph,
-// a "right-click to give it this item" paragraph, then the rarity tag).
+// Splits lore into blank-line-bounded paragraphs (intro, effect, footer, rarity tag).
 function splitIntoParagraphs(lore) {
   const paragraphs = [];
   let current = [];
@@ -73,13 +59,7 @@ function splitIntoParagraphs(lore) {
   return paragraphs;
 }
 
-// Pulls out just the paragraph describing the item's actual effect (the
-// "Increases the pet's Strength by 80%." block, real lines/colors as
-// NEU-REPO wrote them) — skips the generic "Pet Items can boost pets..."
-// intro and the "Right-click on your summoned pet..." footer every pet
-// item's lore also carries, which aren't specific to this one. Covers
-// both real phrasings ("Increases ... by X%" and "Grants +X ..."); falls
-// back to null (nothing shown) for anything else rather than guessing.
+// Pulls out just the paragraph describing the item's effect, skipping the generic intro/footer paragraphs every pet item's lore also carries.
 export function extractPetItemEffectLines(lore) {
   if (!lore || lore.length === 0) return null;
   const paragraph = splitIntoParagraphs(lore).find((p) =>
@@ -88,10 +68,7 @@ export function extractPetItemEffectLines(lore) {
   return paragraph && paragraph.length > 0 ? paragraph : null;
 }
 
-// Applies a parsed boost to a computed stats map (uppercase NEU keys ->
-// numeric value, see lib/petData.js's computeAllPetStats). Multiplies
-// rather than adds — the real bonus is a percentage of the pet's own
-// current stat, not a flat number like a reforge/book bonus.
+// Applies a parsed boost to a computed stats map — multiplies (a % of the pet's own current stat) rather than adds.
 export function applyPetItemStatBoost(stats, boost) {
   if (!boost) return stats;
   const factor = 1 + boost.percent / 100;
