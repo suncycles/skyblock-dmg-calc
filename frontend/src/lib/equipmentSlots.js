@@ -1,10 +1,4 @@
-// Maps the 4 equipment slots to their NEU-REPO category strings (see
-// worker/src/data/equipment.json — each item's `category` is one of
-// these, dungeon-upgraded pieces carrying a "DUNGEON " prefix rather than
-// a distinct slot). Hypixel's "Equipment" is a second, parallel gear set
-// alongside armor (Necklace/Cloak/Belt/Gloves), not armor variants —
-// mirrors lib/armorSlots.js's shape exactly since both behave the same
-// way (enchant/reforge/gemstone/book-eligible real gear pieces).
+// Maps the 4 equipment slots (Necklace/Cloak/Belt/Gloves) to their NEU-REPO category strings, dungeon-upgraded pieces carrying a "DUNGEON " prefix.
 
 export const EQUIPMENT_SLOTS = ['necklace', 'cloak', 'belt', 'gloves'];
 

@@ -1,8 +1,4 @@
-// Shorthand number parsing for large-value text inputs (Coins Consumed,
-// Price Paid at Dark Auction, Coins in Bank, etc) — "1b" -> 1e9, "100m"
-// -> 1e8, "5k" -> 5000, matching the k/m/b/t shorthand players already
-// use when talking about Skyblock coin amounts. A plain number with no
-// suffix parses the same as before.
+// Parses shorthand number input (k/m/b/t suffixes) for large-value fields like Coins Consumed or Coins in Bank.
 const SUFFIX_MULTIPLIERS = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 };
 
 export function parseShorthandNumber(input) {

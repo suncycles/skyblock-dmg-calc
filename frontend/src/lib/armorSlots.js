@@ -1,7 +1,4 @@
-// Maps the 4 armor slots to their NEU-REPO category strings (see
-// worker/src/data/armor.json — each item's `category` is one of these,
-// dungeon-upgraded pieces carrying a "DUNGEON " prefix rather than a
-// distinct slot). Mirrors lib/specialWeapons.js's small config-table shape.
+// Maps the 4 armor slots to their NEU-REPO category strings, dungeon-upgraded pieces carrying a "DUNGEON " prefix.
 
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
 
