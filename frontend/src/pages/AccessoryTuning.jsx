@@ -8,13 +8,8 @@ import { TUNING_BOX_RATE } from '../lib/attributes';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Stat Tuning — 1 point per 10 Magical Power (lib/accessoryPowers.js's
-// computeTuningPoints), spendable across the 8 stats real Maxwell offers.
-// A single number input per stat rather than +/- buttons, same shape as
-// every other bounded-count input in this app (Books, Stars); each
-// setAccessoryTuningPoint call is already clamped so the running total
-// can never exceed what the current Magical Power grants (see
-// BuildContext.jsx).
+// Stat Tuning: 1 point per 10 Magical Power, spendable across the 8 stats Maxwell offers. Each
+// setAccessoryTuningPoint call is clamped so the running total can never exceed the points granted.
 export default function AccessoryTuning() {
   const navigate = useNavigate();
   const { loadout, attributes, setAccessoryTuningPoint } = useBuild();

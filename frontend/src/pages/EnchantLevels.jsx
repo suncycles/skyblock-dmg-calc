@@ -18,11 +18,7 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// The "separate GUI" opened by clicking an enchant: every level that exists
-// (probed live from NEU-REPO, see lib/enchantEffects) as a selectable slot.
-// Hovering a level shows that level's real, unmodified book lore. Picking
-// one applies it to the build and backs out to whichever list (normal or
-// ultimate) opened this — browser history, since either can lead here.
+// Every level that exists for an enchant as a selectable slot. Hovering shows that level's real book lore; picking applies it and backs out.
 export default function EnchantLevels() {
   const { slot, enchantId } = useParams();
   const navigate = useNavigate();
@@ -73,9 +69,7 @@ export default function EnchantLevels() {
         if (levelEntry) {
           const isMax = levelEntry.level === maxLevel;
           const isMaxMinusOne = levelEntry.level === maxLevel - 1;
-          // Ultimate stays pink regardless of tier; non-ultimate: chroma
-          // at true max, gold one tier below max, plain otherwise — same
-          // rule EnchantList.jsx's caption badges use.
+          // Ultimate stays pink regardless of tier; non-ultimate: chroma at true max, gold one tier below max, plain otherwise.
           const textColor = ultimate
             ? 'text-fuchsia-600'
             : isMax

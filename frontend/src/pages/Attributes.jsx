@@ -18,9 +18,7 @@ const ECHO_ATTRIBUTES = [
   { id: 'echo_of_elemental', name: 'Echo of Elemental' },
 ];
 
-// Small "[max]" text button, same shape whether it maxes a single
-// attribute, one section, or every attribute on the page — just a
-// different onClick/label per call site.
+// Small "[max]" text button — maxes a single attribute, one section, or every attribute depending on call site.
 function MaxButton({ label, onClick }) {
   return (
     <button
@@ -64,10 +62,7 @@ function Section({ title, subtitle, maxLabel, onMaxAll, children }) {
   );
 }
 
-// Attributes — Hunting skill shards syphoned to level an account-wide
-// attribute 1-10 (lib/attributes.js), toggled on/off in its own in-game
-// menu — not tied to any equipped item, so this page reads/writes
-// BuildContext's `attributes` state directly rather than a loadout slot.
+// Account-wide attribute levels (1-10 each), not tied to any equipped item — reads/writes BuildContext's `attributes` state directly.
 export default function Attributes() {
   const navigate = useNavigate();
   const { attributes, setAttributeLevel } = useBuild();
