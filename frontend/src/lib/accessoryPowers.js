@@ -1,19 +1,6 @@
-// Accessory Bag Powers — sourced directly from the Hypixel Skyblock wiki's
-// raw wikitext this session (not guessed): the 10 Default Powers from
-// https://hypixel-skyblock.fandom.com/wiki/Accessory_Powers/List_of_Accessory_Powers?action=raw
-// and the 21 Stone Powers from
-// https://hypixel-skyblock.fandom.com/wiki/Power_Stones/List_of_Power_Stones?action=raw
-// (both confirm the exact same stat-multiplier formula the user gave).
-//
-// A couple of Stone Power base stats used wiki abbreviations this app has
-// no matching modeled stat for ("vt", "md") — dropped rather than guessed
-// at; everything else maps 1:1 onto lib/reforgeData.js's STAT_LABELS keys.
-// Stone Powers additionally list a flat "Unique Power Bonus" that does
-// NOT scale with Magical Power (unlike baseStats, which does).
-//
-// Two more real Power Stones exist in NEU-REPO (Sunflower Butter, Vitamin
-// Life) beyond the 21 the wiki's own table covers — excluded here since
-// there's no verified base-stat source for them, rather than guessing.
+// Accessory Bag Powers: the 10 Default Powers + 21 Stone Powers, each with MP-scaled
+// baseStats mapping onto lib/reforgeData.js's STAT_LABELS keys, plus (Stone Powers only) a
+// flat "Unique Power Bonus" that does NOT scale with Magical Power.
 
 export const STARTER_POWER = 'Starter Power';
 export const INTERMEDIATE_POWER = 'Intermediate Power';
@@ -386,16 +373,13 @@ export function getPowerById(id) {
   return ALL_POWERS.find((p) => p.id === id) || null;
 }
 
-// 29.97*(ln(0.0019*MP+1))^1.2 — the stat multiplier every power's
-// baseStats is scaled by, verified directly against the wiki's raw
-// wikitext for both power tables (matches the user's own formula).
+// The stat multiplier every power's baseStats is scaled by, based on Magical Power.
 export function computeAccessoryMultiplier(mp) {
   const m = Math.max(0, mp || 0);
   return 29.97 * Math.log(0.0019 * m + 1) ** 1.2;
 }
 
-// 1 Tuning Point per 10 Magical Power (confirmed on the Maxwell wiki
-// page), spendable across the 8 stats below.
+// 1 Tuning Point per 10 Magical Power, spendable across the 8 stats below.
 export function computeTuningPoints(mp) {
   return Math.floor(Math.max(0, mp || 0) / 10);
 }
@@ -411,7 +395,7 @@ export const TUNING_STATS = [
   'intelligence',
 ];
 
-// Real per-point values (not published on the wiki — supplied directly).
+// Real per-point Tuning values.
 export const TUNING_RATE_PER_POINT = {
   health: 5,
   defense: 1,
@@ -432,9 +416,7 @@ export function computeTuningStats(tuning) {
   return stats;
 }
 
-// Combines a power's MP-scaled base stats + its flat (non-MP-scaled)
-// unique bonus + tuning-point stats into one {statKey: value} map — used
-// both for Landing's hover tooltip and Damage Sources' base stat totals.
+// Combines a power's MP-scaled base stats + flat unique bonus + tuning-point stats into one {statKey: value} map.
 export function computeAccessoryTotalStats(powerId, mp, tuning) {
   const stats = {};
   const power = getPowerById(powerId);
