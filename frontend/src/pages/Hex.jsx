@@ -30,21 +30,13 @@ function handleSlotClick(label) {
   console.log(`[SkyDmg] "${label}" clicked — not yet implemented.`);
 }
 
-// Real Minecraft slots are a recessed bevel (dark shadow top-left, light
-// highlight bottom-right), not a flat border — matches the reference at
-// https://codepen.io/isd-crew/pen/qBMprNv.
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
 const interactiveIcon = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
-// Glass panes stand in for the slot's own background, not a held item, so
-// they fill the slot edge-to-edge instead of sitting inset like item icons.
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Opened per-slot (weapon, one of the 4 armor pieces, or one of the 4
-// equipment pieces — see lib/armorSlots.js and lib/equipmentSlots.js) via
-// /hex/:slot; everything here operates on loadout[slot] rather than "the"
-// single equipped item.
+// Opened per-slot (weapon, an armor piece, or an equipment piece) via /hex/:slot; operates on loadout[slot].
 export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
@@ -54,16 +46,9 @@ export default function Hex() {
   const item = loadout[slot] && loadout[slot].item;
   const gearType = item ? getGearType(item.category) : null;
   const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || EQUIPMENT_SLOT_LABELS[slot] || slot;
-  // Both weapon and armor now live on the single merged home screen (see
-  // Landing.jsx) rather than separate hub pages, so Close always returns
-  // there.
   const closeTo = '/';
 
-  // buildFullItemTooltipLines is async (it fetches applied enchants' real
-  // per-level lore to compute their stat bonuses) — capture the anchor
-  // and a token before awaiting so a still-in-flight lookup from a hover
-  // that's already ended can't clobber a newer one or resurrect the
-  // tooltip after the mouse has left.
+  // Captures a token before awaiting so a still-in-flight hover lookup can't clobber a newer one or resurrect after the mouse leaves.
   const hoverTokenRef = useRef(0);
   async function handleItemHover(e) {
     if (!item) return;
@@ -128,9 +113,6 @@ export default function Hex() {
                                 ? `/stars/${slot}`
                                 : null;
 
-                // Gemstones/Books/Reforges only open for items that can
-                // actually use them — everything else (Item Upgrades) is
-                // still a dummy placeholder.
                 if (label === 'Gemstones') {
                   const enabled = item && hasGemstoneSlots(item.lore);
                   return (
