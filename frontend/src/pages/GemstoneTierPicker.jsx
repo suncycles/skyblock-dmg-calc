@@ -16,10 +16,7 @@ function titleCase(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-// Step 2 of applying a gemstone: pick the tier (Rough..Perfect), which
-// together with the item's rarity determines the stat boost. Applying
-// backs out two screens (past this picker and the gem-type picker) straight
-// to the slot grid, same "pick and auto-return" feel as enchant levels.
+// Step 2 of applying a gemstone: pick the tier (Rough..Perfect), which with the item's rarity determines the stat boost. Applying backs out two screens to the slot grid.
 export default function GemstoneTierPicker() {
   const { slot, slotIndex, gemType } = useParams();
   const navigate = useNavigate();

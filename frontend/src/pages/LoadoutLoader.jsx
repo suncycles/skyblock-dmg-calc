@@ -4,12 +4,8 @@ import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
 
-// The share-link entry point: /loadout/:code. Decodes and applies the
-// whole build automatically (no confirmation) — unlike the Landing page's
-// own Import button, opening a dedicated share link has nothing of the
-// visitor's own to lose. Waits for itemData to finish loading first since
-// decoding needs it to resolve item ids back into full item records (see
-// lib/loadoutCode.js's decodeLoadoutCode).
+// The share-link entry point: /loadout/:code. Decodes and applies the whole build automatically
+// (no confirmation, unlike Landing's Import button). Waits for itemData to finish loading first.
 export default function LoadoutLoader() {
   const { code } = useParams();
   const navigate = useNavigate();

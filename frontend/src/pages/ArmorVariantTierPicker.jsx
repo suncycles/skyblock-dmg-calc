@@ -15,10 +15,7 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Step 2 of picking one of the 5 Blaze Slayer variant families (see
-// lib/armorVariants.js) — choose the power tier, real lore shown on hover
-// straight from the already-bundled itemData.armor (no fetch needed,
-// unlike pets' on-demand fetchNeuItem).
+// Step 2 of picking a Blaze Slayer variant family: choose the power tier, real lore shown on hover from the already-bundled itemData.armor.
 export default function ArmorVariantTierPicker() {
   const { slot, family } = useParams();
   const navigate = useNavigate();
