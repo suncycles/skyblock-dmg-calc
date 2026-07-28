@@ -69,9 +69,6 @@ import {
   computeEchoBoost,
 } from './attributes';
 
-// Elite's boss/miniboss condition, scoped to the 5 real Slayer bosses (no boss/miniboss flag exists on mobs).
-const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horror', 'Tarantula Broodfather', 'Sven Packmaster'];
-
 // Marker id for Fabled's randomized crit-damage bonus — pushed at 1x so the headline Final
 // Damage stays the no-bonus baseline; DamageSources.jsx uses this id to compute the +15% max range.
 export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
@@ -642,8 +639,7 @@ function collectAttributeEntries(attributes, loadout, out) {
       label: 'Elite',
       source: 'Attribute',
       value: ELITE_RATE * eliteLevel,
-      condition: ELITE_BOSS_MOBS.join(', '),
-      // Displayed condition text; matching still uses the real boss names above.
+      condition: 'Boss',
       conditionLabel: 'bosses and minibosses',
     });
   }

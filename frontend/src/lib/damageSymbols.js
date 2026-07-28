@@ -26,6 +26,7 @@ export const MOB_TYPE_SYMBOLS = {
   Aquatic: { symbol: '⚓︎', color: MC_COLORS['9'] },
   Arcane: { symbol: '♃', color: MC_COLORS['5'] },
   Arthropod: { symbol: 'Ж', color: MC_COLORS['4'] },
+  Boss: { symbol: '♛', color: MC_COLORS['6'] },
   Construct: { symbol: '⚙', color: '#cccccc' },
   Cubic: { symbol: '⧈', color: MC_COLORS.a },
   Elusive: { symbol: '⌕', color: MC_COLORS.d },
