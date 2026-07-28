@@ -423,29 +423,48 @@ const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage
 const DEALS_MULTIPLIER_TO_TARGET_RE = /deals?\s+\+?([\d.]+)x\s+damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
-function matchDamageParagraph(text) {
-  if (INCOMING_DAMAGE_RE.test(text)) return null;
+// Global-cloned so a paragraph with more than one "to X" clause (e.g. the Blaze Slayer daggers'
+// "Deal Nx damage to Infernal mobs. Deal Nx damage to Wither mobs.") yields every match, not just
+// the first — matchAll's zero-width lookahead end doesn't consume the trailing period, so
+// consecutive clauses in the same sentence are each found independently.
+function findAll(re, text) {
+  return [...text.matchAll(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`))];
+}
 
-  let m = SUBJECT_MULTIPLIER_RE.exec(text);
-  if (m) return { bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) };
+function matchDamageParagraphs(text) {
+  if (INCOMING_DAMAGE_RE.test(text)) return [];
 
-  m = DEALS_MULTIPLIER_TO_TARGET_RE.exec(text);
-  if (m) return { bucket: 'multiplicative', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) };
+  let matches = findAll(SUBJECT_MULTIPLIER_RE, text);
+  if (matches.length > 0) {
+    return matches.map((m) => ({ bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) }));
+  }
 
-  m = DEALS_TO_TARGET_RE.exec(text);
-  if (m) return { bucket: 'additiveConditional', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) };
+  matches = findAll(DEALS_MULTIPLIER_TO_TARGET_RE, text);
+  if (matches.length > 0) {
+    return matches.map((m) => ({ bucket: 'multiplicative', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) }));
+  }
 
-  m = DEALS_FLAT_RE.exec(text);
-  if (m) return { bucket: 'additiveNonConditional', value: parseFloat(m[1]) };
+  matches = findAll(DEALS_TO_TARGET_RE, text);
+  if (matches.length > 0) {
+    return matches.map((m) => ({ bucket: 'additiveConditional', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) }));
+  }
 
-  if (/damage/i.test(text)) return { bucket: 'situational', note: text };
-  return null;
+  matches = findAll(DEALS_FLAT_RE, text);
+  if (matches.length > 0) {
+    return matches.map((m) => ({ bucket: 'additiveNonConditional', value: parseFloat(m[1]) }));
+  }
+
+  if (/damage/i.test(text)) return [{ bucket: 'situational', note: text }];
+  return [];
 }
 
 // `asWeaponBonus`: routes a weapon-slot "+X% damage" match into the weaponBonus buckets instead of the general additive ones.
 function pushParagraphMatch(out, text, label, source, id, asWeaponBonus) {
-  const match = matchDamageParagraph(text);
-  if (!match) return;
+  const matches = matchDamageParagraphs(text);
+  matches.forEach((match, matchIdx) => pushOneMatch(out, match, label, source, matches.length > 1 ? `${id}-${matchIdx}` : id, asWeaponBonus));
+}
+
+function pushOneMatch(out, match, label, source, id, asWeaponBonus) {
   if (match.bucket === 'situational') {
     out.situational.push({ id, label, source, note: match.note, formula: null });
   } else if (match.bucket === 'multiplicative') {
