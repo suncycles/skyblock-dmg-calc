@@ -134,8 +134,12 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'TARANTULA_FANG',
   'SCORPION_FOIL',
   'STING',
+  'SPIDER_SWORD',
+  'END_SWORD',
+  'UNDEAD_SWORD',
   // Own real lore either states an inaccurate number or a mismatched text-vs-function mechanic — hardcoded below instead.
   'POOCH_SWORD',
+  'SHAMAN_SWORD',
   'FIREDUST_DAGGER',
   'MAWDUST_DAGGER',
 ]);
@@ -169,20 +173,23 @@ const ATOMSPLIT_MOBS = [
 ];
 
 const SLAYER_TIER_BONUSES = {
+  // End Sword's real lore names the actual "Ender" Mob Type directly; the Katana tiers above it
+  // target a narrower Endermen-family roster that Mob Type doesn't cover (see ATOMSPLIT_MOBS).
+  END_SWORD: { bonusPercent: 100, condition: 'Ender' },
   VOIDWALKER_KATANA: { bonusPercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
   VOIDEDGE_KATANA: { bonusPercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
   VORPAL_KATANA: { bonusPercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
   ATOMSPLIT_KATANA: { bonusPercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
 
+  UNDEAD_SWORD: { bonusPercent: 100, condition: 'Undead' },
   REVENANT_SWORD: { bonusPercent: 150, condition: 'Undead' },
   REAPER_SWORD: { bonusPercent: 200, condition: 'Undead' },
   AXE_OF_THE_SHREDDED: { bonusPercent: 250, condition: 'Undead' },
 
+  SPIDER_SWORD: { bonusPercent: 100, condition: 'Arthropod' },
   RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
   TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
-  // Scorpion Foil is the one exception in this table that's genuinely additive (stacks with other
-  // %-damage sources into one shared multiplier) rather than its own independent Nx factor.
-  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod', additive: true },
+  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
 
@@ -442,11 +449,13 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 // Y") and subject-first ("Y mobs take Nx damage"). A third shape, "Y mobs DEAL Nx damage," is
 // an incoming-damage penalty rather than a player bonus, so it's excluded entirely.
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
-// "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional.
-const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
+// "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional. The target
+// capture also stops at " and" (e.g. Sword of Revelations' "...to Mythological mobs and grants +5
+// Magic Find on them.") so a trailing clause doesn't get swallowed into the condition text.
+const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$|\s+and\b)/i;
 const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
 // Same shape as DEALS_TO_TARGET_RE but an "x" multiplier, not a "%" — e.g. Demonslayer Gauntlet's "Deal 1.15x damage against Infernal Mobs."
-const DEALS_MULTIPLIER_TO_TARGET_RE = /deals?\s+\+?([\d.]+)x\s+damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
+const DEALS_MULTIPLIER_TO_TARGET_RE = /deals?\s+\+?([\d.]+)x\s+damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$|\s+and\b)/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
 // Global-cloned so a paragraph with more than one "to X" clause (e.g. the Blaze Slayer daggers'
@@ -521,12 +530,12 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
   if (!bonus) return;
 
   if (config.kind === 'bestiary') {
-    // Daedalus Blade's Bestiary bonus: the weapon's own damage bonus, Mythological-only.
-    out.weaponBonusConditional.push({
+    // Daedalus Blade's Bestiary bonus is its own independent Nx factor against Mythological mobs, not an additive stack.
+    out.multiplicative.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Bestiary)`,
       source: slotLabel,
-      value: bonus,
+      value: 1 + bonus / 100,
       condition: 'Mythological',
     });
   } else if (config.kind === 'crownOfAvarice') {

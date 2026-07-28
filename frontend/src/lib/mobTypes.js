@@ -245,6 +245,27 @@ export const MOB_TYPES = {
   'Zombie Villager': ['Undead'],
 };
 
+// Fishing's own "Sea Creature" grouping (Flaming Flay/Soul Whip's real "Deals Nx damage to Sea
+// Creatures" condition) — not a Mob Type, so it isn't in MOB_TYPES above; resolved as a name list
+// instead (see conditionMatchesMob in lib/finalDamage.js). Coverage: only the ones also present in
+// MOB_TYPES below can actually be picked as a target mob and match; the rest are real Sea
+// Creatures this app's mob roster doesn't cover yet.
+export const SEA_CREATURE_MOBS = [
+  'Squid', 'Sea Walker', 'Sea Witch', 'Sea Archer', 'Rider of the Deep', 'Catfish', 'Sea Leech',
+  'Guardian Defender', 'Deep Sea Protector', 'Water Hydra', 'Trash Gobbler', 'Dumpster Diver',
+  'Banshee', 'Bayou Sludge', 'Alligator', 'Titanoboa', 'Atoll Croaker', 'Lotus Guardian', 'gorF',
+  'Drowned Captain', 'Puddle Jumper', 'Frog Prince', 'Bogged', 'Wetwing', 'Tadgang', 'Ent',
+  'Stridersurfer', 'The Loch Emperor', 'Nessie', 'Fried Chicken', 'Volcanic Snail',
+  'Fireproof Witch', 'Magma Slug', 'Moogma', 'Lava Leech', 'Pyroclastic Worm', 'Magma Pillar',
+  'Lava Flame', 'Fire Eel', 'Taurus', 'Thunder', 'Fiery Scuttler', 'Lord Jawbus', 'Ragnarok',
+  'Frozen Steve', 'Frosty', 'Grinch', 'Nutcracker', 'Yeti', 'Reindrake', "Jumpin' Jack",
+  'Scarecrow', 'Nightmare', 'Werewolf', 'Phantom Fisher', 'Grim Reaper', 'Nurse Shark',
+  'Blue Shark', 'Tiger Shark', 'Great White Shark', 'Frog Man', 'Inkling', 'Snapping Turtle',
+  'Manta Ray', 'Blue Ringed Octopus', 'Wiki Tiki', 'Mithril Grubber', 'Oasis Sheep',
+  'Oasis Rabbit', 'Carrot King', 'Agarimoo', 'Water Worm', 'Poisoned Water Worm', 'Flaming Worm',
+  'Lava Blaze', 'Lava Pigman', 'Abyssal Miner', 'Plhlegblast',
+];
+
 // Case-insensitive index built once at module load, since item lore/enchant text often uses pluralized or differently-cased mob names.
 const LOOKUP = new Map();
 for (const [name, types] of Object.entries(MOB_TYPES)) {
