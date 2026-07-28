@@ -405,6 +405,8 @@ const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
 // "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional.
 const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
+// Same shape as DEALS_TO_TARGET_RE but an "x" multiplier, not a "%" — e.g. Demonslayer Gauntlet's "Deal 1.15x damage against Infernal Mobs."
+const DEALS_MULTIPLIER_TO_TARGET_RE = /deals?\s+\+?([\d.]+)x\s+damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
 function matchDamageParagraph(text) {
@@ -412,6 +414,9 @@ function matchDamageParagraph(text) {
 
   let m = SUBJECT_MULTIPLIER_RE.exec(text);
   if (m) return { bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) };
+
+  m = DEALS_MULTIPLIER_TO_TARGET_RE.exec(text);
+  if (m) return { bucket: 'multiplicative', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) };
 
   m = DEALS_TO_TARGET_RE.exec(text);
   if (m) return { bucket: 'additiveConditional', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) };
