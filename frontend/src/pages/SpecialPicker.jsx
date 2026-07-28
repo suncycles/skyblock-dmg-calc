@@ -12,10 +12,11 @@ const panel =
 export default function SpecialPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout, setSpecialValue } = useBuild();
+  const { loadout, setSpecialValue, setRarityOverride } = useBuild();
   const weapon = loadout[slot] && loadout[slot].item;
   const config = weapon ? getSpecialConfig(weapon.id) : null;
   const value = (loadout[slot] && loadout[slot].modifiers && loadout[slot].modifiers.special) || 0;
+  const rarityOverride = (loadout[slot] && loadout[slot].modifiers && loadout[slot].modifiers.rarityOverride) || '';
 
   if (!weapon || !config) {
     return (
@@ -80,6 +81,31 @@ export default function SpecialPicker() {
           className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
         />
         <div className="text-sm text-neutral-800">{bonusText}</div>
+
+        {config.rarities && (
+          <div className="flex flex-col gap-1 border-t border-neutral-500 pt-3">
+            <label className="text-sm font-bold text-black" htmlFor="special-rarity">
+              Item Rarity
+            </label>
+            <select
+              id="special-rarity"
+              value={rarityOverride}
+              onChange={(e) => setRarityOverride(slot, e.target.value || null)}
+              className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
+            >
+              <option value="">Default ({weapon.tier[0]}{weapon.tier.slice(1).toLowerCase()})</option>
+              {config.rarities.map((tier) => (
+                <option key={tier} value={tier}>
+                  {tier[0]}{tier.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-neutral-600 italic">
+              This item's real rarity upgrades over time (Hunting milestones) rather than from a Recombobulator — pick the tier it's actually at.
+            </div>
+          </div>
+        )}
+
         <button
           className="self-start px-4 py-2 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
           onClick={() => navigate(-1)}

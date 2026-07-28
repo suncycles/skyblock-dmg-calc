@@ -107,6 +107,7 @@ function emptyModifiers() {
     recombobulated: false,
     reforge: null, // reforge name string | null
     stars: 0, // Item Upgrades star count, 0-15 — see lib/starring.js
+    rarityOverride: null, // real current tier for milestone-upgrading items (e.g. David's Cloak) | null = use the item's own tier
   };
 }
 
@@ -412,6 +413,14 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // tier === null resets to the item's own real tier — for milestone-upgrading items (e.g. David's Cloak) whose real rarity isn't in the bundled data.
+  const setRarityOverride = useCallback(
+    (slot, tier) => {
+      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, rarityOverride: tier }));
+    },
+    [updateSlotModifiers],
+  );
+
   const setPetLevel = useCallback(
     (level) => {
       updateSlotModifiers('pet', (modifiers) => ({ ...modifiers, level }));
@@ -534,6 +543,7 @@ export function BuildProvider({ children }) {
         toggleRecombobulated,
         applyReforge,
         setStarCount,
+        setRarityOverride,
         setPetLevel,
         setPetItem,
         setPetBankCoins,

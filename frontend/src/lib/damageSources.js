@@ -136,8 +136,8 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STING',
 ]);
 
-// Warden Helmet's Brute Force ability, assumed at its real max boost (+160%) since Speed isn't tracked.
-const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
+// Warden Helmet's Brute Force ability, assumed fully active.
+const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 161;
 
 // Dragonfuse Glove's real ability only upgrades a specifically-equipped Aspect of the Dragons
 // ("+35 Damage, +50 Strength" — its "Very reduced ability knockback" clause isn't a damage stat

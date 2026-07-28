@@ -7,7 +7,7 @@ import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore, computeDaedalusTamingBonus } from './specialWeapons';
 import { computeStarBonuses, buildStarSuffix } from './starring';
-import { bumpRarity, applyRecombToLore } from './recombobulator';
+import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
 
@@ -70,7 +70,9 @@ async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
 // callers should capture the hover anchor before awaiting.
 export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel, tamingLevel) {
   if (!item || !modifiers) return [];
-  const displayTier = modifiers.recombobulated ? bumpRarity(item.tier) : item.tier;
+  // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
+  const baseTier = modifiers.rarityOverride || item.tier;
+  const displayTier = modifiers.recombobulated ? bumpRarity(baseTier) : baseTier;
   const gearType = getGearType(item.category);
 
   let lore = applyGemstonesToLore(item.lore || [], modifiers.gemstones, displayTier);
@@ -91,7 +93,8 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
-  if (modifiers.recombobulated) lore = applyRecombToLore(lore, item.tier);
+  if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);
+  if (modifiers.recombobulated) lore = applyRecombToLore(lore, baseTier);
   lore = applyFabledToLore(lore, modifiers.reforge);
 
   const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
