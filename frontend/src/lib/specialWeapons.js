@@ -19,27 +19,32 @@ export function computeDaedalusTamingBonus(itemId, tamingLevel) {
   return { damage: rate * tamingLevel };
 }
 
-// Pooch Sword's "+20 Damage per Wolf Slayer level" (its Wolf-mob-multiplier half is hardcoded separately in lib/damageSources.js).
-const POOCH_SWORD_WOLF_SLAYER_DAMAGE_PER_LEVEL = { POOCH_SWORD: 20 };
+// Pooch Sword's and Shaman Sword's "+X Damage per Wolf Slayer level" — neither weapon's real
+// lore states this outright, so it's hardcoded (Wolf-mob-multiplier half, where either applies,
+// is hardcoded separately in lib/damageSources.js).
+const WOLF_SLAYER_DAMAGE_PER_LEVEL = { POOCH_SWORD: 20, SHAMAN_SWORD: 10 };
 
-export function computePoochWolfSlayerBonus(itemId, wolfSlayerLevel) {
-  const rate = POOCH_SWORD_WOLF_SLAYER_DAMAGE_PER_LEVEL[itemId];
+export function computeWolfSlayerLevelBonus(itemId, wolfSlayerLevel) {
+  const rate = WOLF_SLAYER_DAMAGE_PER_LEVEL[itemId];
   if (!rate || !wolfSlayerLevel) return {};
   return { damage: rate * wolfSlayerLevel };
 }
 
 export const SPECIAL_WEAPON_CONFIG = {
+  // Real max combined Bestiary tier count across every trackable Mythological mob is 230.
   DAEDALUS_AXE: {
     kind: 'bestiary',
     perTierDamagePercent: 1,
     perTierMagicFind: 0.2,
     inputLabel: 'Combined Mythological Bestiary Tiers',
+    max: 230,
   },
   STARRED_DAEDALUS_AXE: {
     kind: 'bestiary',
     perTierDamagePercent: 1.5,
     perTierMagicFind: 0.3,
     inputLabel: 'Combined Mythological Bestiary Tiers',
+    max: 230,
   },
   MIDAS_SWORD: {
     kind: 'midasSword',

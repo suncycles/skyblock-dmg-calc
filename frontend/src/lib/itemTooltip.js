@@ -5,7 +5,7 @@ import { mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
-import { applySpecialToLore, computeDaedalusTamingBonus, computePoochWolfSlayerBonus } from './specialWeapons';
+import { applySpecialToLore, computeDaedalusTamingBonus, computeWolfSlayerLevelBonus } from './specialWeapons';
 import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
@@ -87,7 +87,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   lore = mergeStatIntoBase(lore, computeStarBonuses(item.lore, modifiers.stars), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
-  lore = mergeStatIntoBase(lore, computePoochWolfSlayerBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
 
   // Enchant stat bonuses also merge into the base stat, no separate annotation.
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
