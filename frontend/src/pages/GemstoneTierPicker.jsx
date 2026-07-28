@@ -25,7 +25,8 @@ export default function GemstoneTierPicker() {
   const idx = Number(slotIndex);
   const gemId = gemType.toUpperCase();
   const gem = GEMSTONES[gemId];
-  const baseTier = loadout[slot]?.item?.tier || 'common';
+  const rawTier = loadout[slot]?.item?.tier || 'common';
+  const baseTier = loadout[slot]?.modifiers?.rarityOverride || rawTier;
   const itemRarity = loadout[slot]?.modifiers?.recombobulated ? bumpRarity(baseTier) : baseTier;
   const current = loadout[slot]?.modifiers?.gemstones?.[idx];
 

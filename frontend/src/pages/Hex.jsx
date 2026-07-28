@@ -196,7 +196,8 @@ export default function Hex() {
                 }
 
                 if (label === 'Modifiers') {
-                  const enabled = item && canRecombobulate(item.tier);
+                  const baseTier = (loadout[slot] && loadout[slot].modifiers.rarityOverride) || (item && item.tier);
+                  const enabled = item && canRecombobulate(baseTier);
                   const applied = Boolean(loadout[slot] && loadout[slot].modifiers.recombobulated);
                   return (
                     <div

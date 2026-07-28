@@ -1,8 +1,8 @@
-/* Gemstone stat-boost table (Rough/Flawed/Fine/Flawless/Perfect tiers x COMMON-LEGENDARY item
+/* Gemstone stat-boost table (Rough/Flawed/Fine/Flawless/Perfect tiers x COMMON-MYTHIC item
    rarity). Only the 6 "combat" gemstones are wired up — the other 6 boost mining/foraging/
    farming stats this calculator doesn't model. */
 
-export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 export const GEMSTONE_TIERS = ['rough', 'flawed', 'fine', 'flawless', 'perfect'];
 
 // A gemstone's own tier doubles as an item rarity for bracket-color purposes (Rough =
@@ -27,11 +27,11 @@ export const GEMSTONES = {
     valueColor: 'c', // red
     symbol: '❤',
     tiers: {
-      rough: [1, 2, 3, 4, 5],
-      flawed: [3, 4, 5, 6, 8],
-      fine: [4, 5, 6, 8, 10],
-      flawless: [5, 7, 10, 14, 18],
-      perfect: [6, 9, 13, 18, 24],
+      rough: [1, 2, 3, 4, 5, 7],
+      flawed: [3, 4, 5, 6, 8, 10],
+      fine: [4, 5, 6, 8, 10, 14],
+      flawless: [5, 7, 10, 14, 18, 22],
+      perfect: [6, 9, 13, 18, 24, 30],
     },
   },
   JASPER: {
@@ -42,11 +42,11 @@ export const GEMSTONES = {
     valueColor: 'c', // red
     symbol: '❁',
     tiers: {
-      rough: [1, 1, 1, 2, 3],
-      flawed: [2, 2, 3, 4, 4],
-      fine: [3, 3, 4, 5, 6],
-      flawless: [5, 6, 7, 8, 10],
-      perfect: [6, 7, 9, 11, 13],
+      rough: [1, 1, 1, 2, 3, 4],
+      flawed: [2, 2, 3, 4, 4, 5],
+      fine: [3, 3, 4, 5, 6, 7],
+      flawless: [5, 6, 7, 8, 10, 12],
+      perfect: [6, 7, 9, 11, 13, 16],
     },
   },
   SAPPHIRE: {
@@ -57,11 +57,11 @@ export const GEMSTONES = {
     valueColor: 'b', // light blue / aqua
     symbol: '✎',
     tiers: {
-      rough: [2, 3, 4, 5, 6],
-      flawed: [5, 5, 6, 7, 8],
-      fine: [7, 8, 9, 10, 11],
-      flawless: [10, 11, 12, 14, 17],
-      perfect: [12, 14, 17, 20, 24],
+      rough: [2, 3, 4, 5, 6, 7],
+      flawed: [5, 5, 6, 7, 8, 10],
+      fine: [7, 8, 9, 10, 11, 12],
+      flawless: [10, 11, 12, 14, 17, 20],
+      perfect: [12, 14, 17, 20, 24, 30],
     },
   },
   AMETHYST: {
@@ -72,11 +72,11 @@ export const GEMSTONES = {
     valueColor: 'a', // green
     symbol: '❈',
     tiers: {
-      rough: [1, 2, 3, 4, 5],
-      flawed: [3, 4, 5, 6, 8],
-      fine: [4, 5, 6, 8, 10],
-      flawless: [5, 7, 10, 14, 18],
-      perfect: [6, 9, 13, 18, 24],
+      rough: [1, 2, 3, 4, 5, 7],
+      flawed: [3, 4, 5, 6, 8, 10],
+      fine: [4, 5, 6, 8, 10, 14],
+      flawless: [5, 7, 10, 14, 18, 22],
+      perfect: [6, 9, 13, 18, 24, 30],
     },
   },
   ONYX: {
@@ -87,11 +87,11 @@ export const GEMSTONES = {
     valueColor: '9', // dark blue
     symbol: '☠',
     tiers: {
-      rough: [1, 1, 2, 2, 3],
-      flawed: [2, 2, 3, 3, 4],
-      fine: [3, 3, 4, 5, 6],
-      flawless: [4, 5, 6, 7, 8],
-      perfect: [5, 6, 7, 8, 10],
+      rough: [1, 1, 2, 2, 3, 4],
+      flawed: [2, 2, 3, 3, 4, 6],
+      fine: [3, 3, 4, 5, 6, 8],
+      flawless: [4, 5, 6, 7, 8, 10],
+      perfect: [5, 6, 7, 8, 10, 12],
     },
   },
   OPAL: {
@@ -102,18 +102,18 @@ export const GEMSTONES = {
     valueColor: 'f', // white
     symbol: '❂',
     tiers: {
-      rough: [1, 1, 1, 2, 2],
-      flawed: [2, 2, 2, 3, 3],
-      fine: [3, 3, 3, 4, 4],
-      flawless: [4, 4, 5, 6, 8],
-      perfect: [5, 6, 7, 9, 11],
+      rough: [1, 1, 1, 2, 2, 3],
+      flawed: [2, 2, 2, 3, 3, 4],
+      fine: [3, 3, 3, 4, 4, 5],
+      flawless: [4, 4, 5, 6, 8, 9],
+      perfect: [5, 6, 7, 9, 11, 13],
     },
   },
 };
 
 export const GEMSTONE_IDS = Object.keys(GEMSTONES);
 
-// Item rarities beyond LEGENDARY aren't in RARITY_ORDER — clamped to the last column.
+// Item rarities beyond MYTHIC aren't in RARITY_ORDER — clamped to the last column.
 export function getGemstoneBoost(gemId, tier, itemRarity) {
   const gem = GEMSTONES[gemId];
   if (!gem) return 0;

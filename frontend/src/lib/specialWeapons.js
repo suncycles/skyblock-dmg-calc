@@ -70,10 +70,13 @@ export const SPECIAL_WEAPON_CONFIG = {
     inputLabel: 'Coins Consumed',
   },
   // David's Cloak has no published Strength formula — modeled as a direct player-entered value.
+  // Its rarity isn't fixed either (it upgrades via real Hunting milestones, not a recomb), so
+  // it also gets a rarity picker to correct the tooltip tier + gemstone/reforge stat scaling.
   DAVIDS_CLOAK: {
     kind: 'flatStrength',
     max: 50,
     inputLabel: 'Base Strength Adjustment',
+    rarities: ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'],
   },
 };
 
