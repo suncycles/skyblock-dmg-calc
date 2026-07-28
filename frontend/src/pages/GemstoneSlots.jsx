@@ -39,7 +39,7 @@ export default function GemstoneSlots() {
     if (!item) return;
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(item, modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel);
+    const lines = await buildFullItemTooltipLines(item, modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
   function handleItemLeave() {

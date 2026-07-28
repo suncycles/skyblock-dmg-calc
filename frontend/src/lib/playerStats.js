@@ -70,6 +70,8 @@ export function computeAncientReforgeCritDamage(catacombsLevel) {
 
 export const MAX_TAMING_LEVEL = 60;
 
+export const MAX_WOLF_SLAYER_LEVEL = 9;
+
 // Catacombs Level's overall stat-multiplier scaling — not implemented yet, kept as reference:
 //   1:10  2:15  3:29  4:25  5:31  6:38  7:46  8:55  9:65  10:75
 //   11:85  12:95  13:105  14:115  15:125  16:135  17:145  18:155  19:165  20:175
