@@ -223,6 +223,16 @@ export default function DamageSources() {
                           </span>
                         </div>
                       )}
+                      {result.overloadBonusPercent > 0 && (
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs text-neutral-700">
+                            Overload Damage (Mega Crit, +{result.overloadBonusPercent}%)
+                          </span>
+                          <span className="text-base font-mono text-neutral-700">
+                            {Math.floor(finalDamage.finalDamage * (1 + result.overloadBonusPercent / 100)).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

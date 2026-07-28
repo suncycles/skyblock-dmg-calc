@@ -73,6 +73,9 @@ import {
 // Damage stays the no-bonus baseline; DamageSources.jsx uses this id to compute the +15% max range.
 export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 
+// Overload's Mega Critical Hit bonus (bow-only): 10% extra damage per level, up to +50% at level V.
+const OVERLOAD_MEGA_CRIT_PERCENT_PER_LEVEL = 10;
+
 /* Aggregates every damage-relevant stat/bonus across the loadout into: base stats (summed),
    % additive damage split into non-conditional vs conditional, a separate weaponBonus pair
    for the equipped weapon's own "+X% damage" abilities, multiplicative sources, and a
@@ -672,6 +675,8 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     weaponBonusConditional: [],
     multiplicative: [],
     situational: [],
+    // Overload's Mega Crit bonus — shown as its own "Overload Damage" line, not folded into Final Damage.
+    overloadBonusPercent: 0,
   };
 
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.wolfSlayerLevel, out);
@@ -825,6 +830,11 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         source: slotLabel,
         value: 1,
       });
+    }
+
+    if (slot === 'weapon' && isBowEquipped(loadout)) {
+      const overload = (equipped.modifiers.hexEnchantments || []).find((e) => e.id.toLowerCase() === 'overload');
+      if (overload) out.overloadBonusPercent = overload.level * OVERLOAD_MEGA_CRIT_PERCENT_PER_LEVEL;
     }
   }
 
