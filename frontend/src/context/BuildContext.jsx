@@ -75,9 +75,9 @@ function loadInitialAttributes() {
   }
 }
 
-// Loads global player levels (Combat, Skyblock, Foraging, Catacombs, Taming — see lib/playerStats.js).
+// Loads global player levels (Combat, Skyblock, Foraging, Catacombs, Taming, Wolf Slayer — see lib/playerStats.js).
 function loadInitialPlayerStats() {
-  const defaults = { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0, tamingLevel: 0 };
+  const defaults = { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0, tamingLevel: 0, wolfSlayerLevel: 0 };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
   try {
@@ -88,6 +88,7 @@ function loadInitialPlayerStats() {
       foragingLevel: typeof parsed.foragingLevel === 'number' ? parsed.foragingLevel : 0,
       catacombsLevel: typeof parsed.catacombsLevel === 'number' ? parsed.catacombsLevel : 0,
       tamingLevel: typeof parsed.tamingLevel === 'number' ? parsed.tamingLevel : 0,
+      wolfSlayerLevel: typeof parsed.wolfSlayerLevel === 'number' ? parsed.wolfSlayerLevel : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -257,6 +258,14 @@ export function BuildProvider({ children }) {
   const setTamingLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, tamingLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setWolfSlayerLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, wolfSlayerLevel: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -484,6 +493,7 @@ export function BuildProvider({ children }) {
       foragingLevel: 0,
       catacombsLevel: 0,
       tamingLevel: 0,
+      wolfSlayerLevel: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -520,6 +530,7 @@ export function BuildProvider({ children }) {
         setForagingLevel,
         setCatacombsLevel,
         setTamingLevel,
+        setWolfSlayerLevel,
         targetMobs,
         toggleTargetMob,
         clearTargetMobs,

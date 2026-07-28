@@ -5,7 +5,7 @@ import { mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
-import { applySpecialToLore, computeDaedalusTamingBonus } from './specialWeapons';
+import { applySpecialToLore, computeDaedalusTamingBonus, computePoochWolfSlayerBonus } from './specialWeapons';
 import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
@@ -68,7 +68,7 @@ async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
 // name lines, and recombobulation — resolved off the item's current rarity. Shared by every
 // screen showing an equipped item's tooltip. Async because of the enchant stat-bonus lookup;
 // callers should capture the hover anchor before awaiting.
-export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel, tamingLevel) {
+export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel) {
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
   const baseTier = modifiers.rarityOverride || item.tier;
@@ -87,6 +87,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   lore = mergeStatIntoBase(lore, computeStarBonuses(item.lore, modifiers.stars), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, computePoochWolfSlayerBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
 
   // Enchant stat bonuses also merge into the base stat, no separate annotation.
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);

@@ -134,6 +134,10 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'TARANTULA_FANG',
   'SCORPION_FOIL',
   'STING',
+  // Own real lore either states an inaccurate number or a mismatched text-vs-function mechanic — hardcoded below instead.
+  'POOCH_SWORD',
+  'FIREDUST_DAGGER',
+  'MAWDUST_DAGGER',
 ]);
 
 // Warden Helmet's Brute Force ability, assumed fully active.
@@ -176,12 +180,34 @@ const SLAYER_TIER_BONUSES = {
 
   RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
   TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
-  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
+  // Scorpion Foil is the one exception in this table that's genuinely additive (stacks with other
+  // %-damage sources into one shared multiplier) rather than its own independent Nx factor.
+  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod', additive: true },
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
 
 // Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) — its own damage multiplier.
 const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
+
+// Pooch Sword's own real lore states "+200% Damage against Wolves" but this actually functions as
+// a fixed 2x multiplier, not an additive stack (same text-vs-function mismatch as Crown of
+// Avarice) — hardcoded against the real Wolf Slayer mob roster since no single Mob Type covers it.
+const POOCH_SWORD_WOLF_MOBS = ['Sven Packmaster', 'Wolf', 'Old Wolf', 'Soul of the Alpha', 'Pack Spirit', 'Howling Spirit'];
+const POOCH_SWORD_WOLF_MULTIPLIER = 2;
+
+// Firedust/Twilight Dagger's own real lore rounds one of their two per-mob-type multipliers down
+// to 1.2x — the real value is 1.25x. Hardcoded with the corrected numbers instead of the generic
+// ability-text scan, which would otherwise report the wrong value verbatim.
+const DUAL_MOB_MULTIPLIER_OVERRIDES = {
+  FIREDUST_DAGGER: [
+    { condition: 'Infernal', value: 1.25 },
+    { condition: 'Wither', value: 1.1 },
+  ],
+  MAWDUST_DAGGER: [
+    { condition: 'Infernal', value: 1.5 },
+    { condition: 'Skeletal', value: 1.25 },
+  ],
+};
 
 function stripToPlain(lines) {
   return (Array.isArray(lines) ? lines.join(' ') : lines)
@@ -268,7 +294,7 @@ function addBaseStat(out, statKey, value, label) {
   else list.push({ label, value });
 }
 
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, out) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
   let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
   if (loadout.pet) {
@@ -293,7 +319,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const equipped = loadout[slot];
     if (!equipped) continue;
     const slotLabel = SLOT_LABELS[slot];
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel);
     for (const statKey of TRACKED_STATS) {
       addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
     }
@@ -643,7 +669,7 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     situational: [],
   };
 
-  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
+  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.wolfSlayerLevel, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   // Real Hypixel base stats before any gear.
@@ -734,13 +760,47 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       const conditionLabel = tierBonus.conditionLabel || tierBonus.condition;
       const condition = Array.isArray(tierBonus.condition) ? tierBonus.condition.join(', ') : tierBonus.condition;
       const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
-      out.weaponBonusConditional.push({
-        id: `${idBase}-tier-bonus`,
-        label: `${itemLabel} (${conditionLabel})`,
+      if (tierBonus.additive) {
+        out.weaponBonusConditional.push({
+          id: `${idBase}-tier-bonus`,
+          label: `${itemLabel} (${conditionLabel})`,
+          source: slotLabel,
+          value: tierBonus.bonusPercent,
+          condition,
+          conditionLabel,
+        });
+      } else {
+        out.multiplicative.push({
+          id: `${idBase}-tier-bonus`,
+          label: `${itemLabel} (${conditionLabel})`,
+          source: slotLabel,
+          value: 1 + tierBonus.bonusPercent / 100,
+          condition,
+        });
+      }
+    }
+
+    if (equipped.item.id === 'POOCH_SWORD') {
+      out.multiplicative.push({
+        id: 'pooch-sword-wolves',
+        label: `${itemLabel} (Wolves)`,
         source: slotLabel,
-        value: tierBonus.bonusPercent,
-        condition,
-        conditionLabel,
+        value: POOCH_SWORD_WOLF_MULTIPLIER,
+        condition: POOCH_SWORD_WOLF_MOBS.join(', '),
+      });
+    }
+
+    const dualMobOverride = DUAL_MOB_MULTIPLIER_OVERRIDES[equipped.item.id];
+    if (dualMobOverride) {
+      const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
+      dualMobOverride.forEach((entry, idx) => {
+        out.multiplicative.push({
+          id: `${idBase}-override-${idx}`,
+          label: `${itemLabel} (${entry.condition})`,
+          source: slotLabel,
+          value: entry.value,
+          condition: entry.condition,
+        });
       });
     }
 

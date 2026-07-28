@@ -19,6 +19,15 @@ export function computeDaedalusTamingBonus(itemId, tamingLevel) {
   return { damage: rate * tamingLevel };
 }
 
+// Pooch Sword's "+20 Damage per Wolf Slayer level" (its Wolf-mob-multiplier half is hardcoded separately in lib/damageSources.js).
+const POOCH_SWORD_WOLF_SLAYER_DAMAGE_PER_LEVEL = { POOCH_SWORD: 20 };
+
+export function computePoochWolfSlayerBonus(itemId, wolfSlayerLevel) {
+  const rate = POOCH_SWORD_WOLF_SLAYER_DAMAGE_PER_LEVEL[itemId];
+  if (!rate || !wolfSlayerLevel) return {};
+  return { damage: rate * wolfSlayerLevel };
+}
+
 export const SPECIAL_WEAPON_CONFIG = {
   DAEDALUS_AXE: {
     kind: 'bestiary',

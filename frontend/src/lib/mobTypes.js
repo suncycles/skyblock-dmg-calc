@@ -144,6 +144,7 @@ export const MOB_TYPES = {
   'Nutcracker': ['Aquatic', 'Construct', 'Frozen'],
   'Obsidian Defender': ['Ender', 'Wither'],
   'Old Dragon': ['Airborne', 'Arcane', 'Ender'],
+  'Old Wolf': ['Animal'],
   'Pack Spirit': ['Animal', 'Arcane'],
   'Phantom Fisher': ['Aquatic', 'Arcane', 'Spooky'],
   'Phantom Spirit': ['Shielded', 'Spooky'],

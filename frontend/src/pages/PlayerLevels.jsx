@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
-import { MAX_COMBAT_LEVEL, MAX_FORAGING_LEVEL, MAX_CATACOMBS_LEVEL, MAX_TAMING_LEVEL } from '../lib/playerStats';
+import { MAX_COMBAT_LEVEL, MAX_FORAGING_LEVEL, MAX_CATACOMBS_LEVEL, MAX_TAMING_LEVEL, MAX_WOLF_SLAYER_LEVEL } from '../lib/playerStats';
 import { SLOT_TEXTURES } from '../lib/icons';
 
 const panel =
@@ -11,7 +11,8 @@ const panel =
 // Daedalus Blade's per-level base stat.
 export default function PlayerLevels() {
   const navigate = useNavigate();
-  const { playerStats, setCombatLevel, setSkyblockLevel, setForagingLevel, setCatacombsLevel, setTamingLevel } = useBuild();
+  const { playerStats, setCombatLevel, setSkyblockLevel, setForagingLevel, setCatacombsLevel, setTamingLevel, setWolfSlayerLevel } =
+    useBuild();
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -104,6 +105,24 @@ export default function PlayerLevels() {
             step="1"
             value={playerStats.tamingLevel}
             onChange={(e) => setTamingLevel(Math.max(0, Math.min(MAX_TAMING_LEVEL, Math.floor(Number(e.target.value) || 0))))}
+            className="w-20 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="wolf-slayer-level">
+            Wolf Slayer Level (Only used by Pooch Sword)
+          </label>
+          <input
+            id="wolf-slayer-level"
+            type="number"
+            min="0"
+            max={MAX_WOLF_SLAYER_LEVEL}
+            step="1"
+            value={playerStats.wolfSlayerLevel}
+            onChange={(e) =>
+              setWolfSlayerLevel(Math.max(0, Math.min(MAX_WOLF_SLAYER_LEVEL, Math.floor(Number(e.target.value) || 0))))
+            }
             className="w-20 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
           />
         </div>
