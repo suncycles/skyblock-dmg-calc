@@ -23,7 +23,18 @@ export function parseEnchantStatBonus(descriptionLines) {
   if (!descriptionLines || descriptionLines.length === 0) return null;
   const text = stripToPlainText(descriptionLines);
 
-  let m = /Increases ([A-Za-z ]+?) by ([\d.]+)%/i.exec(text);
+  // Two-stat phrasing (e.g. Overload: "Increases Crit Damage by 1% and Crit Chance by 1%.").
+  let m = /Increases ([A-Za-z ]+?) by ([\d.]+)% and ([A-Za-z ]+?) by ([\d.]+)%/i.exec(text);
+  if (m) {
+    const result = {};
+    const key1 = findStatKeyByLabel(m[1]);
+    const key2 = findStatKeyByLabel(m[3]);
+    if (key1 && STAT_LABELS[key1].isPercent) result[key1] = parseFloat(m[2]);
+    if (key2 && STAT_LABELS[key2].isPercent) result[key2] = (result[key2] || 0) + parseFloat(m[4]);
+    if (Object.keys(result).length > 0) return result;
+  }
+
+  m = /Increases ([A-Za-z ]+?) by ([\d.]+)%/i.exec(text);
   if (m) {
     const statKey = findStatKeyByLabel(m[1]);
     if (statKey && STAT_LABELS[statKey].isPercent) return { [statKey]: parseFloat(m[2]) };
