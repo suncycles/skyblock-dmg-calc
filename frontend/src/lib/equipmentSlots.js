@@ -13,7 +13,7 @@ const EQUIPMENT_SLOT_CATEGORIES = {
   necklace: ['NECKLACE', 'DUNGEON NECKLACE'],
   cloak: ['CLOAK', 'DUNGEON CLOAK'],
   belt: ['BELT', 'DUNGEON BELT'],
-  gloves: ['GLOVES', 'DUNGEON GLOVES'],
+  gloves: ['GLOVES', 'DUNGEON GLOVES', 'BRACELET'], // Bracelet items (Molten Bracelet, etc.) share the Gloves slot under a different tag word
 };
 
 export function itemsForEquipmentSlot(equipmentList, slot) {

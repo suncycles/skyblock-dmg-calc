@@ -45,7 +45,10 @@ const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND'];
 const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 // Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) — a
 // second, parallel armor-like slot set, not variants of HELMET etc.
-const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES'];
+// 'BRACELET' is the same Gloves slot under a different tag word — some
+// Gloves-slot items (Molten Bracelet, Luminous Bracelet, etc.) use it
+// instead of 'GLOVES' in their own real tag line.
+const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES', 'BRACELET'];
 // Pet items (the one held item a summoned pet can equip) — their tag line
 // is just "<TIER> PET ITEM" with no further category word, unlike the
 // others above. Previously hand-maintained as a ~34-entry hardcoded list
