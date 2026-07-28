@@ -76,8 +76,10 @@ export function extractDescriptionLines(lore) {
 }
 
 // Merges two same-shaped lore lines, replacing differing numeric runs with "min...max".
+// Lookbehind excludes a digit-valued §-color-code (e.g. the "9" in "§910%") from being read
+// as part of the adjacent real number.
 function numericDiffMerge(lineMin, lineMax) {
-  const re = /\d+(?:[.,]\d+)?/g;
+  const re = /(?<!§)\d+(?:[.,]\d+)?/g;
   const numsMin = [...lineMin.matchAll(re)];
   const numsMax = [...lineMax.matchAll(re)];
   if (numsMin.length === 0 || numsMin.length !== numsMax.length) return lineMin;
