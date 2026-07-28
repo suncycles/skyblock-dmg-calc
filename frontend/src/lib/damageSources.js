@@ -121,6 +121,7 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
   'WARDEN_HELMET',
+  'DRAGONFUSE_GLOVE', // hardcoded above (cross-slot Aspect of the Dragons upgrade) instead
   // Slayer-line weapons — hardcoded in SLAYER_TIER_BONUSES instead.
   'ATOMSPLIT_KATANA',
   'VOIDWALKER_KATANA',
@@ -137,6 +138,14 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
 
 // Warden Helmet's Brute Force ability, assumed at its real max boost (+160%) since Speed isn't tracked.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 160;
+
+// Dragonfuse Glove's real ability only upgrades a specifically-equipped Aspect of the Dragons
+// ("+35 Damage, +50 Strength" — its "Very reduced ability knockback" clause isn't a damage stat
+// this app models). Cross-slot, so it's checked once after the per-slot gear loop rather than
+// picked up by the generic per-item scan.
+const DRAGONFUSE_GLOVE_ID = 'DRAGONFUSE_GLOVE';
+const DRAGONFUSE_GLOVE_TARGET_WEAPON_ID = 'ASPECT_OF_THE_DRAGON';
+const DRAGONFUSE_GLOVE_BONUS = { damage: 35, strength: 50 };
 
 // Each tiered Slayer weapon's own damage bonus against its line's mob family, applied as an
 // independent (1 + bonusPercent/100) factor rather than an additive contribution. Hardcoded
@@ -313,6 +322,11 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     addBaseStat(out, 'strength', accessoryStats.strength || 0, 'Accessory');
     addBaseStat(out, 'crit_chance', accessoryStats.crit_chance || 0, 'Accessory');
     addBaseStat(out, 'crit_damage', accessoryStats.crit_damage || 0, 'Accessory');
+  }
+
+  if (loadout.gloves?.item.id === DRAGONFUSE_GLOVE_ID && loadout.weapon?.item.id === DRAGONFUSE_GLOVE_TARGET_WEAPON_ID) {
+    addBaseStat(out, 'damage', DRAGONFUSE_GLOVE_BONUS.damage, 'Dragonfuse Glove');
+    addBaseStat(out, 'strength', DRAGONFUSE_GLOVE_BONUS.strength, 'Dragonfuse Glove');
   }
 }
 
