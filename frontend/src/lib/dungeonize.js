@@ -25,11 +25,12 @@ export function computeDungeonizeMultiplier(catacombsLevel, useOldCurve) {
 }
 
 export const DUNGEONIZE_COLOR = '8'; // dark grey, matching the real game's Dungeonized-stat annotation
+export const MASTER_STAR_COLOR = 'q'; // dark blue (#1d213d) — the Master Star delta on top of normal Dungeonize
 
 // Reads a stat line's fully-settled current total: leading number + every genuinely-additive
-// annotation. Reforge/Books/Gemstone/Dungeonize are excluded because they each echo an amount
-// already reflected elsewhere (already merged into the leading number, or an independently
-// computed replacement) rather than adding on top of it.
+// annotation. Reforge/Books/Gemstone/Dungeonize/Master Star are excluded because they each echo
+// an amount already reflected elsewhere (already merged into the leading number, or an
+// independently computed replacement) rather than adding on top of it.
 export function sumStatFromTooltipLines(finalLines, label) {
   const labelRe = new RegExp(`^${label}:`);
   const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
@@ -40,9 +41,16 @@ export function sumStatFromTooltipLines(finalLines, label) {
   const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
 
   const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
-  const annotationRe = /§([0-9a-fk-orp])\(([+-]?[\d.]+)%?\)/g;
+  const annotationRe = /§([0-9a-fk-orpq])\(([+-]?[\d.]+)%?\)/g;
   const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
-    .filter((m) => m[1] !== REFORGE_COLOR && m[1] !== BOOKS_COLOR && m[1] !== GEMSTONE_COLOR && m[1] !== DUNGEONIZE_COLOR)
+    .filter(
+      (m) =>
+        m[1] !== REFORGE_COLOR &&
+        m[1] !== BOOKS_COLOR &&
+        m[1] !== GEMSTONE_COLOR &&
+        m[1] !== DUNGEONIZE_COLOR &&
+        m[1] !== MASTER_STAR_COLOR,
+    )
     .map((m) => parseFloat(m[2]));
 
   return base + parenNums.reduce((a, b) => a + b, 0);
@@ -59,10 +67,27 @@ export function sumDungeonizedStatFromTooltipLines(finalLines, label) {
   return match ? parseFloat(match[1]) : sumStatFromTooltipLines(finalLines, label);
 }
 
+// Reads the Dungeonize total plus the Master Star delta on top of it — the item's fully
+// master-boosted total for that stat. Falls back the same way sumDungeonizedStatFromTooltipLines
+// does when the item isn't dungeonized at all, and simply ignores a missing Master Star delta
+// (not every dungeonized item has Master Stars).
+export function sumMasterDungeonizedStatFromTooltipLines(finalLines, label) {
+  const labelRe = new RegExp(`^${label}:`);
+  const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
+  if (!finalLine) return sumStatFromTooltipLines(finalLines, label);
+  const dungeonizedMatch = new RegExp(`§${DUNGEONIZE_COLOR}\\(([+-]?[\\d.]+)%?\\)`).exec(finalLine);
+  if (!dungeonizedMatch) return sumStatFromTooltipLines(finalLines, label);
+  const masterMatch = new RegExp(`§${MASTER_STAR_COLOR}\\(([+-]?[\\d.]+)%?\\)`).exec(finalLine);
+  return parseFloat(dungeonizedMatch[1]) + (masterMatch ? parseFloat(masterMatch[1]) : 0);
+}
+
 // Appends the item's fully Catacombs-scaled Dungeonized total (dark grey) after each stat line
 // it already shows — never creates a new line for a stat the item doesn't have, matching the
 // real game (e.g. Mending, which isn't a recognized STAT_LABELS key here, never gets one either).
-export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve) {
+// `masterStarBonus` ({statKey: delta}, pristine-lore-based — see lib/starring.js) is the item's
+// own Master Star contribution *before* the Catacombs curve; scaled by the same multiplier and
+// shown as a separate dark-blue delta so the two effects stay visually distinguishable.
+export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, masterStarBonus) {
   if (!lore) return lore;
   const multiplier = computeDungeonizeMultiplier(catacombsLevel, useOldCurve);
   return lore.map((line) => {
@@ -74,6 +99,12 @@ export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve) {
     const total = sumStatFromTooltipLines(lore, labelMatch[2]);
     if (!total) return line;
     const dungeonized = Math.round(total * multiplier * 10) / 10;
-    return `${line} §${DUNGEONIZE_COLOR}(${formatStatValue(statKey, dungeonized)})`;
+    let result = `${line} §${DUNGEONIZE_COLOR}(${formatStatValue(statKey, dungeonized)})`;
+    const masterDelta = masterStarBonus && masterStarBonus[statKey];
+    if (masterDelta) {
+      const scaledMasterDelta = Math.round(masterDelta * multiplier * 10) / 10;
+      result += ` §${MASTER_STAR_COLOR}(${formatStatValue(statKey, scaledMasterDelta)})`;
+    }
+    return result;
   });
 }

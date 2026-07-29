@@ -6,7 +6,7 @@ import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore, computeDaedalusTamingBonus, computeWolfSlayerLevelBonus } from './specialWeapons';
-import { computeStarBonuses, buildStarSuffix } from './starring';
+import { computeStarBonuses, buildStarSuffix, MASTER_STAR_PERCENT_PER_STAR } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
@@ -97,7 +97,12 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
 
   // Dungeonize: a dark-grey annotation showing the item's fully Catacombs-scaled total for
   // every stat it already has — computed off everything merged above, not a separate bonus.
-  if (modifiers.dungeonized) lore = applyDungeonizeToLore(lore, catacombsLevel, modifiers.dungeonizeOldCurve);
+  // Master Stars (Dungeonize-only) add a dark-blue delta on top, from the item's own pristine
+  // stat lines (same basis as regular Stars) — never present without Dungeonize being on.
+  if (modifiers.dungeonized) {
+    const masterStarBonus = computeStarBonuses(item.lore, modifiers.masterStars, MASTER_STAR_PERCENT_PER_STAR);
+    lore = applyDungeonizeToLore(lore, catacombsLevel, modifiers.dungeonizeOldCurve, masterStarBonus);
+  }
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
   if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);

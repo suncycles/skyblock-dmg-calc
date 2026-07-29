@@ -36,6 +36,7 @@ export default function Landing() {
     clearTargetMobs,
     godPotionActive,
     useDungeonizedStats,
+    useMasterMode,
     toggleGodPotion,
     attributes,
     miscStats,
@@ -51,7 +52,17 @@ export default function Landing() {
   async function handleExportLoadout() {
     setExportStatus('Copying...');
     try {
-      const code = await encodeLoadout({ loadout, targetMobs, attributes, playerStats, godPotionActive, useDungeonizedStats, miscStats, mobHpPercent });
+      const code = await encodeLoadout({
+        loadout,
+        targetMobs,
+        attributes,
+        playerStats,
+        godPotionActive,
+        useDungeonizedStats,
+        useMasterMode,
+        miscStats,
+        mobHpPercent,
+      });
       await navigator.clipboard.writeText(`${window.location.origin}/loadout/${code}`);
       setExportStatus('Copied!');
     } catch (err) {
