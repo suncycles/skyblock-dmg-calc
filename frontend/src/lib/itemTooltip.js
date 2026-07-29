@@ -69,7 +69,16 @@ async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
 // name lines, and recombobulation — resolved off the item's current rarity. Shared by every
 // screen showing an equipped item's tooltip. Async because of the enchant stat-bonus lookup;
 // callers should capture the hover anchor before awaiting.
-export async function buildFullItemTooltipLines(item, modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, chimeraBonus) {
+export async function buildFullItemTooltipLines(
+  item,
+  modifiers,
+  itemData,
+  catacombsLevel,
+  tamingLevel,
+  wolfSlayerLevel,
+  chimeraBonus,
+  generalsMedallionDigits,
+) {
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
   const baseTier = modifiers.rarityOverride || item.tier;
@@ -101,7 +110,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   // stat lines (same basis as regular Stars) — never present without Dungeonize being on.
   if (modifiers.dungeonized) {
     const masterStarBonus = computeStarBonuses(item.lore, modifiers.masterStars, MASTER_STAR_PERCENT_PER_STAR);
-    lore = applyDungeonizeToLore(lore, catacombsLevel, modifiers.dungeonizeOldCurve, masterStarBonus);
+    lore = applyDungeonizeToLore(lore, catacombsLevel, modifiers.dungeonizeOldCurve, masterStarBonus, generalsMedallionDigits);
   }
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));

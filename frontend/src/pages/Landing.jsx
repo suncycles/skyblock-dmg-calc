@@ -23,6 +23,18 @@ const slotBase =
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
+const SAVED_LOADOUTS_KEY = 'skydmgSavedLoadouts';
+
+function loadSavedLoadoutsFromStorage() {
+  try {
+    const raw = localStorage.getItem(SAVED_LOADOUTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 // One-page character screen: 6 rows x 9 columns, real chest-GUI styling. Column B: equipment
 // slots. Column C: armor slots. Column D: accessories/weapon/pet. Columns F/G/H: decorative
 // mob-head filler. Everything else is an inert dark-grey glass pane.
@@ -41,12 +53,67 @@ export default function Landing() {
     attributes,
     miscStats,
     mobHpPercent,
+    infernalCrimsonStacks,
     loadFullState,
   } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
   const [exportStatus, setExportStatus] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
+  const [savedLoadouts, setSavedLoadouts] = useState(loadSavedLoadoutsFromStorage);
+  const [showLoadoutsPanel, setShowLoadoutsPanel] = useState(false);
+  const [newLoadoutName, setNewLoadoutName] = useState('');
+  const [saveStatus, setSaveStatus] = useState(null);
+
+  function persistSavedLoadouts(next) {
+    setSavedLoadouts(next);
+    localStorage.setItem(SAVED_LOADOUTS_KEY, JSON.stringify(next));
+  }
+
+  // Encodes the current build (reusing the share-link codec) and stores it under a user-given name.
+  async function handleSaveLoadout() {
+    const name = newLoadoutName.trim();
+    if (!name) return;
+    setSaveStatus('Saving...');
+    try {
+      const code = await encodeLoadout({
+        loadout,
+        targetMobs,
+        attributes,
+        playerStats,
+        godPotionActive,
+        useDungeonizedStats,
+        useMasterMode,
+        miscStats,
+        mobHpPercent,
+        infernalCrimsonStacks,
+      });
+      const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, code, savedAt: Date.now() };
+      persistSavedLoadouts([...savedLoadouts, entry]);
+      setNewLoadoutName('');
+      setSaveStatus('Saved!');
+    } catch (err) {
+      console.error('Failed to save loadout:', err);
+      setSaveStatus('Failed');
+    }
+    setTimeout(() => setSaveStatus(null), 1500);
+  }
+
+  async function handleLoadSavedLoadout(entry) {
+    if (!window.confirm(`Load "${entry.name}"? This will replace your current build.`)) return;
+    try {
+      const decoded = await decodeLoadoutCode(entry.code, itemData);
+      loadFullState(decoded);
+      setShowLoadoutsPanel(false);
+    } catch (err) {
+      console.error('Failed to load saved loadout:', err);
+      window.alert('Could not load this saved loadout.');
+    }
+  }
+
+  function handleDeleteSavedLoadout(id) {
+    persistSavedLoadouts(savedLoadouts.filter((l) => l.id !== id));
+  }
 
   // Encodes the current build and copies a shareable /loadout/:code URL to the clipboard.
   async function handleExportLoadout() {
@@ -62,6 +129,7 @@ export default function Landing() {
         useMasterMode,
         miscStats,
         mobHpPercent,
+        infernalCrimsonStacks,
       });
       await navigator.clipboard.writeText(`${window.location.origin}/loadout/${code}`);
       setExportStatus('Copied!');
@@ -117,7 +185,16 @@ export default function Landing() {
     const token = ++hoverTokenRef.current;
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel, chimeraBonus);
+    const lines = await buildFullItemTooltipLines(
+      equipped.item,
+      equipped.modifiers,
+      itemData,
+      playerStats.catacombsLevel,
+      playerStats.tamingLevel,
+      playerStats.wolfSlayerLevel,
+      chimeraBonus,
+      playerStats.generalsMedallionDigits,
+    );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
@@ -140,7 +217,16 @@ export default function Landing() {
     const token = ++hoverTokenRef.current;
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout.weapon, petStats);
-    const lines = await buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel, chimeraBonus);
+    const lines = await buildFullItemTooltipLines(
+      loadout.weapon.item,
+      loadout.weapon.modifiers,
+      itemData,
+      playerStats.catacombsLevel,
+      playerStats.tamingLevel,
+      playerStats.wolfSlayerLevel,
+      chimeraBonus,
+      playerStats.generalsMedallionDigits,
+    );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
@@ -415,8 +501,8 @@ export default function Landing() {
         continue;
       }
 
-      // Top-left corner: Attributes — plain text tile, account-wide rather than tied to an item.
-      if (col === 0 && row === 0) {
+      // Column D, row 5 (right below Pet): Attributes — plain text tile, account-wide rather than tied to an item.
+      if (col === 3 && row === 5) {
         const leveledCount = Object.values(attributes).filter((v) => v > 0).length;
         cells.push(
           <div
@@ -468,20 +554,75 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       {/* Fixed corner, outside the centered grid layout. */}
-      <div className="fixed top-2 left-2 flex flex-col gap-1 z-10">
-        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide">Loadouts</span>
+      <div className="fixed top-2 left-2 flex flex-col gap-1.5 z-10">
+        <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide">Share</span>
         <button
-          className="text-[11px] px-2 py-1 bg-neutral-800 text-white hover:brightness-110 cursor-pointer whitespace-nowrap"
+          className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-800/90 text-white hover:bg-neutral-700 transition-colors cursor-pointer whitespace-nowrap shadow-sm"
           onClick={handleExportLoadout}
         >
           {exportStatus || 'Export Loadout'}
         </button>
         <button
-          className="text-[11px] px-2 py-1 bg-neutral-800 text-white hover:brightness-110 cursor-pointer whitespace-nowrap"
+          className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-800/90 text-white hover:bg-neutral-700 transition-colors cursor-pointer whitespace-nowrap shadow-sm"
           onClick={handleImportLoadout}
         >
           {importStatus || 'Import Loadout'}
         </button>
+      </div>
+
+      {/* Fixed corner, outside the centered grid layout. */}
+      <div className="fixed top-2 right-2 flex flex-col items-end gap-1.5 z-10">
+        <button
+          className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-800/90 text-white hover:bg-neutral-700 transition-colors cursor-pointer whitespace-nowrap shadow-sm"
+          onClick={() => setShowLoadoutsPanel((v) => !v)}
+        >
+          📁 Loadouts
+        </button>
+        {showLoadoutsPanel && (
+          <div className="w-64 rounded-lg bg-neutral-900/95 border border-neutral-700 shadow-lg p-3 text-white">
+            <div className="flex gap-1.5 mb-2">
+              <input
+                type="text"
+                value={newLoadoutName}
+                onChange={(e) => setNewLoadoutName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveLoadout()}
+                placeholder="Loadout name"
+                className="flex-1 min-w-0 text-[12px] px-2 py-1 rounded bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-400"
+              />
+              <button
+                className="text-[12px] px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                onClick={handleSaveLoadout}
+                disabled={!newLoadoutName.trim()}
+              >
+                {saveStatus || 'Save'}
+              </button>
+            </div>
+            <div className="max-h-56 overflow-y-auto flex flex-col gap-1">
+              {savedLoadouts.length === 0 ? (
+                <p className="text-[11px] text-neutral-500 italic">No saved loadouts yet.</p>
+              ) : (
+                savedLoadouts.map((entry) => (
+                  <div key={entry.id} className="flex items-center gap-1.5">
+                    <button
+                      className="flex-1 min-w-0 text-left text-[12px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 transition-colors cursor-pointer truncate"
+                      onClick={() => handleLoadSavedLoadout(entry)}
+                      title={entry.name}
+                    >
+                      {entry.name}
+                    </button>
+                    <button
+                      className="text-[11px] px-1.5 py-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer"
+                      title={`Delete "${entry.name}"`}
+                      onClick={() => handleDeleteSavedLoadout(entry.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <header className="w-full max-w-[700px] mb-4 text-center">
@@ -495,10 +636,10 @@ export default function Landing() {
       </div>
 
       <button
-        className="mt-2 text-[11px] text-neutral-400 hover:text-neutral-200 cursor-pointer underline"
+        className="mt-4 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer"
         onClick={() => navigate('/damage-sources')}
       >
-        📊 Damage Sources
+        📊 Damage Calculation
       </button>
     </div>
   );

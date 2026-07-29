@@ -60,6 +60,7 @@ function buildEncodableState({
   useMasterMode,
   miscStats,
   mobHpPercent,
+  infernalCrimsonStacks,
 }) {
   const encodedLoadout = {};
 
@@ -95,6 +96,7 @@ function buildEncodableState({
     useMasterMode: !!useMasterMode,
     miscStats: trimZeros(miscStats),
     mobHpPercent: mobHpPercent ?? 100,
+    infernalCrimsonStacks: infernalCrimsonStacks ?? 1,
   };
 }
 
@@ -151,6 +153,7 @@ function expandState(compact, itemData) {
     useMasterMode: !!compact.useMasterMode,
     miscStats: compact.miscStats || {},
     mobHpPercent: compact.mobHpPercent ?? 100,
+    infernalCrimsonStacks: compact.infernalCrimsonStacks ?? 1,
   };
 }
 

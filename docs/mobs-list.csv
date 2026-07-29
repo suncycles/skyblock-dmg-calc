@@ -1,0 +1,241 @@
+Mob Name,Skyblock Types,Has Real Model Icon,Model Icon File
+Abyssal Miner,Aquatic; Undead,No,
+Angry Archaeologist,Humanoid; Subterranean; Boss,Yes,/images/mobs/angry_archeologist.png
+Apostle,Undead; Wither,No,
+Arachne,Arcane; Arthropod,No,
+Ashfang,Arcane; Infernal; Boss,No,
+Atoned Champion,Undead; Boss,No,
+Atoned Horror,Undead; Boss,No,
+Atoned Revenant,Undead; Boss,No,
+Automaton,Arcane; Construct; Subterranean,No,
+Bal,Cubic; Infernal; Shielded,No,
+Barbarian Duke X,Humanoid; Animal; Boss,Yes,/images/mobs/barbarian_duke_x.png
+Bat,Airborne; Animal; Spooky,No,
+Bat Piñata,Airborne; Shielded; Spooky,No,
+Bayou Sludge,Aquatic; Cubic,No,
+Beetle,Pest,Yes,/images/mobs/pest_beetle.png
+Bezal,Infernal,No,
+Bladesoul,Arcane; Skeletal; Wither; Boss,No,
+Blaze,Infernal,No,
+Blight,Infernal; Undead,No,
+Blue Jerry,Humanoid; Shielded,No,
+Bogged,Aquatic; Skeletal,No,
+Bonzo,Arcane; Humanoid,Yes,/images/mobs/bonzo.png
+Boss Corleone,Humanoid; Subterranean,Yes,/images/mobs/boss_corleone.png
+Broodmother,Arthropod; Boss,No,
+Burningsoul Demon,Infernal; Boss,No,
+Butterfly,Airborne; Arcane; Subterranean,No,
+Chaosmite,Arcane; Arthropod; Ender,No,
+Chillblade,Skeletal; Woodland,No,
+Chillshot,Skeletal; Woodland,No,
+Conjoined Brood,Arthropod; Boss,No,
+Crazy Witch,Shielded; Spooky,No,
+Creeper,Cubic,No,
+Cretan Bull,Animal; Mythological,No,
+Cricket,Pest,Yes,/images/mobs/pest_cricket.png
+Crypt Dreadlord,Subterranean; Undead; Wither,Yes,/images/mobs/crypt_dreadlord.png
+Crypt Ghoul,Undead,No,
+Crypt Lurker,Undead,No,
+Crypt Souleater,Subterranean; Undead; Wither,No,
+Crypt Undead,Subterranean; Undead,No,
+Deep Sea Protector,Aquatic; Construct,No,
+Deformed Revenant,Undead; Boss,No,
+Diamond Goblin,Elusive; Humanoid; Shielded,No,
+Dragonfly,Pest,No,
+Dropship,Airborne; Arcane; Cubic,No,
+Earthworm,Pest,Yes,/images/mobs/pest_earthworm.png
+Emerald Slime,Cubic,No,
+End Stone Protector,Construct; Ender,No,
+Ender Dragon,Airborne; Arcane; Ender,No,
+Enderman,Ender,No,
+Endermite,Arthropod; Ender,No,
+Explosive Imp,Infernal; Undead,No,
+Fels,Arcane,No,
+Field Mouse,Elusive; Pest,Yes,/images/mobs/pest_field_mouse.png
+Firefly,Pest,No,
+Fireproof Witch,Arcane; Humanoid; Magmatic,No,
+Flaming Spider,Arthropod; Infernal,No,
+Flare Demon,Infernal; Boss,No,
+Fly,Pest,Yes,/images/mobs/pest_fly.png
+Frosty,Aquatic; Construct; Frozen,No,
+Frozen Adventurer,Humanoid; Frozen; Boss,Yes,/images/mobs/frozen_adventurer.png
+Frozen Steve,Aquatic; Frozen; Humanoid,Yes,/images/mobs/frozen_steve.png
+Gaia Construct,Construct; Mythological,No,
+Ghast,Airborne; Cubic,No,
+Ghost,Arcane; Subterranean,No,
+Glacite Bowman,Glacial; Humanoid,Yes,/images/mobs/glacite_bowman.png
+Glacite Caver,Glacial; Humanoid,Yes,/images/mobs/glacite_caver.png
+Glacite Mage,Glacial; Humanoid,Yes,/images/mobs/glacite_mage.png
+Glacite Mutt,Animal; Glacial,No,
+Glacite Walker,Glacial; Humanoid,No,
+Golden Ghoul,Undead,No,
+Golden Goblin,Humanoid; Shielded,Yes,/images/mobs/golden_goblin.png
+Golden Jerry,Elusive; Humanoid; Shielded,No,
+Golem,Arcane; Construct,No,
+Gravel Skeleton,Skeletal,No,
+Graveyard Zombie,Undead,No,
+Green Jerry,Humanoid; Shielded,No,
+Grim Reaper,Aquatic; Arcane; Spooky,Yes,/images/mobs/grim_reaper.png
+Grinch,Aquatic; Construct; Frozen,Yes,/images/mobs/grinch.png
+Grunt,Humanoid,Yes,/images/mobs/grunt.png
+Guardian Defender,Aquatic; Arcane,No,
+Harpy,Animal; Humanoid; Mythological,Yes,/images/mobs/harpy.png
+Headless Horseman,Animal; Skeletal; Spooky; Undead,No,
+Howling Spirit,Animal; Arcane,No,
+Hydrospear,Aquatic; Undead; Woodland,No,
+Inferno Demonlord,Infernal; Boss,No,
+Inferno Magma Cube,Cubic; Infernal,No,
+Kada Knight,Animal; Undead,No,
+Key Guardian,Subterranean; Undead,No,
+Kindleheart Demon,Infernal; Boss,No,
+King Midas,Humanoid; Boss,Yes,/images/mobs/king_midas.png
+King Minos,Elusive; Humanoid; Mythological,Yes,/images/mobs/king_minos.png
+Kuudra Berserker,Infernal; Undead,No,
+Kuudra Follower,Infernal; Undead,No,
+Kuudra Knocker,Infernal; Undead,No,
+Kuudra Landmine,Infernal; Undead,No,
+Kuudra Slasher,Cubic; Infernal,No,
+Lapis Zombie,Undead,No,
+Lava Pigman,Magmatic; Undead,No,
+Littlefoot,Elusive; Glacial; Humanoid,Yes,/images/mobs/littlefoot.png
+Locust,Pest,Yes,/images/mobs/pest_locust.png
+Lord Jawbus,Construct; Elusive; Magmatic,No,
+Lost Adventurer,Arcane; Humanoid; Boss,No,
+Mage Outlaw,Arcane; Humanoid,Yes,/images/mobs/mage_outlaw.png
+Magma Boss,Cubic; Infernal,No,
+Magma Cube,Cubic; Infernal,No,
+Magma Cube Rider,Cubic; Infernal; Undead,No,
+Magma Slug,Cubic; Magmatic,No,
+Manticore,Animal; Elusive; Mythological,Yes,/images/mobs/manticore.png
+Mega Bat,Airborne; Shielded; Spooky,No,
+Mimic,Arcane; Construct; Undead,No,
+Miner Skeleton,Skeletal,No,
+Miner Zombie,Undead,No,
+Minos Champion,Humanoid; Mythological,Yes,/images/mobs/minos_champion.png
+Minos Hunter,Humanoid; Mythological; Undead,Yes,/images/mobs/minos_hunter.png
+Minos Inquisitor,Elusive; Humanoid; Mythological,Yes,/images/mobs/minos_inquisitor.png
+Minotaur,Humanoid; Mythological,Yes,/images/mobs/minotaur.png
+Mite,Pest,Yes,/images/mobs/pest_mite.png
+Mosquito,Pest,Yes,/images/mobs/pest_mosquito.png
+Moth,Pest,Yes,/images/mobs/pest_moth.png
+Mutant Tarantula,Arthropod; Boss,No,
+Mutated Blaze,Infernal,No,
+Nessie,Animal; Aquatic; Elusive,No,
+Nest Endermite,Arthropod; Ender,No,
+Nightmare,Aquatic; Spooky; Undead,No,
+Nutcracker,Aquatic; Construct; Frozen,No,
+Obsidian Defender,Ender; Wither,No,
+Old Dragon,Airborne; Arcane; Ender,No,
+Old Wolf,Animal,No,
+Pack Enforcer,Animal; Boss,No,
+Pack Spirit,Animal; Arcane,No,
+Phantom Fisher,Aquatic; Arcane; Spooky,Yes,/images/mobs/phantom_fisher.png
+Phantom Spirit,Shielded; Spooky,Yes,/images/mobs/phantom_spirit.png
+Plhlegblast,Elusive; Magmatic,No,
+Powder Ghast,Airborne; Cubic; Shielded,No,
+Praying Mantis,Pest,No,
+Protector Dragon,Airborne; Arcane; Ender,No,
+Purple Jerry,Humanoid; Shielded,No,
+Pyroclastic Worm,Cubic; Magmatic,No,
+Quazii,Skeletal; Boss,No,
+Ragnarok,Elusive; Magmatic; Skeletal,Yes,/images/mobs/ragnarok.png
+Rain Slime,Cubic,No,
+Rat,Pest,Yes,/images/mobs/pest_rat.png
+Redstone Pigman,Undead,No,
+Redstone Warrior,Humanoid; Arcane; Boss,No,
+Reindrake,Elusive; Frozen; Shielded,No,
+Revenant Champion,Undead; Boss,No,
+Revenant Horror,Undead; Boss,No,
+Revenant Sycophant,Undead; Boss,No,
+Rider of the Deep,Animal; Aquatic; Undead,No,
+Scarecrow,Aquatic; Spooky,Yes,/images/mobs/scarecrow.png
+Scared Skeleton,Skeletal,No,
+Scary Jerry,Shielded; Spooky,Yes,/images/mobs/scary_jerry.png
+Scatha,Elusive; Shielded; Subterranean,Yes,/images/mobs/scatha.png
+Sea Archer,Aquatic; Skeletal,No,
+Sea Guardian,Aquatic; Arcane,No,
+Sea Walker,Aquatic; Undead,No,
+Sea Witch,Aquatic; Arcane; Humanoid,No,
+Seer,Ender,No,
+Shadow Assassin,Arcane; Humanoid; Boss,Yes,/images/mobs/shadow_assassin.png
+Siamese Lynxes,Animal; Mythological,No,
+Skeleton,Skeletal,No,
+Skeleton Grunt,Skeletal,No,
+Skeleton Lord,Skeletal,No,
+Skeleton Master,Skeletal,No,
+Skeleton Soldier,Skeletal,No,
+Skeletor,Construct; Skeletal,No,
+Slime,Cubic,No,
+Sludge,Cubic; Subterranean,No,
+Slug,Pest,Yes,/images/mobs/pest_slug.png
+Smoldering Blaze,Infernal,No,
+Sneaky Creeper,Cubic,No,
+Sniper,Skeletal; Undead,No,
+Soul of the Alpha,Animal; Arcane,No,
+Special Zealot,Elusive; Ender,No,
+Sphinx,Elusive; Humanoid; Mythological,Yes,/images/mobs/sphinx.png
+Spider,Arthropod,No,
+Spider Jockey,Arthropod; Skeletal,No,
+Spirit Bear,Animal; Boss,No,
+Star Sentry,Arcane; Construct; Shielded,Yes,/images/mobs/star_sentry.png
+Stranded Nymph,Aquatic; Humanoid; Mythological,Yes,/images/mobs/stranded_nymph.png
+Stridersurfer,Magmatic; Undead; Woodland,No,
+Strong Dragon,Airborne; Arcane; Ender,No,
+Super Archer,Skeletal,No,
+Super Tank Zombie,Undead,No,
+Superior Dragon,Airborne; Arcane; Ender,No,
+Sven Alpha,Animal; Boss,No,
+Sven Follower,Animal; Boss,No,
+Sven Packmaster,Animal; Boss,No,
+Tank Zombie,Undead,No,
+Tarantula Beast,Arthropod; Boss,No,
+Tarantula Broodfather,Arthropod; Boss,No,
+Tarantula Vermin,Arthropod; Boss,No,
+Tentacle,Cubic; Infernal,No,
+Terracotta,Arcane; Construct,No,
+The Loch Emperor,Aquatic; Arcane; Skeletal,No,
+The Watcher,Arcane; Boss,No,
+Thunder,Arcane; Elusive; Magmatic,No,
+Tidetot,Aquatic; Undead; Woodland,No,
+Titanoboa,Animal; Aquatic; Elusive,No,
+Trick or Treater,Shielded; Spooky,No,
+Typhoeus,Wither; Boss,No,
+Undead,Undead,No,
+Undead Skeleton,Skeletal; Undead,No,
+Unstable Dragon,Airborne; Arcane; Ender,No,
+Vanquisher,Elusive; Wither,No,
+Vittomite,Arthropod; Ender,No,
+Voidcrazed Maniac,Ender; Boss,No,
+Voidgloom Seraph,Ender; Boss,No,
+Voidling,Ender,No,
+Voidling Devotee,Ender; Boss,No,
+Voidling Extremist,Ender,No,
+Voidling Fanatic,Ender,No,
+Voidling Radical,Ender; Boss,No,
+Werewolf,Animal; Aquatic; Spooky,Yes,/images/mobs/werewolf.png
+Wetwing,Animal; Aquatic; Undead,No,
+Wiki Tiki,Aquatic; Construct; Elusive,No,
+Wise Dragon,Airborne; Arcane; Ender,No,
+Witch,Arcane; Humanoid,No,
+Wither Gourd,Shielded; Spooky,No,
+Wither Guard,Skeletal; Wither,No,
+Wither Miner,Skeletal; Wither,No,
+Wither Sentry,Construct; Wither,No,
+Wither Skeleton,Skeletal; Wither,No,
+Wither Spectre,Arcane; Wither,No,
+Withermancer,Arcane; Skeletal; Wither,No,
+Wolf,Animal,No,
+Worm,Shielded; Subterranean,No,
+Wraith,Shielded; Spooky,No,
+Yeti,Aquatic; Frozen; Humanoid,Yes,/images/mobs/yeti.png
+Yog,Cubic; Infernal; Subterranean,No,
+Young Dragon,Airborne; Arcane; Ender,No,
+Zealot,Ender,No,
+Zealot Bruiser,Ender,No,
+Zombie,Undead,No,
+Zombie Commander,Undead,No,
+Zombie Grunt,Undead,No,
+Zombie Knight,Undead,No,
+Zombie Lord,Undead,No,
+Zombie Soldier,Undead,No,
+Zombie Villager,Undead,No,
