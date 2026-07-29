@@ -1,11 +1,15 @@
 import { derivePetDisplayName } from './petData';
 import { getPowerById } from './accessoryPowers';
+import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
 
 /* Encodes the entire build into one compact, URL-safe string and decodes it back — powers
    the "Loadouts" Export/Import buttons and the /loadout/:code share-link route. Only
    `item.id`/`petId`+`tier`/power `id` is stored per slot (never the item's heavy `lore`
    array, reconstructed from itemData on decode); everything else passes through as plain
-   JSON. Gzipped via the browser's native CompressionStream, then base64url-encoded. */
+   JSON. Modifiers are diffed against their type's defaults before encoding (most items only
+   touch a handful of the ~15 fields) and re-filled with defaults on decode — most real builds
+   shrink substantially since a lot of slots and stats sit at their default value. Gzipped via
+   the browser's native CompressionStream, then base64url-encoded. */
 
 const FORMAT_VERSION = 1;
 
@@ -19,6 +23,31 @@ function findGearItem(itemData, id) {
     (itemData.equipment || []).find((i) => i.id === id) ||
     null
   );
+}
+
+// Keeps only the keys that differ from `defaults` (deep-compared via JSON), so an item that
+// only, say, has 5 Stars applied doesn't also carry every other untouched field's default value.
+function diffFromDefaults(obj, defaults) {
+  const diff = {};
+  for (const key of Object.keys(defaults)) {
+    if (JSON.stringify(obj?.[key]) !== JSON.stringify(defaults[key])) diff[key] = obj[key];
+  }
+  return diff;
+}
+
+function withDefaults(diff, defaults) {
+  return { ...defaults, ...(diff || {}) };
+}
+
+// Drops zero-valued numeric entries — safe wherever the decode side already zero-fills missing
+// keys itself (BuildContext's loadFullState merges attributes/playerStats/miscStats over their
+// own defaults), so no matching "fill" step is needed here.
+function trimZeros(obj) {
+  const result = {};
+  for (const [key, value] of Object.entries(obj || {})) {
+    if (value) result[key] = value;
+  }
+  return result;
 }
 
 function buildEncodableState({
@@ -37,27 +66,34 @@ function buildEncodableState({
   for (const slot of GEAR_SLOTS) {
     const entry = loadout[slot];
     if (!entry) continue;
-    encodedLoadout[slot] = { id: entry.item.id, modifiers: entry.modifiers };
+    encodedLoadout[slot] = { id: entry.item.id, modifiers: diffFromDefaults(entry.modifiers, emptyModifiers()) };
   }
 
   if (loadout.pet) {
-    encodedLoadout.pet = { petId: loadout.pet.item.petId, tier: loadout.pet.item.tier, modifiers: loadout.pet.modifiers };
+    encodedLoadout.pet = {
+      petId: loadout.pet.item.petId,
+      tier: loadout.pet.item.tier,
+      modifiers: diffFromDefaults(loadout.pet.modifiers, emptyPetModifiers()),
+    };
   }
 
   if (loadout.accessory) {
-    encodedLoadout.accessory = { id: loadout.accessory.item.id, modifiers: loadout.accessory.modifiers };
+    encodedLoadout.accessory = {
+      id: loadout.accessory.item.id,
+      modifiers: diffFromDefaults(loadout.accessory.modifiers, emptyAccessoryModifiers()),
+    };
   }
 
   return {
     v: FORMAT_VERSION,
     loadout: encodedLoadout,
     targetMobs: targetMobs || [],
-    attributes: attributes || {},
-    playerStats: playerStats || {},
+    attributes: trimZeros(attributes),
+    playerStats: trimZeros(playerStats),
     godPotionActive: !!godPotionActive,
     useDungeonizedStats: !!useDungeonizedStats,
     useMasterMode: !!useMasterMode,
-    miscStats: miscStats || {},
+    miscStats: trimZeros(miscStats),
     mobHpPercent: mobHpPercent ?? 100,
   };
 }
@@ -76,7 +112,7 @@ function expandState(compact, itemData) {
     if (!item) continue;
     loadout[slot] = {
       item: { id: item.id, name: item.name, material: item.material, category: item.category, tier: item.tier, lore: item.lore || [] },
-      modifiers: encoded.modifiers,
+      modifiers: withDefaults(encoded.modifiers, emptyModifiers()),
     };
   }
 
@@ -90,7 +126,7 @@ function expandState(compact, itemData) {
         tier: encodedPet.tier,
         material: 'BONE',
       },
-      modifiers: encodedPet.modifiers,
+      modifiers: withDefaults(encodedPet.modifiers, emptyPetModifiers()),
     };
   }
 
@@ -100,7 +136,7 @@ function expandState(compact, itemData) {
     if (power) {
       loadout.accessory = {
         item: { id: power.id, name: power.name, iconId: power.sourceItemId || null, material: power.sourceItemId ? 'SKULL' : 'BOOK' },
-        modifiers: encodedAccessory.modifiers,
+        modifiers: withDefaults(encodedAccessory.modifiers, emptyAccessoryModifiers()),
       };
     }
   }
