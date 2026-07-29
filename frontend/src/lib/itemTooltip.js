@@ -6,7 +6,7 @@ import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore, computeDaedalusTamingBonus, computeWolfSlayerLevelBonus } from './specialWeapons';
-import { computeStarBonuses, buildStarSuffix, MASTER_STAR_PERCENT_PER_STAR } from './starring';
+import { computeStarBonuses, buildStarSuffix, buildMasterStarSuffix, MASTER_STAR_PERCENT_PER_STAR } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
@@ -110,7 +110,7 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   lore = applyFabledToLore(lore, modifiers.reforge);
 
   const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
-  const starSuffix = buildStarSuffix(modifiers.stars);
+  const starSuffix = buildStarSuffix(modifiers.stars) + buildMasterStarSuffix(modifiers.masterStars);
   const title = `§${rarityColorCode(displayTier)}§l${reforgePrefix}${formatItemName(item.name)}${starSuffix ? ` ${starSuffix}` : ''}`;
   return [title, ...lore];
 }

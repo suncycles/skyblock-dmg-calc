@@ -75,7 +75,7 @@ export default function SpecialPicker() {
           id="special-value"
           type="text"
           inputMode="decimal"
-          value={value}
+          value={value || ''}
           onChange={handleChange}
           placeholder="e.g. 25m"
           className="px-3 py-2 bg-black text-white border-2 border-neutral-700"

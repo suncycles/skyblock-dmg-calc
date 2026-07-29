@@ -4,6 +4,7 @@ import { TUNING_STATS, TUNING_RATE_PER_POINT, computeTuningPoints } from '../lib
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
 import { TUNING_BOX_RATE } from '../lib/attributes';
+import NumberInput from '../components/NumberInput';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -58,14 +59,11 @@ export default function AccessoryTuning() {
                   ({formatStatValue(key, points * TUNING_RATE_PER_POINT[key])})
                 </span>
               </label>
-              <input
+              <NumberInput
                 id={`tuning-${key}`}
-                type="number"
-                min="0"
                 max={totalPoints}
-                step="1"
                 value={points}
-                onChange={(e) => setAccessoryTuningPoint(key, Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                onChange={(num) => setAccessoryTuningPoint(key, num)}
                 className="w-16 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
               />
             </div>

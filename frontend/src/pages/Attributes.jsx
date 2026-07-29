@@ -8,6 +8,7 @@ import {
 } from '../lib/attributes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { SLOT_TEXTURES } from '../lib/icons';
+import NumberInput from '../components/NumberInput';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -35,14 +36,11 @@ function LevelInput({ id, level, onChange }) {
   return (
     <div className="flex items-center gap-1.5">
       <MaxButton label="max" onClick={() => onChange(MAX_ATTRIBUTE_LEVEL)} />
-      <input
+      <NumberInput
         id={id}
-        type="number"
-        min="0"
         max={MAX_ATTRIBUTE_LEVEL}
-        step="1"
         value={level}
-        onChange={(e) => onChange(Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(Number(e.target.value) || 0))))}
+        onChange={onChange}
         className="w-14 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
       />
     </div>
