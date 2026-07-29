@@ -8,6 +8,7 @@ const PLAYER_STATS_KEY = 'hexPlayerStats';
 const TARGET_MOB_KEY = 'hexTargetMob'; // legacy single-mob key, migrated once then unused
 const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
+const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
@@ -33,6 +34,11 @@ function loadInitialTargetMobs() {
 // Loads the God Potion on/off toggle (see lib/godPotion.js).
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
+}
+
+// Loads the "Toggle Dungeon Stats" on/off switch (see lib/dungeonize.js).
+function loadInitialUseDungeonizedStats() {
+  return localStorage.getItem(USE_DUNGEONIZED_STATS_KEY) === 'true';
 }
 
 // Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
@@ -109,6 +115,8 @@ function emptyModifiers() {
     reforge: null, // reforge name string | null
     stars: 0, // Item Upgrades star count, 0-15 — see lib/starring.js
     rarityOverride: null, // real current tier for milestone-upgrading items (e.g. David's Cloak) | null = use the item's own tier
+    dungeonized: false, // Catacombs-level-scaled stat lines — see lib/dungeonize.js
+    dungeonizeOldCurve: false, // true = pre-0.26.1 curve, false = current
   };
 }
 
@@ -172,6 +180,7 @@ export function BuildProvider({ children }) {
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
+  const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
@@ -219,6 +228,14 @@ export function BuildProvider({ children }) {
     setGodPotionActiveState((prev) => {
       const next = !prev;
       localStorage.setItem(GOD_POTION_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleUseDungeonizedStats = useCallback(() => {
+    setUseDungeonizedStatsState((prev) => {
+      const next = !prev;
+      localStorage.setItem(USE_DUNGEONIZED_STATS_KEY, String(next));
       return next;
     });
   }, []);
@@ -430,6 +447,20 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  const setDungeonized = useCallback(
+    (slot, value) => {
+      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, dungeonized: !!value }));
+    },
+    [updateSlotModifiers],
+  );
+
+  const setDungeonizeOldCurve = useCallback(
+    (slot, value) => {
+      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, dungeonizeOldCurve: !!value }));
+    },
+    [updateSlotModifiers],
+  );
+
   const setPetLevel = useCallback(
     (level) => {
       updateSlotModifiers('pet', (modifiers) => ({ ...modifiers, level }));
@@ -507,6 +538,9 @@ export function BuildProvider({ children }) {
     setGodPotionActiveState(!!state.godPotionActive);
     localStorage.setItem(GOD_POTION_KEY, String(!!state.godPotionActive));
 
+    setUseDungeonizedStatsState(!!state.useDungeonizedStats);
+    localStorage.setItem(USE_DUNGEONIZED_STATS_KEY, String(!!state.useDungeonizedStats));
+
     const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
     setAttributesState(nextAttributes);
     localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(nextAttributes));
@@ -536,6 +570,8 @@ export function BuildProvider({ children }) {
         clearTargetMobs,
         godPotionActive,
         toggleGodPotion,
+        useDungeonizedStats,
+        toggleUseDungeonizedStats,
         attributes,
         setAttributeLevel,
         miscStats,
@@ -555,6 +591,8 @@ export function BuildProvider({ children }) {
         applyReforge,
         setStarCount,
         setRarityOverride,
+        setDungeonized,
+        setDungeonizeOldCurve,
         setPetLevel,
         setPetItem,
         setPetBankCoins,
