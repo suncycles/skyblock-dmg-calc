@@ -6,7 +6,7 @@ import { useTooltip } from '../context/TooltipContext';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
-import { petLoreItemId, buildPetTooltipLines } from '../lib/petData';
+import { petLoreItemId, buildPetTooltipLines, computeEquippedPetStats, computeItemChimeraBonus } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
@@ -103,7 +103,9 @@ export default function Landing() {
     }
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel);
+    const petStats = computeEquippedPetStats(loadout, itemData);
+    const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel, chimeraBonus);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
@@ -124,7 +126,9 @@ export default function Landing() {
     }
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel);
+    const petStats = computeEquippedPetStats(loadout, itemData);
+    const chimeraBonus = computeItemChimeraBonus(loadout.weapon, petStats);
+    const lines = await buildFullItemTooltipLines(loadout.weapon.item, loadout.weapon.modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel, chimeraBonus);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 

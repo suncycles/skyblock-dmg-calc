@@ -12,6 +12,7 @@ import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
+import { computeEquippedPetStats, computeItemChimeraBonus } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
 
 // 6 rows x 9 columns, matching the reference screenshot.
@@ -54,7 +55,9 @@ export default function Hex() {
     if (!item) return;
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel);
+    const petStats = computeEquippedPetStats(loadout, itemData);
+    const chimeraBonus = computeItemChimeraBonus(loadout[slot], petStats);
+    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel, chimeraBonus);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
   function handleItemLeave() {

@@ -131,12 +131,71 @@ export function computeAllPetStats(levels, level, maxLevel = MAX_PET_LEVEL) {
   return result;
 }
 
+// Chimera ultimate enchant: copies a fraction (20%/level, 100% at max level 5) of the active
+// pet's *entire* stat spread onto the equipped weapon's own base stats — not just
+// Strength/Crit Chance/Crit Damage, so pet-only stats like Attack Speed or Magic Find show up
+// as brand-new lines on the weapon's tooltip too. Maps petnums.json's own uppercase stat keys
+// to this app's lowercase STAT_LABELS keys (lib/reforgeData.js).
+export const CHIMERA_PERCENT_PER_LEVEL = 20;
+
+const PET_STAT_KEY_MAP = {
+  STRENGTH: 'strength',
+  CRIT_CHANCE: 'crit_chance',
+  CRIT_DAMAGE: 'crit_damage',
+  BONUS_ATTACK_SPEED: 'bonus_attack_speed',
+  MAGIC_FIND: 'magic_find',
+  HEALTH: 'health',
+  DEFENSE: 'defense',
+  TRUE_DEFENSE: 'true_defense',
+  INTELLIGENCE: 'intelligence',
+  SPEED: 'speed',
+  FEROCITY: 'ferocity',
+};
+
+export function computeChimeraStatBonus(petStats, chimeraLevel) {
+  if (!petStats || !chimeraLevel) return null;
+  const fraction = (chimeraLevel * CHIMERA_PERCENT_PER_LEVEL) / 100;
+  const bonus = {};
+  for (const [petKey, ourKey] of Object.entries(PET_STAT_KEY_MAP)) {
+    const value = petStats[petKey];
+    if (value) bonus[ourKey] = Math.round(value * fraction * 10) / 10;
+  }
+  return Object.keys(bonus).length > 0 ? bonus : null;
+}
+
 // Positional ability numbers a pet's real lore references as {0}, {1}, {2}...
 export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
   if (!levels) return [];
   const level1 = (levels['1'] && levels['1'].otherNums) || [];
   const level100 = (levels['100'] && levels['100'].otherNums) || [];
   return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level, maxLevel));
+}
+
+// Full pet-stat pipeline (interpolate -> Shining Scales -> pet item -> Ender Dragon Superior) —
+// shared by the damage-calc aggregator and any item tooltip that needs the active pet's stats (Chimera).
+export function computeEquippedPetStats(loadout, itemData) {
+  if (!loadout.pet) return null;
+  const { item: pet, modifiers } = loadout.pet;
+  const maxLevel = getMaxPetLevel(pet.petId);
+  const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+  let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+  stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
+  const petItemId = modifiers.petItem;
+  const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+  const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+  stats = applyPetItemStatBoost(stats, boost);
+  const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
+  return applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
+}
+
+// The Chimera bonus for one equipped item slot ({item, modifiers}), or null if it doesn't have Chimera applied.
+export function computeItemChimeraBonus(equipped, petStats) {
+  if (!equipped) return null;
+  const chimera = [
+    ...(equipped.modifiers.hexEnchantments || []),
+    ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
+  ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
+  return chimera ? computeChimeraStatBonus(petStats, chimera.level) : null;
 }
 
 function formatPlaceholderNum(n) {

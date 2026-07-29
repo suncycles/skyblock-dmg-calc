@@ -27,11 +27,10 @@ import {
   computeOtherNums,
   substitutePetLore,
   getMaxPetLevel,
-  applyGoldenDragonShiningScales,
-  applyEnderDragonSuperior,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
+  computeEquippedPetStats,
+  computeItemChimeraBonus,
 } from './petData';
-import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
 import {
   computeCombatLevelBonus,
@@ -287,9 +286,6 @@ function sumStatFromTooltipLines(finalLines, label) {
   return base + parenNums.reduce((a, b) => a + b, 0);
 }
 
-// Chimera enchant: copies 20%/level of the active pet's Strength/Crit Chance/Crit Damage, stacked on top of the pet's own contribution.
-const CHIMERA_PERCENT_PER_LEVEL = 20;
-
 // Adds to a base stat's running total and records the source for DamageSources.jsx's
 // per-stat breakdown, merging entries that share a label into one running total.
 function addBaseStat(out, statKey, value, label) {
@@ -303,30 +299,21 @@ function addBaseStat(out, statKey, value, label) {
 
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
-  let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
-  if (loadout.pet) {
-    const { item: pet, modifiers } = loadout.pet;
-    const maxLevel = getMaxPetLevel(pet.petId);
-    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-    let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
-    stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
-    const petItemId = modifiers.petItem;
-    const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
-    const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
-    stats = applyPetItemStatBoost(stats, boost);
-    const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
-    stats = applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
-    petStats = stats;
-    addBaseStat(out, 'strength', stats.STRENGTH || 0, 'Pet');
-    addBaseStat(out, 'crit_chance', stats.CRIT_CHANCE || 0, 'Pet');
-    addBaseStat(out, 'crit_damage', stats.CRIT_DAMAGE || 0, 'Pet');
+  const petStats = computeEquippedPetStats(loadout, itemData);
+  if (petStats) {
+    addBaseStat(out, 'strength', petStats.STRENGTH || 0, 'Pet');
+    addBaseStat(out, 'crit_chance', petStats.CRIT_CHANCE || 0, 'Pet');
+    addBaseStat(out, 'crit_damage', petStats.CRIT_DAMAGE || 0, 'Pet');
   }
 
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
     const slotLabel = SLOT_LABELS[slot];
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel);
+    // Chimera copies the pet's full stat spread onto this item's own base stats — computed
+    // before the tooltip lines so it merges in like a real base stat, not a separate annotation.
+    const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, chimeraBonus);
     for (const statKey of TRACKED_STATS) {
       addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
     }
@@ -334,18 +321,6 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     if (equipped.item.id === 'EMERALD_BLADE') {
       const config = getSpecialConfig(equipped.item.id);
       addBaseStat(out, 'damage', computeSpecialBonus(config, equipped.modifiers.special), slotLabel);
-    }
-
-    const chimera = [
-      ...(equipped.modifiers.hexEnchantments || []),
-      ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
-    ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
-    if (chimera) {
-      const fraction = (chimera.level * CHIMERA_PERCENT_PER_LEVEL) / 100;
-      const chimeraLabel = `${slotLabel} (Chimera)`;
-      addBaseStat(out, 'strength', (petStats.STRENGTH || 0) * fraction, chimeraLabel);
-      addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, chimeraLabel);
-      addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, chimeraLabel);
     }
   }
 
