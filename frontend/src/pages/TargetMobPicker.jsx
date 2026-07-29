@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { getMobIconDataUri } from '../lib/mobIcons';
+import { getMobIconDataUri, getMobModelIcon } from '../lib/mobIcons';
 import { SLOT_TEXTURES } from '../lib/icons';
 
 const ALL_MOB_NAMES = Object.keys(MOB_TYPES).sort((a, b) => a.localeCompare(b));
@@ -74,7 +74,11 @@ export default function TargetMobPicker() {
                   onMouseEnter={(e) => handleHover(name, e)}
                   onMouseLeave={hideTooltip}
                 >
-                  <img src={getMobIconDataUri(name)} alt={name} className="w-[60%] h-[60%] object-contain pixelated" />
+                  <img
+                    src={getMobModelIcon(name) || getMobIconDataUri(name)}
+                    alt={name}
+                    className="w-[60%] h-[60%] object-contain pixelated"
+                  />
                   <div className="w-full text-center text-[9px] leading-tight truncate text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
                     {name}
                   </div>

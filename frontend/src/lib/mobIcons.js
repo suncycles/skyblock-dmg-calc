@@ -1,4 +1,5 @@
 import { MOB_TYPES } from './mobTypes';
+import MOB_MODEL_ICONS from './mobModelIcons.json';
 
 // Skyblock's ~211 mobs have no unique head/skin asset in this app's bundled data, so each mob
 // is classified to its underlying vanilla entity type and rendered as a "spawn egg" icon
@@ -159,6 +160,12 @@ function buildSpawnEggSvg(base, spots) {
     `<ellipse cx="22" cy="25" rx="2.6" ry="2" fill="${spots}" transform="rotate(-10 22 25)"/>` +
     `</svg>`
   );
+}
+
+// Real baked mob-model render, when one exists for this mob (see mobModelIcons.json) —
+// otherwise null, and the caller should fall back to the classified spawn-egg icon.
+export function getMobModelIcon(mobName) {
+  return MOB_MODEL_ICONS[mobName] || null;
 }
 
 export function getMobIconDataUri(mobName) {
