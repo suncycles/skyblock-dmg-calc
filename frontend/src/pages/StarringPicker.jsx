@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { formatItemName, parseMinecraftLine } from '../lib/mcText';
-import { MAX_STARS, buildStarSuffix } from '../lib/starring';
+import { MAX_STARS, MAX_MASTER_STARS, buildStarSuffix } from '../lib/starring';
 import { SLOT_TEXTURES } from '../lib/icons';
 import McTooltipLines from '../components/McTooltipLines';
 
@@ -12,12 +12,13 @@ const panel =
 export default function StarringPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout, setStarCount, setDungeonized, setDungeonizeOldCurve } = useBuild();
+  const { loadout, setStarCount, setDungeonized, setDungeonizeOldCurve, setMasterStars } = useBuild();
   const item = loadout[slot] && loadout[slot].item;
   const modifiers = loadout[slot] && loadout[slot].modifiers;
   const stars = (modifiers && modifiers.stars) || 0;
   const dungeonized = !!(modifiers && modifiers.dungeonized);
   const dungeonizeOldCurve = !!(modifiers && modifiers.dungeonizeOldCurve);
+  const masterStars = (modifiers && modifiers.masterStars) || 0;
 
   if (!item) {
     return (
@@ -40,6 +41,10 @@ export default function StarringPicker() {
   function handleChange(e) {
     const num = Math.max(0, Math.min(MAX_STARS, Math.floor(Number(e.target.value) || 0)));
     setStarCount(slot, num);
+  }
+
+  function handleMasterStarsChange(e) {
+    setMasterStars(slot, Number(e.target.value));
   }
 
   const suffix = buildStarSuffix(stars);
@@ -83,15 +88,35 @@ export default function StarringPicker() {
           Shows each stat's Catacombs-scaled total (dark grey) and lets Damage Sources' "Toggle Dungeon Stats" use it instead.
         </div>
         {dungeonized && (
-          <label className="flex items-center gap-2 text-sm text-black" htmlFor="dungeonize-old-curve">
+          <>
+            <label className="flex items-center gap-2 text-sm text-black" htmlFor="dungeonize-old-curve">
+              <input
+                id="dungeonize-old-curve"
+                type="checkbox"
+                checked={dungeonizeOldCurve}
+                onChange={(e) => setDungeonizeOldCurve(slot, e.target.checked)}
+              />
+              Use old Catacombs Stat curve (Pre-0.26.1)
+            </label>
+
+            <label className="text-sm font-bold text-black" htmlFor="master-star-count">
+              Master Stars (0-{MAX_MASTER_STARS})
+            </label>
             <input
-              id="dungeonize-old-curve"
-              type="checkbox"
-              checked={dungeonizeOldCurve}
-              onChange={(e) => setDungeonizeOldCurve(slot, e.target.checked)}
+              id="master-star-count"
+              type="number"
+              min="0"
+              max={MAX_MASTER_STARS}
+              step="1"
+              value={masterStars}
+              onChange={handleMasterStarsChange}
+              className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
             />
-            Use old Catacombs Stat curve (Pre-0.26.1)
-          </label>
+            <div className="text-xs text-neutral-700 -mt-2">
+              Each Master Star grants +5% (instead of the normal +2%) of this item's own base stats — only usable while
+              Dungeonized. Shown as a dark-blue delta on top of the normal Dungeonize total.
+            </div>
+          </>
         )}
 
         <button

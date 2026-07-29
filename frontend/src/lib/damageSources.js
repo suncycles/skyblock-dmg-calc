@@ -1,7 +1,7 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
-import { sumStatFromTooltipLines, sumDungeonizedStatFromTooltipLines } from './dungeonize';
+import { sumStatFromTooltipLines, sumDungeonizedStatFromTooltipLines, sumMasterDungeonizedStatFromTooltipLines } from './dungeonize';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -266,14 +266,16 @@ function cleanTargetText(raw) {
 // tooltip) rather than re-deriving numbers from gemstones/reforges/books/statLines/starring
 // separately — sumStatFromTooltipLines (lib/dungeonize.js) reads the settled per-line total.
 
-// Adds to a base stat's running total (and its Dungeonize-toggled parallel) and records the
-// source for DamageSources.jsx's per-stat breakdown, merging entries that share a label into
-// one running total. `dungeonizedValue` defaults to `value` — only the per-item gear loop ever
-// passes a different one (its own Dungeonized total).
-function addBaseStat(out, statKey, value, label, dungeonizedValue = value) {
-  if (!value && !dungeonizedValue) return;
+// Adds to a base stat's running total and its two Dungeonize-toggled parallels (plain and
+// Master-Star-boosted), and records the source for DamageSources.jsx's per-stat breakdown,
+// merging entries that share a label into one running total. `dungeonizedValue`/`masterValue`
+// each default to the previous one — only the per-item gear loop ever passes explicit values
+// (its own Dungeonized/Master totals); everything else stays identical across all three buckets.
+function addBaseStat(out, statKey, value, label, dungeonizedValue = value, masterValue = dungeonizedValue) {
+  if (!value && !dungeonizedValue && !masterValue) return;
   out.baseStats[statKey] += value || 0;
   out.dungeonizedBaseStats[statKey] += dungeonizedValue || 0;
+  out.masterDungeonizedBaseStats[statKey] += masterValue || 0;
   const list = out.baseStatSources[statKey];
   const existing = list.find((e) => e.label === label);
   if (existing) existing.value += value || 0;
@@ -299,7 +301,14 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, chimeraBonus);
     for (const statKey of TRACKED_STATS) {
       const label = STAT_LABELS[statKey].label;
-      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, label), slotLabel, sumDungeonizedStatFromTooltipLines(lines, label));
+      addBaseStat(
+        out,
+        statKey,
+        sumStatFromTooltipLines(lines, label),
+        slotLabel,
+        sumDungeonizedStatFromTooltipLines(lines, label),
+        sumMasterDungeonizedStatFromTooltipLines(lines, label),
+      );
     }
     // Emerald Blade's bonus lives on its own "Current Damage Bonus:" line, not a "Damage:" stat line.
     if (equipped.item.id === 'EMERALD_BLADE') {
@@ -628,6 +637,8 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     // Parallel totals using each gear item's Dungeonize-toggled stat lines where it has one —
     // read instead of baseStats when the "Toggle Dungeon Stats" switch is on (see finalDamage.js).
     dungeonizedBaseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
+    // Same, but also folding in each item's Master Star delta — read when "Toggle Master Mode" is on too.
+    masterDungeonizedBaseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
     additiveNonConditional: [],
     additiveConditional: [],

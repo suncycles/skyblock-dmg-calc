@@ -6,6 +6,10 @@ import { STAT_LABELS } from './reforgeData';
 export const MAX_STARS = 15;
 const PER_STAR_PERCENT = 2;
 
+// Master Stars: Dungeonize-only stars worth 5%/star instead of 2%, capped at 5 — see lib/dungeonize.js.
+export const MAX_MASTER_STARS = 5;
+export const MASTER_STAR_PERCENT_PER_STAR = 5;
+
 // Green — distinct from Books' yellow (e), Art of War/Peace's gold (6), Reforges' blue (9), Special weapons' aqua (b).
 export const STAR_COLOR = 'a';
 
@@ -26,13 +30,13 @@ function parseBaseStatValue(lore, statKey) {
 }
 
 // {statKey: delta} for every base stat line the item has, ready to feed into lib/statLines.js's annotateStatLines.
-export function computeStarBonuses(lore, starCount) {
+export function computeStarBonuses(lore, starCount, percentPerStar = PER_STAR_PERCENT) {
   const bonuses = {};
   if (!starCount) return bonuses;
   for (const statKey of Object.keys(STAT_LABELS)) {
     const base = parseBaseStatValue(lore, statKey);
     if (!base) continue;
-    const delta = Math.round(base * (PER_STAR_PERCENT / 100) * starCount * 10) / 10;
+    const delta = Math.round(base * (percentPerStar / 100) * starCount * 10) / 10;
     if (delta) bonuses[statKey] = delta;
   }
   return bonuses;

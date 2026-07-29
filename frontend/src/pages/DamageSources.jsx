@@ -52,6 +52,8 @@ export default function DamageSources() {
     godPotionActive,
     useDungeonizedStats,
     toggleUseDungeonizedStats,
+    useMasterMode,
+    toggleUseMasterMode,
     attributes,
     miscStats,
     setMiscStat,
@@ -100,11 +102,13 @@ export default function DamageSources() {
         return {
           name,
           types,
-          finalDamage: computeFinalDamage(result, mob, useDungeonizedStats),
+          finalDamage: computeFinalDamage(result, mob, useDungeonizedStats, useMasterMode),
           finalDamageWithoutVanquished: hasVanquishedBonus
-            ? computeFinalDamage(withoutVanquishedResult, mob, useDungeonizedStats)
+            ? computeFinalDamage(withoutVanquishedResult, mob, useDungeonizedStats, useMasterMode)
             : null,
-          finalDamageWithFabledMax: hasFabledBonus ? computeFinalDamage(withFabledMaxResult, mob, useDungeonizedStats) : null,
+          finalDamageWithFabledMax: hasFabledBonus
+            ? computeFinalDamage(withFabledMaxResult, mob, useDungeonizedStats, useMasterMode)
+            : null,
         };
       })
     : [];
@@ -247,14 +251,18 @@ export default function DamageSources() {
           <div className="flex gap-3 items-start">
             <div className="flex-1">
               <Section
-                title={`(Base) Stats${useDungeonizedStats ? ' (Dungeonized)' : ''}`}
+                title={`(Base) Stats${useDungeonizedStats ? (useMasterMode ? ' (Dungeonized, Master)' : ' (Dungeonized)') : ''}`}
                 subtitle="Click a stat to see where it comes from."
                 empty=""
               >
                 {BASE_STAT_KEYS.map((key) => {
                   const sources = result.baseStatSources[key];
                   const isExpanded = expandedStat === key;
-                  const displayed = useDungeonizedStats ? result.dungeonizedBaseStats[key] : result.baseStats[key];
+                  const displayed = !useDungeonizedStats
+                    ? result.baseStats[key]
+                    : useMasterMode
+                      ? result.masterDungeonizedBaseStats[key]
+                      : result.dungeonizedBaseStats[key];
                   return (
                     <div key={key}>
                       <div
@@ -340,6 +348,19 @@ export default function DamageSources() {
                   onChange={toggleUseDungeonizedStats}
                 />
                 Toggle Dungeon Stats
+              </label>
+              <label
+                className={`flex items-center gap-1.5 text-[12px] ${useDungeonizedStats ? 'text-black' : 'text-neutral-500'}`}
+                htmlFor="toggle-master-mode"
+              >
+                <input
+                  id="toggle-master-mode"
+                  type="checkbox"
+                  checked={useMasterMode}
+                  disabled={!useDungeonizedStats}
+                  onChange={toggleUseMasterMode}
+                />
+                Toggle Master Mode
               </label>
             </div>
           </div>

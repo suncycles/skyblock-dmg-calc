@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
 import { computeTuningPoints } from '../lib/accessoryPowers';
 import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attributes';
+import { MAX_MASTER_STARS } from '../lib/starring';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
@@ -9,6 +10,7 @@ const TARGET_MOB_KEY = 'hexTargetMob'; // legacy single-mob key, migrated once t
 const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
 const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
+const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
@@ -39,6 +41,11 @@ function loadInitialGodPotion() {
 // Loads the "Toggle Dungeon Stats" on/off switch (see lib/dungeonize.js).
 function loadInitialUseDungeonizedStats() {
   return localStorage.getItem(USE_DUNGEONIZED_STATS_KEY) === 'true';
+}
+
+// Loads the "Toggle Master Mode" on/off switch — only meaningful alongside useDungeonizedStats.
+function loadInitialUseMasterMode() {
+  return localStorage.getItem(USE_MASTER_MODE_KEY) === 'true';
 }
 
 // Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
@@ -117,6 +124,7 @@ function emptyModifiers() {
     rarityOverride: null, // real current tier for milestone-upgrading items (e.g. David's Cloak) | null = use the item's own tier
     dungeonized: false, // Catacombs-level-scaled stat lines — see lib/dungeonize.js
     dungeonizeOldCurve: false, // true = pre-0.26.1 curve, false = current
+    masterStars: 0, // Dungeonize-only stars, 5%/star up to 5 — see lib/starring.js. Always 0 unless dungeonized.
   };
 }
 
@@ -181,6 +189,7 @@ export function BuildProvider({ children }) {
   const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
+  const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
@@ -236,6 +245,14 @@ export function BuildProvider({ children }) {
     setUseDungeonizedStatsState((prev) => {
       const next = !prev;
       localStorage.setItem(USE_DUNGEONIZED_STATS_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleUseMasterMode = useCallback(() => {
+    setUseMasterModeState((prev) => {
+      const next = !prev;
+      localStorage.setItem(USE_MASTER_MODE_KEY, String(next));
       return next;
     });
   }, []);
@@ -447,9 +464,14 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // Turning Dungeonize off also clears Master Stars — an item can't hold them without being dungeonized.
   const setDungeonized = useCallback(
     (slot, value) => {
-      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, dungeonized: !!value }));
+      updateSlotModifiers(slot, (modifiers) => ({
+        ...modifiers,
+        dungeonized: !!value,
+        masterStars: value ? modifiers.masterStars : 0,
+      }));
     },
     [updateSlotModifiers],
   );
@@ -457,6 +479,16 @@ export function BuildProvider({ children }) {
   const setDungeonizeOldCurve = useCallback(
     (slot, value) => {
       updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, dungeonizeOldCurve: !!value }));
+    },
+    [updateSlotModifiers],
+  );
+
+  const setMasterStars = useCallback(
+    (slot, count) => {
+      updateSlotModifiers(slot, (modifiers) => ({
+        ...modifiers,
+        masterStars: modifiers.dungeonized ? Math.max(0, Math.min(MAX_MASTER_STARS, Math.floor(count) || 0)) : 0,
+      }));
     },
     [updateSlotModifiers],
   );
@@ -541,6 +573,9 @@ export function BuildProvider({ children }) {
     setUseDungeonizedStatsState(!!state.useDungeonizedStats);
     localStorage.setItem(USE_DUNGEONIZED_STATS_KEY, String(!!state.useDungeonizedStats));
 
+    setUseMasterModeState(!!state.useMasterMode);
+    localStorage.setItem(USE_MASTER_MODE_KEY, String(!!state.useMasterMode));
+
     const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
     setAttributesState(nextAttributes);
     localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(nextAttributes));
@@ -572,6 +607,8 @@ export function BuildProvider({ children }) {
         toggleGodPotion,
         useDungeonizedStats,
         toggleUseDungeonizedStats,
+        useMasterMode,
+        toggleUseMasterMode,
         attributes,
         setAttributeLevel,
         miscStats,
@@ -593,6 +630,7 @@ export function BuildProvider({ children }) {
         setRarityOverride,
         setDungeonized,
         setDungeonizeOldCurve,
+        setMasterStars,
         setPetLevel,
         setPetItem,
         setPetBankCoins,
