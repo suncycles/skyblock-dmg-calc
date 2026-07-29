@@ -62,8 +62,9 @@ export function buildStarSuffix(starCount) {
   return suffix;
 }
 
-// Purely cosmetic circled-digit glyph appended after the ✪ star suffix — always red, not part of any real item lore.
+// Purely cosmetic circled-digit glyph appended after the ✪ star suffix — colored the same red
+// (§c) as the rest of the item's own tooltip text, not part of any real item lore.
 export function buildMasterStarSuffix(masterStars) {
   if (!masterStars) return '';
-  return `§s${MASTER_STAR_DIGIT_GLYPHS[masterStars]}`;
+  return `§c${MASTER_STAR_DIGIT_GLYPHS[masterStars]}`;
 }

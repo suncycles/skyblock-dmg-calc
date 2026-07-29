@@ -10,8 +10,6 @@ export const MC_COLORS = {
   p: '#ff55fe',
   // 'q' is Master Stars' dungeonize-difference annotation — not a vanilla MC color.
   q: '#1d213d',
-  // 's' is Master Stars' circled-digit glyph — pure red, distinct from vanilla red (c, #ff5555).
-  s: '#ff0000',
 };
 
 export const RARITY_COLORS = {
