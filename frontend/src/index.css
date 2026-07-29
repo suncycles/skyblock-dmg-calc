@@ -3,6 +3,7 @@
 body {
   background: #303030;
   color: #eee;
+  font-family: Tahoma, sans-serif;
 }
 
 .pixelated {
@@ -15,7 +16,8 @@ body {
 .mc-tooltip {
   position: fixed;
   z-index: 1000;
-  max-width: 300px;
+  width: max-content;
+  max-width: min(600px, 90vw);
   background: #140314;
   border: 2px solid #25005e;
   padding: 6px 8px;
@@ -24,6 +26,7 @@ body {
   line-height: 1.5;
   pointer-events: none;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
 /* RGB "chroma" gradient text — the [T7] mass-apply button and any

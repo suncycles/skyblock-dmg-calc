@@ -4,6 +4,7 @@ import { computeTuningPoints } from '../lib/accessoryPowers';
 import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attributes';
 import { MAX_MASTER_STARS } from '../lib/starring';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
+import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
@@ -15,6 +16,7 @@ const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
+const INFERNAL_CRIMSON_STACKS_KEY = 'hexInfernalCrimsonStacks';
 
 const BuildContext = createContext(null);
 
@@ -56,6 +58,14 @@ function loadInitialMobHpPercent() {
   return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 100;
 }
 
+// Loads the Infernal Crimson combo-stack count (1-10, default 1) — only shown/applied once 2+
+// Infernal Crimson pieces are equipped, see lib/armorSetBonuses.js.
+function loadInitialInfernalCrimsonStacks() {
+  const stored = localStorage.getItem(INFERNAL_CRIMSON_STACKS_KEY);
+  const parsed = stored != null ? Number(stored) : 1;
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, parsed)) : 1;
+}
+
 // Loads the manually-entered "everything else" Strength/Crit Damage total (Fairy Souls, skill rewards, etc.).
 function loadInitialMiscStats() {
   const stored = localStorage.getItem(MISC_STATS_KEY);
@@ -89,9 +99,18 @@ function loadInitialAttributes() {
   }
 }
 
-// Loads global player levels (Combat, Skyblock, Foraging, Catacombs, Taming, Wolf Slayer — see lib/playerStats.js).
+// Loads global player levels (Combat, Skyblock, Foraging, Catacombs, Taming, Wolf Slayer,
+// General's Medallion digits — see lib/playerStats.js and lib/dungeonize.js).
 function loadInitialPlayerStats() {
-  const defaults = { combatLevel: 0, skyblockLevel: 0, foragingLevel: 0, catacombsLevel: 0, tamingLevel: 0, wolfSlayerLevel: 0 };
+  const defaults = {
+    combatLevel: 0,
+    skyblockLevel: 0,
+    foragingLevel: 0,
+    catacombsLevel: 0,
+    tamingLevel: 0,
+    wolfSlayerLevel: 0,
+    generalsMedallionDigits: 0,
+  };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
   try {
@@ -103,6 +122,7 @@ function loadInitialPlayerStats() {
       catacombsLevel: typeof parsed.catacombsLevel === 'number' ? parsed.catacombsLevel : 0,
       tamingLevel: typeof parsed.tamingLevel === 'number' ? parsed.tamingLevel : 0,
       wolfSlayerLevel: typeof parsed.wolfSlayerLevel === 'number' ? parsed.wolfSlayerLevel : 0,
+      generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -149,11 +169,18 @@ export function BuildProvider({ children }) {
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
+  const [infernalCrimsonStacks, setInfernalCrimsonStacksState] = useState(loadInitialInfernalCrimsonStacks);
 
   const setMobHpPercent = useCallback((value) => {
     const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
     setMobHpPercentState(clamped);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(clamped));
+  }, []);
+
+  const setInfernalCrimsonStacks = useCallback((value) => {
+    const clamped = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(value) || 1)));
+    setInfernalCrimsonStacksState(clamped);
+    localStorage.setItem(INFERNAL_CRIMSON_STACKS_KEY, String(clamped));
   }, []);
 
   const setAttributeLevel = useCallback((id, level) => {
@@ -256,6 +283,14 @@ export function BuildProvider({ children }) {
   const setWolfSlayerLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, wolfSlayerLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setGeneralsMedallionDigits = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, generalsMedallionDigits: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -513,6 +548,7 @@ export function BuildProvider({ children }) {
       catacombsLevel: 0,
       tamingLevel: 0,
       wolfSlayerLevel: 0,
+      generalsMedallionDigits: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -543,6 +579,10 @@ export function BuildProvider({ children }) {
     const clampedMobHp = Math.max(0, Math.min(100, Math.round(Number(state.mobHpPercent) || 100)));
     setMobHpPercentState(clampedMobHp);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(clampedMobHp));
+
+    const clampedStacks = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(state.infernalCrimsonStacks) || 1)));
+    setInfernalCrimsonStacksState(clampedStacks);
+    localStorage.setItem(INFERNAL_CRIMSON_STACKS_KEY, String(clampedStacks));
   }, []);
 
   return (
@@ -556,6 +596,7 @@ export function BuildProvider({ children }) {
         setCatacombsLevel,
         setTamingLevel,
         setWolfSlayerLevel,
+        setGeneralsMedallionDigits,
         targetMobs,
         toggleTargetMob,
         clearTargetMobs,
@@ -571,6 +612,8 @@ export function BuildProvider({ children }) {
         setMiscStat,
         mobHpPercent,
         setMobHpPercent,
+        infernalCrimsonStacks,
+        setInfernalCrimsonStacks,
         selectItem,
         removeSlot,
         applyEnchant,

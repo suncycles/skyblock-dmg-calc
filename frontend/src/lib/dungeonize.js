@@ -4,10 +4,11 @@ import { GEMSTONE_COLOR } from './gemstones';
 import { STAT_LABELS, formatStatValue } from './reforgeData';
 
 /* Hypixel's real "Dungeonize" mechanic: swaps an item's stats for a Catacombs-level-scaled
-   total. The curve is a straight replacement multiplier of the item's own current total
-   (including every reforge/gemstone/enchant/star bonus already on it) — not a bonus added on
-   top, so a low Catacombs level can make a dungeonized item's stats *worse* than normal. "old"
-   is the pre-0.26.1 curve, "new" is current — both user-supplied, index = Catacombs level. */
+   total. The curve value is a "+X%" bonus applied on top of the item's own current total
+   (including every reforge/gemstone/enchant/star bonus already on it) — e.g. a curve value of
+   395% means a 1+3.95 = x4.95 multiplier, not x3.95. "old" is the pre-0.26.1 curve, "new" is
+   current — both user-supplied, index = Catacombs level. General's Medallion adds up to +6%
+   more on top of the curve value (1%/digit) before the final +1 conversion to a multiplier. */
 export const DUNGEONIZE_CURVE_OLD = [
   10, 14, 18, 22, 26, 30, 35, 40, 45, 50, 55, 61, 67, 73, 79, 85, 92, 99, 106, 113, 120, 128, 136, 144, 152, 160, 169,
   178, 187, 196, 205, 215, 225, 235, 245, 255, 267, 279, 291, 303, 315, 329, 343, 357, 371, 385, 401, 418, 436, 455, 475,
@@ -18,10 +19,15 @@ export const DUNGEONIZE_CURVE_NEW = [
 ];
 export const DUNGEONIZE_MAX_CATACOMBS_LEVEL = DUNGEONIZE_CURVE_NEW.length - 1;
 
-export function computeDungeonizeMultiplier(catacombsLevel, useOldCurve) {
+// General's Medallion: +1% additive per digit, up to 6 digits = +6%, folded into the same
+// percentage the Catacombs curve contributes before converting to a final multiplier.
+export const MAX_GENERALS_MEDALLION_DIGITS = 6;
+
+export function computeDungeonizeMultiplier(catacombsLevel, useOldCurve, generalsMedallionDigits = 0) {
   const curve = useOldCurve ? DUNGEONIZE_CURVE_OLD : DUNGEONIZE_CURVE_NEW;
   const level = Math.max(0, Math.min(Math.floor(catacombsLevel || 0), DUNGEONIZE_MAX_CATACOMBS_LEVEL));
-  return curve[level] / 100;
+  const digitBonus = Math.max(0, Math.min(MAX_GENERALS_MEDALLION_DIGITS, Math.floor(generalsMedallionDigits || 0)));
+  return 1 + (curve[level] + digitBonus) / 100;
 }
 
 export const DUNGEONIZE_COLOR = '8'; // dark grey, matching the real game's Dungeonized-stat annotation
@@ -87,9 +93,9 @@ export function sumMasterDungeonizedStatFromTooltipLines(finalLines, label) {
 // `masterStarBonus` ({statKey: delta}, pristine-lore-based — see lib/starring.js) is the item's
 // own Master Star contribution *before* the Catacombs curve; scaled by the same multiplier and
 // shown as a separate dark-blue delta so the two effects stay visually distinguishable.
-export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, masterStarBonus) {
+export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, masterStarBonus, generalsMedallionDigits) {
   if (!lore) return lore;
-  const multiplier = computeDungeonizeMultiplier(catacombsLevel, useOldCurve);
+  const multiplier = computeDungeonizeMultiplier(catacombsLevel, useOldCurve, generalsMedallionDigits);
   return lore.map((line) => {
     const plain = line.replace(/§./g, '');
     const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);

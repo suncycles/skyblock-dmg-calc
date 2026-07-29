@@ -36,3 +36,22 @@ export const MONSTER_RAIDER_MULTIPLIER = 1.35;
 export function hasFullSet(loadout, slots, setIds) {
   return slots.every((slot, i) => loadout[slot]?.item?.id === setIds[i]);
 }
+
+// How many of `setIds`' pieces are currently equipped, regardless of slot completeness — for
+// partial-set bonuses (e.g. Infernal Crimson's 2-piece damage stacks) rather than full-set-only ones.
+export function countSetPieces(loadout, slots, setIds) {
+  return slots.reduce((count, slot, i) => count + (loadout[slot]?.item?.id === setIds[i] ? 1 : 0), 0);
+}
+
+// The top-tier ("Infernal") upgrade of Crimson Armor — the only variant/tier this app currently
+// has a damage mechanic tied to (a 1-10 player-entered "combo stack" slider, +10%/stack additive
+// damage up to +100%, shown only once 2+ pieces are equipped — see pages/DamageSources.jsx).
+export const INFERNAL_CRIMSON_SET = [
+  'INFERNAL_CRIMSON_HELMET',
+  'INFERNAL_CRIMSON_CHESTPLATE',
+  'INFERNAL_CRIMSON_LEGGINGS',
+  'INFERNAL_CRIMSON_BOOTS',
+];
+export const INFERNAL_CRIMSON_MIN_PIECES = 2;
+export const INFERNAL_CRIMSON_MAX_STACKS = 10;
+export const INFERNAL_CRIMSON_PERCENT_PER_STACK = 10;

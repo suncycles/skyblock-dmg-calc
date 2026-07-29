@@ -1,7 +1,8 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
-import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
-import { sumStatFromTooltipLines, sumDungeonizedStatFromTooltipLines, sumMasterDungeonizedStatFromTooltipLines } from './dungeonize';
+import { REFORGE_COLOR, FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
+import { BOOKS_COLOR } from './books';
+import { GEMSTONE_COLOR } from './gemstones';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -26,10 +27,11 @@ import {
   computeOtherNums,
   substitutePetLore,
   getMaxPetLevel,
+  applyGoldenDragonShiningScales,
+  applyEnderDragonSuperior,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
-  computeEquippedPetStats,
-  computeItemChimeraBonus,
 } from './petData';
+import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
 import {
   computeCombatLevelBonus,
@@ -67,12 +69,12 @@ import {
   computeEchoBoost,
 } from './attributes';
 
+// Elite's boss/miniboss condition, scoped to the 5 real Slayer bosses (no boss/miniboss flag exists on mobs).
+const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horror', 'Tarantula Broodfather', 'Sven Packmaster'];
+
 // Marker id for Fabled's randomized crit-damage bonus — pushed at 1x so the headline Final
 // Damage stays the no-bonus baseline; DamageSources.jsx uses this id to compute the +15% max range.
 export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
-
-// Overload's Mega Critical Hit bonus (bow-only): 10% extra damage per level, up to +50% at level V.
-const OVERLOAD_MEGA_CRIT_PERCENT_PER_LEVEL = 10;
 
 /* Aggregates every damage-relevant stat/bonus across the loadout into: base stats (summed),
    % additive damage split into non-conditional vs conditional, a separate weaponBonus pair
@@ -119,7 +121,6 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'STARRED_MIDAS_STAFF',
   'EMERALD_BLADE',
   'WARDEN_HELMET',
-  'DRAGONFUSE_GLOVE', // hardcoded above (cross-slot Aspect of the Dragons upgrade) instead
   // Slayer-line weapons — hardcoded in SLAYER_TIER_BONUSES instead.
   'ATOMSPLIT_KATANA',
   'VOIDWALKER_KATANA',
@@ -132,26 +133,10 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'TARANTULA_FANG',
   'SCORPION_FOIL',
   'STING',
-  'SPIDER_SWORD',
-  'END_SWORD',
-  'UNDEAD_SWORD',
-  // Own real lore either states an inaccurate number or a mismatched text-vs-function mechanic — hardcoded below instead.
-  'POOCH_SWORD',
-  'SHAMAN_SWORD',
-  'FIREDUST_DAGGER',
-  'MAWDUST_DAGGER',
 ]);
 
-// Warden Helmet's Brute Force ability, assumed fully active.
+// Warden Helmet's Brute Force ability, assumed fully active, also maxes out at 161% rather than 160%. 
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 161;
-
-// Dragonfuse Glove's real ability only upgrades a specifically-equipped Aspect of the Dragons
-// ("+35 Damage, +50 Strength" — its "Very reduced ability knockback" clause isn't a damage stat
-// this app models). Cross-slot, so it's checked once after the per-slot gear loop rather than
-// picked up by the generic per-item scan.
-const DRAGONFUSE_GLOVE_ID = 'DRAGONFUSE_GLOVE';
-const DRAGONFUSE_GLOVE_TARGET_WEAPON_ID = 'ASPECT_OF_THE_DRAGON';
-const DRAGONFUSE_GLOVE_BONUS = { damage: 35, strength: 50 };
 
 // Each tiered Slayer weapon's own damage bonus against its line's mob family, applied as an
 // independent (1 + bonusPercent/100) factor rather than an additive contribution. Hardcoded
@@ -171,20 +156,15 @@ const ATOMSPLIT_MOBS = [
 ];
 
 const SLAYER_TIER_BONUSES = {
-  // End Sword's real lore names the actual "Ender" Mob Type directly; the Katana tiers above it
-  // target a narrower Endermen-family roster that Mob Type doesn't cover (see ATOMSPLIT_MOBS).
-  END_SWORD: { bonusPercent: 100, condition: 'Ender' },
   VOIDWALKER_KATANA: { bonusPercent: 150, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
   VOIDEDGE_KATANA: { bonusPercent: 200, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
   VORPAL_KATANA: { bonusPercent: 250, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
   ATOMSPLIT_KATANA: { bonusPercent: 300, condition: ATOMSPLIT_MOBS, conditionLabel: 'Endermen' },
 
-  UNDEAD_SWORD: { bonusPercent: 100, condition: 'Undead' },
   REVENANT_SWORD: { bonusPercent: 150, condition: 'Undead' },
   REAPER_SWORD: { bonusPercent: 200, condition: 'Undead' },
   AXE_OF_THE_SHREDDED: { bonusPercent: 250, condition: 'Undead' },
 
-  SPIDER_SWORD: { bonusPercent: 100, condition: 'Arthropod' },
   RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
   TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
   SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
@@ -193,26 +173,6 @@ const SLAYER_TIER_BONUSES = {
 
 // Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) — its own damage multiplier.
 const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
-
-// Pooch Sword's own real lore states "+200% Damage against Wolves" but this actually functions as
-// a fixed 2x multiplier, not an additive stack (same text-vs-function mismatch as Crown of
-// Avarice) — hardcoded against the real Wolf Slayer mob roster since no single Mob Type covers it.
-const POOCH_SWORD_WOLF_MOBS = ['Sven Packmaster', 'Wolf', 'Old Wolf', 'Soul of the Alpha', 'Pack Spirit', 'Howling Spirit'];
-const POOCH_SWORD_WOLF_MULTIPLIER = 2;
-
-// Firedust/Twilight Dagger's own real lore rounds one of their two per-mob-type multipliers down
-// to 1.2x — the real value is 1.25x. Hardcoded with the corrected numbers instead of the generic
-// ability-text scan, which would otherwise report the wrong value verbatim.
-const DUAL_MOB_MULTIPLIER_OVERRIDES = {
-  FIREDUST_DAGGER: [
-    { condition: 'Infernal', value: 1.25 },
-    { condition: 'Wither', value: 1.1 },
-  ],
-  MAWDUST_DAGGER: [
-    { condition: 'Infernal', value: 1.5 },
-    { condition: 'Skeletal', value: 1.25 },
-  ],
-};
 
 function stripToPlain(lines) {
   return (Array.isArray(lines) ? lines.join(' ') : lines)
@@ -264,56 +224,86 @@ function cleanTargetText(raw) {
 // ---------------------------------------------------------------------
 // Base stats: reuses buildFullItemTooltipLines (the single source of truth for an item's
 // tooltip) rather than re-deriving numbers from gemstones/reforges/books/statLines/starring
-// separately — sumStatFromTooltipLines (lib/dungeonize.js) reads the settled per-line total.
+// separately. Every "(+X)" in a tooltip line is a genuinely additional amount not already in
+// the leading number, except Reforges/Books/Gemstones which also echo their own already-
+// merged delta for display — excluded here to avoid double-counting.
+function sumStatFromTooltipLines(finalLines, label) {
+  const labelRe = new RegExp(`^${label}:`);
+  const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
+  if (!finalLine) return 0;
+  const plain = finalLine.replace(/§./g, '');
+  const afterLabelPlain = plain.slice(plain.indexOf(':') + 1);
+  const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabelPlain);
+  const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
 
-// Adds to a base stat's running total and its two Dungeonize-toggled parallels (plain and
-// Master-Star-boosted), and records the source for DamageSources.jsx's per-stat breakdown,
-// merging entries that share a label into one running total. `dungeonizedValue`/`masterValue`
-// each default to the previous one — only the per-item gear loop ever passes explicit values
-// (its own Dungeonized/Master totals); everything else stays identical across all three buckets.
-function addBaseStat(out, statKey, value, label, dungeonizedValue = value, masterValue = dungeonizedValue) {
-  if (!value && !dungeonizedValue && !masterValue) return;
-  out.baseStats[statKey] += value || 0;
-  out.dungeonizedBaseStats[statKey] += dungeonizedValue || 0;
-  out.masterDungeonizedBaseStats[statKey] += masterValue || 0;
+  const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
+  const annotationRe = /§([0-9a-fk-orp])\(([+-]?[\d.]+)%?\)/g;
+  const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
+    .filter((m) => m[1] !== REFORGE_COLOR && m[1] !== BOOKS_COLOR && m[1] !== GEMSTONE_COLOR)
+    .map((m) => parseFloat(m[2]));
+
+  return base + parenNums.reduce((a, b) => a + b, 0);
+}
+
+// Chimera enchant: copies 20%/level of the active pet's Strength/Crit Chance/Crit Damage, stacked on top of the pet's own contribution.
+const CHIMERA_PERCENT_PER_LEVEL = 20;
+
+// Adds to a base stat's running total and records the source for DamageSources.jsx's
+// per-stat breakdown, merging entries that share a label into one running total.
+function addBaseStat(out, statKey, value, label) {
+  if (!value) return;
+  out.baseStats[statKey] += value;
   const list = out.baseStatSources[statKey];
   const existing = list.find((e) => e.label === label);
-  if (existing) existing.value += value || 0;
+  if (existing) existing.value += value;
   else list.push({ label, value });
 }
 
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, out) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
-  const petStats = computeEquippedPetStats(loadout, itemData);
-  if (petStats) {
-    addBaseStat(out, 'strength', petStats.STRENGTH || 0, 'Pet');
-    addBaseStat(out, 'crit_chance', petStats.CRIT_CHANCE || 0, 'Pet');
-    addBaseStat(out, 'crit_damage', petStats.CRIT_DAMAGE || 0, 'Pet');
+  let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
+  if (loadout.pet) {
+    const { item: pet, modifiers } = loadout.pet;
+    const maxLevel = getMaxPetLevel(pet.petId);
+    const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+    let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+    stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
+    const petItemId = modifiers.petItem;
+    const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
+    const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+    stats = applyPetItemStatBoost(stats, boost);
+    const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
+    stats = applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
+    petStats = stats;
+    addBaseStat(out, 'strength', stats.STRENGTH || 0, 'Pet');
+    addBaseStat(out, 'crit_chance', stats.CRIT_CHANCE || 0, 'Pet');
+    addBaseStat(out, 'crit_damage', stats.CRIT_DAMAGE || 0, 'Pet');
   }
 
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
     const slotLabel = SLOT_LABELS[slot];
-    // Chimera copies the pet's full stat spread onto this item's own base stats — computed
-    // before the tooltip lines so it merges in like a real base stat, not a separate annotation.
-    const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, chimeraBonus);
+    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
     for (const statKey of TRACKED_STATS) {
-      const label = STAT_LABELS[statKey].label;
-      addBaseStat(
-        out,
-        statKey,
-        sumStatFromTooltipLines(lines, label),
-        slotLabel,
-        sumDungeonizedStatFromTooltipLines(lines, label),
-        sumMasterDungeonizedStatFromTooltipLines(lines, label),
-      );
+      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
     }
     // Emerald Blade's bonus lives on its own "Current Damage Bonus:" line, not a "Damage:" stat line.
     if (equipped.item.id === 'EMERALD_BLADE') {
       const config = getSpecialConfig(equipped.item.id);
       addBaseStat(out, 'damage', computeSpecialBonus(config, equipped.modifiers.special), slotLabel);
+    }
+
+    const chimera = [
+      ...(equipped.modifiers.hexEnchantments || []),
+      ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
+    ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
+    if (chimera) {
+      const fraction = (chimera.level * CHIMERA_PERCENT_PER_LEVEL) / 100;
+      const chimeraLabel = `${slotLabel} (Chimera)`;
+      addBaseStat(out, 'strength', (petStats.STRENGTH || 0) * fraction, chimeraLabel);
+      addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, chimeraLabel);
+      addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, chimeraLabel);
     }
   }
 
@@ -323,11 +313,6 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     addBaseStat(out, 'strength', accessoryStats.strength || 0, 'Accessory');
     addBaseStat(out, 'crit_chance', accessoryStats.crit_chance || 0, 'Accessory');
     addBaseStat(out, 'crit_damage', accessoryStats.crit_damage || 0, 'Accessory');
-  }
-
-  if (loadout.gloves?.item.id === DRAGONFUSE_GLOVE_ID && loadout.weapon?.item.id === DRAGONFUSE_GLOVE_TARGET_WEAPON_ID) {
-    addBaseStat(out, 'damage', DRAGONFUSE_GLOVE_BONUS.damage, 'Dragonfuse Glove');
-    addBaseStat(out, 'strength', DRAGONFUSE_GLOVE_BONUS.strength, 'Dragonfuse Glove');
   }
 }
 
@@ -417,57 +402,31 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 // Y") and subject-first ("Y mobs take Nx damage"). A third shape, "Y mobs DEAL Nx damage," is
 // an incoming-damage penalty rather than a player bonus, so it's excluded entirely.
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
-// "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional. The target
-// capture also stops at " and" (e.g. Sword of Revelations' "...to Mythological mobs and grants +5
-// Magic Find on them.") so a trailing clause doesn't get swallowed into the condition text.
-const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$|\s+and\b)/i;
+// "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional.
+const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
-// Same shape as DEALS_TO_TARGET_RE but an "x" multiplier, not a "%" — e.g. Demonslayer Gauntlet's "Deal 1.15x damage against Infernal Mobs."
-const DEALS_MULTIPLIER_TO_TARGET_RE = /deals?\s+\+?([\d.]+)x\s+damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$|\s+and\b)/i;
 const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
-// Global-cloned so a paragraph with more than one "to X" clause (e.g. the Blaze Slayer daggers'
-// "Deal Nx damage to Infernal mobs. Deal Nx damage to Wither mobs.") yields every match, not just
-// the first — matchAll's zero-width lookahead end doesn't consume the trailing period, so
-// consecutive clauses in the same sentence are each found independently.
-function findAll(re, text) {
-  return [...text.matchAll(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`))];
-}
+function matchDamageParagraph(text) {
+  if (INCOMING_DAMAGE_RE.test(text)) return null;
 
-function matchDamageParagraphs(text) {
-  if (INCOMING_DAMAGE_RE.test(text)) return [];
+  let m = SUBJECT_MULTIPLIER_RE.exec(text);
+  if (m) return { bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) };
 
-  let matches = findAll(SUBJECT_MULTIPLIER_RE, text);
-  if (matches.length > 0) {
-    return matches.map((m) => ({ bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) }));
-  }
+  m = DEALS_TO_TARGET_RE.exec(text);
+  if (m) return { bucket: 'additiveConditional', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) };
 
-  matches = findAll(DEALS_MULTIPLIER_TO_TARGET_RE, text);
-  if (matches.length > 0) {
-    return matches.map((m) => ({ bucket: 'multiplicative', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) }));
-  }
+  m = DEALS_FLAT_RE.exec(text);
+  if (m) return { bucket: 'additiveNonConditional', value: parseFloat(m[1]) };
 
-  matches = findAll(DEALS_TO_TARGET_RE, text);
-  if (matches.length > 0) {
-    return matches.map((m) => ({ bucket: 'additiveConditional', value: parseFloat(m[1]), condition: cleanTargetText(m[2]) }));
-  }
-
-  matches = findAll(DEALS_FLAT_RE, text);
-  if (matches.length > 0) {
-    return matches.map((m) => ({ bucket: 'additiveNonConditional', value: parseFloat(m[1]) }));
-  }
-
-  if (/damage/i.test(text)) return [{ bucket: 'situational', note: text }];
-  return [];
+  if (/damage/i.test(text)) return { bucket: 'situational', note: text };
+  return null;
 }
 
 // `asWeaponBonus`: routes a weapon-slot "+X% damage" match into the weaponBonus buckets instead of the general additive ones.
 function pushParagraphMatch(out, text, label, source, id, asWeaponBonus) {
-  const matches = matchDamageParagraphs(text);
-  matches.forEach((match, matchIdx) => pushOneMatch(out, match, label, source, matches.length > 1 ? `${id}-${matchIdx}` : id, asWeaponBonus));
-}
-
-function pushOneMatch(out, match, label, source, id, asWeaponBonus) {
+  const match = matchDamageParagraph(text);
+  if (!match) return;
   if (match.bucket === 'situational') {
     out.situational.push({ id, label, source, note: match.note, formula: null });
   } else if (match.bucket === 'multiplicative') {
@@ -498,12 +457,12 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
   if (!bonus) return;
 
   if (config.kind === 'bestiary') {
-    // Daedalus Blade's Bestiary bonus is its own independent Nx factor against Mythological mobs, not an additive stack.
-    out.multiplicative.push({
+    // Daedalus Blade's Bestiary bonus: the weapon's own damage bonus, Mythological-only.
+    out.weaponBonusConditional.push({
       id: `${item.id}-special`,
       label: `${itemLabel} (Bestiary)`,
       source: slotLabel,
-      value: 1 + bonus / 100,
+      value: bonus,
       condition: 'Mythological',
     });
   } else if (config.kind === 'crownOfAvarice') {
@@ -610,7 +569,8 @@ function collectAttributeEntries(attributes, loadout, out) {
       label: 'Elite',
       source: 'Attribute',
       value: ELITE_RATE * eliteLevel,
-      condition: 'Boss',
+      condition: ELITE_BOSS_MOBS.join(', '),
+      // Displayed condition text; matching still uses the real boss names above.
       conditionLabel: 'bosses and minibosses',
     });
   }
@@ -634,11 +594,6 @@ function collectAttributeEntries(attributes, loadout, out) {
 export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent = 100) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
-    // Parallel totals using each gear item's Dungeonize-toggled stat lines where it has one —
-    // read instead of baseStats when the "Toggle Dungeon Stats" switch is on (see finalDamage.js).
-    dungeonizedBaseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
-    // Same, but also folding in each item's Master Star delta — read when "Toggle Master Mode" is on too.
-    masterDungeonizedBaseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
     additiveNonConditional: [],
     additiveConditional: [],
@@ -648,11 +603,9 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     weaponBonusConditional: [],
     multiplicative: [],
     situational: [],
-    // Overload's Mega Crit bonus — shown as its own "Overload Damage" line, not folded into Final Damage.
-    overloadBonusPercent: 0,
   };
 
-  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.wolfSlayerLevel, out);
+  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   // Real Hypixel base stats before any gear.
@@ -743,47 +696,13 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       const conditionLabel = tierBonus.conditionLabel || tierBonus.condition;
       const condition = Array.isArray(tierBonus.condition) ? tierBonus.condition.join(', ') : tierBonus.condition;
       const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
-      if (tierBonus.additive) {
-        out.weaponBonusConditional.push({
-          id: `${idBase}-tier-bonus`,
-          label: `${itemLabel} (${conditionLabel})`,
-          source: slotLabel,
-          value: tierBonus.bonusPercent,
-          condition,
-          conditionLabel,
-        });
-      } else {
-        out.multiplicative.push({
-          id: `${idBase}-tier-bonus`,
-          label: `${itemLabel} (${conditionLabel})`,
-          source: slotLabel,
-          value: 1 + tierBonus.bonusPercent / 100,
-          condition,
-        });
-      }
-    }
-
-    if (equipped.item.id === 'POOCH_SWORD') {
-      out.multiplicative.push({
-        id: 'pooch-sword-wolves',
-        label: `${itemLabel} (Wolves)`,
+      out.weaponBonusConditional.push({
+        id: `${idBase}-tier-bonus`,
+        label: `${itemLabel} (${conditionLabel})`,
         source: slotLabel,
-        value: POOCH_SWORD_WOLF_MULTIPLIER,
-        condition: POOCH_SWORD_WOLF_MOBS.join(', '),
-      });
-    }
-
-    const dualMobOverride = DUAL_MOB_MULTIPLIER_OVERRIDES[equipped.item.id];
-    if (dualMobOverride) {
-      const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
-      dualMobOverride.forEach((entry, idx) => {
-        out.multiplicative.push({
-          id: `${idBase}-override-${idx}`,
-          label: `${itemLabel} (${entry.condition})`,
-          source: slotLabel,
-          value: entry.value,
-          condition: entry.condition,
-        });
+        value: tierBonus.bonusPercent,
+        condition,
+        conditionLabel,
       });
     }
 
@@ -803,11 +722,6 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         source: slotLabel,
         value: 1,
       });
-    }
-
-    if (slot === 'weapon' && isBowEquipped(loadout)) {
-      const overload = (equipped.modifiers.hexEnchantments || []).find((e) => e.id.toLowerCase() === 'overload');
-      if (overload) out.overloadBonusPercent = overload.level * OVERLOAD_MEGA_CRIT_PERCENT_PER_LEVEL;
     }
   }
 

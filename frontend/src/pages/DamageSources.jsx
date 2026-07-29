@@ -4,7 +4,14 @@ import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
 import { computeFinalDamage } from '../lib/finalDamage';
-import { VANQUISHED_SET_ID } from '../lib/armorSetBonuses';
+import {
+  VANQUISHED_SET_ID,
+  countSetPieces,
+  INFERNAL_CRIMSON_SET,
+  INFERNAL_CRIMSON_MIN_PIECES,
+  INFERNAL_CRIMSON_MAX_STACKS,
+} from '../lib/armorSetBonuses';
+import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
@@ -60,6 +67,8 @@ export default function DamageSources() {
     setMiscStat,
     mobHpPercent,
     setMobHpPercent,
+    infernalCrimsonStacks,
+    setInfernalCrimsonStacks,
   } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
@@ -67,13 +76,15 @@ export default function DamageSources() {
   const [expandedStat, setExpandedStat] = useState(null);
   const tokenRef = useRef(0);
 
+  const hasInfernalCrimsonStacks = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET) >= INFERNAL_CRIMSON_MIN_PIECES;
+
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent).then((r) => {
+    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent, infernalCrimsonStacks).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent]);
+  }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent, infernalCrimsonStacks]);
 
   // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than silently folded in.
   const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
@@ -295,7 +306,7 @@ export default function DamageSources() {
               </Section>
             </div>
 
-            <div className={`${panel} p-3 flex flex-col gap-2 w-[160px] shrink-0`}>
+            <div className={`${panel} p-3 flex flex-col gap-2 w-[200px] shrink-0`}>
               <div className="text-sm font-bold text-black">Misc</div>
               <div className="text-[11px] text-neutral-700 -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-strength">
@@ -322,6 +333,25 @@ export default function DamageSources() {
                   className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
                 />
               </label>
+              {hasInfernalCrimsonStacks && (
+                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="infernal-crimson-stacks">
+                  <span className="flex justify-between">
+                    <span>⑊ Stacks</span>
+                    <span className="font-mono">{infernalCrimsonStacks}</span>
+                  </span>
+                  <input
+                    id="infernal-crimson-stacks"
+                    type="range"
+                    min="1"
+                    max={INFERNAL_CRIMSON_MAX_STACKS}
+                    step="1"
+                    value={infernalCrimsonStacks}
+                    onChange={(e) => setInfernalCrimsonStacks(e.target.value)}
+                    className="w-full"
+                  />
+                  <span className="text-[10px] text-neutral-600 italic">Infernal Crimson (2+ pieces), +10%/stack</span>
+                </label>
+              )}
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="mob-hp-percent">
                 <span className="flex justify-between">
                   <span>Mob HP%</span>
@@ -339,17 +369,12 @@ export default function DamageSources() {
                 />
                 <span className="text-[10px] text-neutral-600 italic">Execute/Prosecute/First Strike/Triple-Strike</span>
               </label>
-              <label className="flex items-center gap-1.5 text-[12px] text-black" htmlFor="toggle-dungeon-stats">
-                <input
-                  id="toggle-dungeon-stats"
-                  type="checkbox"
-                  checked={useDungeonizedStats}
-                  onChange={toggleUseDungeonizedStats}
-                />
-                Toggle Dungeon Stats
+              <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="toggle-dungeon-stats">
+                <input id="toggle-dungeon-stats" type="checkbox" checked={useDungeonizedStats} onChange={toggleUseDungeonizedStats} className="mt-0.5 shrink-0" />
+                <span>Toggle Dungeon Stats</span>
               </label>
               <label
-                className={`flex items-center gap-1.5 text-[12px] ${useDungeonizedStats ? 'text-black' : 'text-neutral-500'}`}
+                className={`flex items-start gap-1.5 text-[12px] leading-tight ${useDungeonizedStats ? 'text-black' : 'text-neutral-500'}`}
                 htmlFor="toggle-master-mode"
               >
                 <input
@@ -358,8 +383,9 @@ export default function DamageSources() {
                   checked={useMasterMode}
                   disabled={!useDungeonizedStats}
                   onChange={toggleUseMasterMode}
+                  className="mt-0.5 shrink-0"
                 />
-                Toggle Master Mode
+                <span>Toggle Master Mode</span>
               </label>
             </div>
           </div>

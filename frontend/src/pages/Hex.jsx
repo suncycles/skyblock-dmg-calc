@@ -57,7 +57,16 @@ export default function Hex() {
     const token = ++hoverTokenRef.current;
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout[slot], petStats);
-    const lines = await buildFullItemTooltipLines(item, loadout[slot].modifiers, itemData, playerStats.catacombsLevel, playerStats.tamingLevel, playerStats.wolfSlayerLevel, chimeraBonus);
+    const lines = await buildFullItemTooltipLines(
+      item,
+      loadout[slot].modifiers,
+      itemData,
+      playerStats.catacombsLevel,
+      playerStats.tamingLevel,
+      playerStats.wolfSlayerLevel,
+      chimeraBonus,
+      playerStats.generalsMedallionDigits,
+    );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
   function handleItemLeave() {

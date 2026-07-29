@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { MAX_COMBAT_LEVEL, MAX_FORAGING_LEVEL, MAX_CATACOMBS_LEVEL, MAX_TAMING_LEVEL, MAX_WOLF_SLAYER_LEVEL } from '../lib/playerStats';
+import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
 import { SLOT_TEXTURES } from '../lib/icons';
 import NumberInput from '../components/NumberInput';
 
@@ -14,8 +15,16 @@ const inputClass = 'w-20 px-2 py-1 text-sm bg-black text-white border-2 border-n
 // Daedalus Blade's per-level base stat.
 export default function PlayerLevels() {
   const navigate = useNavigate();
-  const { playerStats, setCombatLevel, setSkyblockLevel, setForagingLevel, setCatacombsLevel, setTamingLevel, setWolfSlayerLevel } =
-    useBuild();
+  const {
+    playerStats,
+    setCombatLevel,
+    setSkyblockLevel,
+    setForagingLevel,
+    setCatacombsLevel,
+    setTamingLevel,
+    setWolfSlayerLevel,
+    setGeneralsMedallionDigits,
+  } = useBuild();
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -87,6 +96,19 @@ export default function PlayerLevels() {
             max={MAX_WOLF_SLAYER_LEVEL}
             value={playerStats.wolfSlayerLevel}
             onChange={setWolfSlayerLevel}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="generals-medallion-digits">
+            General's Medallion Digits (Dungeonize only)
+          </label>
+          <NumberInput
+            id="generals-medallion-digits"
+            max={MAX_GENERALS_MEDALLION_DIGITS}
+            value={playerStats.generalsMedallionDigits}
+            onChange={setGeneralsMedallionDigits}
             className={inputClass}
           />
         </div>
