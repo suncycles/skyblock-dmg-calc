@@ -50,6 +50,8 @@ export default function DamageSources() {
     targetMobs,
     toggleTargetMob,
     godPotionActive,
+    useDungeonizedStats,
+    toggleUseDungeonizedStats,
     attributes,
     miscStats,
     setMiscStat,
@@ -98,9 +100,11 @@ export default function DamageSources() {
         return {
           name,
           types,
-          finalDamage: computeFinalDamage(result, mob),
-          finalDamageWithoutVanquished: hasVanquishedBonus ? computeFinalDamage(withoutVanquishedResult, mob) : null,
-          finalDamageWithFabledMax: hasFabledBonus ? computeFinalDamage(withFabledMaxResult, mob) : null,
+          finalDamage: computeFinalDamage(result, mob, useDungeonizedStats),
+          finalDamageWithoutVanquished: hasVanquishedBonus
+            ? computeFinalDamage(withoutVanquishedResult, mob, useDungeonizedStats)
+            : null,
+          finalDamageWithFabledMax: hasFabledBonus ? computeFinalDamage(withFabledMaxResult, mob, useDungeonizedStats) : null,
         };
       })
     : [];
@@ -242,10 +246,15 @@ export default function DamageSources() {
 
           <div className="flex gap-3 items-start">
             <div className="flex-1">
-              <Section title="(Base) Stats" subtitle="Click a stat to see where it comes from." empty="">
+              <Section
+                title={`(Base) Stats${useDungeonizedStats ? ' (Dungeonized)' : ''}`}
+                subtitle="Click a stat to see where it comes from."
+                empty=""
+              >
                 {BASE_STAT_KEYS.map((key) => {
                   const sources = result.baseStatSources[key];
                   const isExpanded = expandedStat === key;
+                  const displayed = useDungeonizedStats ? result.dungeonizedBaseStats[key] : result.baseStats[key];
                   return (
                     <div key={key}>
                       <div
@@ -255,7 +264,7 @@ export default function DamageSources() {
                         <span>
                           <Keyworded text={STAT_LABELS[key].label} />:
                         </span>
-                        <span className="font-mono">{formatStatValue(key, Math.round(result.baseStats[key] * 10) / 10)}</span>
+                        <span className="font-mono">{formatStatValue(key, Math.round(displayed * 10) / 10)}</span>
                       </div>
                       {isExpanded && (
                         <div className="flex flex-col gap-0.5 mt-1 mb-1.5 pl-3 border-l-2 border-neutral-400">
@@ -322,6 +331,15 @@ export default function DamageSources() {
                   className="w-full"
                 />
                 <span className="text-[10px] text-neutral-600 italic">Execute/Prosecute/First Strike/Triple-Strike</span>
+              </label>
+              <label className="flex items-center gap-1.5 text-[12px] text-black" htmlFor="toggle-dungeon-stats">
+                <input
+                  id="toggle-dungeon-stats"
+                  type="checkbox"
+                  checked={useDungeonizedStats}
+                  onChange={toggleUseDungeonizedStats}
+                />
+                Toggle Dungeon Stats
               </label>
             </div>
           </div>

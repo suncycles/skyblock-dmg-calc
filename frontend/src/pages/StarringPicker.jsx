@@ -12,9 +12,12 @@ const panel =
 export default function StarringPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout, setStarCount } = useBuild();
+  const { loadout, setStarCount, setDungeonized, setDungeonizeOldCurve } = useBuild();
   const item = loadout[slot] && loadout[slot].item;
-  const stars = (loadout[slot] && loadout[slot].modifiers && loadout[slot].modifiers.stars) || 0;
+  const modifiers = loadout[slot] && loadout[slot].modifiers;
+  const stars = (modifiers && modifiers.stars) || 0;
+  const dungeonized = !!(modifiers && modifiers.dungeonized);
+  const dungeonizeOldCurve = !!(modifiers && modifiers.dungeonizeOldCurve);
 
   if (!item) {
     return (
@@ -66,6 +69,31 @@ export default function StarringPicker() {
         <div className="mc-tooltip" style={{ position: 'static', fontSize: '13px' }}>
           <McTooltipLines parsedLines={[parseMinecraftLine(previewLine)]} />
         </div>
+
+        <label className="flex items-center gap-2 text-sm font-bold text-black" htmlFor="dungeonize-toggle">
+          <input
+            id="dungeonize-toggle"
+            type="checkbox"
+            checked={dungeonized}
+            onChange={(e) => setDungeonized(slot, e.target.checked)}
+          />
+          Dungeonize item
+        </label>
+        <div className="text-xs text-neutral-700 -mt-2">
+          Shows each stat's Catacombs-scaled total (dark grey) and lets Damage Sources' "Toggle Dungeon Stats" use it instead.
+        </div>
+        {dungeonized && (
+          <label className="flex items-center gap-2 text-sm text-black" htmlFor="dungeonize-old-curve">
+            <input
+              id="dungeonize-old-curve"
+              type="checkbox"
+              checked={dungeonizeOldCurve}
+              onChange={(e) => setDungeonizeOldCurve(slot, e.target.checked)}
+            />
+            Use old Catacombs Stat curve (Pre-0.26.1)
+          </label>
+        )}
+
         <button
           className="self-start px-4 py-2 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
           onClick={() => navigate(-1)}

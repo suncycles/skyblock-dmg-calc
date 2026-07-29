@@ -55,15 +55,19 @@ export function conditionMatchesMob(condition, mob) {
 
 // `sources` is damageSources.js's collectDamageSources() result; `mob` is {name, types}.
 // Situational entries (formula-based, no live target HP state) are never included.
-export function computeFinalDamage(sources, mob) {
+// `useDungeonizedStats` swaps in each dungeonized gear item's own Catacombs-scaled stat total
+// (sources.dungeonizedBaseStats) in place of its normal one — see lib/dungeonize.js.
+export function computeFinalDamage(sources, mob, useDungeonizedStats = false) {
   const {
-    baseStats,
+    baseStats: normalBaseStats,
+    dungeonizedBaseStats,
     additiveNonConditional,
     additiveConditional,
     weaponBonusNonConditional,
     weaponBonusConditional,
     multiplicative,
   } = sources;
+  const baseStats = useDungeonizedStats ? dungeonizedBaseStats : normalBaseStats;
   const appliedIds = new Set();
 
   let additivePercent = 0;

@@ -21,7 +21,7 @@ function findGearItem(itemData, id) {
   );
 }
 
-function buildEncodableState({ loadout, targetMobs, attributes, playerStats, godPotionActive, miscStats, mobHpPercent }) {
+function buildEncodableState({ loadout, targetMobs, attributes, playerStats, godPotionActive, useDungeonizedStats, miscStats, mobHpPercent }) {
   const encodedLoadout = {};
 
   for (const slot of GEAR_SLOTS) {
@@ -45,6 +45,7 @@ function buildEncodableState({ loadout, targetMobs, attributes, playerStats, god
     attributes: attributes || {},
     playerStats: playerStats || {},
     godPotionActive: !!godPotionActive,
+    useDungeonizedStats: !!useDungeonizedStats,
     miscStats: miscStats || {},
     mobHpPercent: mobHpPercent ?? 100,
   };
@@ -99,6 +100,7 @@ function expandState(compact, itemData) {
     attributes: compact.attributes || {},
     playerStats: compact.playerStats || {},
     godPotionActive: !!compact.godPotionActive,
+    useDungeonizedStats: !!compact.useDungeonizedStats,
     miscStats: compact.miscStats || {},
     mobHpPercent: compact.mobHpPercent ?? 100,
   };

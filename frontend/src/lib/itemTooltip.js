@@ -10,6 +10,7 @@ import { computeStarBonuses, buildStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
+import { applyDungeonizeToLore } from './dungeonize';
 
 // Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants alphabetically, gold if maxed else grey.
 function buildAppliedEnchantLines(modifiers) {
@@ -93,6 +94,10 @@ export async function buildFullItemTooltipLines(item, modifiers, itemData, catac
   // Enchant stat bonuses also merge into the base stat, no separate annotation.
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
+
+  // Dungeonize: a dark-grey annotation showing the item's fully Catacombs-scaled total for
+  // every stat it already has — computed off everything merged above, not a separate bonus.
+  if (modifiers.dungeonized) lore = applyDungeonizeToLore(lore, catacombsLevel, modifiers.dungeonizeOldCurve);
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
   if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);

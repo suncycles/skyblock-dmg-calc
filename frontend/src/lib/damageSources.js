@@ -1,8 +1,7 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
-import { REFORGE_COLOR, FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
-import { BOOKS_COLOR } from './books';
-import { GEMSTONE_COLOR } from './gemstones';
+import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
+import { sumStatFromTooltipLines, sumDungeonizedStatFromTooltipLines } from './dungeonize';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -265,35 +264,19 @@ function cleanTargetText(raw) {
 // ---------------------------------------------------------------------
 // Base stats: reuses buildFullItemTooltipLines (the single source of truth for an item's
 // tooltip) rather than re-deriving numbers from gemstones/reforges/books/statLines/starring
-// separately. Every "(+X)" in a tooltip line is a genuinely additional amount not already in
-// the leading number, except Reforges/Books/Gemstones which also echo their own already-
-// merged delta for display — excluded here to avoid double-counting.
-function sumStatFromTooltipLines(finalLines, label) {
-  const labelRe = new RegExp(`^${label}:`);
-  const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
-  if (!finalLine) return 0;
-  const plain = finalLine.replace(/§./g, '');
-  const afterLabelPlain = plain.slice(plain.indexOf(':') + 1);
-  const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabelPlain);
-  const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
+// separately — sumStatFromTooltipLines (lib/dungeonize.js) reads the settled per-line total.
 
-  const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
-  const annotationRe = /§([0-9a-fk-orp])\(([+-]?[\d.]+)%?\)/g;
-  const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
-    .filter((m) => m[1] !== REFORGE_COLOR && m[1] !== BOOKS_COLOR && m[1] !== GEMSTONE_COLOR)
-    .map((m) => parseFloat(m[2]));
-
-  return base + parenNums.reduce((a, b) => a + b, 0);
-}
-
-// Adds to a base stat's running total and records the source for DamageSources.jsx's
-// per-stat breakdown, merging entries that share a label into one running total.
-function addBaseStat(out, statKey, value, label) {
-  if (!value) return;
-  out.baseStats[statKey] += value;
+// Adds to a base stat's running total (and its Dungeonize-toggled parallel) and records the
+// source for DamageSources.jsx's per-stat breakdown, merging entries that share a label into
+// one running total. `dungeonizedValue` defaults to `value` — only the per-item gear loop ever
+// passes a different one (its own Dungeonized total).
+function addBaseStat(out, statKey, value, label, dungeonizedValue = value) {
+  if (!value && !dungeonizedValue) return;
+  out.baseStats[statKey] += value || 0;
+  out.dungeonizedBaseStats[statKey] += dungeonizedValue || 0;
   const list = out.baseStatSources[statKey];
   const existing = list.find((e) => e.label === label);
-  if (existing) existing.value += value;
+  if (existing) existing.value += value || 0;
   else list.push({ label, value });
 }
 
@@ -315,7 +298,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
     const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, chimeraBonus);
     for (const statKey of TRACKED_STATS) {
-      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
+      const label = STAT_LABELS[statKey].label;
+      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, label), slotLabel, sumDungeonizedStatFromTooltipLines(lines, label));
     }
     // Emerald Blade's bonus lives on its own "Current Damage Bonus:" line, not a "Damage:" stat line.
     if (equipped.item.id === 'EMERALD_BLADE') {
@@ -641,6 +625,9 @@ function collectAttributeEntries(attributes, loadout, out) {
 export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent = 100) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
+    // Parallel totals using each gear item's Dungeonize-toggled stat lines where it has one —
+    // read instead of baseStats when the "Toggle Dungeon Stats" switch is on (see finalDamage.js).
+    dungeonizedBaseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
     additiveNonConditional: [],
     additiveConditional: [],
