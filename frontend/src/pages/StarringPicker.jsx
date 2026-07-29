@@ -1,9 +1,10 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { formatItemName, parseMinecraftLine } from '../lib/mcText';
-import { MAX_STARS, MAX_MASTER_STARS, buildStarSuffix } from '../lib/starring';
+import { MAX_STARS, MAX_MASTER_STARS, buildStarSuffix, buildMasterStarSuffix } from '../lib/starring';
 import { SLOT_TEXTURES } from '../lib/icons';
 import McTooltipLines from '../components/McTooltipLines';
+import NumberInput from '../components/NumberInput';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -38,16 +39,7 @@ export default function StarringPicker() {
     );
   }
 
-  function handleChange(e) {
-    const num = Math.max(0, Math.min(MAX_STARS, Math.floor(Number(e.target.value) || 0)));
-    setStarCount(slot, num);
-  }
-
-  function handleMasterStarsChange(e) {
-    setMasterStars(slot, Number(e.target.value));
-  }
-
-  const suffix = buildStarSuffix(stars);
+  const suffix = buildStarSuffix(stars) + buildMasterStarSuffix(masterStars);
   const previewLine = `§7${formatItemName(item.name)}${suffix ? ` ${suffix}` : ''}`;
 
   return (
@@ -60,14 +52,11 @@ export default function StarringPicker() {
         <label className="text-sm font-bold text-black" htmlFor="star-count">
           Stars (0-{MAX_STARS})
         </label>
-        <input
+        <NumberInput
           id="star-count"
-          type="number"
-          min="0"
           max={MAX_STARS}
-          step="1"
           value={stars}
-          onChange={handleChange}
+          onChange={(num) => setStarCount(slot, num)}
           className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
         />
         <div className="text-sm text-neutral-800">Each star grants +2% of this item's own base stats.</div>
@@ -102,14 +91,11 @@ export default function StarringPicker() {
             <label className="text-sm font-bold text-black" htmlFor="master-star-count">
               Master Stars (0-{MAX_MASTER_STARS})
             </label>
-            <input
+            <NumberInput
               id="master-star-count"
-              type="number"
-              min="0"
               max={MAX_MASTER_STARS}
-              step="1"
               value={masterStars}
-              onChange={handleMasterStarsChange}
+              onChange={(num) => setMasterStars(slot, num)}
               className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
             />
             <div className="text-xs text-neutral-700 -mt-2">

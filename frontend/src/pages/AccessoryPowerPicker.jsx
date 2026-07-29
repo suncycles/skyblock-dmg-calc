@@ -191,7 +191,7 @@ export default function AccessoryPowerPicker() {
           id="magical-power"
           type="text"
           inputMode="decimal"
-          value={magicalPower}
+          value={magicalPower || ''}
           onChange={(e) => setAccessoryMagicalPower(Math.max(0, parseShorthandNumber(e.target.value)))}
           placeholder="e.g. 2000"
           className="w-32 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700"

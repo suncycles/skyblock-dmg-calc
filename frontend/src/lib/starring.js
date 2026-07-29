@@ -10,6 +10,9 @@ const PER_STAR_PERCENT = 2;
 export const MAX_MASTER_STARS = 5;
 export const MASTER_STAR_PERCENT_PER_STAR = 5;
 
+// Circled-digit glyph for a given Master Star count (1-5), for UI display — not part of any real item lore.
+export const MASTER_STAR_DIGIT_GLYPHS = ['', '➊', '➋', '➌', '➍', '➎'];
+
 // Green — distinct from Books' yellow (e), Art of War/Peace's gold (6), Reforges' blue (9), Special weapons' aqua (b).
 export const STAR_COLOR = 'a';
 
@@ -57,4 +60,10 @@ export function buildStarSuffix(starCount) {
     suffix += `§${TIER_COLORS[tierIndex - 1]}${'✪'.repeat(backfill)}`;
   }
   return suffix;
+}
+
+// Purely cosmetic circled-digit glyph appended after the ✪ star suffix — always red, not part of any real item lore.
+export function buildMasterStarSuffix(masterStars) {
+  if (!masterStars) return '';
+  return `§s${MASTER_STAR_DIGIT_GLYPHS[masterStars]}`;
 }

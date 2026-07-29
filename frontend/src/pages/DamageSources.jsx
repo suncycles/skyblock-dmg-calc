@@ -11,6 +11,7 @@ import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
 import { splitKeywords, KEYWORD_SYMBOLS, MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
+import NumberInput from '../components/NumberInput';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -301,12 +302,11 @@ export default function DamageSources() {
                 <span>
                   <Keyworded text="Strength" />
                 </span>
-                <input
+                <NumberInput
                   id="misc-strength"
-                  type="number"
-                  step="1"
+                  min={null}
                   value={miscStats.strength}
-                  onChange={(e) => setMiscStat('strength', e.target.value)}
+                  onChange={(num) => setMiscStat('strength', num)}
                   className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
                 />
               </label>
@@ -314,12 +314,11 @@ export default function DamageSources() {
                 <span>
                   <Keyworded text="Crit Damage" />
                 </span>
-                <input
+                <NumberInput
                   id="misc-crit-damage"
-                  type="number"
-                  step="1"
+                  min={null}
                   value={miscStats.crit_damage}
-                  onChange={(e) => setMiscStat('crit_damage', e.target.value)}
+                  onChange={(num) => setMiscStat('crit_damage', num)}
                   className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
                 />
               </label>

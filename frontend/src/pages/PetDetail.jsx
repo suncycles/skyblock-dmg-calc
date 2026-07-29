@@ -10,6 +10,7 @@ import { parseShorthandNumber } from '../lib/numberInput';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
 import McTooltipLines from '../components/McTooltipLines';
+import NumberInput from '../components/NumberInput';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -35,12 +36,6 @@ export default function PetDetail() {
   const bankCoins = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.bankCoins) || 0;
   const goldCollection = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.goldCollection) || 0;
   const maxLevel = pet ? getMaxPetLevel(pet.petId) : MAX_PET_LEVEL;
-
-  // Decoupled from `level` so the field can sit empty mid-edit; committed to BuildContext once it parses, normalized to "0" on blur.
-  const [levelInput, setLevelInput] = useState(String(level));
-  useEffect(() => {
-    setLevelInput(String(level));
-  }, [level]);
 
   const loreId = pet ? petLoreItemId(pet.petId, pet.tier) : null;
   const [rawLore, setRawLore] = useState(null); // null = loading, false = fetch failed, {displayname, lore} = real data
@@ -79,25 +74,6 @@ export default function PetDetail() {
     );
   }
 
-  function handleLevelChange(e) {
-    const raw = e.target.value;
-    setLevelInput(raw);
-    if (raw === '') return; // let it sit empty mid-edit; committed on blur
-    const num = Number(raw);
-    if (Number.isNaN(num)) return;
-    const clamped = Math.max(0, Math.min(maxLevel, Math.floor(num)));
-    setPetLevel(clamped);
-    // Explicit re-sync for the out-of-range case, since the level-changed effect won't fire if the clamped value matches the prior level.
-    if (clamped !== num) setLevelInput(String(clamped));
-  }
-
-  function handleLevelBlur() {
-    if (levelInput === '' || Number.isNaN(Number(levelInput))) {
-      setLevelInput('0');
-      setPetLevel(0);
-    }
-  }
-
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
@@ -118,17 +94,7 @@ export default function PetDetail() {
           <label className="text-xs font-bold text-black" htmlFor="pet-level">
             Level (0-{maxLevel})
           </label>
-          <input
-            id="pet-level"
-            type="number"
-            min="0"
-            max={maxLevel}
-            step="1"
-            value={levelInput}
-            onChange={handleLevelChange}
-            onBlur={handleLevelBlur}
-            className="px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700"
-          />
+          <NumberInput id="pet-level" max={maxLevel} value={level} onChange={setPetLevel} className="px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700" />
 
           <div className="flex items-center justify-between gap-2 border-t border-neutral-500 pt-2">
             <div className="text-xs text-black">Pet Item: {petItem ? formatItemName(petItem.name) : 'None'}</div>
@@ -161,7 +127,7 @@ export default function PetDetail() {
                   id="pet-bank-coins"
                   type="text"
                   inputMode="decimal"
-                  value={bankCoins}
+                  value={bankCoins || ''}
                   onChange={(e) => setPetBankCoins(Math.max(0, parseShorthandNumber(e.target.value)))}
                   placeholder="e.g. 10m"
                   className="w-full px-2 py-1 mt-1 text-sm bg-black text-white border-2 border-neutral-700"
@@ -175,7 +141,7 @@ export default function PetDetail() {
                   id="pet-gold-collection"
                   type="text"
                   inputMode="decimal"
-                  value={goldCollection}
+                  value={goldCollection || ''}
                   onChange={(e) => setPetGoldCollection(Math.max(0, parseShorthandNumber(e.target.value)))}
                   placeholder="e.g. 100m"
                   className="w-full px-2 py-1 mt-1 text-sm bg-black text-white border-2 border-neutral-700"
