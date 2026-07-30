@@ -20,11 +20,14 @@ export const ART_OF_PEACE_ITEM_ID = 'THE_ART_OF_PEACE';
 export const ART_OF_PEACE_COLOR = '6';
 
 // `gearType` picks which bonus table applies and whether Art of War/Art of Peace are honored — the one place that enforces eligibility.
-export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApplied, insertBeforeLineIdx, gearType) {
+// `potatoBookDoubled`: Legendary-tier Blaze pet doubles the Hot/Fuming Potato Book bonus on
+// both weapons and armor (e.g. a weapon's real +30 shows as +60, an extra +30 bonus damage/strength).
+export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApplied, insertBeforeLineIdx, gearType, potatoBookDoubled) {
   let result = lore;
   if (bookCount && gearType !== 'equipment') {
     const perBook = gearType === 'armor' ? ARMOR_BOOK_STAT_BONUS : WEAPON_BOOK_STAT_BONUS;
-    const bonuses = Object.fromEntries(Object.entries(perBook).map(([stat, value]) => [stat, value * bookCount]));
+    const multiplier = (potatoBookDoubled ? 2 : 1) * bookCount;
+    const bonuses = Object.fromEntries(Object.entries(perBook).map(([stat, value]) => [stat, value * multiplier]));
     // Merged into the item's own base stat number, annotated with the delta on top for visibility.
     const merged = mergeStatIntoBase(result, bonuses, insertBeforeLineIdx);
     result = annotateStatLines(merged, bonuses, BOOKS_COLOR, insertBeforeLineIdx);

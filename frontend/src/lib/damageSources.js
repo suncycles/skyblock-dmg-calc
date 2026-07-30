@@ -450,11 +450,25 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     }
   }
 
+  // Legendary Blaze pet doubles the Hot/Fuming Potato Book bonus on both weapons and armor.
+  const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
+
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
     const slotLabel = SLOT_LABELS[slot];
-    const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
+    const lines = await buildFullItemTooltipLines(
+      equipped.item,
+      equipped.modifiers,
+      itemData,
+      catacombsLevel,
+      tamingLevel,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      potatoBookDoubled,
+    );
     for (const statKey of TRACKED_STATS) {
       const label = STAT_LABELS[statKey].label;
       const normal = sumStatFromTooltipLines(lines, label);

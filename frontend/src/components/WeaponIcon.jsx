@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getWeaponIcon, getSkyblockIcon, FALLBACK_ICON } from '../lib/icons';
 
 // Tries the item's bespoke SkyBlock texture first, then the generic vanilla-material icon, then the inline placeholder.
@@ -11,33 +11,78 @@ function buildCandidates(id, material) {
   return candidates;
 }
 
+// The bundled leather-armor renders are pre-shaded at Minecraft's default leather
+// color (0xA06540 = 160,101,64) rather than a plain white/grey mask — each pixel is
+// effectively `shading * defaultColor`. To dye it, divide out the default color to
+// recover the per-pixel shading factor, then multiply by the target color. This
+// matches vanilla's own leather-armor tint math; a flat CSS blend mode (e.g. overlay)
+// on top of this already-brown source produces a muddy, wrong-hued result instead.
+const DEFAULT_LEATHER_COLOR = [160, 101, 64];
+
+function tintLeatherIcon(src, hexColor) {
+  return new Promise((resolve, reject) => {
+    const target = [
+      parseInt(hexColor.slice(0, 2), 16),
+      parseInt(hexColor.slice(2, 4), 16),
+      parseInt(hexColor.slice(4, 6), 16),
+    ];
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        data[i] = Math.min(255, Math.round((data[i] / DEFAULT_LEATHER_COLOR[0]) * target[0]));
+        data[i + 1] = Math.min(255, Math.round((data[i + 1] / DEFAULT_LEATHER_COLOR[1]) * target[1]));
+        data[i + 2] = Math.min(255, Math.round((data[i + 2] / DEFAULT_LEATHER_COLOR[2]) * target[2]));
+      }
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL());
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 export default function WeaponIcon({ id, material, alt, className, color }) {
   const [candidates, setCandidates] = useState(() => buildCandidates(id, material));
   const [index, setIndex] = useState(0);
+  const [tintedSrc, setTintedSrc] = useState(null);
+  const tintTokenRef = useRef(0);
 
   useEffect(() => {
     setCandidates(buildCandidates(id, material));
     setIndex(0);
   }, [id, material]);
 
+  const src = candidates[index];
+
+  useEffect(() => {
+    if (!color) {
+      setTintedSrc(null);
+      return;
+    }
+    const token = ++tintTokenRef.current;
+    tintLeatherIcon(src, color)
+      .then((dataUrl) => {
+        if (tintTokenRef.current === token) setTintedSrc(dataUrl);
+      })
+      .catch(() => {
+        if (tintTokenRef.current === token) setTintedSrc(null);
+      });
+  }, [src, color]);
+
   const handleError = () => setIndex((i) => Math.min(i + 1, candidates.length - 1));
 
   if (!color) {
-    return <img src={candidates[index]} alt={alt} className={className} onError={handleError} />;
+    return <img src={src} alt={alt} className={className} onError={handleError} />;
   }
 
-  // Leather armor's real dye color (baked into the item's NBT, see armor.json's `color`
-  // field) — tinted here since the bundled Hypixel resource-pack art has no per-item
-  // pre-colored render for these, only the generic undyed base texture.
-  return (
-    <div className={`relative ${className}`}>
-      <img
-        src={candidates[index]}
-        alt={alt}
-        className="absolute inset-0 w-full h-full object-contain pixelated"
-        onError={handleError}
-      />
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: `#${color}`, mixBlendMode: 'overlay' }} />
-    </div>
-  );
+  return <img src={tintedSrc || src} alt={alt} className={className} onError={handleError} />;
 }
