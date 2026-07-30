@@ -499,7 +499,7 @@ export default function DamageSources() {
             <div className="text-sm font-bold text-black">Magical Power</div>
             <span className="font-mono text-[13px] text-black">{loadout.accessory?.modifiers?.magicalPower || 0}</span>
             <div className="flex gap-1.5 ml-auto">
-              {[5, 10, 20].map((amount) => (
+              {[5, 10, 20, 50].map((amount) => (
                 <button
                   key={amount}
                   type="button"
