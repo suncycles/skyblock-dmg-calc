@@ -17,6 +17,7 @@ import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { getMobModelIcon, getMobIconDataUri } from '../lib/mobIcons';
 import { GOD_POTION_TOOLTIP_LINES } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName } from '../lib/mcText';
@@ -489,49 +490,60 @@ export default function Landing() {
         continue;
       }
 
-      // Column F, row 1: Target Mob — plain colored-text tile, no icon assets exist for named mobs.
+      // Columns F/G/H, rows 1-4: Target Mob — one tile spanning the full 3x4 block, filled with
+      // the real mob-model renders of every selected mob (overlapping when there's more than one).
       if (col === 5 && row === 1) {
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 pb-2.5`}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 col-span-3 row-span-4`}
             onClick={() => navigate('/target-mob')}
             onMouseEnter={handleTargetMobHover}
             onMouseLeave={invalidateHover}
           >
-            <span className="text-[9px] font-bold text-white text-center px-1 truncate max-w-full drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-              {targetMobs.length === 0
-                ? 'Select Mob'
-                : targetMobs.length === 1
-                  ? targetMobs[0]
-                  : `${targetMobs.length} Mobs`}
-            </span>
+            {targetMobs.length === 0 ? (
+              <span className="text-xs font-bold text-white text-center px-2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+                Select Mob
+              </span>
+            ) : (
+              <div className="relative w-full h-full flex items-center justify-center">
+                {targetMobs.map((name, i) => {
+                  const n = targetMobs.length;
+                  const spread = Math.min(n - 1, 4) * 12;
+                  const offset = n === 1 ? 0 : -spread / 2 + (spread / (n - 1)) * i;
+                  return (
+                    <img
+                      key={name}
+                      src={getMobModelIcon(name) || getMobIconDataUri(name)}
+                      alt={name}
+                      className="absolute w-[55%] h-[55%] object-contain pixelated"
+                      style={{ transform: `translateX(${offset}%)`, zIndex: i }}
+                    />
+                  );
+                })}
+              </div>
+            )}
             {targetMobs.length > 0 && (
               <span
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer z-10"
                 title="Remove Target Mob"
                 onClick={handleTargetMobRemove}
               >
                 🗑️
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] whitespace-nowrap">
-              Target
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[10px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] whitespace-nowrap truncate px-1">
+              {targetMobs.length === 0
+                ? 'Target'
+                : targetMobs.length === 1
+                  ? targetMobs[0]
+                  : `${targetMobs.length} Mobs`}
             </span>
           </div>,
         );
         continue;
       }
-
-      // Columns F/G/H: purely decorative mob-head filler, no click/hover behavior.
-      if (col >= 5 && col <= 7 && row >= 1 && row <= 4) {
-        cells.push(
-          <div key={key} className={slotBase}>
-            <img src="/images/skyblock/ZOMBIE.png" alt="" className={iconImg} />
-          </div>,
-        );
-        continue;
-      }
+      if (col >= 5 && col <= 7 && row >= 1 && row <= 4) continue;
 
       // Column D, row 5 (right below Pet): Attributes — plain text tile, account-wide rather than tied to an item.
       if (col === 3 && row === 5) {
