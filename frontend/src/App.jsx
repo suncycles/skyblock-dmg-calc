@@ -29,6 +29,7 @@ import TargetMobPicker from './pages/TargetMobPicker';
 import Attributes from './pages/Attributes';
 import LoadoutLoader from './pages/LoadoutLoader';
 import Credits from './pages/Credits';
+import ThemeSwitcher from './components/ThemeSwitcher';
 
 // __BUILD_TIME__ is injected by vite.config.js's `define` at build time — a fixed instant, not "now".
 const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/loadout/:code" element={<LoadoutLoader />} />
             <Route path="/credits" element={<Credits />} />
           </Routes>
+          <ThemeSwitcher />
           <div className="fixed bottom-1 right-2 flex items-center gap-2 text-[10px] text-neutral-500 select-none">
             <a href="/credits" className="pointer-events-auto underline hover:text-neutral-300">
               Credits
