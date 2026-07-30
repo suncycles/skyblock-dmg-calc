@@ -277,8 +277,14 @@ export default function Landing() {
   }
 
   function handleAccessoryHover(e) {
-    if (!loadout.accessory) {
-      showTooltip(['§7Accessories', '§8Empty — click to pick a power'], e.currentTarget);
+    if (!loadout.accessory?.item) {
+      const mp = loadout.accessory?.modifiers?.magicalPower;
+      showTooltip(
+        mp
+          ? ['§7Accessories', `§7Magical Power: §b${mp}`, '§8No Power Stone selected yet — click to pick one']
+          : ['§7Accessories', '§8Empty — click to pick a power'],
+        e.currentTarget,
+      );
       return;
     }
     const { item, modifiers } = loadout.accessory;
@@ -397,12 +403,12 @@ export default function Landing() {
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.accessory ? 'bg-green-400' : ''}`}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.accessory?.item ? 'bg-green-400' : ''}`}
             onClick={() => navigate('/accessory')}
             onMouseEnter={handleAccessoryHover}
             onMouseLeave={invalidateHover}
           >
-            {loadout.accessory ? (
+            {loadout.accessory?.item ? (
               <WeaponIcon
                 id={loadout.accessory.item.iconId}
                 material={loadout.accessory.item.material}
@@ -412,7 +418,7 @@ export default function Landing() {
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
             )}
-            {loadout.accessory && (
+            {loadout.accessory?.item && (
               <span
                 className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
                 title="Remove Accessories"

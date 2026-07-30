@@ -82,7 +82,7 @@ function buildEncodableState({
     };
   }
 
-  if (loadout.accessory) {
+  if (loadout.accessory?.item) {
     encodedLoadout.accessory = {
       id: loadout.accessory.item.id,
       modifiers: diffFromDefaults(loadout.accessory.modifiers, emptyAccessoryModifiers()),

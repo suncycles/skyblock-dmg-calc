@@ -174,12 +174,17 @@ function loadInitial() {
     const next = {};
     for (const slot of Object.keys(parsed || {})) {
       const entry = parsed[slot];
+      if (slot === 'accessory') {
+        // Unlike every other slot, Accessory can be saved with no item (just a pre-entered
+        // Magical Power waiting on a Power Stone pick) — item is intentionally optional here.
+        if (typeof entry?.modifiers?.magicalPower !== 'number') continue;
+        next[slot] = entry;
+        continue;
+      }
       // Discard entries saved under an older schema shape.
       if (!entry?.item) continue;
       if (slot === 'pet') {
         if (typeof entry?.modifiers?.level !== 'number') continue;
-      } else if (slot === 'accessory') {
-        if (typeof entry?.modifiers?.magicalPower !== 'number') continue;
       } else {
         if (!Array.isArray(entry?.modifiers?.hexEnchantments)) continue;
         if (typeof entry?.modifiers?.books !== 'number') continue;
@@ -578,12 +583,17 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  const setAccessoryMagicalPower = useCallback(
-    (value) => {
-      updateSlotModifiers('accessory', (modifiers) => ({ ...modifiers, magicalPower: value }));
-    },
-    [updateSlotModifiers],
-  );
+  // Unlike other slots, Magical Power can be entered before a Power Stone is picked (it just
+  // won't contribute any stats yet — same as in-game) — so this lazily creates the accessory
+  // slot (item: null) rather than no-op'ing like updateSlotModifiers does for an empty slot.
+  const setAccessoryMagicalPower = useCallback((value) => {
+    setLoadout((prev) => {
+      const prevSlot = prev.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
+      const next = { ...prev, accessory: { ...prevSlot, modifiers: { ...prevSlot.modifiers, magicalPower: Math.max(0, value) } } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // Clamped so the sum of every stat's assigned points never exceeds the current Magical Power's total.
   const setAccessoryTuningPoint = useCallback(
