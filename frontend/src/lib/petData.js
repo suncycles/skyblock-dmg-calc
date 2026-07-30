@@ -62,6 +62,25 @@ export function applyEnderDragonSuperior(petId, tier, stats, otherNums) {
 // pet level. Magic Find isn't tracked, so assumed always active at its real max.
 export const DRAGONS_GREED_MAX_STRENGTH_PERCENT = 5;
 
+// Lion's Primal Force perk: flat Strength add (and, separately, an equal flat Damage add —
+// applied only in the damage-calc aggregator, since pets have no "Damage" stat line to show it
+// on), scaled by rarity/level via otherNums[0].
+export function applyLionPrimalForce(petId, stats, otherNums) {
+  if (petId !== 'LION') return stats;
+  const primalForce = otherNums?.[0] || 0;
+  if (!primalForce) return stats;
+  return { ...stats, STRENGTH: (stats.STRENGTH || 0) + primalForce };
+}
+
+// Ankylosaurus: assumed always at its real max (+500 Strength), ignoring its actual
+// "Unyielding"/"Clubbed Tail" perks per instruction.
+export const ANKYLOSAURUS_MAX_STRENGTH = 500;
+
+export function applyAnkylosaurusMax(petId, stats) {
+  if (petId !== 'ANKYLOSAURUS') return stats;
+  return { ...stats, STRENGTH: (stats.STRENGTH || 0) + ANKYLOSAURUS_MAX_STRENGTH };
+}
+
 // Standard Hypixel legacy pet-rarity ordinal scheme ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
 export const PET_RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'];
 const PET_RARITY_ORDINALS = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4, MYTHIC: 5 };
@@ -185,7 +204,9 @@ export function computeEquippedPetStats(loadout, itemData) {
   const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
   stats = applyPetItemStatBoost(stats, boost);
   const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
-  return applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
+  stats = applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
+  stats = applyLionPrimalForce(pet.petId, stats, otherNums);
+  return applyAnkylosaurusMax(pet.petId, stats);
 }
 
 // The Chimera bonus for one equipped item slot ({item, modifiers}), or null if it doesn't have Chimera applied.
@@ -196,6 +217,20 @@ export function computeItemChimeraBonus(equipped, petStats) {
     ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
   ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
   return chimera ? computeChimeraStatBonus(petStats, chimera.level) : null;
+}
+
+// Manticore Claw gloves: same "copy the equipped pet's Combat stats" mechanic as Chimera, flat 10%.
+const MANTICORE_CLAW_PERCENT = 10;
+
+export function computeManticoreClawBonus(equipped, petStats) {
+  if (!equipped || equipped.item.id !== 'MANTICORE_CLAW' || !petStats) return null;
+  const fraction = MANTICORE_CLAW_PERCENT / 100;
+  const bonus = {};
+  for (const [petKey, ourKey] of Object.entries(PET_STAT_KEY_MAP)) {
+    const value = petStats[petKey];
+    if (value) bonus[ourKey] = Math.round(value * fraction * 10) / 10;
+  }
+  return Object.keys(bonus).length > 0 ? bonus : null;
 }
 
 function formatPlaceholderNum(n) {
@@ -258,6 +293,8 @@ export function buildPetTooltipLines(pet, modifiers, itemData, rawLore) {
   const statBoost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
   stats = applyPetItemStatBoost(stats, statBoost);
   const otherNums = computeOtherNums(levels, level, maxLevel);
+  stats = applyLionPrimalForce(pet.petId, stats, otherNums);
+  stats = applyAnkylosaurusMax(pet.petId, stats);
   const lore = substitutePetLore(rawLore.lore, level, stats, otherNums);
   const title = (rawLore.displayname || `§${tierColor}§l${pet.name}`).replace('{LVL}', String(level));
   const heldItemLines = petItem

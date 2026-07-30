@@ -69,6 +69,14 @@ export default function DamageSources() {
     setMobHpPercent,
     infernalCrimsonStacks,
     setInfernalCrimsonStacks,
+    swarmMobs,
+    setSwarmMobs,
+    comboKills,
+    setComboKills,
+    legionPlayers,
+    setLegionPlayers,
+    blazeCrimsonIsle,
+    toggleBlazeCrimsonIsle,
   } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
@@ -77,14 +85,50 @@ export default function DamageSources() {
   const tokenRef = useRef(0);
 
   const hasInfernalCrimsonStacks = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET) >= INFERNAL_CRIMSON_MIN_PIECES;
+  const weaponUltimateId = loadout.weapon?.modifiers?.ultimateEnchantment?.id?.toLowerCase();
+  const hasSwarmEnchant = weaponUltimateId === 'ultimate_swarm';
+  const hasComboEnchant = weaponUltimateId === 'ultimate_combo';
+  // Legion is an armor enchant (Helmet/Chestplate/Leggings/Boots/Carnival Mask), not a weapon one.
+  const hasLegionEnchant = [...ARMOR_SLOTS, 'weapon'].some(
+    (slot) => loadout[slot]?.modifiers?.ultimateEnchantment?.id?.toLowerCase() === 'ultimate_legion',
+  );
+  const hasBlazePet = loadout.pet?.item?.petId === 'BLAZE';
 
   useEffect(() => {
     const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent, infernalCrimsonStacks).then((r) => {
+    collectDamageSources(
+      loadout,
+      itemData,
+      playerStats,
+      godPotionActive,
+      attributes,
+      miscStats,
+      mobHpPercent,
+      infernalCrimsonStacks,
+      useDungeonizedStats,
+      swarmMobs,
+      comboKills,
+      legionPlayers,
+      blazeCrimsonIsle,
+    ).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
-  }, [loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent, infernalCrimsonStacks]);
+  }, [
+    loadout,
+    itemData,
+    playerStats,
+    godPotionActive,
+    attributes,
+    miscStats,
+    mobHpPercent,
+    infernalCrimsonStacks,
+    useDungeonizedStats,
+    swarmMobs,
+    comboKills,
+    legionPlayers,
+    blazeCrimsonIsle,
+  ]);
 
   // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than silently folded in.
   const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
@@ -350,6 +394,66 @@ export default function DamageSources() {
                     className="w-full"
                   />
                   <span className="text-[10px] text-neutral-600 italic">Infernal Crimson (2+ pieces), +10%/stack</span>
+                </label>
+              )}
+              {hasSwarmEnchant && (
+                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="swarm-mobs">
+                  <span className="flex justify-between">
+                    <span>Swarm Mobs</span>
+                    <span className="font-mono">{swarmMobs}</span>
+                  </span>
+                  <input
+                    id="swarm-mobs"
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value={swarmMobs}
+                    onChange={(e) => setSwarmMobs(e.target.value)}
+                    className="w-full"
+                  />
+                </label>
+              )}
+              {hasComboEnchant && (
+                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="combo-kills">
+                  <span className="flex justify-between">
+                    <span>Combo Kills</span>
+                    <span className="font-mono">{comboKills}</span>
+                  </span>
+                  <input
+                    id="combo-kills"
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value={comboKills}
+                    onChange={(e) => setComboKills(e.target.value)}
+                    className="w-full"
+                  />
+                </label>
+              )}
+              {hasLegionEnchant && (
+                <label className="flex items-center justify-between gap-1.5 text-[12px] text-black" htmlFor="legion-players">
+                  <span>Legion Players</span>
+                  <NumberInput
+                    id="legion-players"
+                    max={20}
+                    value={legionPlayers}
+                    onChange={setLegionPlayers}
+                    className="w-16 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
+                  />
+                </label>
+              )}
+              {hasBlazePet && (
+                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="blaze-crimson-isle">
+                  <input
+                    id="blaze-crimson-isle"
+                    type="checkbox"
+                    checked={blazeCrimsonIsle}
+                    onChange={toggleBlazeCrimsonIsle}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>In Crimson Isle</span>
                 </label>
               )}
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="mob-hp-percent">

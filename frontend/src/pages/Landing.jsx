@@ -6,7 +6,13 @@ import { useTooltip } from '../context/TooltipContext';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
-import { petLoreItemId, buildPetTooltipLines, computeEquippedPetStats, computeItemChimeraBonus } from '../lib/petData';
+import {
+  petLoreItemId,
+  buildPetTooltipLines,
+  computeEquippedPetStats,
+  computeItemChimeraBonus,
+  computeManticoreClawBonus,
+} from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
@@ -54,6 +60,10 @@ export default function Landing() {
     miscStats,
     mobHpPercent,
     infernalCrimsonStacks,
+    swarmMobs,
+    comboKills,
+    legionPlayers,
+    blazeCrimsonIsle,
     loadFullState,
   } = useBuild();
   const { itemData } = useItemData();
@@ -87,6 +97,10 @@ export default function Landing() {
         miscStats,
         mobHpPercent,
         infernalCrimsonStacks,
+        swarmMobs,
+        comboKills,
+        legionPlayers,
+        blazeCrimsonIsle,
       });
       const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, code, savedAt: Date.now() };
       persistSavedLoadouts([...savedLoadouts, entry]);
@@ -130,6 +144,10 @@ export default function Landing() {
         miscStats,
         mobHpPercent,
         infernalCrimsonStacks,
+        swarmMobs,
+        comboKills,
+        legionPlayers,
+        blazeCrimsonIsle,
       });
       await navigator.clipboard.writeText(`${window.location.origin}/loadout/${code}`);
       setExportStatus('Copied!');
@@ -185,6 +203,7 @@ export default function Landing() {
     const token = ++hoverTokenRef.current;
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
+    const manticoreClawBonus = computeManticoreClawBonus(equipped, petStats);
     const lines = await buildFullItemTooltipLines(
       equipped.item,
       equipped.modifiers,
@@ -194,6 +213,7 @@ export default function Landing() {
       playerStats.wolfSlayerLevel,
       chimeraBonus,
       playerStats.generalsMedallionDigits,
+      manticoreClawBonus,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
@@ -217,6 +237,7 @@ export default function Landing() {
     const token = ++hoverTokenRef.current;
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout.weapon, petStats);
+    const manticoreClawBonus = computeManticoreClawBonus(loadout.weapon, petStats);
     const lines = await buildFullItemTooltipLines(
       loadout.weapon.item,
       loadout.weapon.modifiers,
@@ -226,6 +247,7 @@ export default function Landing() {
       playerStats.wolfSlayerLevel,
       chimeraBonus,
       playerStats.generalsMedallionDigits,
+      manticoreClawBonus,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

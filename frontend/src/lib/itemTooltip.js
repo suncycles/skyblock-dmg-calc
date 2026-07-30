@@ -78,6 +78,7 @@ export async function buildFullItemTooltipLines(
   wolfSlayerLevel,
   chimeraBonus,
   generalsMedallionDigits,
+  manticoreClawBonus,
 ) {
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
@@ -99,6 +100,7 @@ export async function buildFullItemTooltipLines(
   lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, chimeraBonus, lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, manticoreClawBonus, lore.indexOf(''));
 
   // Enchant stat bonuses also merge into the base stat, no separate annotation.
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);

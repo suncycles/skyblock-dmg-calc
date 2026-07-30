@@ -61,6 +61,10 @@ function buildEncodableState({
   miscStats,
   mobHpPercent,
   infernalCrimsonStacks,
+  swarmMobs,
+  comboKills,
+  legionPlayers,
+  blazeCrimsonIsle,
 }) {
   const encodedLoadout = {};
 
@@ -97,6 +101,10 @@ function buildEncodableState({
     miscStats: trimZeros(miscStats),
     mobHpPercent: mobHpPercent ?? 100,
     infernalCrimsonStacks: infernalCrimsonStacks ?? 1,
+    swarmMobs: swarmMobs ?? 1,
+    comboKills: comboKills ?? 1,
+    legionPlayers: legionPlayers ?? 0,
+    blazeCrimsonIsle: !!blazeCrimsonIsle,
   };
 }
 
@@ -162,6 +170,10 @@ function expandState(compact, itemData) {
     miscStats: compact.miscStats || {},
     mobHpPercent: compact.mobHpPercent ?? 100,
     infernalCrimsonStacks: compact.infernalCrimsonStacks ?? 1,
+    swarmMobs: compact.swarmMobs ?? 1,
+    comboKills: compact.comboKills ?? 1,
+    legionPlayers: compact.legionPlayers ?? 0,
+    blazeCrimsonIsle: !!compact.blazeCrimsonIsle,
   };
 }
 
