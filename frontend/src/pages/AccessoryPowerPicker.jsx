@@ -147,7 +147,7 @@ export default function AccessoryPowerPicker() {
       } else if (isNavRow && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Close" onClick={() => navigate('/')}>
-            <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
+            <img src={SLOT_TEXTURES.close} alt="Close" className="w-[85%] h-[85%] object-contain pixelated" />
           </div>,
         );
       } else if (isNavRow && col === 5) {

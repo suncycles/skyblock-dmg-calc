@@ -157,7 +157,7 @@ export default function ReforgesPicker({ blacksmith }) {
             title={blacksmith ? 'Back' : 'Close'}
             onClick={() => (blacksmith ? navigate(-1) : navigate(`/hex/${slot}`))}
           >
-            <img src={SLOT_TEXTURES.close} alt={blacksmith ? 'Back' : 'Close'} className={iconImg} />
+            <img src={SLOT_TEXTURES.close} alt={blacksmith ? 'Back' : 'Close'} className="w-[85%] h-[85%] object-contain pixelated" />
           </div>,
         );
       } else if (isNavRow && col === 5) {

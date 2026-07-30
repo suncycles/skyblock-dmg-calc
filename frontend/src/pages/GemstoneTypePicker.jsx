@@ -73,7 +73,7 @@ export default function GemstoneTypePicker() {
       } else if (row === 5 && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Close" onClick={() => navigate(`/gemstones/${slot}`)}>
-            <img src={SLOT_TEXTURES.close} alt="Close" className={iconImg} />
+            <img src={SLOT_TEXTURES.close} alt="Close" className="w-[85%] h-[85%] object-contain pixelated" />
           </div>,
         );
       } else {
