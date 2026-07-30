@@ -506,18 +506,26 @@ export default function Landing() {
                 Select Mob
               </span>
             ) : (
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full">
                 {targetMobs.map((name, i) => {
                   const n = targetMobs.length;
-                  const spread = Math.min(n - 1, 4) * 12;
-                  const offset = n === 1 ? 0 : -spread / 2 + (spread / (n - 1)) * i;
+                  // Each mob centers on its own divider — the midpoint of the tile split into n
+                  // equal columns — but stays oversized relative to that column so neighbors overlap.
+                  const center = ((i + 0.5) / n) * 100;
+                  const size = Math.max(42, 72 - Math.max(0, n - 2) * 7);
                   return (
                     <img
                       key={name}
                       src={getMobModelIcon(name) || getMobIconDataUri(name)}
                       alt={name}
-                      className="absolute w-[55%] h-[55%] object-contain pixelated"
-                      style={{ transform: `translateX(${offset}%)`, zIndex: i }}
+                      className="absolute top-1/2 object-contain pixelated"
+                      style={{
+                        left: `${center}%`,
+                        width: `${size}%`,
+                        height: `${size}%`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: i,
+                      }}
                     />
                   );
                 })}
