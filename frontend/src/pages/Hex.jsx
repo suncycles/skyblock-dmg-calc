@@ -242,7 +242,7 @@ export default function Hex() {
               if (type === 'barrier') {
                 return (
                   <div key={key} className={interactiveIcon} title={label} onClick={() => navigate(closeTo)}>
-                    <img src={SLOT_TEXTURES.close} alt={label} className={iconImg} />
+                    <img src={SLOT_TEXTURES.close} alt={label} className="w-[85%] h-[85%] object-contain pixelated" />
                   </div>
                 );
               }

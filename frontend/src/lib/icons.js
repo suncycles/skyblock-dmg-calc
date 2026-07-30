@@ -40,11 +40,16 @@ export function getReforgeStoneIcon(stoneId) {
   return `/images/reforgestones/${stoneId.toLowerCase()}.png`;
 }
 
-// Chest-inventory chrome shared by every grid page: glass panes for "empty"/"filler" slots, a Barrier for "close".
+// A plain left-pointing chevron (black outline, white fill) — reads as "go back" rather than
+// the Barrier block's "forbidden" connotation, and stays legible on the grey slot background.
+const BACK_ARROW_ICON =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M21 4 L10 16 L21 28' fill='none' stroke='black' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M21 4 L10 16 L21 28' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+
+// Chest-inventory chrome shared by every grid page: glass panes for "empty"/"filler" slots, a back arrow for "close".
 export const SLOT_TEXTURES = {
   empty: '/images/Gray_Stained_Glass_Pane.png',
   filler: '/images/Magenta_Stained_Glass_Pane.png',
-  close: '/images/Barrier.png',
+  close: BACK_ARROW_ICON,
   emptyGemSlot: '/images/Light_Gray_Stained_Glass_Pane.png',
 };
 

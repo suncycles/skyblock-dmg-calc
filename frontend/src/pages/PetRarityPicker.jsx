@@ -106,7 +106,7 @@ export default function PetRarityPicker() {
       } else if (row === 5 && col === 4) {
         cells.push(
           <div key={key} className={navSlot} title="Back" onClick={() => navigate('/pet')}>
-            <img src={SLOT_TEXTURES.close} alt="Back" className={iconImg} />
+            <img src={SLOT_TEXTURES.close} alt="Back" className="w-[85%] h-[85%] object-contain pixelated" />
           </div>,
         );
       } else {
