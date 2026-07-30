@@ -8,7 +8,7 @@ import { countGemstoneSlots, gemstoneSlotColumnOffsets } from '../lib/gemstones'
 import { GEMSTONES } from '../lib/gemstoneData';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
-import { computeEquippedPetStats, computeItemChimeraBonus } from '../lib/petData';
+import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
@@ -42,6 +42,7 @@ export default function GemstoneSlots() {
     const token = ++hoverTokenRef.current;
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout[slot], petStats);
+    const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], petStats);
     const lines = await buildFullItemTooltipLines(
       item,
       modifiers,
@@ -51,6 +52,7 @@ export default function GemstoneSlots() {
       playerStats.wolfSlayerLevel,
       chimeraBonus,
       playerStats.generalsMedallionDigits,
+      manticoreClawBonus,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

@@ -20,7 +20,18 @@ import {
   MONSTER_HUNTER_MULTIPLIER,
   MONSTER_RAIDER_SET,
   MONSTER_RAIDER_MULTIPLIER,
+  INFERNAL_CRIMSON_SET,
+  INFERNAL_CRIMSON_MIN_PIECES,
+  INFERNAL_CRIMSON_PERCENT_PER_STACK,
+  STRONG_DRAGON_SET,
+  STRONG_DRAGON_ASPECT_WEAPON_IDS,
+  STRONG_DRAGON_DAMAGE_BONUS,
+  SUPERIOR_DRAGON_SET,
+  SUPERIOR_DRAGON_STAT_BOOST_PERCENT,
+  TUXEDO_TIERS,
   hasFullSet,
+  countSetPieces,
+  hasAnyEquippedId,
 } from './armorSetBonuses';
 import {
   petLoreItemId,
@@ -29,7 +40,8 @@ import {
   substitutePetLore,
   getMaxPetLevel,
   applyGoldenDragonShiningScales,
-  applyEnderDragonSuperior,
+  applyLionPrimalForce,
+  applyAnkylosaurusMax,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
@@ -134,7 +146,26 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'TARANTULA_FANG',
   'SCORPION_FOIL',
   'STING',
+  // Pooch Sword — its "+200% Damage against Wolves" line sits directly above two unrelated
+  // Animal-mob clauses with no blank line between them, so the generic scan's target-text
+  // capture bleeds across all three; hardcoded in POOCH_SWORD_WOLF_DAMAGE_PERCENT instead.
+  'POOCH_SWORD',
 ]);
+
+// Pooch Sword's "+200% Damage against Wolves" — see SPECIAL_SCAN_EXCLUDE_IDS above for why
+// this can't go through the generic ability-text scan. "Wolves" covers every wolf-family mob,
+// same list as mobModelIcons.json's wolf.png mapping.
+const POOCH_SWORD_WOLF_DAMAGE_PERCENT = 200;
+const WOLF_FAMILY_MOBS = [
+  'Glacite Mutt',
+  'Howling Spirit',
+  'Pack Spirit',
+  'Soul of the Alpha',
+  'Sven Alpha',
+  'Sven Follower',
+  'Sven Packmaster',
+  'Wolf',
+];
 
 // Warden Helmet's Brute Force ability, assumed fully active, also maxes out at 161% rather than 160%. 
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 161;
@@ -248,6 +279,28 @@ function sumStatFromTooltipLines(finalLines, label) {
 
 // Chimera enchant: copies 20%/level of the active pet's Strength/Crit Chance/Crit Damage, stacked on top of the pet's own contribution.
 const CHIMERA_PERCENT_PER_LEVEL = 20;
+// Manticore Claw gloves: same "copy the equipped pet's Strength/Crit Chance/Crit Damage" mechanic
+// as Chimera, but a flat 10% (not level-scaled).
+const MANTICORE_CLAW_PERCENT = 10;
+// Skeleton pet: +75% additive Damage when a bow is equipped, doubled to +150% when the
+// "Toggle Dungeon Stats" switch is on.
+const SKELETON_ARROW_BONUS_PERCENT = 75;
+// Ankylosaurus pet: assumed always at its real max, ignoring its actual "Unyielding"/"Clubbed
+// Tail" perks per instruction.
+// Lion's King of the Jungle (Legendary only, assumed always active): 1.5% additive Damage per pet level.
+const KING_OF_THE_JUNGLE_PERCENT_PER_LEVEL = 1.5;
+// Blaze pet's "In Crimson Isle" toggle: +10% final multiplier on Strength/Crit Chance/Crit
+// Damage, same mechanism as Unlimited Power/Energy (see collectFinalStatBoosts below).
+const BLAZE_CRIMSON_ISLE_PERCENT = 10;
+// Renowned reforge (armor): +1% final multiplier on Strength/Crit Chance/Crit Damage per
+// equipped piece with this reforge.
+const RENOWNED_PERCENT_PER_PIECE = 1;
+const RENOWNED_REFORGE_NAME = 'Renowned';
+// Ultimate Legion: boost% = legionPlayers × 0.07 × enchant level (max level 5 → 0.35%/player).
+const LEGION_PERCENT_PER_PLAYER_PER_LEVEL = 0.07;
+// Ultimate Swarm/Combo: per-enchant-level additive-damage-per-stack percentages.
+const SWARM_PERCENT_BY_LEVEL = [null, 2, 4, 6, 8, 10];
+const COMBO_PERCENT_BY_LEVEL = [null, 1, 2, 3, 4, 5];
 
 // Adds to a base stat's running total and records the source for DamageSources.jsx's
 // per-stat breakdown, merging entries that share a label into one running total.
@@ -263,22 +316,99 @@ function addBaseStat(out, statKey, value, label) {
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
   let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
+  out.enderDragonSuperiorPercent = 0;
+  out.firstPounceFactor = 1;
   if (loadout.pet) {
     const { item: pet, modifiers } = loadout.pet;
     const maxLevel = getMaxPetLevel(pet.petId);
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
     let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
     stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
+    const statsBeforePetItem = stats;
     const petItemId = modifiers.petItem;
     const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
-    const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+    let boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
+    // T-Rex's Tyrant perk: scales the pet item's own Combat-stat boost by (1 + pet level%/100)
+    // — e.g. level 100 doubles it, level 50 gives x1.5. Applied before the boost is folded in.
+    const isTyrant = !!(boost && pet.petId === 'TYRANNOSAURUS');
+    if (isTyrant) {
+      const tyrantFactor = 1 + (modifiers.level || 0) / 100;
+      boost = { ...boost, percent: boost.percent * tyrantFactor };
+    }
     stats = applyPetItemStatBoost(stats, boost);
+    // Surfaced as its own breakdown line (not silently folded into "Pet") so the Tyrant scaling
+    // is actually visible/verifiable rather than just changing the combined pet total.
+    let petItemDeltas = null;
+    if (boost) {
+      petItemDeltas = {};
+      for (const key of ['STRENGTH', 'CRIT_CHANCE', 'CRIT_DAMAGE']) {
+        petItemDeltas[key] = (stats[key] || 0) - (statsBeforePetItem[key] || 0);
+      }
+    }
     const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
-    stats = applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
+
+    // Ender Dragon's Legendary Superior perk (otherNums[3]) — stashed for collectFinalStatBoosts
+    // to apply as a final multiplier on the fully-summed (Base) Stats, not the pet's own stat block.
+    if (pet.petId === 'ENDER_DRAGON' && pet.tier === 'LEGENDARY') {
+      out.enderDragonSuperiorPercent = otherNums?.[3] || 0;
+    }
+
+    // Ankylosaurus: assumed always at its real max (+500 Strength), ignoring its actual
+    // "Unyielding"/"Clubbed Tail" perks per instruction.
+    stats = applyAnkylosaurusMax(pet.petId, stats);
+
+    // Lion's First Pounce: multiplies First Strike/Triple Strike's bonus — Rare 1.8x, Epic/Legendary 2x.
+    if (pet.petId === 'LION') {
+      if (pet.tier === 'RARE') out.firstPounceFactor = 1.8;
+      else if (pet.tier === 'EPIC' || pet.tier === 'LEGENDARY') out.firstPounceFactor = 2;
+    }
+
+    // Lion's Primal Force: flat Strength (shown on the pet's own stats too, see petData.js) +
+    // Damage add (Damage isn't a real pet stat, so it's only added here), scaled via otherNums[0].
+    if (pet.petId === 'LION') {
+      const primalForce = otherNums?.[0] || 0;
+      stats = applyLionPrimalForce(pet.petId, stats, otherNums);
+      addBaseStat(out, 'damage', primalForce, 'Lion (Primal Force)');
+      // King of the Jungle (Legendary only, assumed always active): 1.5% * pet level unconditional additive Damage.
+      if (pet.tier === 'LEGENDARY') {
+        const kingOfTheJungle = KING_OF_THE_JUNGLE_PERCENT_PER_LEVEL * (modifiers.level || 0);
+        if (kingOfTheJungle) {
+          out.additiveNonConditional.push({
+            id: 'lion-king-of-the-jungle',
+            label: 'Lion (King of the Jungle, assumed active)',
+            source: 'Pet',
+            value: kingOfTheJungle,
+          });
+        }
+      }
+    }
+
+    // T-Rex's Close Combat: assumed always active, scales with real pet level (not forced max).
+    if (pet.petId === 'TYRANNOSAURUS') {
+      const closeCombat = modifiers.level || 0;
+      if (closeCombat) {
+        out.additiveNonConditional.push({
+          id: 'trex-close-combat',
+          label: 'T-Rex (Close Combat, assumed active)',
+          source: 'Pet',
+          value: closeCombat,
+        });
+      }
+    }
+
     petStats = stats;
-    addBaseStat(out, 'strength', stats.STRENGTH || 0, 'Pet');
-    addBaseStat(out, 'crit_chance', stats.CRIT_CHANCE || 0, 'Pet');
-    addBaseStat(out, 'crit_damage', stats.CRIT_DAMAGE || 0, 'Pet');
+    // `stats` here already includes every species perk applied above (Ankylosaurus, Lion's
+    // Primal Force, ...) plus the pet item boost — subtract just the isolated pet-item delta
+    // (not the stale pre-species-perk snapshot) so those flat additions aren't dropped.
+    addBaseStat(out, 'strength', (stats.STRENGTH || 0) - (petItemDeltas?.STRENGTH || 0), 'Pet');
+    addBaseStat(out, 'crit_chance', (stats.CRIT_CHANCE || 0) - (petItemDeltas?.CRIT_CHANCE || 0), 'Pet');
+    addBaseStat(out, 'crit_damage', (stats.CRIT_DAMAGE || 0) - (petItemDeltas?.CRIT_DAMAGE || 0), 'Pet');
+    if (petItemDeltas) {
+      const petItemLabel = isTyrant ? `Pet Item (${petItem.name}, Tyrant)` : `Pet Item (${petItem.name})`;
+      if (petItemDeltas.STRENGTH) addBaseStat(out, 'strength', petItemDeltas.STRENGTH, petItemLabel);
+      if (petItemDeltas.CRIT_CHANCE) addBaseStat(out, 'crit_chance', petItemDeltas.CRIT_CHANCE, petItemLabel);
+      if (petItemDeltas.CRIT_DAMAGE) addBaseStat(out, 'crit_damage', petItemDeltas.CRIT_DAMAGE, petItemLabel);
+    }
   }
 
   for (const slot of GEAR_SLOTS) {
@@ -312,6 +442,15 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, chimeraLabel);
       addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, chimeraLabel);
     }
+
+    // Manticore Claw gloves: same "copy the equipped pet's Combat stats" mechanic as Chimera, flat 10%.
+    if (equipped.item.id === 'MANTICORE_CLAW') {
+      const fraction = MANTICORE_CLAW_PERCENT / 100;
+      const label = `${slotLabel} (Manticore Claw)`;
+      addBaseStat(out, 'strength', (petStats.STRENGTH || 0) * fraction, label);
+      addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, label);
+      addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, label);
+    }
   }
 
   if (loadout.accessory) {
@@ -337,7 +476,7 @@ const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
 // First Strike/Triple Strike only apply on the first hit(s) of a fight — modeled as active only at 100% mob HP.
 const FIRST_HIT_ENCHANT_IDS = new Set(['first_strike', 'triple_strike']);
 
-async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out, mobHpPercent) {
+async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out, mobHpPercent, swarmMobs, comboKills, legionPlayers, firstPounceFactor = 1) {
   for (const entry of entries) {
     if (entry.id.toLowerCase() === 'ultimate_one_for_all') {
       out.additiveNonConditional.push({
@@ -346,6 +485,29 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         source: `${itemLabel} (${slotLabel})`,
         value: ONE_FOR_ALL_DAMAGE_PERCENT,
       });
+      continue;
+    }
+
+    // Ultimate Swarm/Combo: per-enchant-level %/stack × the player-entered stack count (Misc panel).
+    const key = entry.id.toLowerCase();
+    if (key === 'ultimate_swarm' || key === 'ultimate_combo') {
+      const perLevelTable = key === 'ultimate_swarm' ? SWARM_PERCENT_BY_LEVEL : COMBO_PERCENT_BY_LEVEL;
+      const stacks = key === 'ultimate_swarm' ? swarmMobs : comboKills;
+      const perStack = perLevelTable[entry.level];
+      if (perStack) {
+        out.additiveNonConditional.push({
+          id: `${slotLabel}-${entry.id}`,
+          label: `${titleCaseEnchantId(entry.id)} ${toRoman(entry.level)} (${stacks} ${key === 'ultimate_swarm' ? 'Mobs' : 'Kills'})`,
+          source: `${itemLabel} (${slotLabel})`,
+          value: perStack * stacks,
+        });
+      }
+      continue;
+    }
+
+    // Ultimate Legion: boost% = legionPlayers × 0.07 × enchant level — final multiplier, not additive.
+    if (key === 'ultimate_legion') {
+      out.legionEnchantLevel = entry.level;
       continue;
     }
 
@@ -388,9 +550,11 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         const condition = mobTypes ? mobTypes.join(', ') : cleanTargetText(m[1]);
         out.additiveConditional.push({ id, label: name, source, value, condition });
       } else if (FIRST_HIT_ENCHANT_IDS.has(entry.id.toLowerCase())) {
-        // Only counted at 100% mob HP.
+        // Only counted at 100% mob HP. Lion's First Pounce scales this up (see collectBaseStats).
         if (mobHpPercent === 100) {
-          out.additiveNonConditional.push({ id, label: `${name} (first hit, 100% HP)`, source, value });
+          const boosted = value * firstPounceFactor;
+          const label = firstPounceFactor > 1 ? `${name} (first hit, 100% HP, Lion First Pounce)` : `${name} (first hit, 100% HP)`;
+          out.additiveNonConditional.push({ id, label, source, value: boosted });
         }
       } else {
         out.additiveNonConditional.push({ id, label: name, source, value });
@@ -598,7 +762,21 @@ function collectAttributeEntries(attributes, loadout, out) {
 }
 
 // ---------------------------------------------------------------------
-export async function collectDamageSources(loadout, itemData, playerStats, godPotionActive, attributes, miscStats, mobHpPercent = 100) {
+export async function collectDamageSources(
+  loadout,
+  itemData,
+  playerStats,
+  godPotionActive,
+  attributes,
+  miscStats,
+  mobHpPercent = 100,
+  infernalCrimsonStacks = 1,
+  useDungeonizedStats = false,
+  swarmMobs = 1,
+  comboKills = 1,
+  legionPlayers = 0,
+  blazeCrimsonIsle = false,
+) {
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
@@ -686,7 +864,18 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
       ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
     ];
     if (enchantEntries.length > 0) {
-      await collectEnchantEntries(enchantEntries, itemLabel, slotLabel, itemData.enchants, out, mobHpPercent);
+      await collectEnchantEntries(
+        enchantEntries,
+        itemLabel,
+        slotLabel,
+        itemData.enchants,
+        out,
+        mobHpPercent,
+        swarmMobs,
+        comboKills,
+        legionPlayers,
+        out.firstPounceFactor,
+      );
     }
 
     if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {
@@ -702,6 +891,17 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
         label: 'Brute Force (assumed max)',
         source: slotLabel,
         value: WARDEN_HELMET_BRUTE_FORCE_PERCENT,
+      });
+    }
+
+    if (equipped.item.id === 'POOCH_SWORD') {
+      out.weaponBonusConditional.push({
+        id: 'pooch-sword-wolf-damage',
+        label: `${itemLabel} (against Wolves)`,
+        source: slotLabel,
+        value: POOCH_SWORD_WOLF_DAMAGE_PERCENT,
+        condition: WOLF_FAMILY_MOBS.join(', '),
+        conditionLabel: 'Wolves',
       });
     }
 
@@ -795,10 +995,84 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
     });
   }
 
+  if (
+    hasFullSet(loadout, ARMOR_SLOTS, STRONG_DRAGON_SET) &&
+    STRONG_DRAGON_ASPECT_WEAPON_IDS.includes(loadout.weapon?.item?.id)
+  ) {
+    addBaseStat(out, 'damage', STRONG_DRAGON_DAMAGE_BONUS, 'Strong Dragon (Full Set) + Aspect Weapon');
+  }
+
+  if (countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET) >= INFERNAL_CRIMSON_MIN_PIECES) {
+    out.additiveNonConditional.push({
+      id: 'infernal-crimson-stacks',
+      label: `Infernal Crimson (${infernalCrimsonStacks} Stacks)`,
+      source: 'Armor',
+      value: infernalCrimsonStacks * INFERNAL_CRIMSON_PERCENT_PER_STACK,
+    });
+  }
+
+  if (isBowEquipped(loadout) && loadout.pet?.item?.petId === 'SKELETON') {
+    const skeletonArrowBonus = useDungeonizedStats ? SKELETON_ARROW_BONUS_PERCENT * 2 : SKELETON_ARROW_BONUS_PERCENT;
+    out.additiveNonConditional.push({
+      id: 'skeleton-arrow-boost',
+      label: `Skeleton${useDungeonizedStats ? ' (Dungeon Stats)' : ''}`,
+      source: 'Pet',
+      value: skeletonArrowBonus,
+    });
+  }
+
+  for (const tier of TUXEDO_TIERS) {
+    if (hasAnyEquippedId(loadout, ARMOR_SLOTS, tier.ids)) {
+      out.additiveNonConditional.push({
+        id: `tuxedo-${tier.name.toLowerCase()}`,
+        label: `${tier.name} Tuxedo`,
+        source: 'Armor',
+        value: tier.damagePercent,
+      });
+    }
+  }
 
   await collectPetEntries(loadout, itemData, out);
 
   collectAttributeEntries(attributes, loadout, out);
+
+  // Final-multiplier "stat boost" perks: applied last, on the fully-summed Strength/Crit
+  // Chance/Crit Damage total only (never Damage) — same mechanism as Unlimited Power/Energy above.
+  const finalMultiplierStats = ['strength', 'crit_chance', 'crit_damage'];
+
+  if (hasFullSet(loadout, ARMOR_SLOTS, SUPERIOR_DRAGON_SET)) {
+    for (const statKey of finalMultiplierStats) {
+      addBaseStat(out, statKey, out.baseStats[statKey] * (SUPERIOR_DRAGON_STAT_BOOST_PERCENT / 100), 'Superior Dragon (Full Set)');
+    }
+  }
+
+  if (out.enderDragonSuperiorPercent) {
+    for (const statKey of finalMultiplierStats) {
+      addBaseStat(out, statKey, out.baseStats[statKey] * (out.enderDragonSuperiorPercent / 100), 'Ender Dragon (Superior)');
+    }
+  }
+
+  if (blazeCrimsonIsle && loadout.pet?.item?.petId === 'BLAZE') {
+    for (const statKey of finalMultiplierStats) {
+      addBaseStat(out, statKey, out.baseStats[statKey] * (BLAZE_CRIMSON_ISLE_PERCENT / 100), 'Blaze (In Crimson Isle)');
+    }
+  }
+
+  const renownedPieces = [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter(
+    (slot) => loadout[slot]?.modifiers?.reforge === RENOWNED_REFORGE_NAME,
+  ).length;
+  if (renownedPieces) {
+    for (const statKey of finalMultiplierStats) {
+      addBaseStat(out, statKey, out.baseStats[statKey] * ((renownedPieces * RENOWNED_PERCENT_PER_PIECE) / 100), 'Renowned');
+    }
+  }
+
+  if (out.legionEnchantLevel && legionPlayers) {
+    const legionPercent = legionPlayers * LEGION_PERCENT_PER_PLAYER_PER_LEVEL * out.legionEnchantLevel;
+    for (const statKey of finalMultiplierStats) {
+      addBaseStat(out, statKey, out.baseStats[statKey] * (legionPercent / 100), 'Legion');
+    }
+  }
 
   out.dungeonizedBaseStats = {};
   out.masterDungeonizedBaseStats = {};

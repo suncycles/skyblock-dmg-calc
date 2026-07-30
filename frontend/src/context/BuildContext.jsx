@@ -17,6 +17,14 @@ const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 const INFERNAL_CRIMSON_STACKS_KEY = 'hexInfernalCrimsonStacks';
+const SWARM_MOBS_KEY = 'hexSwarmMobs';
+const COMBO_KILLS_KEY = 'hexComboKills';
+const LEGION_PLAYERS_KEY = 'hexLegionPlayers';
+const BLAZE_CRIMSON_ISLE_KEY = 'hexBlazeCrimsonIsle';
+
+export const MAX_SWARM_MOBS = 10;
+export const MAX_COMBO_KILLS = 10;
+export const MAX_LEGION_PLAYERS = 20;
 
 const BuildContext = createContext(null);
 
@@ -64,6 +72,32 @@ function loadInitialInfernalCrimsonStacks() {
   const stored = localStorage.getItem(INFERNAL_CRIMSON_STACKS_KEY);
   const parsed = stored != null ? Number(stored) : 1;
   return Number.isFinite(parsed) ? Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, parsed)) : 1;
+}
+
+// Loads the Ultimate Swarm "Swarm Mobs" count (1-10, default 1) — see lib/damageSources.js.
+function loadInitialSwarmMobs() {
+  const stored = localStorage.getItem(SWARM_MOBS_KEY);
+  const parsed = stored != null ? Number(stored) : 1;
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_SWARM_MOBS, parsed)) : 1;
+}
+
+// Loads the Ultimate Combo "Combo Kills" count (1-10, default 1) — see lib/damageSources.js.
+function loadInitialComboKills() {
+  const stored = localStorage.getItem(COMBO_KILLS_KEY);
+  const parsed = stored != null ? Number(stored) : 1;
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_COMBO_KILLS, parsed)) : 1;
+}
+
+// Loads the Ultimate Legion "Legion Players" count (0-20, default 0) — see lib/damageSources.js.
+function loadInitialLegionPlayers() {
+  const stored = localStorage.getItem(LEGION_PLAYERS_KEY);
+  const parsed = stored != null ? Number(stored) : 0;
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(MAX_LEGION_PLAYERS, parsed)) : 0;
+}
+
+// Loads the Blaze pet's "In Crimson Isle" toggle.
+function loadInitialBlazeCrimsonIsle() {
+  return localStorage.getItem(BLAZE_CRIMSON_ISLE_KEY) === 'true';
 }
 
 // Loads the manually-entered "everything else" Strength/Crit Damage total (Fairy Souls, skill rewards, etc.).
@@ -170,6 +204,10 @@ export function BuildProvider({ children }) {
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
   const [infernalCrimsonStacks, setInfernalCrimsonStacksState] = useState(loadInitialInfernalCrimsonStacks);
+  const [swarmMobs, setSwarmMobsState] = useState(loadInitialSwarmMobs);
+  const [comboKills, setComboKillsState] = useState(loadInitialComboKills);
+  const [legionPlayers, setLegionPlayersState] = useState(loadInitialLegionPlayers);
+  const [blazeCrimsonIsle, setBlazeCrimsonIsleState] = useState(loadInitialBlazeCrimsonIsle);
 
   const setMobHpPercent = useCallback((value) => {
     const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
@@ -181,6 +219,32 @@ export function BuildProvider({ children }) {
     const clamped = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(value) || 1)));
     setInfernalCrimsonStacksState(clamped);
     localStorage.setItem(INFERNAL_CRIMSON_STACKS_KEY, String(clamped));
+  }, []);
+
+  const setSwarmMobs = useCallback((value) => {
+    const clamped = Math.max(1, Math.min(MAX_SWARM_MOBS, Math.round(Number(value) || 1)));
+    setSwarmMobsState(clamped);
+    localStorage.setItem(SWARM_MOBS_KEY, String(clamped));
+  }, []);
+
+  const setComboKills = useCallback((value) => {
+    const clamped = Math.max(1, Math.min(MAX_COMBO_KILLS, Math.round(Number(value) || 1)));
+    setComboKillsState(clamped);
+    localStorage.setItem(COMBO_KILLS_KEY, String(clamped));
+  }, []);
+
+  const setLegionPlayers = useCallback((value) => {
+    const clamped = Math.max(0, Math.min(MAX_LEGION_PLAYERS, Math.round(Number(value) || 0)));
+    setLegionPlayersState(clamped);
+    localStorage.setItem(LEGION_PLAYERS_KEY, String(clamped));
+  }, []);
+
+  const toggleBlazeCrimsonIsle = useCallback(() => {
+    setBlazeCrimsonIsleState((prev) => {
+      const next = !prev;
+      localStorage.setItem(BLAZE_CRIMSON_ISLE_KEY, String(next));
+      return next;
+    });
   }, []);
 
   const setAttributeLevel = useCallback((id, level) => {
@@ -584,6 +648,21 @@ export function BuildProvider({ children }) {
     const clampedStacks = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(state.infernalCrimsonStacks) || 1)));
     setInfernalCrimsonStacksState(clampedStacks);
     localStorage.setItem(INFERNAL_CRIMSON_STACKS_KEY, String(clampedStacks));
+
+    const clampedSwarm = Math.max(1, Math.min(MAX_SWARM_MOBS, Math.round(Number(state.swarmMobs) || 1)));
+    setSwarmMobsState(clampedSwarm);
+    localStorage.setItem(SWARM_MOBS_KEY, String(clampedSwarm));
+
+    const clampedCombo = Math.max(1, Math.min(MAX_COMBO_KILLS, Math.round(Number(state.comboKills) || 1)));
+    setComboKillsState(clampedCombo);
+    localStorage.setItem(COMBO_KILLS_KEY, String(clampedCombo));
+
+    const clampedLegion = Math.max(0, Math.min(MAX_LEGION_PLAYERS, Math.round(Number(state.legionPlayers) || 0)));
+    setLegionPlayersState(clampedLegion);
+    localStorage.setItem(LEGION_PLAYERS_KEY, String(clampedLegion));
+
+    setBlazeCrimsonIsleState(!!state.blazeCrimsonIsle);
+    localStorage.setItem(BLAZE_CRIMSON_ISLE_KEY, String(!!state.blazeCrimsonIsle));
   }, []);
 
   return (
@@ -615,6 +694,14 @@ export function BuildProvider({ children }) {
         setMobHpPercent,
         infernalCrimsonStacks,
         setInfernalCrimsonStacks,
+        swarmMobs,
+        setSwarmMobs,
+        comboKills,
+        setComboKills,
+        legionPlayers,
+        setLegionPlayers,
+        blazeCrimsonIsle,
+        toggleBlazeCrimsonIsle,
         selectItem,
         removeSlot,
         applyEnchant,

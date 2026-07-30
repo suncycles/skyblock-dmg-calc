@@ -55,3 +55,33 @@ export const INFERNAL_CRIMSON_SET = [
 export const INFERNAL_CRIMSON_MIN_PIECES = 2;
 export const INFERNAL_CRIMSON_MAX_STACKS = 10;
 export const INFERNAL_CRIMSON_PERCENT_PER_STACK = 10;
+
+// Strong Dragon (full set) + Aspect of the End/Void weapon: +75 flat Damage.
+export const STRONG_DRAGON_SET = ['STRONG_DRAGON_HELMET', 'STRONG_DRAGON_CHESTPLATE', 'STRONG_DRAGON_LEGGINGS', 'STRONG_DRAGON_BOOTS'];
+export const STRONG_DRAGON_ASPECT_WEAPON_IDS = ['ASPECT_OF_THE_END', 'ASPECT_OF_THE_VOID'];
+export const STRONG_DRAGON_DAMAGE_BONUS = 75;
+
+// Superior Dragon (full set): +5% Strength/Crit Chance/Crit Damage, applied as a final
+// multiplier on the fully-summed (Base) Stats total (same mechanism as Unlimited Power/Energy).
+export const SUPERIOR_DRAGON_SET = [
+  'SUPERIOR_DRAGON_HELMET',
+  'SUPERIOR_DRAGON_CHESTPLATE',
+  'SUPERIOR_DRAGON_LEGGINGS',
+  'SUPERIOR_DRAGON_BOOTS',
+];
+export const SUPERIOR_DRAGON_STAT_BOOST_PERCENT = 5;
+
+// Tuxedo: 3 independent tiers (Boots/Chestplate/Leggings each — no Helmet exists), each tier's
+// own bonus applies unconditionally whenever any single piece of that tier is worn, and tiers
+// stack with each other (e.g. wearing one Elegant + one Fancy + one Cheap piece grants all 3).
+export const TUXEDO_TIERS = [
+  { name: 'Elegant', ids: ['ELEGANT_TUXEDO_BOOTS', 'ELEGANT_TUXEDO_CHESTPLATE', 'ELEGANT_TUXEDO_LEGGINGS'], damagePercent: 150 },
+  { name: 'Fancy', ids: ['FANCY_TUXEDO_BOOTS', 'FANCY_TUXEDO_CHESTPLATE', 'FANCY_TUXEDO_LEGGINGS'], damagePercent: 100 },
+  { name: 'Cheap', ids: ['CHEAP_TUXEDO_BOOTS', 'CHEAP_TUXEDO_CHESTPLATE', 'CHEAP_TUXEDO_LEGGINGS'], damagePercent: 50 },
+];
+
+// Whether any equipped armor piece's id is in `ids` — Tuxedo pieces aren't positionally fixed
+// (any tier can go in Boots/Chestplate/Leggings), unlike hasFullSet/countSetPieces above.
+export function hasAnyEquippedId(loadout, slots, ids) {
+  return slots.some((slot) => ids.includes(loadout[slot]?.item?.id));
+}

@@ -102,6 +102,9 @@ export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, masterS
     if (!labelMatch) return line;
     const statKey = Object.keys(STAT_LABELS).find((k) => STAT_LABELS[k].label === labelMatch[2]);
     if (!statKey) return line;
+    // Ability Damage (Wither/Shadow/Dark Goggles, Aurora Helmet, Gilded Midas Staff) doesn't
+    // scale with the Catacombs curve in the real game — skip it here.
+    if (statKey === 'ability_damage') return line;
     const total = sumStatFromTooltipLines(lore, labelMatch[2]);
     if (!total) return line;
     const dungeonized = Math.round(total * multiplier * 10) / 10;

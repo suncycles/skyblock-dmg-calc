@@ -36,6 +36,8 @@ const CATEGORY_TO_REFORGE_TYPES = {
   'DUNGEON BELT': ['EQUIPMENT', 'BELT'],
   GLOVES: ['EQUIPMENT'],
   'DUNGEON GLOVES': ['EQUIPMENT'],
+  // Same Gloves slot under a different tag word (Molten Bracelet, Luminous Bracelet, etc.).
+  BRACELET: ['EQUIPMENT'],
 };
 
 // Stat-line label + color a reforge bonus renders with when annotating an item's tooltip.
