@@ -324,6 +324,7 @@ export function BuildProvider({ children }) {
                     category: item.category,
                     tier: item.tier,
                     lore: item.lore || [],
+                    color: item.color,
                   },
           modifiers:
             slot === 'pet'

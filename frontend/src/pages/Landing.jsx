@@ -292,7 +292,13 @@ export default function Landing() {
         onMouseLeave={invalidateHover}
       >
         {equipped ? (
-          <WeaponIcon id={equipped.item.id} material={equipped.item.material} alt={equipped.item.name} className={iconImg} />
+          <WeaponIcon
+            id={equipped.item.id}
+            material={equipped.item.material}
+            alt={equipped.item.name}
+            className={iconImg}
+            color={equipped.item.color}
+          />
         ) : (
           <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
         )}

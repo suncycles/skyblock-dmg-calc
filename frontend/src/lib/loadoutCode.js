@@ -113,7 +113,15 @@ function expandState(compact, itemData) {
     const item = findGearItem(itemData, encoded.id);
     if (!item) continue;
     loadout[slot] = {
-      item: { id: item.id, name: item.name, material: item.material, category: item.category, tier: item.tier, lore: item.lore || [] },
+      item: {
+        id: item.id,
+        name: item.name,
+        material: item.material,
+        category: item.category,
+        tier: item.tier,
+        lore: item.lore || [],
+        color: item.color,
+      },
       modifiers: withDefaults(encoded.modifiers, emptyModifiers()),
     };
   }
