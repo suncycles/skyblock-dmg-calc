@@ -11,6 +11,9 @@ export const THEMES = [
   { id: 'slate', label: 'Slate' },
   { id: 'parchment', label: 'Parchment' },
   { id: 'mono', label: 'Mono' },
+  { id: 'forest', label: 'Forest' },
+  { id: 'frost', label: 'Frost' },
+  { id: 'ink', label: 'Ink' },
 ];
 
 export const THEME_STORAGE_KEY = 'skydmgTheme';
