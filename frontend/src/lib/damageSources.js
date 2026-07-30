@@ -506,7 +506,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     }
   }
 
-  if (loadout.accessory) {
+  if (loadout.accessory?.item) {
     const { item, modifiers } = loadout.accessory;
     const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
     addBaseStat(out, 'strength', accessoryStats.strength || 0, 'Accessory');

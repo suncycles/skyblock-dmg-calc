@@ -77,6 +77,7 @@ export default function DamageSources() {
     setLegionPlayers,
     blazeCrimsonIsle,
     toggleBlazeCrimsonIsle,
+    setAccessoryMagicalPower,
   } = useBuild();
   const { itemData } = useItemData();
   const [result, setResult] = useState(null);
@@ -491,6 +492,23 @@ export default function DamageSources() {
                 />
                 <span>Toggle Master Mode</span>
               </label>
+            </div>
+          </div>
+
+          <div className={`${panel} p-3 flex items-center gap-3`}>
+            <div className="text-sm font-bold text-black">Magical Power</div>
+            <span className="font-mono text-[13px] text-black">{loadout.accessory?.modifiers?.magicalPower || 0}</span>
+            <div className="flex gap-1.5 ml-auto">
+              {[5, 10, 20].map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  className="text-[12px] px-2.5 py-1 rounded bg-neutral-800 text-white hover:bg-neutral-700 transition-colors cursor-pointer"
+                  onClick={() => setAccessoryMagicalPower((loadout.accessory?.modifiers?.magicalPower || 0) + amount)}
+                >
+                  +{amount}
+                </button>
+              ))}
             </div>
           </div>
 
