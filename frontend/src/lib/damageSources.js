@@ -150,7 +150,46 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   // Animal-mob clauses with no blank line between them, so the generic scan's target-text
   // capture bleeds across all three; hardcoded in POOCH_SWORD_WOLF_DAMAGE_PERCENT instead.
   'POOCH_SWORD',
+  // Blaze Slayer daggers — each has two "Deal Nx damage to Y mobs" clauses stacked in one
+  // paragraph, a phrasing ("Deal Nx damage to Y", not "Y mobs take Nx damage") the generic
+  // scan's regexes don't match at all; hardcoded in DAGGER_MOB_MULTIPLIERS instead.
+  'BURSTFIRE_DAGGER',
+  'BURSTMAW_DAGGER',
+  'FIREDUST_DAGGER',
+  'HEARTFIRE_DAGGER',
+  'HEARTMAW_DAGGER',
+  'MAWDUST_DAGGER',
 ]);
+
+// Each Blaze Slayer dagger's own two-mob-type multipliers (real lore, both clauses).
+// Firedust-vs-Infernal and Twilight-vs-Skeletal are overridden to 1.25x — the lore's stated
+// 1.2x/1.1x is a known in-game bug; the real applied multiplier is 1.25x for both.
+const DAGGER_MOB_MULTIPLIERS = {
+  FIREDUST_DAGGER: [
+    { multiplier: 1.25, condition: 'Infernal' },
+    { multiplier: 1.1, condition: 'Wither' },
+  ],
+  BURSTFIRE_DAGGER: [
+    { multiplier: 1.5, condition: 'Infernal' },
+    { multiplier: 1.2, condition: 'Wither' },
+  ],
+  HEARTFIRE_DAGGER: [
+    { multiplier: 2, condition: 'Infernal' },
+    { multiplier: 1.5, condition: 'Wither' },
+  ],
+  MAWDUST_DAGGER: [
+    { multiplier: 1.5, condition: 'Infernal' },
+    { multiplier: 1.25, condition: 'Skeletal' },
+  ],
+  BURSTMAW_DAGGER: [
+    { multiplier: 2.5, condition: 'Infernal' },
+    { multiplier: 1.5, condition: 'Skeletal' },
+  ],
+  HEARTMAW_DAGGER: [
+    { multiplier: 3.5, condition: 'Infernal' },
+    { multiplier: 2, condition: 'Skeletal' },
+  ],
+};
 
 // Pooch Sword's "+200% Damage against Wolves" — see SPECIAL_SCAN_EXCLUDE_IDS above for why
 // this can't go through the generic ability-text scan. "Wolves" covers every wolf-family mob,
@@ -918,6 +957,20 @@ export async function collectDamageSources(
         condition,
         conditionLabel,
       });
+    }
+
+    const daggerMultipliers = DAGGER_MOB_MULTIPLIERS[equipped.item.id];
+    if (daggerMultipliers) {
+      const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
+      for (const { multiplier, condition } of daggerMultipliers) {
+        out.multiplicative.push({
+          id: `${idBase}-${condition.toLowerCase()}`,
+          label: `${itemLabel} (${condition})`,
+          source: slotLabel,
+          value: multiplier,
+          condition,
+        });
+      }
     }
 
     if (equipped.item.id === 'CROWN_OF_AVARICE_CELEBRATION') {
