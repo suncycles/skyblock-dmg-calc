@@ -11,7 +11,7 @@ function buildCandidates(id, material) {
   return candidates;
 }
 
-export default function WeaponIcon({ id, material, alt, className }) {
+export default function WeaponIcon({ id, material, alt, className, color }) {
   const [candidates, setCandidates] = useState(() => buildCandidates(id, material));
   const [index, setIndex] = useState(0);
 
@@ -20,12 +20,24 @@ export default function WeaponIcon({ id, material, alt, className }) {
     setIndex(0);
   }, [id, material]);
 
+  const handleError = () => setIndex((i) => Math.min(i + 1, candidates.length - 1));
+
+  if (!color) {
+    return <img src={candidates[index]} alt={alt} className={className} onError={handleError} />;
+  }
+
+  // Leather armor's real dye color (baked into the item's NBT, see armor.json's `color`
+  // field) — tinted here since the bundled Hypixel resource-pack art has no per-item
+  // pre-colored render for these, only the generic undyed base texture.
   return (
-    <img
-      src={candidates[index]}
-      alt={alt}
-      className={className}
-      onError={() => setIndex((i) => Math.min(i + 1, candidates.length - 1))}
-    />
+    <div className={`relative ${className}`}>
+      <img
+        src={candidates[index]}
+        alt={alt}
+        className="absolute inset-0 w-full h-full object-contain pixelated"
+        onError={handleError}
+      />
+      <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: `#${color}`, mixBlendMode: 'overlay' }} />
+    </div>
   );
 }

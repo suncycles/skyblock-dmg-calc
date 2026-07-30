@@ -67,7 +67,7 @@ export default function GemstoneSlots() {
       if (row === ITEM_ROW && col === ITEM_COL) {
         cells.push(
           <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleItemHover} onMouseLeave={handleItemLeave}>
-            {item && <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />}
+            {item && <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />}
           </div>,
         );
         continue;

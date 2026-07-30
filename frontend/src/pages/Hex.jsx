@@ -97,7 +97,7 @@ export default function Hex() {
                 return (
                   <div key={key} className={slotBase} onMouseEnter={handleItemHover} onMouseLeave={handleItemLeave}>
                     {item ? (
-                      <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />
+                      <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />
                     ) : (
                       <span title="No item selected — use Close to pick one" className="text-2xl">
                         {slot === 'weapon' ? '⚔️' : '🛡️'}

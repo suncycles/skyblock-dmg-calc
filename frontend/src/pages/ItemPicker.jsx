@@ -58,7 +58,13 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
                     className="flex items-center gap-2 px-2.5 py-1.5 text-sm cursor-pointer hover:bg-neutral-700"
                     onMouseDown={() => onSelect(w)}
                   >
-                    <WeaponIcon id={w.id} material={w.material} alt={w.name} className="w-5 h-5 object-contain pixelated" />
+                    <WeaponIcon
+                      id={w.id}
+                      material={w.material}
+                      alt={w.name}
+                      className="w-5 h-5 object-contain pixelated"
+                      color={w.color}
+                    />
                     <span>{formatItemName(w.name)}</span>
                   </div>
                 ))
@@ -84,7 +90,13 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
                 className="flex flex-col items-center justify-center gap-1 aspect-square bg-neutral-500 border border-neutral-700 p-1.5 cursor-pointer hover:bg-neutral-400 overflow-hidden"
                 onClick={() => onSelect(w)}
               >
-                <WeaponIcon id={w.id} material={w.material} alt={w.name} className="w-[60%] h-[60%] object-contain pixelated" />
+                <WeaponIcon
+                  id={w.id}
+                  material={w.material}
+                  alt={w.name}
+                  className="w-[60%] h-[60%] object-contain pixelated"
+                  color={w.color}
+                />
                 <div className="w-full text-center text-[10px] truncate">{formatItemName(w.name)}</div>
               </div>
             ))}

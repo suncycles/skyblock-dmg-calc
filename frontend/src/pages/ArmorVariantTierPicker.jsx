@@ -53,7 +53,7 @@ export default function ArmorVariantTierPicker() {
               onMouseEnter={(e) => handleHover(item, e)}
               onMouseLeave={hideTooltip}
             >
-              <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} />
+              <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />
               <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
                 {item.tierLabel}
               </span>

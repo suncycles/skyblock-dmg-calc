@@ -1,5 +1,6 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
+import { sumDungeonizedStatFromTooltipLines, sumMasterDungeonizedStatFromTooltipLines } from './dungeonize';
 import { REFORGE_COLOR, FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { BOOKS_COLOR } from './books';
 import { GEMSTONE_COLOR } from './gemstones';
@@ -286,7 +287,13 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const slotLabel = SLOT_LABELS[slot];
     const lines = await buildFullItemTooltipLines(equipped.item, equipped.modifiers, itemData, catacombsLevel, tamingLevel);
     for (const statKey of TRACKED_STATS) {
-      addBaseStat(out, statKey, sumStatFromTooltipLines(lines, STAT_LABELS[statKey].label), slotLabel);
+      const label = STAT_LABELS[statKey].label;
+      const normal = sumStatFromTooltipLines(lines, label);
+      addBaseStat(out, statKey, normal, slotLabel);
+      // Falls back to `normal` itself when the item isn't dungeonized, so the toggle never
+      // leaves a stat missing — see lib/dungeonize.js's own fallback behavior.
+      out.dungeonizeDelta[statKey] += sumDungeonizedStatFromTooltipLines(lines, label) - normal;
+      out.masterDungeonizeDelta[statKey] += sumMasterDungeonizedStatFromTooltipLines(lines, label) - normal;
     }
     // Emerald Blade's bonus lives on its own "Current Damage Bonus:" line, not a "Damage:" stat line.
     if (equipped.item.id === 'EMERALD_BLADE') {
@@ -595,6 +602,13 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   const out = {
     baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
+    // Gear-only deltas (dungeonized/master total minus normal total, summed across equipped
+    // items) folded into baseStats at the very end to produce dungeonizedBaseStats/
+    // masterDungeonizedBaseStats — kept separate from baseStats since player-level bonuses
+    // computed off the running baseStats total (Dragon's Greed, Sacred Strength, etc.) shouldn't
+    // themselves be re-scaled by Dungeonize.
+    dungeonizeDelta: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
+    masterDungeonizeDelta: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
     additiveNonConditional: [],
     additiveConditional: [],
     // The equipped weapon's own "+X% damage" ability bonuses — kept separate from the
@@ -785,6 +799,13 @@ export async function collectDamageSources(loadout, itemData, playerStats, godPo
   await collectPetEntries(loadout, itemData, out);
 
   collectAttributeEntries(attributes, loadout, out);
+
+  out.dungeonizedBaseStats = {};
+  out.masterDungeonizedBaseStats = {};
+  for (const statKey of TRACKED_STATS) {
+    out.dungeonizedBaseStats[statKey] = out.baseStats[statKey] + out.dungeonizeDelta[statKey];
+    out.masterDungeonizedBaseStats[statKey] = out.baseStats[statKey] + out.masterDungeonizeDelta[statKey];
+  }
 
   return out;
 }
