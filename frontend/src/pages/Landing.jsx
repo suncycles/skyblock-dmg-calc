@@ -204,6 +204,7 @@ export default function Landing() {
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
     const manticoreClawBonus = computeManticoreClawBonus(equipped, petStats);
+    const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
     const lines = await buildFullItemTooltipLines(
       equipped.item,
       equipped.modifiers,
@@ -214,6 +215,7 @@ export default function Landing() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
+      potatoBookDoubled,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
@@ -238,6 +240,7 @@ export default function Landing() {
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout.weapon, petStats);
     const manticoreClawBonus = computeManticoreClawBonus(loadout.weapon, petStats);
+    const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
     const lines = await buildFullItemTooltipLines(
       loadout.weapon.item,
       loadout.weapon.modifiers,
@@ -248,6 +251,7 @@ export default function Landing() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
+      potatoBookDoubled,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

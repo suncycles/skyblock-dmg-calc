@@ -79,6 +79,7 @@ export async function buildFullItemTooltipLines(
   chimeraBonus,
   generalsMedallionDigits,
   manticoreClawBonus,
+  potatoBookDoubled,
 ) {
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
@@ -92,7 +93,7 @@ export async function buildFullItemTooltipLines(
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
     : null;
   lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel);
-  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType);
+  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
   // Stars/Wither Blade/Daedalus Taming bonuses merge directly into the item's own base stats.
   lore = mergeStatIntoBase(lore, computeStarBonuses(item.lore, modifiers.stars), lore.indexOf(''));

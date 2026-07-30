@@ -58,6 +58,7 @@ export default function Hex() {
     const petStats = computeEquippedPetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout[slot], petStats);
     const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], petStats);
+    const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
     const lines = await buildFullItemTooltipLines(
       item,
       loadout[slot].modifiers,
@@ -68,6 +69,7 @@ export default function Hex() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
+      potatoBookDoubled,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
