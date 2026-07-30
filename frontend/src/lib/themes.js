@@ -10,10 +10,10 @@ export const THEMES = [
   { id: 'classic', label: 'Classic' },
   { id: 'slate', label: 'Slate' },
   { id: 'parchment', label: 'Parchment' },
-  { id: 'mono', label: 'Mono' },
   { id: 'forest', label: 'Forest' },
   { id: 'frost', label: 'Frost' },
-  { id: 'ink', label: 'Ink' },
+  { id: 'aurora', label: 'Aurora' },
+  { id: 'nova', label: 'Nova' },
 ];
 
 export const THEME_STORAGE_KEY = 'skydmgTheme';
