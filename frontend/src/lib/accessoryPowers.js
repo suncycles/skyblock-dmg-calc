@@ -186,7 +186,7 @@ export const STONE_POWERS = [
     requirement: 'Combat X',
     sourceItemId: 'DISPLACED_LEECH',
     sourceName: 'Displaced Leech',
-    baseStats: { health: 5.1, strength: 12, crit_damage: 4.8 }, // "vt" (unmapped) omitted
+    baseStats: { strength: 0.6, health: 0.1, crit_damage: 0.2, crit_chance: 0.1 },
     uniqueBonus: { intelligence: 100 },
   },
   {
@@ -226,7 +226,7 @@ export const STONE_POWERS = [
     requirement: 'Combat XX',
     sourceItemId: 'CHOCOLATE_CHIP',
     sourceName: 'Fang-tastic Chocolate Chip',
-    baseStats: { health: 10.1, intelligence: 5.4, true_defense: 0.6 }, // "vt"/"md" (unmapped) omitted
+    baseStats: { health: 0.3, intelligence: 0.15, true_defense: 0.4, bonus_attack_speed: 0.1, crit_chance: 0.05 },
     uniqueBonus: { speed: 25 },
   },
   {
@@ -246,7 +246,7 @@ export const STONE_POWERS = [
     requirement: 'Combat XX',
     sourceItemId: 'GLACITE_SHARD',
     sourceName: 'Glacite Chunk',
-    baseStats: { defense: 14.4, crit_damage: 12, strength: 6, speed: -1.8 },
+    baseStats: { defense: 0.55, true_defense: 0.45 },
     uniqueBonus: { strength: 25, crit_damage: 25, true_defense: 10 },
   },
   {
