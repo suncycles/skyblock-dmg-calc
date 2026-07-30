@@ -13,7 +13,7 @@ export default function ThemeSwitcher() {
   }, [theme]);
 
   return (
-    <div className="fixed bottom-1 left-2 z-50 flex items-center gap-1 pointer-events-auto">
+    <div className="fixed bottom-1 left-2 z-50 flex flex-wrap-reverse items-center gap-1 max-w-[280px] pointer-events-auto">
       {THEMES.map((t) => (
         <button
           key={t.id}

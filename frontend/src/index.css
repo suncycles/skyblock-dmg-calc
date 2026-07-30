@@ -135,6 +135,120 @@ html[data-theme='mono'] .border-r-\[\#1f4f1f\] {
   border-color: #7f1d1d;
 }
 
+html[data-theme='forest'] body {
+  background: #0d1b15;
+  color: #dbf3e6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+html[data-theme='forest'] .bg-\[\#c6c6c6\] {
+  background-color: #142720;
+}
+html[data-theme='forest'] .bg-\[\#8b8b8b\],
+html[data-theme='forest'] .bg-\[\#8b8b8b\]\/80 {
+  background-color: #1c352a;
+}
+html[data-theme='forest'] .border-t-white,
+html[data-theme='forest'] .border-l-white {
+  border-color: #274536;
+}
+html[data-theme='forest'] .border-b-\[\#555555\],
+html[data-theme='forest'] .border-r-\[\#555555\] {
+  border-color: #274536;
+}
+html[data-theme='forest'] .outline-black {
+  outline-color: #081410;
+}
+html[data-theme='forest'] .bg-green-400 {
+  background-color: #a3e635;
+}
+html[data-theme='forest'] .bg-\[\#3a8f3a\] {
+  background-color: #3f6212;
+}
+html[data-theme='forest'] .border-t-\[\#6fd66f\],
+html[data-theme='forest'] .border-l-\[\#6fd66f\] {
+  border-color: #bef264;
+}
+html[data-theme='forest'] .border-b-\[\#1f4f1f\],
+html[data-theme='forest'] .border-r-\[\#1f4f1f\] {
+  border-color: #1a2e05;
+}
+
+html[data-theme='frost'] body {
+  background: #eef4f8;
+  color: #1c2b34;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+html[data-theme='frost'] .bg-\[\#c6c6c6\] {
+  background-color: #dbe8ef;
+}
+html[data-theme='frost'] .bg-\[\#8b8b8b\],
+html[data-theme='frost'] .bg-\[\#8b8b8b\]\/80 {
+  background-color: #cddfe8;
+}
+html[data-theme='frost'] .border-t-white,
+html[data-theme='frost'] .border-l-white {
+  border-color: #b6cdd9;
+}
+html[data-theme='frost'] .border-b-\[\#555555\],
+html[data-theme='frost'] .border-r-\[\#555555\] {
+  border-color: #b6cdd9;
+}
+html[data-theme='frost'] .outline-black {
+  outline-color: #93aebb;
+}
+html[data-theme='frost'] .bg-green-400 {
+  background-color: #38bdf8;
+}
+html[data-theme='frost'] .bg-\[\#3a8f3a\] {
+  background-color: #0284c7;
+}
+html[data-theme='frost'] .border-t-\[\#6fd66f\],
+html[data-theme='frost'] .border-l-\[\#6fd66f\] {
+  border-color: #7dd3fc;
+}
+html[data-theme='frost'] .border-b-\[\#1f4f1f\],
+html[data-theme='frost'] .border-r-\[\#1f4f1f\] {
+  border-color: #075985;
+}
+
+html[data-theme='ink'] body {
+  background: #fafafa;
+  color: #111111;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+html[data-theme='ink'] .bg-\[\#c6c6c6\] {
+  background-color: #efefef;
+}
+html[data-theme='ink'] .bg-\[\#8b8b8b\],
+html[data-theme='ink'] .bg-\[\#8b8b8b\]\/80 {
+  background-color: #e2e2e2;
+}
+html[data-theme='ink'] .border-t-white,
+html[data-theme='ink'] .border-l-white {
+  border-color: #d0d0d0;
+}
+html[data-theme='ink'] .border-b-\[\#555555\],
+html[data-theme='ink'] .border-r-\[\#555555\] {
+  border-color: #d0d0d0;
+}
+html[data-theme='ink'] .outline-black {
+  outline-color: #cccccc;
+}
+html[data-theme='ink'] .bg-green-400 {
+  background-color: #4f46e5;
+}
+html[data-theme='ink'] .bg-\[\#3a8f3a\] {
+  background-color: #4338ca;
+}
+html[data-theme='ink'] .border-t-\[\#6fd66f\],
+html[data-theme='ink'] .border-l-\[\#6fd66f\] {
+  border-color: #818cf8;
+}
+html[data-theme='ink'] .border-b-\[\#1f4f1f\],
+html[data-theme='ink'] .border-r-\[\#1f4f1f\] {
+  border-color: #312e81;
+}
+
 /* Minecraft/Skyblock tooltip. Background/border approximate the game's
    dark-purple tooltip panel (matches MinecraftTooltipGenerator's
    defaults, #140314 / #25005e). */
