@@ -10,6 +10,131 @@ body {
   image-rendering: pixelated;
 }
 
+/* ---------------------------------------------------------------------------------------
+   Draft theme overrides (see lib/themes.js + components/ThemeSwitcher.jsx).
+
+   Every page's chest-GUI chrome reuses the same handful of literal Tailwind utility
+   classes for its panel/slot/highlight/CTA colors (bg-[#c6c6c6], bg-[#8b8b8b],
+   border-t-white, bg-green-400, etc.) rather than a shared component. Rules here are
+   unlayered, so they beat Tailwind's own @layer utilities without needing !important —
+   scoping them under html[data-theme="..."] reskins every page's GUI chrome at once
+   without editing 20 files. If a theme sticks, promote it to real CSS variables/shared
+   components instead of this override layer. */
+
+html[data-theme='slate'] body {
+  background: #14161b;
+  color: #e5e7eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+html[data-theme='slate'] .bg-\[\#c6c6c6\] {
+  background-color: #1f2330;
+}
+html[data-theme='slate'] .bg-\[\#8b8b8b\],
+html[data-theme='slate'] .bg-\[\#8b8b8b\]\/80 {
+  background-color: #262b3a;
+}
+html[data-theme='slate'] .border-t-white,
+html[data-theme='slate'] .border-l-white {
+  border-color: #323847;
+}
+html[data-theme='slate'] .border-b-\[\#555555\],
+html[data-theme='slate'] .border-r-\[\#555555\] {
+  border-color: #323847;
+}
+html[data-theme='slate'] .outline-black {
+  outline-color: #0a0b0e;
+}
+html[data-theme='slate'] .bg-green-400 {
+  background-color: #2dd4bf;
+}
+html[data-theme='slate'] .bg-\[\#3a8f3a\] {
+  background-color: #0d9488;
+}
+html[data-theme='slate'] .border-t-\[\#6fd66f\],
+html[data-theme='slate'] .border-l-\[\#6fd66f\] {
+  border-color: #5eead4;
+}
+html[data-theme='slate'] .border-b-\[\#1f4f1f\],
+html[data-theme='slate'] .border-r-\[\#1f4f1f\] {
+  border-color: #0f5952;
+}
+
+html[data-theme='parchment'] body {
+  background: #ede1c9;
+  color: #3b2f22;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+html[data-theme='parchment'] .bg-\[\#c6c6c6\] {
+  background-color: #e5d7b8;
+}
+html[data-theme='parchment'] .bg-\[\#8b8b8b\],
+html[data-theme='parchment'] .bg-\[\#8b8b8b\]\/80 {
+  background-color: #dccca4;
+}
+html[data-theme='parchment'] .border-t-white,
+html[data-theme='parchment'] .border-l-white {
+  border-color: #c9b58a;
+}
+html[data-theme='parchment'] .border-b-\[\#555555\],
+html[data-theme='parchment'] .border-r-\[\#555555\] {
+  border-color: #c9b58a;
+}
+html[data-theme='parchment'] .outline-black {
+  outline-color: #a68f63;
+}
+html[data-theme='parchment'] .bg-green-400 {
+  background-color: #b98a3e;
+}
+html[data-theme='parchment'] .bg-\[\#3a8f3a\] {
+  background-color: #a3722f;
+}
+html[data-theme='parchment'] .border-t-\[\#6fd66f\],
+html[data-theme='parchment'] .border-l-\[\#6fd66f\] {
+  border-color: #d4a860;
+}
+html[data-theme='parchment'] .border-b-\[\#1f4f1f\],
+html[data-theme='parchment'] .border-r-\[\#1f4f1f\] {
+  border-color: #6e4c1c;
+}
+
+html[data-theme='mono'] body {
+  background: #0a0a0a;
+  color: #f2f2f2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+html[data-theme='mono'] .bg-\[\#c6c6c6\] {
+  background-color: #121212;
+}
+html[data-theme='mono'] .bg-\[\#8b8b8b\],
+html[data-theme='mono'] .bg-\[\#8b8b8b\]\/80 {
+  background-color: #1c1c1c;
+}
+html[data-theme='mono'] .border-t-white,
+html[data-theme='mono'] .border-l-white {
+  border-color: #333333;
+}
+html[data-theme='mono'] .border-b-\[\#555555\],
+html[data-theme='mono'] .border-r-\[\#555555\] {
+  border-color: #333333;
+}
+html[data-theme='mono'] .outline-black {
+  outline-color: #444444;
+}
+html[data-theme='mono'] .bg-green-400 {
+  background-color: #ef4444;
+}
+html[data-theme='mono'] .bg-\[\#3a8f3a\] {
+  background-color: #b91c1c;
+}
+html[data-theme='mono'] .border-t-\[\#6fd66f\],
+html[data-theme='mono'] .border-l-\[\#6fd66f\] {
+  border-color: #f87171;
+}
+html[data-theme='mono'] .border-b-\[\#1f4f1f\],
+html[data-theme='mono'] .border-r-\[\#1f4f1f\] {
+  border-color: #7f1d1d;
+}
+
 /* Minecraft/Skyblock tooltip. Background/border approximate the game's
    dark-purple tooltip panel (matches MinecraftTooltipGenerator's
    defaults, #140314 / #25005e). */
