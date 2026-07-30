@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
@@ -18,6 +18,7 @@ import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { getMobModelIcon, getMobIconDataUri } from '../lib/mobIcons';
+import { getBackgroundGif } from '../lib/background';
 import { GOD_POTION_TOOLTIP_LINES } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName } from '../lib/mcText';
@@ -26,7 +27,7 @@ import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
 import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
-  'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
+  'flex items-center justify-center bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
@@ -75,6 +76,10 @@ export default function Landing() {
   const [showLoadoutsPanel, setShowLoadoutsPanel] = useState(false);
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
+
+  // Zone-themed backdrop keyed off the first selected Target Mob (see lib/background.js);
+  // falls back to the SkyBlock hub, day or night, when nothing's selected.
+  const bgGif = useMemo(() => getBackgroundGif(targetMobs), [targetMobs]);
 
   function persistSavedLoadouts(next) {
     setSavedLoadouts(next);
@@ -604,7 +609,13 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      {/* Zone-themed backdrop, sits behind everything. */}
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center"
+        style={{ backgroundImage: `url(${bgGif})` }}
+      />
+
       {/* Fixed corner, outside the centered grid layout. */}
       <div className="fixed top-2 left-2 flex flex-col gap-1.5 z-10">
         <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide">Share</span>
@@ -682,7 +693,7 @@ export default function Landing() {
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
         </div>
       </div>
