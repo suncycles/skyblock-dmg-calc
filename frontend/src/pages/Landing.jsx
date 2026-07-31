@@ -28,6 +28,11 @@ import WeaponIcon from '../components/WeaponIcon';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
+// Same bordered-panel look as the main chest-GUI grid (and every other page's Back button) —
+// reused here so Export/Import/Loadouts stay visually consistent and theme-aware instead of a
+// generic floating pill that can wash out against a busy background gif.
+const toolbar =
+  'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
@@ -623,26 +628,26 @@ export default function Landing() {
       />
 
       {/* Fixed corner, outside the centered grid layout. */}
-      <div className="fixed top-2 left-2 flex flex-col gap-1.5 z-10">
-        <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide">Share</span>
+      <div className={`fixed top-2 left-2 z-10 flex flex-col gap-1.5 p-2 ${toolbar}`}>
+        <span className="text-[10px] font-bold text-black uppercase tracking-wide">Share Loadout</span>
         <button
-          className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-800/90 text-white hover:bg-neutral-700 transition-colors cursor-pointer whitespace-nowrap shadow-sm"
+          className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
           onClick={handleExportLoadout}
         >
-          {exportStatus || 'Export Loadout'}
+          📤 {exportStatus || 'Export Loadout'}
         </button>
         <button
-          className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-800/90 text-white hover:bg-neutral-700 transition-colors cursor-pointer whitespace-nowrap shadow-sm"
+          className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
           onClick={handleImportLoadout}
         >
-          {importStatus || 'Import Loadout'}
+          📥 {importStatus || 'Import Loadout'}
         </button>
       </div>
 
       {/* Fixed corner, outside the centered grid layout. */}
       <div className="fixed top-2 right-2 flex flex-col items-end gap-1.5 z-10">
         <button
-          className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-800/90 text-white hover:bg-neutral-700 transition-colors cursor-pointer whitespace-nowrap shadow-sm"
+          className={`${toolbar} text-[13px] font-bold px-3 py-2 text-black hover:brightness-110 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5`}
           onClick={() => setShowLoadoutsPanel((v) => !v)}
         >
           📁 Loadouts
