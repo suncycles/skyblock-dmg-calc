@@ -14,6 +14,7 @@ export const THEMES = [
   { id: 'frost', label: 'Frost' },
   { id: 'aurora', label: 'Aurora' },
   { id: 'nova', label: 'Nova' },
+  { id: 'inferno', label: 'Inferno' },
 ];
 
 export const THEME_STORAGE_KEY = 'skydmgTheme';
