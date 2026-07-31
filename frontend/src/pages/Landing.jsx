@@ -621,100 +621,115 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      {/* Zone-themed backdrop, sits behind everything. */}
+      {/* Zone-themed backdrop, sits behind everything. Explicit inline background properties
+          (rather than relying solely on the bg-cover/bg-center utility classes) plus redundant
+          w-screen/h-screen sizing alongside inset-0, so it robustly fills edge-to-edge with no
+          letterboxing on any aspect ratio — cropping the image is fine, empty space isn't. */}
       <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: `url(${bgGif})` }}
+        className="fixed inset-0 -z-10 w-screen h-screen"
+        style={{
+          backgroundImage: `url(${bgGif})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
       />
 
-      {/* Fixed corner, outside the centered grid layout. */}
-      <div className={`fixed top-2 left-2 z-10 flex flex-col gap-1.5 p-2 ${toolbar}`}>
-        <span className="text-[10px] font-bold text-black uppercase tracking-wide">Share Loadout</span>
-        <button
-          className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-          onClick={handleExportLoadout}
-        >
-          📤 {exportStatus || 'Export Loadout'}
-        </button>
-        <button
-          className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-          onClick={handleImportLoadout}
-        >
-          📥 {importStatus || 'Import Loadout'}
-        </button>
-      </div>
+      {/* Pushes the whole assembly down ~15% of the viewport for more comfortable vertical centering. */}
+      <div className="h-[15vh] shrink-0" />
 
-      {/* Fixed corner, outside the centered grid layout. */}
-      <div className="fixed top-2 right-2 flex flex-col items-end gap-1.5 z-10">
-        <button
-          className={`${toolbar} text-[13px] font-bold px-3 py-2 text-black hover:brightness-110 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5`}
-          onClick={() => setShowLoadoutsPanel((v) => !v)}
-        >
-          📁 Loadouts
-        </button>
-        {showLoadoutsPanel && (
-          <div className="w-64 rounded-lg bg-neutral-900/95 border border-neutral-700 shadow-lg p-3 text-white">
-            <div className="flex gap-1.5 mb-2">
-              <input
-                type="text"
-                value={newLoadoutName}
-                onChange={(e) => setNewLoadoutName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveLoadout()}
-                placeholder="Loadout name"
-                className="flex-1 min-w-0 text-[12px] px-2 py-1 rounded bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-400"
-              />
-              <button
-                className="text-[12px] px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                onClick={handleSaveLoadout}
-                disabled={!newLoadoutName.trim()}
-              >
-                {saveStatus || 'Save'}
-              </button>
-            </div>
-            <div className="max-h-56 overflow-y-auto flex flex-col gap-1">
-              {savedLoadouts.length === 0 ? (
-                <p className="text-[11px] text-neutral-500 italic">No saved loadouts yet.</p>
-              ) : (
-                savedLoadouts.map((entry) => (
-                  <div key={entry.id} className="flex items-center gap-1.5">
-                    <button
-                      className="flex-1 min-w-0 text-left text-[12px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 transition-colors cursor-pointer truncate"
-                      onClick={() => handleLoadSavedLoadout(entry)}
-                      title={entry.name}
-                    >
-                      {entry.name}
-                    </button>
-                    <button
-                      className="text-[11px] px-1.5 py-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer"
-                      title={`Delete "${entry.name}"`}
-                      onClick={() => handleDeleteSavedLoadout(entry.id)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))
-              )}
+      {/* Loadout toolbars sit flush against the central GUI (not pinned to screen corners) so
+          they read as one attached block instead of floating separately; wraps below on narrow screens. */}
+      <div className="flex flex-wrap items-center justify-center gap-0">
+        <div className={`z-10 flex flex-col gap-1.5 p-2 ${toolbar}`}>
+          <span className="text-[10px] font-bold text-black uppercase tracking-wide">Share Loadout</span>
+          <button
+            className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            onClick={handleExportLoadout}
+          >
+            📤 {exportStatus || 'Export Loadout'}
+          </button>
+          <button
+            className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            onClick={handleImportLoadout}
+          >
+            📥 {importStatus || 'Import Loadout'}
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <header className="w-full max-w-[700px] mb-4 text-center">
+            <h1 className="text-3xl font-bold"></h1>
+          </header>
+
+          <div className="w-full max-w-[700px] overflow-x-auto">
+            <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
+              {cells}
             </div>
           </div>
-        )}
-      </div>
 
-      <header className="w-full max-w-[700px] mb-4 text-center">
-        <h1 className="text-3xl font-bold"></h1>
-      </header>
+          <button
+            className="mt-4 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer"
+            onClick={() => navigate('/damage-sources')}
+          >
+            📊 Damage Calculation
+          </button>
+        </div>
 
-      <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
-          {cells}
+        <div className="flex flex-col items-end gap-1.5 z-10">
+          <button
+            className={`${toolbar} text-[13px] font-bold px-3 py-2 text-black hover:brightness-110 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5`}
+            onClick={() => setShowLoadoutsPanel((v) => !v)}
+          >
+            📁 Loadouts
+          </button>
+          {showLoadoutsPanel && (
+            <div className="w-64 rounded-lg bg-neutral-900/95 border border-neutral-700 shadow-lg p-3 text-white">
+              <div className="flex gap-1.5 mb-2">
+                <input
+                  type="text"
+                  value={newLoadoutName}
+                  onChange={(e) => setNewLoadoutName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveLoadout()}
+                  placeholder="Loadout name"
+                  className="flex-1 min-w-0 text-[12px] px-2 py-1 rounded bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-400"
+                />
+                <button
+                  className="text-[12px] px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                  onClick={handleSaveLoadout}
+                  disabled={!newLoadoutName.trim()}
+                >
+                  {saveStatus || 'Save'}
+                </button>
+              </div>
+              <div className="max-h-56 overflow-y-auto flex flex-col gap-1">
+                {savedLoadouts.length === 0 ? (
+                  <p className="text-[11px] text-neutral-500 italic">No saved loadouts yet.</p>
+                ) : (
+                  savedLoadouts.map((entry) => (
+                    <div key={entry.id} className="flex items-center gap-1.5">
+                      <button
+                        className="flex-1 min-w-0 text-left text-[12px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 transition-colors cursor-pointer truncate"
+                        onClick={() => handleLoadSavedLoadout(entry)}
+                        title={entry.name}
+                      >
+                        {entry.name}
+                      </button>
+                      <button
+                        className="text-[11px] px-1.5 py-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer"
+                        title={`Delete "${entry.name}"`}
+                        onClick={() => handleDeleteSavedLoadout(entry.id)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      <button
-        className="mt-4 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer"
-        onClick={() => navigate('/damage-sources')}
-      >
-        📊 Damage Calculation
-      </button>
     </div>
   );
 }
