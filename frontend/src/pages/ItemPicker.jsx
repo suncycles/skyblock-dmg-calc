@@ -7,6 +7,13 @@ function stripLeadingSymbol(name) {
   return name.replace(/^[^A-Za-z0-9]+/, '');
 }
 
+// Same bordered chest-GUI look used everywhere else (panels, back buttons) — reused here so
+// these pickers pick up the same theme overrides instead of a plain generic grey palette.
+const panel =
+  'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
+const slotBase =
+  'flex flex-col items-center justify-center gap-1 bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
+
 // Generic search-box-plus-full-grid item picker, shared by weapon/armor pickers. Knows nothing about BuildContext or routing.
 export default function ItemPicker({ items, title, placeholder, loading, error, onSelect, onBack }) {
   const [query, setQuery] = useState('');
@@ -23,7 +30,7 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
       <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
         {onBack && (
           <button
-            className="text-sm px-3 py-1.5 cursor-pointer bg-neutral-800 text-white hover:brightness-110"
+            className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
             onClick={onBack}
           >
             ← Back
@@ -38,7 +45,7 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
             type="text"
             placeholder={placeholder}
             autoComplete="off"
-            className="w-full text-sm px-2.5 py-2 bg-neutral-900 text-neutral-100 border border-neutral-600 outline-none focus:border-neutral-400"
+            className={`${panel} w-full text-sm px-3 py-2 !border-0 text-black placeholder-black/50 outline-none`}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -48,14 +55,14 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
             onBlur={() => setDropdownOpen(false)}
           />
           {dropdownOpen && query.trim() && (
-            <div className="absolute top-full left-0 right-0 z-10 max-h-64 overflow-y-auto bg-neutral-900 border border-neutral-600 border-t-0">
+            <div className={`${panel} absolute top-full left-0 right-0 z-10 max-h-64 overflow-y-auto !border-t-0`}>
               {matches.length === 0 ? (
-                <div className="px-2.5 py-1.5 text-sm text-neutral-400">No matching items.</div>
+                <div className="px-2.5 py-1.5 text-sm text-black/70">No matching items.</div>
               ) : (
                 matches.map((w) => (
                   <div
                     key={w.id}
-                    className="flex items-center gap-2 px-2.5 py-1.5 text-sm cursor-pointer hover:bg-neutral-700"
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110"
                     onMouseDown={() => onSelect(w)}
                   >
                     <WeaponIcon
@@ -87,7 +94,7 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
             {items.map((w) => (
               <div
                 key={w.id}
-                className="flex flex-col items-center justify-center gap-1 aspect-square bg-neutral-500 border border-neutral-700 p-1.5 cursor-pointer hover:bg-neutral-400 overflow-hidden"
+                className={`${slotBase} aspect-square p-1.5 cursor-pointer hover:brightness-110 overflow-hidden`}
                 onClick={() => onSelect(w)}
               >
                 <WeaponIcon
@@ -97,7 +104,9 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
                   className="w-[60%] h-[60%] object-contain pixelated"
                   color={w.color}
                 />
-                <div className="w-full text-center text-[10px] truncate">{formatItemName(w.name)}</div>
+                <div className="w-full text-center text-[10px] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate">
+                  {formatItemName(w.name)}
+                </div>
               </div>
             ))}
           </div>
