@@ -30,7 +30,7 @@ export default function ArmorItemPicker() {
     <ItemPicker
       items={items}
       title={`Pick a ${label}`}
-      placeholder={`Search ${label.toLowerCase()}s...`}
+      placeholder={`Search ${label.toLowerCase()}${label.endsWith('s') ? '' : 's'}...`}
       loading={loading}
       error={error}
       onSelect={handleSelect}
