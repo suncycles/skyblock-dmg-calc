@@ -1,6 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { SLOT_TEXTURES } from '../lib/icons';
 
+const panel =
+  'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
+
 // Simple attribution page for third-party data/assets baked into this app at build time.
 export default function Credits() {
   const navigate = useNavigate();
@@ -9,10 +12,10 @@ export default function Credits() {
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
         <button
-          className="text-sm px-3 py-1.5 cursor-pointer bg-neutral-800 text-white hover:brightness-110"
+          className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
           onClick={() => navigate('/')}
         >
-          <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4 inline-block mr-1 align-[-2px]" />
+          <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4" />
           Back
         </button>
         <h1 className="text-xl font-bold">SkyDmg — Credits</h1>

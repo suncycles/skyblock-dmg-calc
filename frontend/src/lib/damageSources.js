@@ -1,9 +1,11 @@
 import { STAT_LABELS } from './reforgeData';
 import { buildFullItemTooltipLines } from './itemTooltip';
-import { sumDungeonizedStatFromTooltipLines, sumMasterDungeonizedStatFromTooltipLines } from './dungeonize';
-import { REFORGE_COLOR, FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
-import { BOOKS_COLOR } from './books';
-import { GEMSTONE_COLOR } from './gemstones';
+import {
+  sumStatFromTooltipLines,
+  sumDungeonizedStatFromTooltipLines,
+  sumMasterDungeonizedStatFromTooltipLines,
+} from './dungeonize';
+import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -295,26 +297,13 @@ function cleanTargetText(raw) {
 // ---------------------------------------------------------------------
 // Base stats: reuses buildFullItemTooltipLines (the single source of truth for an item's
 // tooltip) rather than re-deriving numbers from gemstones/reforges/books/statLines/starring
-// separately. Every "(+X)" in a tooltip line is a genuinely additional amount not already in
-// the leading number, except Reforges/Books/Gemstones which also echo their own already-
-// merged delta for display — excluded here to avoid double-counting.
-function sumStatFromTooltipLines(finalLines, label) {
-  const labelRe = new RegExp(`^${label}:`);
-  const finalLine = finalLines.find((l) => labelRe.test(l.replace(/§./g, '').trim()));
-  if (!finalLine) return 0;
-  const plain = finalLine.replace(/§./g, '');
-  const afterLabelPlain = plain.slice(plain.indexOf(':') + 1);
-  const leadingMatch = /^\s*([+-]?[\d.]+)/.exec(afterLabelPlain);
-  const base = leadingMatch ? parseFloat(leadingMatch[1]) : 0;
-
-  const rawAfterLabel = finalLine.slice(finalLine.indexOf(':') + 1);
-  const annotationRe = /§([0-9a-fk-orp])\(([+-]?[\d.]+)%?\)/g;
-  const parenNums = [...rawAfterLabel.matchAll(annotationRe)]
-    .filter((m) => m[1] !== REFORGE_COLOR && m[1] !== BOOKS_COLOR && m[1] !== GEMSTONE_COLOR)
-    .map((m) => parseFloat(m[2]));
-
-  return base + parenNums.reduce((a, b) => a + b, 0);
-}
+// separately. sumStatFromTooltipLines (imported from lib/dungeonize.js, the canonical
+// implementation) reads the settled current total, excluding Reforge/Books/Gemstone/
+// Dungeonize/Master Star annotations — each of those echoes an amount already reflected
+// elsewhere rather than adding on top, so folding them in here would double-count. In
+// particular, Dungeonize's dark-grey annotation must stay excluded from this "normal" total:
+// it's a standalone replacement total (see dungeonizeDelta below), not an addition, and must
+// only ever reach display via dungeonizedBaseStats when "Toggle Dungeon Stats" is on.
 
 // Chimera enchant: copies 20%/level of the active pet's Strength/Crit Chance/Crit Damage, stacked on top of the pet's own contribution.
 const CHIMERA_PERCENT_PER_LEVEL = 20;
@@ -519,12 +508,17 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 // Enchants: parses each applied enchant's real per-level lore for a %-damage bonus, either
 // conditional (Smite-style) or not. Giant Killer's per-missing-HP rate gets its capped value;
 // anything else of that shape (e.g. Execute) has no fixed value and goes to situational.
-const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+)?damage\s+dealt(?:\s+to\s+(.+?))?\s+by\s+\+?([\d.]+)%/i;
+// "dealt" is optional and "bow " is an allowed prefix — Power V's real lore is "Increases bow
+// damage by 40%," which has neither "dealt" nor a "to <target>" clause.
+const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+|bow\s+)?damage(?:\s+dealt)?(?:\s+to\s+(.+?))?\s+by\s+\+?([\d.]+)%/i;
 const PER_TARGET_STAT_RE =
   /Increases\s+damage\s+dealt\s+by\s+\+?([\d.]+)%\s+for\s+each\s+(?:percent|%)\s+of\s+(.+?)(?:,?\s+up\s+to\s+\+?([\d.]+)%)?\.?\s*$/i;
 
 // One For All: fixed +500% weapon damage, hardcoded since its lore phrasing doesn't match the generic regexes.
 const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
+
+// Overload's real per-level lore: "...dealing 10%/20%/30%/40%/50% extra damage" at levels I-V.
+const OVERLOAD_DAMAGE_PERCENT_PER_LEVEL = 10;
 
 // First Strike/Triple Strike only apply on the first hit(s) of a fight — modeled as active only at 100% mob HP.
 const FIRST_HIT_ENCHANT_IDS = new Set(['first_strike', 'triple_strike']);
@@ -848,6 +842,7 @@ export async function collectDamageSources(
     weaponBonusConditional: [],
     multiplicative: [],
     situational: [],
+    overloadBonusPercent: 0,
   };
 
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
@@ -929,6 +924,16 @@ export async function collectDamageSources(
         legionPlayers,
         out.firstPounceFactor,
       );
+    }
+
+    // Overload (bow-only): its flat Crit Damage/Crit Chance grant already merges into the
+    // weapon's own base stats via the generic enchant-stat-bonus pipeline (itemTooltip.js) —
+    // this is just the separate "Mega Crit" guaranteed-proc display, +10%/level extra damage.
+    if (slot === 'weapon' && isBowEquipped(loadout)) {
+      const overloadEntry = enchantEntries.find((e) => e.id.toLowerCase() === 'overload');
+      if (overloadEntry) {
+        out.overloadBonusPercent = OVERLOAD_DAMAGE_PERCENT_PER_LEVEL * overloadEntry.level;
+      }
     }
 
     if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {

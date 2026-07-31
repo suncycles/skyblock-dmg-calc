@@ -29,7 +29,7 @@ export default function StarringPicker() {
         </header>
         <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">No item selected.</div>
         <button
-          className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2`}
+          className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
           onClick={() => navigate(-1)}
         >
           <img src={SLOT_TEXTURES.close} alt="Back" className="w-5 h-5" />
