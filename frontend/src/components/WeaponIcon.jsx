@@ -50,7 +50,7 @@ function tintLeatherIcon(src, hexColor) {
   });
 }
 
-export default function WeaponIcon({ id, material, alt, className, color }) {
+export default function WeaponIcon({ id, material, alt, className, color, style }) {
   const [candidates, setCandidates] = useState(() => buildCandidates(id, material));
   const [index, setIndex] = useState(0);
   const [tintedSrc, setTintedSrc] = useState(null);
@@ -81,8 +81,8 @@ export default function WeaponIcon({ id, material, alt, className, color }) {
   const handleError = () => setIndex((i) => Math.min(i + 1, candidates.length - 1));
 
   if (!color) {
-    return <img src={src} alt={alt} className={className} onError={handleError} />;
+    return <img src={src} alt={alt} className={className} style={style} onError={handleError} />;
   }
 
-  return <img src={tintedSrc || src} alt={alt} className={className} onError={handleError} />;
+  return <img src={tintedSrc || src} alt={alt} className={className} style={style} onError={handleError} />;
 }

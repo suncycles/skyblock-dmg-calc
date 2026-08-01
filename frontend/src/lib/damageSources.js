@@ -53,6 +53,9 @@ import {
   computeSkyblockLevelMultiplier,
   computeSkyblockLevelStrengthBonus,
   computeForagingStrengthBonus,
+  computeAlchemyIntelligenceBonus,
+  computeEnchantingIntelligenceBonus,
+  computeEnchantingAbilityDamageBonus,
   BASE_CRIT_CHANCE,
   BASE_CRIT_DAMAGE,
 } from './playerStats';
@@ -74,11 +77,14 @@ import {
   ECHO_OF_ELEMENTAL_RATE,
   ELEMENTAL_STRENGTH_RATE,
   STRENGTH_ELEMENTAL_ATTRIBUTES,
+  ELEMENTAL_INTELLIGENCE_RATE,
+  INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
   DEADEYE_RATE,
   WARRIOR_RATE,
   ELITE_RATE,
   UNLIMITED_POWER_RATE,
   UNLIMITED_ENERGY_RATE,
+  UNLIMITED_TORRENT_RATE,
   ALMIGHTY_RATE,
   DOMINANCE_RATE,
   computeEchoBoost,
@@ -100,7 +106,16 @@ export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 
 const GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS];
 const SLOT_LABELS = { weapon: 'Weapon', ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS };
-const TRACKED_STATS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
+const TRACKED_STATS = [
+  'damage',
+  'strength',
+  'crit_chance',
+  'crit_damage',
+  'intelligence',
+  'ability_damage',
+  'bonus_attack_speed',
+  'ferocity',
+];
 
 // Real Slayer-reward weapons (identified by their own "Combat Wisdom" stat line) — the set Habanero Tactics' bonus requires.
 const SLAYER_WEAPON_IDS = new Set([
@@ -320,6 +335,12 @@ const KING_OF_THE_JUNGLE_PERCENT_PER_LEVEL = 1.5;
 // Blaze pet's "In Crimson Isle" toggle: +10% final multiplier on Strength/Crit Chance/Crit
 // Damage, same mechanism as Unlimited Power/Energy (see collectFinalStatBoosts below).
 const BLAZE_CRIMSON_ISLE_PERCENT = 10;
+// Ender Dragon's Legendary-only Superior perk: real max is 0.1%/level, capped at 10% at level
+// 100 — assumed always at that real max rather than scaled by the pet's actual level, same
+// "assumed max" treatment as Ankylosaurus/King of the Jungle above. Applied as a final
+// multiplier on the fully-summed (Base) Stats (see finalMultiplierStats below), not on the
+// pet's own stat block — a per-pet-stat multiply there would double-count against this.
+const ENDER_DRAGON_SUPERIOR_PERCENT = 10;
 // Renowned reforge (armor): +1% final multiplier on Strength/Crit Chance/Crit Damage per
 // equipped piece with this reforge.
 const RENOWNED_PERCENT_PER_PIECE = 1;
@@ -375,10 +396,10 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     }
     const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
 
-    // Ender Dragon's Legendary Superior perk (otherNums[3]) — stashed for collectFinalStatBoosts
-    // to apply as a final multiplier on the fully-summed (Base) Stats, not the pet's own stat block.
+    // Ender Dragon's Legendary Superior perk — stashed for collectFinalStatBoosts to apply as a
+    // final multiplier on the fully-summed (Base) Stats, not the pet's own stat block.
     if (pet.petId === 'ENDER_DRAGON' && pet.tier === 'LEGENDARY') {
-      out.enderDragonSuperiorPercent = otherNums?.[3] || 0;
+      out.enderDragonSuperiorPercent = ENDER_DRAGON_SUPERIOR_PERCENT;
     }
 
     // Ankylosaurus: assumed always at its real max (+500 Strength), ignoring its actual
@@ -761,12 +782,19 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveConditional.push({ id: `attr-${id}`, label: name, source: 'Attribute', value, condition: mobType });
   }
 
-  // Folded into one "Attributes" base-stat source line.
+  // Folded into one "Attributes" base-stat source line. Echo of Elemental boosts the whole
+  // Elemental family — both the Strength-granting and Intelligence-granting attributes.
   for (const { id } of STRENGTH_ELEMENTAL_ATTRIBUTES) {
     const level = attributes[id] || 0;
     if (!level) continue;
     const base = ELEMENTAL_STRENGTH_RATE * level;
     addBaseStat(out, 'strength', base * (1 + echoOfElementalBoost / 100), 'Attributes');
+  }
+  for (const { id } of INTELLIGENCE_ELEMENTAL_ATTRIBUTES) {
+    const level = attributes[id] || 0;
+    if (!level) continue;
+    const base = ELEMENTAL_INTELLIGENCE_RATE * level;
+    addBaseStat(out, 'intelligence', base * (1 + echoOfElementalBoost / 100), 'Attributes');
   }
 
   const deadeyeLevel = attributes.deadeye || 0;
@@ -798,14 +826,17 @@ function collectAttributeEntries(attributes, loadout, out) {
     out.additiveNonConditional.push({ id: 'attr-dominance', label: 'Dominance', source: 'Attribute', value: DOMINANCE_RATE * dominanceLevel });
   }
 
-  // Unlimited Power/Energy apply last, as a true multiplier on the fully-summed Strength/Crit
-  // Damage — baked into baseStats directly rather than left for finalDamage.js to apply.
-  // Almighty boosts both, same keyword-matching mechanism as the Echo chain.
-  const almightyBoost = ALMIGHTY_RATE * (attributes.almighty || 0);
+  // Unlimited Power/Energy/Torrent apply last, as a true multiplier on the fully-summed
+  // Strength/Crit Damage/Intelligence — baked into baseStats directly rather than left for
+  // finalDamage.js to apply. Almighty boosts all three; Echo of Echoes in turn boosts Almighty
+  // itself, same chained-boost mechanism as Echo of Ruler/Echo of Elemental above.
+  const almightyBoost = computeEchoBoost(ALMIGHTY_RATE, attributes.almighty, attributes.echo_of_echoes);
   const unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
   const unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
+  const unlimitedTorrentPercent = UNLIMITED_TORRENT_RATE * (attributes.unlimited_torrent || 0) * (1 + almightyBoost / 100);
   addBaseStat(out, 'strength', out.baseStats.strength * (unlimitedPowerPercent / 100), 'Unlimited Power');
   addBaseStat(out, 'crit_damage', out.baseStats.crit_damage * (unlimitedEnergyPercent / 100), 'Unlimited Energy');
+  addBaseStat(out, 'intelligence', out.baseStats.intelligence * (unlimitedTorrentPercent / 100), 'Unlimited Torrent');
 }
 
 // ---------------------------------------------------------------------
@@ -825,15 +856,15 @@ export async function collectDamageSources(
   blazeCrimsonIsle = false,
 ) {
   const out = {
-    baseStats: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
-    baseStatSources: { damage: [], strength: [], crit_chance: [], crit_damage: [] },
+    baseStats: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
+    baseStatSources: Object.fromEntries(TRACKED_STATS.map((key) => [key, []])),
     // Gear-only deltas (dungeonized/master total minus normal total, summed across equipped
     // items) folded into baseStats at the very end to produce dungeonizedBaseStats/
     // masterDungeonizedBaseStats — kept separate from baseStats since player-level bonuses
     // computed off the running baseStats total (Dragon's Greed, Sacred Strength, etc.) shouldn't
     // themselves be re-scaled by Dungeonize.
-    dungeonizeDelta: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
-    masterDungeonizeDelta: { damage: 0, strength: 0, crit_chance: 0, crit_damage: 0 },
+    dungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
+    masterDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     additiveNonConditional: [],
     additiveConditional: [],
     // The equipped weapon's own "+X% damage" ability bonuses — kept separate from the
@@ -848,6 +879,9 @@ export async function collectDamageSources(
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
+  addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');
+  addBaseStat(out, 'intelligence', computeEnchantingIntelligenceBonus(playerStats?.enchantingLevel), 'Enchanting Level');
+  addBaseStat(out, 'ability_damage', computeEnchantingAbilityDamageBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   // Real Hypixel base stats before any gear.
   addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');
   addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
@@ -1108,41 +1142,57 @@ export async function collectDamageSources(
 
   collectAttributeEntries(attributes, loadout, out);
 
-  // Final-multiplier "stat boost" perks: applied last, on the fully-summed Strength/Crit
-  // Chance/Crit Damage total only (never Damage) — same mechanism as Unlimited Power/Energy above.
-  const finalMultiplierStats = ['strength', 'crit_chance', 'crit_damage'];
+  // Final-multiplier "stat boost" perks: applied last, on the fully-summed combat-stat totals
+  // only (never Damage) — same mechanism as Unlimited Power/Energy above. Extended to
+  // Intelligence/Ability Damage/Bonus Attack Speed/Ferocity alongside Strength/Crit Chance/Crit
+  // Damage, since these are all genuine "combat stat boost" perks (Renowned, Ender Dragon
+  // Superior, Blaze Crimson Isle, Legion, Superior Dragon) rather than damage-specific ones.
+  const finalMultiplierStats = [
+    'strength',
+    'crit_chance',
+    'crit_damage',
+    'intelligence',
+    'ability_damage',
+    'bonus_attack_speed',
+    'ferocity',
+  ];
+
+  // Every active source's percent is computed off the SAME pre-boost snapshot and summed, not
+  // chained against the running (already-boosted) total — so Renowned +1% and a hypothetical
+  // +1% source add up to a flat +2% of the original total, not 1.01 * 1.01. Each source still
+  // gets its own labeled entry in the (Base) Stats breakdown.
+  const preBoostBaseStats = { ...out.baseStats };
+  const statBoostSources = [];
 
   if (hasFullSet(loadout, ARMOR_SLOTS, SUPERIOR_DRAGON_SET)) {
-    for (const statKey of finalMultiplierStats) {
-      addBaseStat(out, statKey, out.baseStats[statKey] * (SUPERIOR_DRAGON_STAT_BOOST_PERCENT / 100), 'Superior Dragon (Full Set)');
-    }
+    statBoostSources.push({ percent: SUPERIOR_DRAGON_STAT_BOOST_PERCENT, label: 'Superior Dragon (Full Set)' });
   }
 
   if (out.enderDragonSuperiorPercent) {
-    for (const statKey of finalMultiplierStats) {
-      addBaseStat(out, statKey, out.baseStats[statKey] * (out.enderDragonSuperiorPercent / 100), 'Ender Dragon (Superior)');
-    }
+    statBoostSources.push({ percent: out.enderDragonSuperiorPercent, label: 'Ender Dragon (Superior)' });
   }
 
   if (blazeCrimsonIsle && loadout.pet?.item?.petId === 'BLAZE') {
-    for (const statKey of finalMultiplierStats) {
-      addBaseStat(out, statKey, out.baseStats[statKey] * (BLAZE_CRIMSON_ISLE_PERCENT / 100), 'Blaze (In Crimson Isle)');
-    }
+    statBoostSources.push({ percent: BLAZE_CRIMSON_ISLE_PERCENT, label: 'Blaze (In Crimson Isle)' });
   }
 
   const renownedPieces = [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter(
     (slot) => loadout[slot]?.modifiers?.reforge === RENOWNED_REFORGE_NAME,
   ).length;
   if (renownedPieces) {
-    for (const statKey of finalMultiplierStats) {
-      addBaseStat(out, statKey, out.baseStats[statKey] * ((renownedPieces * RENOWNED_PERCENT_PER_PIECE) / 100), 'Renowned');
-    }
+    statBoostSources.push({ percent: renownedPieces * RENOWNED_PERCENT_PER_PIECE, label: 'Renowned' });
   }
 
   if (out.legionEnchantLevel && legionPlayers) {
-    const legionPercent = legionPlayers * LEGION_PERCENT_PER_PLAYER_PER_LEVEL * out.legionEnchantLevel;
+    statBoostSources.push({
+      percent: legionPlayers * LEGION_PERCENT_PER_PLAYER_PER_LEVEL * out.legionEnchantLevel,
+      label: 'Legion',
+    });
+  }
+
+  for (const { percent, label } of statBoostSources) {
     for (const statKey of finalMultiplierStats) {
-      addBaseStat(out, statKey, out.baseStats[statKey] * (legionPercent / 100), 'Legion');
+      addBaseStat(out, statKey, preBoostBaseStats[statKey] * (percent / 100), label);
     }
   }
 

@@ -1,12 +1,21 @@
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
-import { MAX_COMBAT_LEVEL, MAX_FORAGING_LEVEL, MAX_CATACOMBS_LEVEL, MAX_TAMING_LEVEL, MAX_WOLF_SLAYER_LEVEL } from '../lib/playerStats';
+import {
+  MAX_COMBAT_LEVEL,
+  MAX_FORAGING_LEVEL,
+  MAX_CATACOMBS_LEVEL,
+  MAX_TAMING_LEVEL,
+  MAX_WOLF_SLAYER_LEVEL,
+  MAX_ALCHEMY_LEVEL,
+  MAX_ENCHANTING_LEVEL,
+} from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
-import { SLOT_TEXTURES } from '../lib/icons';
 import NumberInput from '../components/NumberInput';
+import PageBackground from '../components/PageBackground';
+import PageHeader from '../components/PageHeader';
 
-const panel =
-  'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
+const translucentPanel =
+  'bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
 const inputClass = 'w-20 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center';
 
@@ -23,23 +32,17 @@ export default function PlayerLevels() {
     setCatacombsLevel,
     setTamingLevel,
     setWolfSlayerLevel,
+    setAlchemyLevel,
+    setEnchantingLevel,
     setGeneralsMedallionDigits,
   } = useBuild();
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
-      <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
-        <button
-          className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
-          onClick={() => navigate('/')}
-        >
-          <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4" />
-          Back
-        </button>
-        <h1 className="text-xl font-bold">SkyDmg — Player Levels</h1>
-      </header>
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+      <PageHeader title="SkyDmg — Player Levels" />
 
-      <div className={`${panel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
+      <div className={`${translucentPanel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
         <div className="flex items-center justify-between gap-2">
           <label className="text-sm text-black" htmlFor="combat-level">
             Combat Level
@@ -96,6 +99,32 @@ export default function PlayerLevels() {
             max={MAX_WOLF_SLAYER_LEVEL}
             value={playerStats.wolfSlayerLevel}
             onChange={setWolfSlayerLevel}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="alchemy-level">
+            Alchemy Level
+          </label>
+          <NumberInput
+            id="alchemy-level"
+            max={MAX_ALCHEMY_LEVEL}
+            value={playerStats.alchemyLevel}
+            onChange={setAlchemyLevel}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="enchanting-level">
+            Enchanting Level
+          </label>
+          <NumberInput
+            id="enchanting-level"
+            max={MAX_ENCHANTING_LEVEL}
+            value={playerStats.enchantingLevel}
+            onChange={setEnchantingLevel}
             className={inputClass}
           />
         </div>

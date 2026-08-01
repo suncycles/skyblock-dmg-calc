@@ -21,6 +21,16 @@ export function rarityColorCode(tier) {
   return RARITY_COLORS[(tier || 'common').toLowerCase()] || 'f';
 }
 
+// CSS filter for a rarity-colored glow around an icon's own alpha shape (drop-shadow, not a
+// box — so it hugs the item's silhouette instead of drawing a rectangle behind it). Used on
+// equipped-slot icons so the glow tracks the item's rarity and updates automatically whenever
+// that rarity changes (recomb, star upgrades, etc.) since it's recomputed on every render.
+export function rarityGlowFilter(tier) {
+  if (!tier) return undefined;
+  const hex = MC_COLORS[rarityColorCode(tier)];
+  return `drop-shadow(0 0 3px ${hex}) drop-shadow(0 0 6px ${hex})`;
+}
+
 // Max-stat "starred" items lead with a glyph from Hypixel's own font (tofu in a browser) — swapped for a real renderable symbol.
 const STARRED_GLYPH = '';
 export function formatItemName(name) {

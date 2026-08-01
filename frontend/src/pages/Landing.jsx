@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { useTooltip } from '../context/TooltipContext';
+import { useConfirmDialog } from '../context/ConfirmDialogContext';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
@@ -18,14 +19,21 @@ import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { getMobModelIcon, getMobIconDataUri } from '../lib/mobIcons';
-import { getZoneStyle } from '../lib/background';
-import { useTheme } from '../context/ThemeContext';
 import { GOD_POTION_TOOLTIP_LINES } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
-import { formatItemName } from '../lib/mcText';
+import { formatItemName, rarityGlowFilter } from '../lib/mcText';
+import { getDisplayTier } from '../lib/recombobulator';
 import { SLOT_TEXTURES } from '../lib/icons';
 import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
+import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
 import WeaponIcon from '../components/WeaponIcon';
+import PageBackground from '../components/PageBackground';
+import EntryScreen from '../components/EntryScreen';
+
+// Darkens a slot's background once an item's equipped (replacing the old flat green highlight) —
+// applied as an inline style so it wins over the themed bg-[#8b8b8b] override without needing a
+// per-theme "equipped" color of its own.
+const EQUIPPED_BG_STYLE = { backgroundColor: 'rgba(0,0,0,0.4)' };
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -36,18 +44,20 @@ const toolbar =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
+// Stylized X in place of the old 🗑️ emoji — same square Minecraft-button bevel and literal
+// bg-[#c6c6c6]/border-t-white/etc classes as every other panel/slot (so it reskins per-theme
+// exactly like the rest of the GUI, rather than a hardcoded color of its own), with just a
+// faint red tint layered on top via an inset box-shadow so it still reads as "remove". High
+// z-index so it always sits above every other slot element, including the Target Mob tile's
+// stacked overlapping mob renders.
+// remove-btn-square opts this element out of Aurora/Nova/Inferno's rounded-panel corners
+// (see index.css) — it should stay a plain square X on every theme, not just the flatter ones.
+const removeBtn =
+  'remove-btn-square absolute -top-1.5 -right-1.5 z-30 w-4 h-4 flex items-center justify-center text-[10px] font-bold leading-none text-black bg-[#c6c6c6] border-2 border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-1 outline-black shadow-[inset_0_0_0_20px_rgba(220,38,38,0.22)] hover:brightness-110 cursor-pointer';
 
-const SAVED_LOADOUTS_KEY = 'skydmgSavedLoadouts';
-
-function loadSavedLoadoutsFromStorage() {
-  try {
-    const raw = localStorage.getItem(SAVED_LOADOUTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
+// Session-scoped (not persisted across browser restarts) so every "Back" navigation within the
+// app doesn't re-show the entry screen — only a genuinely fresh visit does. Cleared per-tab.
+const ENTRY_DISMISSED_KEY = 'skydmgEntryDismissed';
 
 // One-page character screen: 6 rows x 9 columns, real chest-GUI styling. Column B: equipment
 // slots. Column C: armor slots. Column D: accessories/weapon/pet. Columns F/G/H: decorative
@@ -76,24 +86,25 @@ export default function Landing() {
   } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
+  const { confirmDialog, alertDialog } = useConfirmDialog();
   const [exportStatus, setExportStatus] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
   const [savedLoadouts, setSavedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const [showLoadoutsPanel, setShowLoadoutsPanel] = useState(false);
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
+  const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
+
+  function dismissEntry() {
+    sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
+    setShowEntry(false);
+  }
 
   // Zone theme+backdrop keyed off the first selected Target Mob (see lib/background.js) —
   // background and GUI theme always change together so they never clash. Falls back to the
   // SkyBlock hub, day or night, when nothing's selected. Re-applied whenever the target mob
   // selection changes; the ThemeSwitcher can still freely override it afterward (shared
   // ThemeContext keeps both in sync) — this just sets a sensible matching default.
-  const zoneStyle = useMemo(() => getZoneStyle(targetMobs), [targetMobs]);
-  const { setTheme } = useTheme();
-  useEffect(() => {
-    setTheme(zoneStyle.theme);
-  }, [zoneStyle.theme, setTheme]);
-
   function persistSavedLoadouts(next) {
     setSavedLoadouts(next);
     localStorage.setItem(SAVED_LOADOUTS_KEY, JSON.stringify(next));
@@ -133,19 +144,34 @@ export default function Landing() {
   }
 
   async function handleLoadSavedLoadout(entry) {
-    if (!window.confirm(`Load "${entry.name}"? This will replace your current build.`)) return;
+    if (!(await confirmDialog(`Load "${entry.name}"? This will replace your current build.`))) return;
     try {
       const decoded = await decodeLoadoutCode(entry.code, itemData);
       loadFullState(decoded);
       setShowLoadoutsPanel(false);
     } catch (err) {
       console.error('Failed to load saved loadout:', err);
-      window.alert('Could not load this saved loadout.');
+      await alertDialog('Could not load this saved loadout.');
     }
   }
 
   function handleDeleteSavedLoadout(id) {
     persistSavedLoadouts(savedLoadouts.filter((l) => l.id !== id));
+  }
+
+  // Copies an existing saved loadout's code under a new name/id, inserted right after the
+  // original — lets the user branch off a build (e.g. try a different reforge) without losing it.
+  function handleDuplicateSavedLoadout(entry) {
+    const copy = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: `${entry.name} (copy)`,
+      code: entry.code,
+      savedAt: Date.now(),
+    };
+    const idx = savedLoadouts.findIndex((l) => l.id === entry.id);
+    const next = [...savedLoadouts];
+    next.splice(idx + 1, 0, copy);
+    persistSavedLoadouts(next);
   }
 
   // Encodes the current build and copies a shareable /loadout/:code URL to the clipboard.
@@ -187,11 +213,11 @@ export default function Landing() {
       decoded = await decodeLoadoutCode(match ? match[1] : clipboardText, itemData);
     } catch (err) {
       console.error('Failed to import loadout:', err);
-      window.alert('Could not read a valid loadout from your clipboard.');
+      await alertDialog('Could not read a valid loadout from your clipboard.');
       setImportStatus(null);
       return;
     }
-    if (!window.confirm('Import this loadout? This will replace your current build.')) {
+    if (!(await confirmDialog('Import this loadout? This will replace your current build.'))) {
       setImportStatus(null);
       return;
     }
@@ -334,10 +360,12 @@ export default function Landing() {
   // Renders one gear slot cell (icon + bottom label + remove button when equipped) — shared by both gear columns.
   function renderGearSlot(key, slot, label, pickerPath) {
     const equipped = loadout[slot];
+    const tier = equipped ? getDisplayTier(equipped.item, equipped.modifiers) : null;
     return (
       <div
         key={key}
-        className={`${slotBase} relative cursor-pointer hover:brightness-110 ${equipped ? 'bg-green-400' : ''}`}
+        className={`${slotBase} relative cursor-pointer hover:brightness-110`}
+        style={equipped ? EQUIPPED_BG_STYLE : undefined}
         onClick={() => handleGearClick(slot, pickerPath)}
         onMouseEnter={(e) => handleGearHover(slot, label, e)}
         onMouseLeave={invalidateHover}
@@ -349,24 +377,29 @@ export default function Landing() {
             alt={equipped.item.name}
             className={iconImg}
             color={equipped.item.color}
+            style={{ filter: rarityGlowFilter(tier) }}
           />
         ) : (
           <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
         )}
         {equipped && (
           <span
-            className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+            className={removeBtn}
             title={`Remove ${label}`}
             onClick={(e) => handleGearRemove(slot, e)}
           >
-            🗑️
+            ✕
           </span>
         )}
-        <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+        <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
           {label}
         </span>
       </div>
     );
+  }
+
+  if (showEntry) {
+    return <EntryScreen onSkip={dismissEntry} />;
   }
 
   const cells = [];
@@ -403,7 +436,7 @@ export default function Landing() {
             >
               [{playerStats.skyblockLevel}]
             </span>
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] whitespace-nowrap">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Levels
             </span>
           </div>,
@@ -416,7 +449,8 @@ export default function Landing() {
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.accessory?.item ? 'bg-green-400' : ''}`}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110`}
+            style={loadout.accessory?.item ? EQUIPPED_BG_STYLE : undefined}
             onClick={() => navigate('/accessory')}
             onMouseEnter={handleAccessoryHover}
             onMouseLeave={invalidateHover}
@@ -433,14 +467,14 @@ export default function Landing() {
             )}
             {loadout.accessory?.item && (
               <span
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                className={removeBtn}
                 title="Remove Accessories"
                 onClick={(e) => handleGearRemove('accessory', e)}
               >
-                🗑️
+                ✕
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Accessories
             </span>
           </div>,
@@ -452,7 +486,8 @@ export default function Landing() {
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.weapon ? 'bg-green-400' : ''}`}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110`}
+            style={loadout.weapon ? EQUIPPED_BG_STYLE : undefined}
             onClick={handleWeaponClick}
             onMouseEnter={handleWeaponHover}
             onMouseLeave={invalidateHover}
@@ -463,20 +498,21 @@ export default function Landing() {
                 material={loadout.weapon.item.material}
                 alt={loadout.weapon.item.name}
                 className={iconImg}
+                style={{ filter: rarityGlowFilter(getDisplayTier(loadout.weapon.item, loadout.weapon.modifiers)) }}
               />
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
             )}
             {loadout.weapon && (
               <span
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                className={removeBtn}
                 title="Remove Weapon"
                 onClick={(e) => handleGearRemove('weapon', e)}
               >
-                🗑️
+                ✕
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Weapon
             </span>
           </div>,
@@ -487,26 +523,33 @@ export default function Landing() {
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${loadout.pet ? 'bg-green-400' : ''}`}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110`}
+            style={loadout.pet ? EQUIPPED_BG_STYLE : undefined}
             onClick={() => navigate(loadout.pet ? '/pet/detail' : '/pet')}
             onMouseEnter={handlePetHover}
             onMouseLeave={invalidateHover}
           >
             {loadout.pet ? (
-              <WeaponIcon id={loadout.pet.item.petId} material="BONE" alt={loadout.pet.item.name} className={iconImg} />
+              <WeaponIcon
+                id={loadout.pet.item.petId}
+                material="BONE"
+                alt={loadout.pet.item.name}
+                className={iconImg}
+                style={{ filter: rarityGlowFilter(loadout.pet.item.tier) }}
+              />
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />
             )}
             {loadout.pet && (
               <span
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer"
+                className={removeBtn}
                 title="Remove Pet"
                 onClick={(e) => handleGearRemove('pet', e)}
               >
-                🗑️
+                ✕
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Pet
             </span>
           </div>,
@@ -557,11 +600,11 @@ export default function Landing() {
             )}
             {targetMobs.length > 0 && (
               <span
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 flex items-center justify-center text-[10px] leading-none bg-neutral-900 outline outline-1 outline-black hover:brightness-125 cursor-pointer z-10"
+                className={removeBtn}
                 title="Remove Target Mob"
                 onClick={handleTargetMobRemove}
               >
-                🗑️
+                ✕
               </span>
             )}
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[10px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] whitespace-nowrap truncate px-1">
@@ -629,25 +672,13 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      {/* Zone-themed backdrop, sits behind everything. Explicit inline background properties
-          (rather than relying solely on the bg-cover/bg-center utility classes) plus redundant
-          w-screen/h-screen sizing alongside inset-0, so it robustly fills edge-to-edge with no
-          letterboxing on any aspect ratio — cropping the image is fine, empty space isn't. */}
-      <div
-        className="fixed inset-0 -z-10 w-screen h-screen"
-        style={{
-          backgroundImage: `url(${zoneStyle.background})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
+      <PageBackground />
 
       {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow,
           left-aligned at the top of the page rather than fixed/pinned over content, so it can
           never overlap the central GUI regardless of viewport size: flow-stacked elements simply
           can't occupy the same space. */}
-      <div className="w-full flex justify-start mb-3">
+      <div className="w-full flex justify-start mb-1.5">
         <div className={`z-10 flex flex-col gap-1.5 p-2 ${toolbar}`}>
           <span className="text-[10px] font-bold text-black uppercase tracking-wide">Loadout</span>
           <div className="flex gap-1.5">
@@ -703,6 +734,13 @@ export default function Landing() {
                         {entry.name}
                       </button>
                       <button
+                        className="text-[11px] px-1.5 py-1 rounded bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                        title={`Duplicate "${entry.name}"`}
+                        onClick={() => handleDuplicateSavedLoadout(entry)}
+                      >
+                        ⧉
+                      </button>
+                      <button
                         className="text-[11px] px-1.5 py-1 rounded bg-neutral-800 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
                         title={`Delete "${entry.name}"`}
                         onClick={() => handleDeleteSavedLoadout(entry.id)}
@@ -718,13 +756,6 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Pushes the central GUI down ~15% of the viewport for more comfortable vertical centering. */}
-      <div className="h-[15vh] shrink-0" />
-
-      <header className="w-full max-w-[700px] mb-4 text-center">
-        <h1 className="text-3xl font-bold"></h1>
-      </header>
-
       <div className="w-full max-w-[700px] overflow-x-auto">
         <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
@@ -732,7 +763,7 @@ export default function Landing() {
       </div>
 
       <button
-        className="mt-4 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer"
+        className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer"
         onClick={() => navigate('/damage-sources')}
       >
         📊 Damage Calculation

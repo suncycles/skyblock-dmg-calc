@@ -3,12 +3,13 @@ import { useBuild } from '../context/BuildContext';
 import {
   RULER_ATTRIBUTES,
   STRENGTH_ELEMENTAL_ATTRIBUTES,
+  INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
   OTHER_ATTRIBUTES,
   MAX_ATTRIBUTE_LEVEL,
 } from '../lib/attributes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
-import { SLOT_TEXTURES } from '../lib/icons';
 import NumberInput from '../components/NumberInput';
+import PageHeader from '../components/PageHeader';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -78,21 +79,13 @@ export default function Attributes() {
   const rulerIds = RULER_ATTRIBUTES.map((a) => a.id);
   const echoIds = ECHO_ATTRIBUTES.map((a) => a.id);
   const elementalIds = STRENGTH_ELEMENTAL_ATTRIBUTES.map((a) => a.id);
+  const intelligenceElementalIds = INTELLIGENCE_ELEMENTAL_ATTRIBUTES.map((a) => a.id);
   const otherIds = OTHER_ATTRIBUTES.map((a) => a.id);
-  const allIds = [...rulerIds, ...echoIds, ...elementalIds, ...otherIds];
+  const allIds = [...rulerIds, ...echoIds, ...elementalIds, ...intelligenceElementalIds, ...otherIds];
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
-        <button
-          className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
-          onClick={() => navigate('/')}
-        >
-          <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4" />
-          Back
-        </button>
-        <h1 className="text-xl font-bold">SkyDmg — Attributes</h1>
-      </header>
+      <PageHeader title="SkyDmg — Attributes" />
 
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <Section
@@ -137,6 +130,22 @@ export default function Attributes() {
           onMaxAll={() => maxAll(elementalIds)}
         >
           {STRENGTH_ELEMENTAL_ATTRIBUTES.map(({ id, name }) => (
+            <div key={id} className="flex items-center justify-between gap-2">
+              <label className="text-sm text-black" htmlFor={id}>
+                {name}
+              </label>
+              <LevelInput id={id} level={attributes[id] || 0} onChange={(v) => setAttributeLevel(id, v)} />
+            </div>
+          ))}
+        </Section>
+
+        <Section
+          title="Intelligence Elemental"
+          subtitle="Grants Intelligence +1–10, added directly to base stats."
+          maxLabel="elemental"
+          onMaxAll={() => maxAll(intelligenceElementalIds)}
+        >
+          {INTELLIGENCE_ELEMENTAL_ATTRIBUTES.map(({ id, name }) => (
             <div key={id} className="flex items-center justify-between gap-2">
               <label className="text-sm text-black" htmlFor={id}>
                 {name}

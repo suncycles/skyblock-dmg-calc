@@ -42,22 +42,6 @@ export function applyGoldenDragonShiningScales(petId, stats, goldCollection) {
   return { ...stats, STRENGTH: (stats.STRENGTH || 0) + bonus };
 }
 
-// Ender Dragon's Legendary-only Superior perk: multiplies the pet's own Strength/Crit
-// Chance/Crit Damage total by (1 + %/100), scaled by pet level (0.1%/level, 10% at level 100).
-// Applied last in the pet-stat pipeline, after Shining Scales/pet-item boosts.
-export function applyEnderDragonSuperior(petId, tier, stats, otherNums) {
-  if (petId !== 'ENDER_DRAGON' || tier !== 'LEGENDARY') return stats;
-  const percent = otherNums?.[3];
-  if (!percent) return stats;
-  const factor = 1 + percent / 100;
-  return {
-    ...stats,
-    STRENGTH: (stats.STRENGTH || 0) * factor,
-    CRIT_CHANCE: (stats.CRIT_CHANCE || 0) * factor,
-    CRIT_DAMAGE: (stats.CRIT_DAMAGE || 0) * factor,
-  };
-}
-
 // Golden Dragon's Dragon's Greed perk: +% Strength per 5 Magic Find, capped at +5% at max
 // pet level. Magic Find isn't tracked, so assumed always active at its real max.
 export const DRAGONS_GREED_MAX_STRENGTH_PERCENT = 5;
@@ -204,7 +188,6 @@ export function computeEquippedPetStats(loadout, itemData) {
   const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
   stats = applyPetItemStatBoost(stats, boost);
   const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
-  stats = applyEnderDragonSuperior(pet.petId, pet.tier, stats, otherNums);
   stats = applyLionPrimalForce(pet.petId, stats, otherNums);
   return applyAnkylosaurusMax(pet.petId, stats);
 }
