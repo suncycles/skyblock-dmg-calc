@@ -16,24 +16,40 @@ import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
-import { SLOT_TEXTURES } from '../lib/icons';
 import { splitKeywords, KEYWORD_SYMBOLS, MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import NumberInput from '../components/NumberInput';
+import PageHeader from '../components/PageHeader';
+import { decodeLoadoutCode } from '../lib/loadoutCode';
+import { loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
+import { useConfirmDialog } from '../context/ConfirmDialogContext';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
+// Small-caps "eyebrow" header shared by every panel on this page (Section's own title plus the
+// few one-off panels below it) so the dense stat page reads as consistently-structured sections
+// instead of a pile of bolded labels at varying sizes.
+const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
 
 function Section({ title, subtitle, children, empty }) {
   return (
     <div className={`${panel} p-3 flex flex-col gap-1.5`}>
-      <div className="text-sm font-bold text-black">{title}</div>
-      {subtitle && <div className="text-[11px] text-neutral-700 -mt-1 mb-1">{subtitle}</div>}
+      <div className={sectionTitle}>{title}</div>
+      {subtitle && <div className="text-[11px] text-neutral-700 leading-snug mt-0.5 mb-1">{subtitle}</div>}
       {children.length === 0 ? <div className="text-xs text-neutral-600 italic">{empty}</div> : children}
     </div>
   );
 }
 
-const BASE_STAT_KEYS = ['damage', 'strength', 'crit_chance', 'crit_damage'];
+const BASE_STAT_KEYS = [
+  'damage',
+  'strength',
+  'crit_chance',
+  'crit_damage',
+  'intelligence',
+  'ability_damage',
+  'bonus_attack_speed',
+  'ferocity',
+];
 
 // Prefixes every stat/mob-type keyword mention with its colored glyph (lib/damageSymbols.js).
 function Keyworded({ text }) {
@@ -78,12 +94,34 @@ export default function DamageSources() {
     blazeCrimsonIsle,
     toggleBlazeCrimsonIsle,
     setAccessoryMagicalPower,
+    loadFullState,
   } = useBuild();
   const { itemData } = useItemData();
+  const { confirmDialog, alertDialog } = useConfirmDialog();
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
   const [expandedStat, setExpandedStat] = useState(null);
+  const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const tokenRef = useRef(0);
+
+  // Swaps in a saved loadout without leaving this page — loadFullState updates BuildContext's
+  // `loadout` (and everything else this page reads), which the recalculation effect below is
+  // already keyed off of, so Final Damage/(Base) Stats recompute automatically.
+  async function handleSwapLoadout(e) {
+    const id = e.target.value;
+    e.target.value = '';
+    if (!id) return;
+    const entry = savedLoadouts.find((l) => l.id === id);
+    if (!entry) return;
+    if (!(await confirmDialog(`Load "${entry.name}"? This will replace your current build.`))) return;
+    try {
+      const decoded = await decodeLoadoutCode(entry.code, itemData);
+      loadFullState(decoded);
+    } catch (err) {
+      console.error('Failed to load saved loadout:', err);
+      await alertDialog('Could not load this saved loadout.');
+    }
+  }
 
   const hasInfernalCrimsonStacks = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET) >= INFERNAL_CRIMSON_MIN_PIECES;
   const weaponUltimateId = loadout.weapon?.modifiers?.ultimateEnchantment?.id?.toLowerCase();
@@ -181,24 +219,42 @@ export default function DamageSources() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
-        <button
-          className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
-          onClick={() => navigate('/')}
-        >
-          <img src={SLOT_TEXTURES.close} alt="" className="w-4 h-4" />
-          Back
-        </button>
-        <h1 className="text-xl font-bold">Damage Sources</h1>
-      </header>
+      <PageHeader title="Damage Sources" />
+
+      {savedLoadouts.length > 0 && (
+        <div className="w-full max-w-[700px] mb-3 flex items-center gap-2">
+          <label htmlFor="swap-loadout" className="text-[11px] font-bold text-neutral-300 uppercase tracking-wide whitespace-nowrap">
+            Swap Loadout
+          </label>
+          <select
+            id="swap-loadout"
+            defaultValue=""
+            onChange={handleSwapLoadout}
+            className={`${panel} text-sm px-2 py-1.5 text-black cursor-pointer`}
+          >
+            <option value="" disabled>
+              Select a saved loadout...
+            </option>
+            {savedLoadouts.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {!result ? (
-        <div className="w-full max-w-[700px] text-sm text-neutral-300">Calculating...</div>
+        <div className="w-full max-w-[700px] flex flex-col gap-3">
+          {[88, 140, 60].map((h, i) => (
+            <div key={i} className={`${panel} animate-pulse`} style={{ height: h }} />
+          ))}
+        </div>
       ) : (
         <div className="w-full max-w-[700px] flex flex-col gap-3">
           {targetMobs.length === 0 ? (
             <div className={`${panel} p-4 flex flex-col gap-2`}>
-              <div className="text-sm font-bold text-black">Final Damage</div>
+              <div className={sectionTitle}>Final Damage</div>
               <div className="text-xs text-neutral-600 italic">
                 No target selected —{' '}
                 <button className="underline cursor-pointer" onClick={() => navigate('/target-mob')}>
@@ -211,7 +267,7 @@ export default function DamageSources() {
             mobResults.map(({ name, types, finalDamage, finalDamageWithoutVanquished, finalDamageWithFabledMax }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
-                  <span className="text-[13px] font-bold text-black">{name}</span>
+                  <span className="text-[13px] font-bold text-black tracking-wide">{name}</span>
                   <div className="flex items-center gap-2">
                     {types && (
                       <div className="flex flex-wrap gap-1.5">
@@ -352,8 +408,8 @@ export default function DamageSources() {
             </div>
 
             <div className={`${panel} p-3 flex flex-col gap-2 w-[200px] shrink-0`}>
-              <div className="text-sm font-bold text-black">Misc</div>
-              <div className="text-[11px] text-neutral-700 -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
+              <div className={sectionTitle}>Misc</div>
+              <div className="text-[11px] text-neutral-700 leading-snug -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-strength">
                 <span>
                   <Keyworded text="Strength" />
@@ -496,7 +552,7 @@ export default function DamageSources() {
           </div>
 
           <div className={`${panel} p-3 flex items-center gap-3`}>
-            <div className="text-sm font-bold text-black">Magical Power</div>
+            <div className="text-[13px] font-bold text-black uppercase tracking-wide">Magical Power</div>
             <span className="font-mono text-[13px] text-black">{loadout.accessory?.modifiers?.magicalPower || 0}</span>
             <div className="flex gap-1.5 ml-auto">
               {[5, 10, 20, 50].map((amount) => (

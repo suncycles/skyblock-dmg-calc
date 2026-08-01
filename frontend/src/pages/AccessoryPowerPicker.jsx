@@ -9,6 +9,7 @@ import { parseShorthandNumber } from '../lib/numberInput';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
+import PageBackground from '../components/PageBackground';
 
 const PAGE_SIZE = 28; // 4 rows x 7 cols of interior slots
 
@@ -172,7 +173,8 @@ export default function AccessoryPowerPicker() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">SkyDmg — Accessory Powers</h1>
       </header>

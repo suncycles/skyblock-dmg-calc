@@ -143,6 +143,8 @@ function loadInitialPlayerStats() {
     catacombsLevel: 0,
     tamingLevel: 0,
     wolfSlayerLevel: 0,
+    alchemyLevel: 0,
+    enchantingLevel: 0,
     generalsMedallionDigits: 0,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
@@ -156,6 +158,8 @@ function loadInitialPlayerStats() {
       catacombsLevel: typeof parsed.catacombsLevel === 'number' ? parsed.catacombsLevel : 0,
       tamingLevel: typeof parsed.tamingLevel === 'number' ? parsed.tamingLevel : 0,
       wolfSlayerLevel: typeof parsed.wolfSlayerLevel === 'number' ? parsed.wolfSlayerLevel : 0,
+      alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
+      enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
     };
   } catch (err) {
@@ -352,6 +356,22 @@ export function BuildProvider({ children }) {
   const setWolfSlayerLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, wolfSlayerLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setAlchemyLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, alchemyLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setEnchantingLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, enchantingLevel: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -610,7 +630,8 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers, attributes.tuning_box],
   );
 
-  // Overwrites the entire build state at once (loadout, target mobs, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
+  // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
+  // Target mob(s) are intentionally left untouched: loadouts describe the player, not the encounter, so swapping loadouts keeps whatever mob(s) are currently targeted.
   const loadFullState = useCallback((state) => {
     const nextLoadout = state.loadout || {};
     setLoadout(nextLoadout);
@@ -623,16 +644,13 @@ export function BuildProvider({ children }) {
       catacombsLevel: 0,
       tamingLevel: 0,
       wolfSlayerLevel: 0,
+      alchemyLevel: 0,
+      enchantingLevel: 0,
       generalsMedallionDigits: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
     localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(nextPlayerStats));
-
-    const nextTargetMobs = state.targetMobs || [];
-    setTargetMobsState(nextTargetMobs);
-    localStorage.setItem(TARGET_MOBS_KEY, JSON.stringify(nextTargetMobs));
-    localStorage.removeItem(TARGET_MOB_KEY);
 
     setGodPotionActiveState(!!state.godPotionActive);
     localStorage.setItem(GOD_POTION_KEY, String(!!state.godPotionActive));
@@ -686,6 +704,8 @@ export function BuildProvider({ children }) {
         setCatacombsLevel,
         setTamingLevel,
         setWolfSlayerLevel,
+        setAlchemyLevel,
+        setEnchantingLevel,
         setGeneralsMedallionDigits,
         targetMobs,
         toggleTargetMob,

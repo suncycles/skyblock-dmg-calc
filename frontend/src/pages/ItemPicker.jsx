@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import WeaponIcon from '../components/WeaponIcon';
+import PageBackground from '../components/PageBackground';
+import PageHeader from '../components/PageHeader';
 import { formatItemName } from '../lib/mcText';
 
 // Strips a starred item's leading Hypixel custom-font glyph so search still matches on the real first letter.
@@ -12,7 +14,12 @@ function stripLeadingSymbol(name) {
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const slotBase =
-  'flex flex-col items-center justify-center gap-1 bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
+  'flex flex-col items-center justify-center gap-1 bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
+const gridPanel =
+  'grid grid-cols-8 gap-1.5 bg-[#c6c6c6]/60 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-1.5';
+// Loading skeleton: same slot grid as the real results, just pulsing and empty, so the layout
+// doesn't jump once items arrive — a placeholder shape instead of a plain "Loading..." line.
+const SKELETON_SLOT_COUNT = 32;
 
 // Generic search-box-plus-full-grid item picker, shared by weapon/armor pickers. Knows nothing about BuildContext or routing.
 export default function ItemPicker({ items, title, placeholder, loading, error, onSelect, onBack }) {
@@ -26,18 +33,9 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
   }, [query, items]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
-      <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
-        {onBack && (
-          <button
-            className={`${panel} px-4 py-2 cursor-pointer hover:brightness-110 flex items-center gap-2 text-sm font-bold text-black`}
-            onClick={onBack}
-          >
-            ← Back
-          </button>
-        )}
-        <h1 className="text-xl font-bold">{title}</h1>
-      </header>
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+      <PageHeader title={title} onBack={onBack} />
 
       <div className="w-full max-w-[700px]">
         <div className="relative mb-2.5">
@@ -81,16 +79,24 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
         </div>
 
         {loading ? (
-          <div className="text-center">Loading items...</div>
+          <div className={gridPanel}>
+            {Array.from({ length: SKELETON_SLOT_COUNT }).map((_, i) => (
+              <div key={i} className={`${slotBase} aspect-square animate-pulse`} />
+            ))}
+          </div>
         ) : error ? (
-          <div className="text-center text-red-400">
-            Failed to load items. <br />
-            <small>{error}</small>
+          <div className={`${panel} p-6 flex flex-col items-center gap-1.5 text-center`}>
+            <span className="text-2xl">⚠️</span>
+            <div className="text-sm font-bold text-black">Failed to load items</div>
+            <div className="text-xs text-black/70">{error}</div>
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center">No items found.</div>
+          <div className={`${panel} p-6 flex flex-col items-center gap-1.5 text-center`}>
+            <span className="text-2xl">🔍</span>
+            <div className="text-sm font-bold text-black">No items found</div>
+          </div>
         ) : (
-          <div className="grid grid-cols-8 gap-1.5">
+          <div className={gridPanel}>
             {items.map((w) => (
               <div
                 key={w.id}

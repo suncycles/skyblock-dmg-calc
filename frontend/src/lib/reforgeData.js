@@ -53,7 +53,11 @@ export const STAT_LABELS = {
   ferocity: { label: 'Ferocity', color: 'c', isPercent: false },
   magic_find: { label: 'Magic Find', color: 'a', isPercent: false },
   speed: { label: 'Speed', color: 'f', isPercent: false },
-  bonus_attack_speed: { label: 'Attack Speed', color: 'e', isPercent: true },
+  // Real item lore prefixes this line "Bonus Attack Speed:" (not just "Attack Speed") — matters
+  // for sumStatFromTooltipLines' anchored `^label:` match against real tooltip text. The
+  // 'Bonus Attack Speed' -> 'Attack Speed' alias in lib/damageSymbols.js still highlights it
+  // correctly wherever it's displayed.
+  bonus_attack_speed: { label: 'Bonus Attack Speed', color: 'e', isPercent: true },
   ability_damage: { label: 'Ability Damage', color: 'a', isPercent: true },
 };
 

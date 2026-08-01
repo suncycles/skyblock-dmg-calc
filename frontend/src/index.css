@@ -4,10 +4,28 @@ body {
   background: #303030;
   color: #eee;
   font-family: Tahoma, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .pixelated {
   image-rendering: pixelated;
+}
+
+/* ---------------------------------------------------------------------------------------
+   Site-wide typography polish. Every page reuses the same literal "text-xl font-bold" h1
+   pattern for its title and the same "text-[9px]" size for the tiniest chest-GUI slot labels
+   (Landing's equipment/armor/weapon/pet tiles) — targeting those exact classes here fixes
+   sizing/weight/legibility everywhere at once instead of editing 20+ page files. */
+h1.text-xl.font-bold {
+  font-size: 1.375rem;
+  letter-spacing: -0.015em;
+}
+/* 9px was right at the edge of legibility for the always-visible slot-name labels; one more
+   px is still small enough to fit the tiles but reads far more comfortably. */
+.text-\[9px\] {
+  font-size: 10px;
 }
 
 /* ---------------------------------------------------------------------------------------
@@ -28,6 +46,10 @@ html[data-theme='slate'] body {
 }
 html[data-theme='slate'] .bg-\[\#c6c6c6\] {
   background-color: #1f2330;
+}
+html[data-theme='slate'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='slate'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #1f2330 80%, transparent);
 }
 html[data-theme='slate'] .bg-\[\#8b8b8b\],
 html[data-theme='slate'] .bg-\[\#8b8b8b\]\/80 {
@@ -79,6 +101,10 @@ html[data-theme='parchment'] body {
 html[data-theme='parchment'] .bg-\[\#c6c6c6\] {
   background-color: #e5d7b8;
 }
+html[data-theme='parchment'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='parchment'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #e5d7b8 80%, transparent);
+}
 html[data-theme='parchment'] .bg-\[\#8b8b8b\],
 html[data-theme='parchment'] .bg-\[\#8b8b8b\]\/80 {
   background-color: #dccca4;
@@ -116,6 +142,10 @@ html[data-theme='forest'] body {
 }
 html[data-theme='forest'] .bg-\[\#c6c6c6\] {
   background-color: #142720;
+}
+html[data-theme='forest'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='forest'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #142720 80%, transparent);
 }
 html[data-theme='forest'] .bg-\[\#8b8b8b\],
 html[data-theme='forest'] .bg-\[\#8b8b8b\]\/80 {
@@ -164,6 +194,10 @@ html[data-theme='frost'] body {
 html[data-theme='frost'] .bg-\[\#c6c6c6\] {
   background-color: #dbe8ef;
 }
+html[data-theme='frost'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='frost'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #dbe8ef 80%, transparent);
+}
 html[data-theme='frost'] .bg-\[\#8b8b8b\],
 html[data-theme='frost'] .bg-\[\#8b8b8b\]\/80 {
   background-color: #cddfe8;
@@ -209,6 +243,12 @@ html[data-theme='aurora'] .bg-\[\#c6c6c6\] {
   background-image: linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(59, 130, 246, 0.16));
   border-radius: 14px;
   box-shadow: 0 0 40px rgba(139, 92, 246, 0.25);
+}
+html[data-theme='aurora'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='aurora'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #1a1730 80%, transparent);
+  background-image: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(59, 130, 246, 0.13));
+  border-radius: 14px;
 }
 html[data-theme='aurora'] .bg-\[\#8b8b8b\],
 html[data-theme='aurora'] .bg-\[\#8b8b8b\]\/80 {
@@ -266,6 +306,12 @@ html[data-theme='nova'] .bg-\[\#c6c6c6\] {
   background-image: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(37, 99, 235, 0.18));
   border-radius: 14px;
   box-shadow: 0 0 40px rgba(6, 182, 212, 0.22);
+}
+html[data-theme='nova'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='nova'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #0f1e2e 80%, transparent);
+  background-image: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(37, 99, 235, 0.14));
+  border-radius: 14px;
 }
 html[data-theme='nova'] .bg-\[\#8b8b8b\],
 html[data-theme='nova'] .bg-\[\#8b8b8b\]\/80 {
@@ -326,6 +372,12 @@ html[data-theme='inferno'] .bg-\[\#c6c6c6\] {
   border-radius: 14px;
   box-shadow: 0 0 40px rgba(234, 88, 12, 0.25);
 }
+html[data-theme='inferno'] .bg-\[\#c6c6c6\]\/75,
+html[data-theme='inferno'] .bg-\[\#c6c6c6\]\/60 {
+  background-color: color-mix(in srgb, #2a140c 80%, transparent);
+  background-image: linear-gradient(135deg, rgba(234, 88, 12, 0.18), rgba(220, 38, 38, 0.13));
+  border-radius: 14px;
+}
 html[data-theme='inferno'] .bg-\[\#8b8b8b\],
 html[data-theme='inferno'] .bg-\[\#8b8b8b\]\/80 {
   background-color: #3a1d12;
@@ -368,6 +420,15 @@ html[data-theme='inferno'] .text-neutral-700 {
 }
 html[data-theme='inferno'] .text-neutral-600 {
   color: #edb492;
+}
+
+/* Aurora/Nova/Inferno round every bg-[#c6c6c6] panel's corners (see above) for the gradient-glass
+   look, but Landing's little per-slot remove button should stay a plain square X on every theme,
+   not just the flatter ones — opt it back out here. */
+html[data-theme='aurora'] .remove-btn-square,
+html[data-theme='nova'] .remove-btn-square,
+html[data-theme='inferno'] .remove-btn-square {
+  border-radius: 0;
 }
 
 /* Minecraft/Skyblock tooltip. Background/border approximate the game's

@@ -16,11 +16,12 @@ export function computeCombatLevelBonus(level) {
   return 50 * 4 + (clamped - 50) * 1;
 }
 
-// Skyblock Level damage bonus: linear multiplicative, +0.01%/level.
+// Skyblock Level damage bonus: linear multiplicative, +0.01%/level, capped at 1.05x (level 500).
 const SKYBLOCK_LEVEL_PERCENT_PER_LEVEL = 4.93 / 493;
+const MAX_SKYBLOCK_LEVEL_FOR_DAMAGE = 500;
 
 export function computeSkyblockLevelMultiplier(level) {
-  const clamped = Math.max(0, level || 0);
+  const clamped = Math.max(0, Math.min(MAX_SKYBLOCK_LEVEL_FOR_DAMAGE, level || 0));
   return 1 + (clamped * SKYBLOCK_LEVEL_PERCENT_PER_LEVEL) / 100;
 }
 
@@ -71,3 +72,25 @@ export function computeAncientReforgeCritDamage(catacombsLevel) {
 export const MAX_TAMING_LEVEL = 60;
 
 export const MAX_WOLF_SLAYER_LEVEL = 9;
+
+export const MAX_ALCHEMY_LEVEL = 50;
+export const MAX_ENCHANTING_LEVEL = 60;
+
+// Alchemy Level Intelligence reward: +1/level for 1-14, +2/level for 15-50.
+export function computeAlchemyIntelligenceBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_ALCHEMY_LEVEL, level || 0));
+  return Math.min(clamped, 14) * 1 + Math.max(0, clamped - 14) * 2;
+}
+
+// Enchanting Level Intelligence reward: +1/level for 1-14, +2/level for 15-60.
+export function computeEnchantingIntelligenceBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_ENCHANTING_LEVEL, level || 0));
+  return Math.min(clamped, 14) * 1 + Math.max(0, clamped - 14) * 2;
+}
+
+// Enchanting Level Ability Damage reward: flat +0.5%/level.
+export const ENCHANTING_ABILITY_DAMAGE_PERCENT_PER_LEVEL = 0.5;
+export function computeEnchantingAbilityDamageBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_ENCHANTING_LEVEL, level || 0));
+  return clamped * ENCHANTING_ABILITY_DAMAGE_PERCENT_PER_LEVEL;
+}

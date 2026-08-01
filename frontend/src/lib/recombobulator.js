@@ -16,6 +16,16 @@ export function bumpRarity(tier) {
   return RARITY_UPGRADE_ORDER[idx + 1].toUpperCase();
 }
 
+// An equipped slot's current effective rarity — accounts for a Recombobulator bump and for
+// items whose real tier is tracked separately from the bundled data (rarityOverride, e.g.
+// David's Cloak's Hunting-milestone tier). Shared wherever a slot needs the item's rarity
+// without building the full tooltip (e.g. Landing's per-slot rarity glow).
+export function getDisplayTier(item, modifiers) {
+  if (!item) return null;
+  const baseTier = modifiers?.rarityOverride || item.tier;
+  return modifiers?.recombobulated ? bumpRarity(baseTier) : baseTier;
+}
+
 // Rewrites the item's trailing "§{color}§l{RARITY} {CATEGORY}" tag line to a different rarity,
 // no annotation — a plain correction (e.g. a milestone-upgrading item's real current tier).
 export function applyRarityTagToLore(lore, fromTier, toTier) {
