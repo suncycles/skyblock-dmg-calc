@@ -1,13 +1,18 @@
 /* SKYDMG — shared cache Worker. Single source of truth for weapons/armor/enchants data, sourced
-   from NotEnoughUpdates-REPO (no Hypixel API usage).
+   from NotEnoughUpdates-REPO, plus a thin Hypixel API proxy for the "import my current gear"
+   feature (the only place this project talks to the real Hypixel API — everything under
+   /api/items is still NEU-REPO only).
 
    Weapons/armor/equipment/pet items are pre-parsed offline by scripts/build-item-data.mjs into
    src/data/{weapons,armor,equipment,petItems}.json and bundled at deploy time; re-run + redeploy
    to pick up NEU-REPO updates. Enchant and reforge data are small and fetched live here instead.
 
    Routes:
-     GET  /api/items    -> returns cached data, refreshing first if stale
-     POST /api/refresh  -> forces a refetch regardless of staleness
+     GET  /api/items            -> returns cached data, refreshing first if stale
+     POST /api/refresh          -> forces a refetch regardless of staleness
+     GET  /api/hypixel/import   -> resolves ?username, fetches their SkyBlock profile(s), decodes
+                                    currently-worn armor/equipment/weapon/pet from the Hypixel API
+                                    (see handleHypixelImport). Needs env.HYPIXEL_API_KEY.
 
    Requires a KV namespace bound as CACHE (see wrangler.toml). */
 
@@ -16,6 +21,7 @@ import armor from "./data/armor.json";
 import equipment from "./data/equipment.json";
 import petItems from "./data/petItems.json";
 import powerStones from "./data/powerStones.json";
+import { decodeInventoryB64, extractItemSummary } from "./nbt.js";
 
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
 
@@ -50,6 +56,10 @@ export default {
 
     if (url.pathname === "/api/refresh" && request.method === "POST") {
       return handleRefresh(env);
+    }
+
+    if (url.pathname === "/api/hypixel/import" && request.method === "GET") {
+      return handleHypixelImport(url, env);
     }
 
     return jsonResponse({ error: "Not found" }, 404);
@@ -121,6 +131,132 @@ async function fetchReforgeStones() {
     };
   }
   return byName;
+}
+
+// Currently-worn-only, per user request — deliberately ignores loadout.armor/loadout.equipment
+// (the Wardrobe/Loadout preset storage) since its own "equipped_set" pointer isn't reliable (can
+// point at an empty saved slot); inventory.inv_armor/equipment_contents are what's actually on
+// the player right now, which is the only thing this imports.
+const WEAPON_IDS = new Set(weapons.map((w) => w.id));
+
+// Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
+const ARMOR_SLOT_ORDER = ["boots", "leggings", "chestplate", "helmet"];
+const EQUIPMENT_SLOT_ORDER = ["necklace", "cloak", "belt", "gloves"];
+
+async function handleHypixelImport(url, env) {
+  if (!env.HYPIXEL_API_KEY) {
+    return jsonResponse({ error: "Hypixel import is not configured (missing API key)" }, 500);
+  }
+
+  const username = url.searchParams.get("username");
+  const uuidParam = url.searchParams.get("uuid");
+  const profileParam = url.searchParams.get("profile");
+  if (!username && !uuidParam) {
+    return jsonResponse({ error: "Provide ?username= or ?uuid=" }, 400);
+  }
+
+  let uuid = uuidParam;
+  let resolvedUsername = username;
+  if (!uuid) {
+    const mojangRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`);
+    if (mojangRes.status === 404) {
+      return jsonResponse({ error: `No Minecraft account named "${username}"` }, 404);
+    }
+    if (!mojangRes.ok) {
+      return jsonResponse({ error: "Mojang lookup failed, try again" }, 502);
+    }
+    const mojang = await mojangRes.json();
+    uuid = mojang.id;
+    resolvedUsername = mojang.name;
+  }
+
+  const hypixelRes = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?uuid=${uuid}`, {
+    headers: { "API-Key": env.HYPIXEL_API_KEY },
+  });
+  const hypixel = await hypixelRes.json();
+  if (!hypixel.success) {
+    return jsonResponse({ error: hypixel.cause || "Hypixel API request failed" }, 502);
+  }
+  const profiles = (hypixel.profiles || []).filter(Boolean);
+  if (profiles.length === 0) {
+    return jsonResponse({ error: `${resolvedUsername || uuid} has no SkyBlock profiles` }, 404);
+  }
+
+  let profile = profileParam ? profiles.find((p) => p.profile_id === profileParam) : null;
+  if (!profile && !profileParam) {
+    profile = profiles.length === 1 ? profiles[0] : profiles.find((p) => p.selected) || null;
+  }
+  if (!profile) {
+    return jsonResponse({
+      needsProfileSelection: true,
+      uuid,
+      username: resolvedUsername,
+      profiles: profiles.map((p) => ({
+        profile_id: p.profile_id,
+        cute_name: p.cute_name,
+        selected: !!p.selected,
+        game_mode: p.game_mode || null,
+      })),
+    });
+  }
+
+  const member = profile.members && profile.members[uuid];
+  if (!member) {
+    return jsonResponse({ error: "Couldn't find this player's data on that profile" }, 404);
+  }
+
+  try {
+    const [armorItems, equipmentItems, invItems] = await Promise.all([
+      member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
+      member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
+      member.inventory?.inv_contents?.data ? decodeInventoryB64(member.inventory.inv_contents.data) : [],
+    ]);
+
+    const armorResult = {};
+    ARMOR_SLOT_ORDER.forEach((slot, i) => {
+      armorResult[slot] = extractItemSummary(armorItems[i]);
+    });
+
+    const equipmentResult = {};
+    EQUIPMENT_SLOT_ORDER.forEach((slot, i) => {
+      equipmentResult[slot] = extractItemSummary(equipmentItems[i]);
+    });
+
+    // Weapon: first inventory slot (hotbar first, then the rest, in real slot order) whose item
+    // id is a known weapon — not just slot 0, since Skyblock has no dedicated weapon slot.
+    let weapon = null;
+    for (const raw of invItems) {
+      const summary = extractItemSummary(raw);
+      if (summary && WEAPON_IDS.has(summary.id)) {
+        weapon = summary;
+        break;
+      }
+    }
+
+    const pets = (member.pets_data && member.pets_data.pets) || [];
+    const activePet = pets.find((p) => p.active) || null;
+    const pet = activePet
+      ? {
+          type: activePet.type,
+          tier: activePet.tier,
+          exp: activePet.exp || 0,
+          heldItem: activePet.heldItem || null,
+          skin: activePet.skin || null,
+        }
+      : null;
+
+    return jsonResponse({
+      profile: { profile_id: profile.profile_id, cute_name: profile.cute_name },
+      username: resolvedUsername,
+      uuid,
+      armor: armorResult,
+      equipment: equipmentResult,
+      weapon,
+      pet,
+    });
+  } catch (err) {
+    return jsonResponse({ error: "Failed to decode this player's item data", detail: String(err) }, 500);
+  }
 }
 
 function jsonResponse(obj, status = 200) {

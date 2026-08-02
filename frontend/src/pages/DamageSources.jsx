@@ -19,6 +19,7 @@ import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { splitKeywords, KEYWORD_SYMBOLS, MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
+import PageBackground from '../components/PageBackground';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
 import { loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
 import { useConfirmDialog } from '../context/ConfirmDialogContext';
@@ -219,6 +220,7 @@ export default function DamageSources() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
+      <PageBackground />
       <PageHeader title="Damage Sources" />
 
       {savedLoadouts.length > 0 && (

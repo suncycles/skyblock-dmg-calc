@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Mob Types — Hypixel SkyBlock</title>
 <style>
   :root {
@@ -13,6 +14,9 @@
     --accent-soft: rgba(169, 122, 30, 0.12);
     --accent-soft-strong: rgba(169, 122, 30, 0.22);
     --good: #3a7d4f;
+    --good-text: #2b6140;
+    --good-soft: rgba(58, 125, 79, 0.12);
+    --good-soft-strong: rgba(58, 125, 79, 0.22);
     --warn: #b5522a;
     --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -33,6 +37,9 @@
       --accent-soft: rgba(214, 165, 60, 0.14);
       --accent-soft-strong: rgba(214, 165, 60, 0.26);
       --good: #5ea87a;
+      --good-text: #8fd6ab;
+      --good-soft: rgba(94, 168, 122, 0.16);
+      --good-soft-strong: rgba(94, 168, 122, 0.28);
       --warn: #d97c52;
     }
   }
@@ -49,6 +56,9 @@
     --accent-soft: rgba(214, 165, 60, 0.14);
     --accent-soft-strong: rgba(214, 165, 60, 0.26);
     --good: #5ea87a;
+    --good-text: #8fd6ab;
+    --good-soft: rgba(94, 168, 122, 0.16);
+    --good-soft-strong: rgba(94, 168, 122, 0.28);
     --warn: #d97c52;
   }
   :root[data-theme="light"] {
@@ -64,6 +74,9 @@
     --accent-soft: rgba(169, 122, 30, 0.12);
     --accent-soft-strong: rgba(169, 122, 30, 0.22);
     --good: #3a7d4f;
+    --good-text: #2b6140;
+    --good-soft: rgba(58, 125, 79, 0.12);
+    --good-soft-strong: rgba(58, 125, 79, 0.22);
     --warn: #b5522a;
   }
 
@@ -76,7 +89,7 @@
     min-height: 100vh;
   }
   .page {
-    max-width: 900px;
+    max-width: 960px;
     margin: 0 auto;
     padding: 2.75rem 1.5rem 4rem;
     display: flex;
@@ -108,7 +121,7 @@
   .dek {
     font-size: 0.98rem;
     color: var(--text-dim);
-    max-width: 62ch;
+    max-width: 66ch;
     line-height: 1.55;
   }
   .dek code {
@@ -127,7 +140,16 @@
     padding: 1.25rem 1.4rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
+  }
+  .coverage-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .coverage-block + .coverage-block {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
   }
   .coverage-row {
     display: flex;
@@ -149,7 +171,7 @@
   }
   .coverage-note {
     font-size: 0.85rem;
-    color: var(--warn);
+    color: var(--text-faint);
     font-family: var(--sans);
   }
   .bar-track {
@@ -163,6 +185,9 @@
     height: 100%;
     background: linear-gradient(90deg, var(--accent), var(--accent-text));
     border-radius: 5px 0 0 5px;
+  }
+  .bar-fill.good {
+    background: linear-gradient(90deg, var(--good), var(--good-text));
   }
   .coverage-caption {
     font-size: 0.82rem;
@@ -228,6 +253,12 @@
     color: var(--text);
   }
   .chip.active.combat { color: var(--accent-text); }
+  .chip.location { border-color: var(--good-soft-strong); }
+  .chip.location.active {
+    background: var(--good-soft-strong);
+    border-color: var(--good);
+    color: var(--good-text);
+  }
 
   /* controls */
   .controls {
@@ -321,7 +352,7 @@
     white-space: nowrap;
     color: var(--text);
   }
-  td.types {
+  td.types, td.locations {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
@@ -341,6 +372,16 @@
     border-color: var(--accent-soft-strong);
     background: var(--accent-soft);
     color: var(--accent-text);
+  }
+  .pill.location {
+    border-color: var(--good-soft-strong);
+    background: var(--good-soft);
+    color: var(--good-text);
+  }
+  .none-dash {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 0.8rem;
   }
   .empty-row td {
     text-align: center;
@@ -373,23 +414,43 @@
     <div class="eyebrow">Hypixel SkyBlock &middot; parsed reference data</div>
     <h1>Mob Types</h1>
     <p class="dek">
-      Every mob&ndash;type mapping currently listed on the Fandom wiki's
-      <code>Mob Types/List</code> page, parsed from its raw wikitext. Types in gold
-      have a matching enchantment that grants bonus damage against them &mdash;
-      everything else is flavor/lore classification only.
+      Every mob&ndash;type mapping from the wiki's <code>Mob Types/List</code> page, merged with
+      every mob&ndash;location mapping from its <code>Bestiary/List</code> page (parsed from raw
+      wikitext). Types in gold have a matching enchantment that grants bonus damage against them
+      &mdash; everything else is flavor/lore classification only. Locations in green are mostly
+      Bestiary tabs; the six Fishing-related ones are split into
+      <code>Sea Creatures - Water</code>, <code>Sea Creatures - Lava</code>,
+      <code>Sea Creatures - Spooky</code>, <code>Sea Creatures - Fishing Festival</code>,
+      <code>Sea Creatures - Winter</code>, and <code>Sea Creatures - Backwater Bayou</code>
+      (the Bestiary's own <code>Spooky Festival</code> fishing catches, not its land-based
+      <code>Spooky Festival</code> tab). A <code>Slayer</code> location is also included for the
+      33 Slayer bosses / Dungeon-only mobs the Bestiary itself doesn't track, hand-mapped rather
+      than parsed.
     </p>
   </header>
 
   <div class="coverage">
-    <div class="coverage-row">
-      <div class="coverage-figure" id="coverage-figure">211 <span class="of">/ 268 known mobs mapped</span></div>
-      <div class="coverage-note">57 missing (21%)</div>
+    <div class="coverage-block">
+      <div class="coverage-row">
+        <div class="coverage-figure" id="coverage-figure">298 <span class="of">mobs with type data</span></div>
+      </div>
+      <div class="coverage-caption">
+        The <code>Mob Types/List</code> source page is self-tagged <code>{{Sectionstub}}</code>
+        by its editors &mdash; it is known-incomplete, not just possibly stale. Treat a mob's
+        absence from this list as &ldquo;not yet documented,&rdquo; not &ldquo;has no type.&rdquo;
+      </div>
     </div>
-    <div class="bar-track"><div class="bar-fill" style="width: 78.7%"></div></div>
-    <div class="coverage-caption">
-      The source page is self-tagged <code>{{Sectionstub}}</code> by its editors &mdash;
-      it is known-incomplete, not just possibly stale. Treat absence from this list as
-      &ldquo;not yet documented,&rdquo; not &ldquo;has no type.&rdquo;
+    <div class="coverage-block">
+      <div class="coverage-row">
+        <div class="coverage-figure" id="coverage-figure-loc">298 <span class="of">/ 298 also have a location</span></div>
+        <div class="coverage-note">100%</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill good" style="width: 100%"></div></div>
+      <div class="coverage-caption">
+        Parsed automatically from the Bestiary for 265 mobs; the other 33 (Slayer bosses,
+        Dungeon-only mobs, and the named Ender Dragon color variants) were hand-mapped since the
+        in-game Bestiary itself doesn't track them.
+      </div>
     </div>
   </div>
 
@@ -398,6 +459,8 @@
     <div class="chips" id="chips-combat"></div>
     <div class="legend-heading" style="margin-top: 0.4rem;">No enchant <span class="n">(14)</span></div>
     <div class="chips" id="chips-flavor"></div>
+    <div class="legend-heading" style="margin-top: 0.4rem;">Locations <span class="n" id="location-count"></span></div>
+    <div class="chips" id="chips-location"></div>
   </div>
 
   <div class="controls">
@@ -405,7 +468,7 @@
       <input type="text" id="search-input" placeholder="Filter by mob name&hellip;" autocomplete="off" />
     </div>
     <button class="clear-btn" id="clear-btn">clear filters</button>
-    <div class="result-count" id="result-count">211 shown</div>
+    <div class="result-count" id="result-count">298 shown</div>
   </div>
 
   <div class="table-wrap">
@@ -415,6 +478,7 @@
           <tr>
             <th style="width: 1%;">Mob</th>
             <th>Types</th>
+            <th>Location(s)</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -423,13 +487,16 @@
   </div>
 
   <footer>
-    <div>Source: <a href="https://hypixel-skyblock.fandom.com/wiki/Mob_Types/List" target="_blank" rel="noopener">hypixel-skyblock.fandom.com/wiki/Mob_Types/List</a>, fetched via the MediaWiki <code>api.php?action=query&amp;prop=revisions</code> endpoint (the wiki's <code>?action=raw</code> path is now behind a Cloudflare JS challenge).</div>
-    <div>211 unique mobs parsed from 297 raw table rows across 23 type tabs (mobs cross-listed under 2&ndash;3 types collapse to one row each here).</div>
+    <div>Type source: <a href="https://hypixel-skyblock.fandom.com/wiki/Mob_Types/List" target="_blank" rel="noopener">hypixel-skyblock.fandom.com/wiki/Mob_Types/List</a>, fetched via the MediaWiki <code>api.php?action=query&amp;prop=revisions</code> endpoint (the wiki's <code>?action=raw</code> path is now behind a Cloudflare JS challenge).</div>
+    <div>Location source: <a href="https://hypixelskyblock.minecraft.wiki/w/Bestiary/List" target="_blank" rel="noopener">hypixelskyblock.minecraft.wiki/w/Bestiary/List</a> and its transcluded <code>Bestiary/List/Fishing</code> subpage, fetched via <code>api.php?action=parse&amp;prop=wikitext</code>.</div>
+    <div>298 unique mobs mapped, all 298 with a location. 265 locations were parsed straight from the Bestiary; the remaining 33 (Slayer bosses, Dungeon-only mobs, and the 8 named Ender Dragon color variants) were supplied by hand, since a generic <code>Dragon</code> row in the Bestiary's <code>The End</code> tab covers all 8 dragons as a single kill-counter and couldn't be split automatically. <code>Siamese Lynx</code> (Bestiary's singular spelling) was folded into the existing <code>Siamese Lynxes</code> entry.</div>
   </footer>
 </div>
 
 <script>
-  const DATA = {"Abyssal Miner":["Aquatic","Undead"],"Apostle":["Undead","Wither"],"Arachne":["Arcane","Arthropod"],"Ashfang":["Arcane","Infernal"],"Automaton":["Arcane","Construct","Subterranean"],"Bal":["Cubic","Infernal","Shielded"],"Bat":["Airborne","Animal","Spooky"],"Bat Piñata":["Airborne","Shielded","Spooky"],"Bayou Sludge":["Aquatic","Cubic"],"Beetle":["Pest"],"Bezal":["Infernal"],"Bladesoul":["Arcane","Skeletal","Wither"],"Blaze":["Infernal"],"Blight":["Infernal","Undead"],"Blue Jerry":["Humanoid","Shielded"],"Bogged":["Aquatic","Skeletal"],"Bonzo":["Arcane","Humanoid"],"Boss Corleone":["Humanoid","Subterranean"],"Butterfly":["Airborne","Arcane","Subterranean"],"Chaosmite":["Arcane","Arthropod","Ender"],"Chillblade":["Skeletal","Woodland"],"Chillshot":["Skeletal","Woodland"],"Crazy Witch":["Shielded","Spooky"],"Creeper":["Cubic"],"Cretan Bull":["Animal","Mythological"],"Cricket":["Pest"],"Crypt Dreadlord":["Subterranean","Undead","Wither"],"Crypt Ghoul":["Undead"],"Crypt Lurker":["Undead"],"Crypt Souleater":["Subterranean","Undead","Wither"],"Crypt Undead":["Subterranean","Undead"],"Deep Sea Protector":["Aquatic","Construct"],"Diamond Goblin":["Elusive","Humanoid","Shielded"],"Dragonfly":["Pest"],"Dropship":["Airborne","Arcane","Cubic"],"Earthworm":["Pest"],"Emerald Slime":["Cubic"],"End Stone Protector":["Construct","Ender"],"Ender Dragon":["Airborne","Arcane","Ender"],"Enderman":["Ender"],"Endermite":["Arthropod","Ender"],"Explosive Imp":["Infernal","Undead"],"Fels":["Arcane"],"Field Mouse":["Elusive","Pest"],"Firefly":["Pest"],"Fireproof Witch":["Arcane","Humanoid","Magmatic"],"Flaming Spider":["Arthropod","Infernal"],"Fly":["Pest"],"Frosty":["Aquatic","Construct","Frozen"],"Frozen Steve":["Aquatic","Frozen","Humanoid"],"Gaia Construct":["Construct","Mythological"],"Ghast":["Airborne","Cubic"],"Ghost":["Arcane","Subterranean"],"Glacite Bowman":["Glacial","Humanoid"],"Glacite Caver":["Glacial","Humanoid"],"Glacite Mage":["Glacial","Humanoid"],"Glacite Mutt":["Animal","Glacial"],"Glacite Walker":["Glacial","Humanoid"],"Golden Ghoul":["Undead"],"Golden Goblin":["Humanoid","Shielded"],"Golden Jerry":["Elusive","Humanoid","Shielded"],"Golem":["Arcane","Construct"],"Gravel Skeleton":["Skeletal"],"Graveyard Zombie":["Undead"],"Green Jerry":["Humanoid","Shielded"],"Grim Reaper":["Aquatic","Arcane","Spooky"],"Grinch":["Aquatic","Construct","Frozen"],"Grunt":["Humanoid"],"Guardian Defender":["Aquatic","Arcane"],"Harpy":["Animal","Humanoid","Mythological"],"Headless Horseman":["Animal","Skeletal","Spooky","Undead"],"Howling Spirit":["Animal","Arcane"],"Hydrospear":["Aquatic","Undead","Woodland"],"Inferno Demonlord":["Infernal"],"Inferno Magma Cube":["Cubic","Infernal"],"Kada Knight":["Animal","Undead"],"Key Guardian":["Subterranean","Undead"],"King Minos":["Elusive","Humanoid","Mythological"],"Kuudra Berserker":["Infernal","Undead"],"Kuudra Follower":["Infernal","Undead"],"Kuudra Knocker":["Infernal","Undead"],"Kuudra Landmine":["Infernal","Undead"],"Kuudra Slasher":["Cubic","Infernal"],"Lapis Zombie":["Undead"],"Lava Pigman":["Magmatic","Undead"],"Littlefoot":["Elusive","Glacial","Humanoid"],"Locust":["Pest"],"Lord Jawbus":["Construct","Elusive","Magmatic"],"Lost Adventurer":["Arcane","Humanoid"],"Mage Outlaw":["Arcane","Humanoid"],"Magma Boss":["Cubic","Infernal"],"Magma Cube":["Cubic","Infernal"],"Magma Cube Rider":["Cubic","Infernal","Undead"],"Magma Slug":["Cubic","Magmatic"],"Manticore":["Animal","Elusive","Mythological"],"Mega Bat":["Airborne","Shielded","Spooky"],"Mimic":["Arcane","Construct","Undead"],"Miner Skeleton":["Skeletal"],"Miner Zombie":["Undead"],"Minos Champion":["Humanoid","Mythological"],"Minos Hunter":["Humanoid","Mythological","Undead"],"Minos Inquisitor":["Elusive","Humanoid","Mythological"],"Minotaur":["Humanoid","Mythological"],"Mite":["Pest"],"Mosquito":["Pest"],"Moth":["Pest"],"Mutated Blaze":["Infernal"],"Nessie":["Animal","Aquatic","Elusive"],"Nest Endermite":["Arthropod","Ender"],"Nightmare":["Aquatic","Spooky","Undead"],"Nutcracker":["Aquatic","Construct","Frozen"],"Obsidian Defender":["Ender","Wither"],"Old Dragon":["Airborne","Arcane","Ender"],"Pack Spirit":["Animal","Arcane"],"Phantom Fisher":["Aquatic","Arcane","Spooky"],"Phantom Spirit":["Shielded","Spooky"],"Plhlegblast":["Elusive","Magmatic"],"Powder Ghast":["Airborne","Cubic","Shielded"],"Praying Mantis":["Pest"],"Protector Dragon":["Airborne","Arcane","Ender"],"Purple Jerry":["Humanoid","Shielded"],"Pyroclastic Worm":["Cubic","Magmatic"],"Ragnarok":["Elusive","Magmatic","Skeletal"],"Rain Slime":["Cubic"],"Rat":["Pest"],"Redstone Pigman":["Undead"],"Reindrake":["Elusive","Frozen","Shielded"],"Revenant Horror":["Undead"],"Rider of the Deep":["Animal","Aquatic","Undead"],"Scarecrow":["Aquatic","Spooky"],"Scared Skeleton":["Skeletal"],"Scary Jerry":["Shielded","Spooky"],"Scatha":["Elusive","Shielded","Subterranean"],"Sea Archer":["Aquatic","Skeletal"],"Sea Guardian":["Aquatic","Arcane"],"Sea Walker":["Aquatic","Undead"],"Sea Witch":["Aquatic","Arcane","Humanoid"],"Seer":["Ender"],"Shadow Assassin":["Arcane","Humanoid"],"Siamese Lynxes":["Animal","Mythological"],"Skeleton":["Skeletal"],"Skeleton Grunt":["Skeletal"],"Skeleton Lord":["Skeletal"],"Skeleton Master":["Skeletal"],"Skeleton Soldier":["Skeletal"],"Skeletor":["Construct","Skeletal"],"Slime":["Cubic"],"Sludge":["Cubic","Subterranean"],"Slug":["Pest"],"Smoldering Blaze":["Infernal"],"Sneaky Creeper":["Cubic"],"Sniper":["Skeletal","Undead"],"Soul of the Alpha":["Animal","Arcane"],"Special Zealot":["Elusive","Ender"],"Sphinx":["Elusive","Humanoid","Mythological"],"Spider":["Arthropod"],"Spider Jockey":["Arthropod","Skeletal"],"Star Sentry":["Arcane","Construct","Shielded"],"Stranded Nymph":["Aquatic","Humanoid","Mythological"],"Stridersurfer":["Magmatic","Undead","Woodland"],"Strong Dragon":["Airborne","Arcane","Ender"],"Super Archer":["Skeletal"],"Super Tank Zombie":["Undead"],"Superior Dragon":["Airborne","Arcane","Ender"],"Sven Packmaster":["Animal"],"Tank Zombie":["Undead"],"Tarantula Broodfather":["Arthropod"],"Tentacle":["Cubic","Infernal"],"Terracotta":["Arcane","Construct"],"The Loch Emperor":["Aquatic","Arcane","Skeletal"],"The Watcher":["Arcane"],"Thunder":["Arcane","Elusive","Magmatic"],"Tidetot":["Aquatic","Undead","Woodland"],"Titanoboa":["Animal","Aquatic","Elusive"],"Trick or Treater":["Shielded","Spooky"],"Undead":["Undead"],"Undead Skeleton":["Skeletal","Undead"],"Unstable Dragon":["Airborne","Arcane","Ender"],"Vanquisher":["Elusive","Wither"],"Vittomite":["Arthropod","Ender"],"Voidgloom Seraph":["Ender"],"Voidling":["Ender"],"Voidling Extremist":["Ender"],"Voidling Fanatic":["Ender"],"Werewolf":["Animal","Aquatic","Spooky"],"Wetwing":["Animal","Aquatic","Undead"],"Wiki Tiki":["Aquatic","Construct","Elusive"],"Wise Dragon":["Airborne","Arcane","Ender"],"Witch":["Arcane","Humanoid"],"Wither Gourd":["Shielded","Spooky"],"Wither Guard":["Skeletal","Wither"],"Wither Miner":["Skeletal","Wither"],"Wither Sentry":["Construct","Wither"],"Wither Skeleton":["Skeletal","Wither"],"Wither Spectre":["Arcane","Wither"],"Withermancer":["Arcane","Skeletal","Wither"],"Wolf":["Animal"],"Worm":["Shielded","Subterranean"],"Wraith":["Shielded","Spooky"],"Yeti":["Aquatic","Frozen","Humanoid"],"Yog":["Cubic","Infernal","Subterranean"],"Young Dragon":["Airborne","Arcane","Ender"],"Zealot":["Ender"],"Zealot Bruiser":["Ender"],"Zombie":["Undead"],"Zombie Commander":["Undead"],"Zombie Grunt":["Undead"],"Zombie Knight":["Undead"],"Zombie Lord":["Undead"],"Zombie Soldier":["Undead"],"Zombie Villager":["Undead"]};
+  const DATA = {"Abyssal Miner":["Aquatic","Undead"],"Agarimoo":["Animal","Aquatic"],"Alligator":["Animal","Aquatic","Elusive"],"Angry Archaeologist":["Humanoid","Subterranean","Boss"],"Apostle":["Undead","Wither"],"Arachne":["Arcane","Arthropod"],"Arachne's Brood":["Arthropod"],"Arachne's Keeper":["Arthropod"],"Ashfang":["Arcane","Infernal"],"Atoll Croaker":["Animal","Aquatic"],"Automaton":["Arcane","Construct","Subterranean"],"Bal":["Cubic","Infernal","Shielded"],"Banshee":["Aquatic","Humanoid"],"Barbarian Duke X":["Humanoid","Animal","Boss"],"Bat":["Airborne","Animal","Spooky"],"Bat Pi\u00f1ata":["Airborne","Shielded","Spooky"],"Bayou Sludge":["Aquatic","Cubic"],"Beetle":["Pest"],"Bezal":["Infernal"],"Bladesoul":["Arcane","Skeletal","Wither"],"Blaze":["Infernal"],"Blazing Golem":["Construct","Infernal"],"Blight":["Infernal","Undead"],"Blue Jerry":["Humanoid","Shielded"],"Blue Ringed Octopus":["Animal","Aquatic","Elusive"],"Blue Shark":["Animal","Aquatic"],"Bogged":["Aquatic","Skeletal"],"Bonzo":["Arcane","Humanoid"],"Boss Corleone":["Humanoid","Subterranean"],"Broodmother":["Arthropod","Boss"],"Butterfly":["Airborne","Arcane","Subterranean"],"Carrot King":["Animal","Aquatic"],"Catfish":["Animal","Aquatic"],"Cellar Spider":["Arthropod","Subterranean"],"Chaosmite":["Arcane","Arthropod","Ender"],"Chicken":["Animal"],"Chill":["Skeletal","Woodland"],"Chillblade":["Skeletal","Woodland"],"Chillshot":["Skeletal","Woodland"],"Cow":["Animal"],"Crazy Witch":["Shielded","Spooky"],"Creeper":["Cubic"],"Cretan Bull":["Animal","Mythological"],"Cricket":["Pest"],"Crypt Dreadlord":["Subterranean","Undead","Wither"],"Crypt Ghoul":["Undead"],"Crypt Lurker":["Undead"],"Crypt Souleater":["Subterranean","Undead","Wither"],"Crypt Undead":["Subterranean","Undead"],"Dasher Spider":["Arthropod"],"Deep Sea Protector":["Aquatic","Construct"],"Diamond Goblin":["Elusive","Humanoid","Shielded"],"Dragonfly":["Pest"],"Dropship":["Airborne","Arcane","Cubic"],"Drowned Captain":["Aquatic","Undead"],"Dumpster Diver":["Aquatic","Humanoid"],"Earthworm":["Pest"],"Emerald Slime":["Cubic"],"End Stone Protector":["Construct","Ender"],"Ender Dragon":["Airborne","Arcane","Ender"],"Enderman":["Ender"],"Endermite":["Arthropod","Ender"],"Ent":["Aquatic","Woodland"],"Explosive Imp":["Infernal","Undead"],"Fels":["Arcane"],"Field Mouse":["Elusive","Pest"],"Fiery Scuttler":["Animal","Elusive","Magmatic"],"Fire Eel":["Animal","Magmatic"],"Firefly":["Pest"],"Fireproof Witch":["Arcane","Humanoid","Magmatic"],"Flaming Spider":["Arthropod","Infernal"],"Flaming Worm":["Arthropod","Magmatic"],"Flare":["Infernal"],"Flint Skeleton":["Skeletal"],"Flipflopper":["Animal","Aquatic","Elusive"],"Fly":["Pest"],"Fried Chicken":["Animal","Magmatic"],"Frog Man":["Animal","Aquatic","Humanoid"],"Frog Prince":["Animal","Aquatic","Elusive"],"Frosty":["Aquatic","Construct","Frozen"],"Frozen Steve":["Aquatic","Frozen","Humanoid"],"Gaia Construct":["Construct","Mythological"],"Ghast":["Airborne","Cubic"],"Ghost":["Arcane","Subterranean"],"Glacite Bowman":["Glacial","Humanoid"],"Glacite Caver":["Glacial","Humanoid"],"Glacite Mage":["Glacial","Humanoid"],"Glacite Mutt":["Animal","Glacial"],"Glacite Walker":["Glacial","Humanoid"],"Goblin":["Humanoid","Subterranean"],"Goblin Raiders":["Humanoid","Subterranean"],"Golden Ghoul":["Undead"],"Golden Goblin":["Humanoid","Shielded"],"Golden Jerry":["Elusive","Humanoid","Shielded"],"Golem":["Arcane","Construct"],"Gravel Skeleton":["Skeletal"],"Graveyard Zombie":["Undead"],"Great White Shark":["Animal","Aquatic","Elusive"],"Green Jerry":["Humanoid","Shielded"],"Grim Reaper":["Aquatic","Arcane","Spooky"],"Grinch":["Aquatic","Construct","Frozen"],"Grunt":["Humanoid"],"Guardian Defender":["Aquatic","Arcane"],"Harpy":["Animal","Humanoid","Mythological"],"Headless Horseman":["Animal","Skeletal","Spooky","Undead"],"Howling Spirit":["Animal","Arcane"],"Hydrospear":["Aquatic","Undead","Woodland"],"Inferno Demonlord":["Infernal"],"Inferno Magma Cube":["Cubic","Infernal"],"Inkling":["Animal","Aquatic"],"Jumpin' Jack":["Aquatic","Spooky"],"Kada Knight":["Animal","Undead"],"Key Guardian":["Subterranean","Undead"],"King Midas":["Humanoid","Boss"],"King Minos":["Elusive","Humanoid","Mythological"],"Kuudra Berserker":["Infernal","Undead"],"Kuudra Follower":["Infernal","Undead"],"Kuudra Knocker":["Infernal","Undead"],"Kuudra Landmine":["Infernal","Undead"],"Kuudra Slasher":["Cubic","Infernal"],"Lapis Zombie":["Undead"],"Lava Blaze":["Infernal","Magmatic"],"Lava Flame":["Infernal","Magmatic"],"Lava Leech":["Arthropod","Magmatic"],"Lava Pigman":["Magmatic","Undead"],"Littlefoot":["Elusive","Glacial","Humanoid"],"Locust":["Pest"],"Lonely Spider":["Arthropod"],"Lord Jawbus":["Construct","Elusive","Magmatic"],"Lost Adventurer":["Arcane","Humanoid"],"Lotum":["Animal","Aquatic"],"Lotus Guardian":["Aquatic","Construct"],"Lotusfish":["Animal","Aquatic"],"Lunar Moth":["Elusive","Pest"],"Mage Outlaw":["Arcane","Humanoid"],"Magma Boss":["Cubic","Infernal"],"Magma Cube":["Cubic","Infernal"],"Magma Cube Rider":["Cubic","Infernal","Undead"],"Magma Follower":["Cubic","Infernal"],"Magma Pillar":["Cubic","Magmatic"],"Magma Slug":["Cubic","Magmatic"],"Manta Ray":["Animal","Aquatic"],"Manticore":["Animal","Elusive","Mythological"],"Matcho":["Humanoid","Infernal"],"Mega Bat":["Airborne","Shielded","Spooky"],"Millennia-Aged Blaze":["Infernal","Subterranean"],"Mimic":["Arcane","Construct","Undead"],"Miner Skeleton":["Skeletal"],"Miner Zombie":["Undead"],"Minos Champion":["Humanoid","Mythological"],"Minos Hunter":["Humanoid","Mythological","Undead"],"Minos Inquisitor":["Elusive","Humanoid","Mythological"],"Minotaur":["Humanoid","Mythological"],"Mite":["Pest"],"Mithril Grubber":["Aquatic","Arthropod"],"Moogma":["Animal","Magmatic"],"Mosquito":["Pest"],"Moth":["Pest"],"Mushroom Bull":["Animal"],"Mushroom Cow":["Animal"],"Mutated Blaze":["Infernal"],"Nessie":["Animal","Aquatic","Elusive"],"Nest Endermite":["Arthropod","Ender"],"Nightmare":["Aquatic","Spooky","Undead"],"Nurse Shark":["Animal","Aquatic"],"Nutcracker":["Aquatic","Construct","Frozen"],"Oasis Rabbit":["Animal","Aquatic"],"Oasis Sheep":["Animal","Aquatic"],"Obsidian Defender":["Ender","Wither"],"Old Dragon":["Airborne","Arcane","Ender"],"Old Wolf":["Animal"],"Pack Spirit":["Animal","Arcane"],"Phantom Fisher":["Aquatic","Arcane","Spooky"],"Phantom Spirit":["Shielded","Spooky"],"Pig":["Animal"],"Plhlegblast":["Elusive","Magmatic"],"Poisoned Water Worm":["Aquatic","Arthropod","Subterranean"],"Powder Ghast":["Airborne","Cubic","Shielded"],"Praying Mantis":["Pest"],"Protector Dragon":["Airborne","Arcane","Ender"],"Puddle Jumper":["Animal","Aquatic","Elusive"],"Purple Jerry":["Humanoid","Shielded"],"Pyroclastic Worm":["Cubic","Magmatic"],"Rabbit":["Animal"],"Ragnarok":["Elusive","Magmatic","Skeletal"],"Rain Slime":["Cubic"],"Rat":["Pest"],"Redstone Pigman":["Undead"],"Reindrake":["Elusive","Frozen","Shielded"],"Revenant Horror":["Undead"],"Rider of the Deep":["Animal","Aquatic","Undead"],"Scarecrow":["Aquatic","Spooky"],"Scared Skeleton":["Skeletal"],"Scary Jerry":["Shielded","Spooky"],"Scatha":["Elusive","Shielded","Subterranean"],"Sea Archer":["Aquatic","Skeletal"],"Sea Guardian":["Aquatic","Arcane"],"Sea Leech":["Animal","Aquatic"],"Sea Walker":["Aquatic","Undead"],"Sea Witch":["Aquatic","Arcane","Humanoid"],"Seashine":["Animal","Aquatic","Elusive"],"Seer":["Ender"],"Shadow Assassin":["Arcane","Humanoid"],"Sheep":["Animal"],"Shiny Pig":["Animal"],"Siamese Lynxes":["Animal","Mythological"],"Silverfish":["Arthropod"],"Skeleton":["Skeletal"],"Skeleton Grunt":["Skeletal"],"Skeleton Lord":["Skeletal"],"Skeleton Master":["Skeletal"],"Skeleton Soldier":["Skeletal"],"Skeletor":["Construct","Skeletal"],"Slime":["Cubic"],"Sludge":["Cubic","Subterranean"],"Slug":["Pest"],"Smoldering Blaze":["Infernal"],"Snapping Turtle":["Animal","Aquatic"],"Sneaky Creeper":["Cubic"],"Sniper":["Skeletal","Undead"],"Soul of the Alpha":["Animal","Arcane"],"Special Zealot":["Elusive","Ender"],"Sphinx":["Elusive","Humanoid","Mythological"],"Spider":["Arthropod"],"Spider Jockey":["Arthropod","Skeletal"],"Splitter Spider":["Arthropod"],"Squid":["Animal","Aquatic"],"Star Sentry":["Arcane","Construct","Shielded"],"Stranded Nymph":["Aquatic","Humanoid","Mythological"],"Stridersurfer":["Magmatic","Undead","Woodland"],"Strong Dragon":["Airborne","Arcane","Ender"],"Super Archer":["Skeletal"],"Super Tank Zombie":["Undead"],"Superior Dragon":["Airborne","Arcane","Ender"],"Sven Packmaster":["Animal"],"Tadgang":["Animal","Aquatic"],"Tank Zombie":["Undead"],"Tarantula Broodfather":["Arthropod"],"Taurus":["Animal","Humanoid","Magmatic"],"Tentacle":["Cubic","Infernal"],"Terracotta":["Arcane","Construct"],"Tewtil":["Animal","Aquatic"],"The Loch Emperor":["Aquatic","Arcane","Skeletal"],"The Watcher":["Arcane"],"Thunder":["Arcane","Elusive","Magmatic"],"Thyst":["Arthropod","Subterranean"],"Tidetot":["Aquatic","Undead","Woodland"],"Tiger Shark":["Animal","Aquatic"],"Timestalk Clone":[],"Titanoboa":["Animal","Aquatic","Elusive"],"Trash Gobbler":["Aquatic","Arthropod"],"Treasure Hoarder":["Humanoid","Subterranean"],"Trick or Treater":["Shielded","Spooky"],"Undead":["Undead"],"Undead Skeleton":["Skeletal","Undead"],"Unstable Dragon":["Airborne","Arcane","Ender"],"Vanquisher":["Elusive","Wither"],"Vittomite":["Arthropod","Ender"],"Voidgloom Seraph":["Ender"],"Voidling":["Ender"],"Voidling Extremist":["Ender"],"Voidling Fanatic":["Ender"],"Volcanic Snail":["Animal","Magmatic"],"Voracious Spider":["Arthropod"],"Wandering Blaze":["Infernal"],"Water Hydra":["Animal","Aquatic","Elusive"],"Water Worm":["Aquatic","Subterranean"],"Weaver Spider":["Arthropod"],"Werewolf":["Animal","Aquatic","Spooky"],"Wetwing":["Animal","Aquatic","Undead"],"Wiki Tiki":["Aquatic","Construct","Elusive"],"Wise Dragon":["Airborne","Arcane","Ender"],"Witch":["Arcane","Humanoid"],"Wither Gourd":["Shielded","Spooky"],"Wither Guard":["Skeletal","Wither"],"Wither Husk":[],"Wither Miner":["Skeletal","Wither"],"Wither Sentry":["Construct","Wither"],"Wither Skeleton":["Skeletal","Wither"],"Wither Spectre":["Arcane","Wither"],"Withermancer":["Arcane","Skeletal","Wither"],"Wolf":["Animal"],"Worm":["Shielded","Subterranean"],"Wraith":["Shielded","Spooky"],"Yeti":["Aquatic","Frozen","Humanoid"],"Yog":["Cubic","Infernal","Subterranean"],"Young Dragon":["Airborne","Arcane","Ender"],"Zealot":["Ender"],"Zealot Bruiser":["Ender"],"Zombie":["Undead"],"Zombie Commander":["Undead"],"Zombie Grunt":["Undead"],"Zombie Knight":["Undead"],"Zombie Lord":["Undead"],"Zombie Soldier":["Undead"],"Zombie Villager":["Undead"],"Zombuddy":["Shielded"],"gorF":["Animal","Aquatic","Arcane"]};
+
+  const CATEGORIES = {"Abyssal Miner":["Sea Creatures - Water"],"Agarimoo":["Sea Creatures - Water"],"Alligator":["Sea Creatures - Backwater Bayou"],"Angry Archaeologist":["The Catacombs"],"Apostle":["The Catacombs"],"Arachne":["Spider's Den"],"Arachne's Brood":["Spider's Den"],"Arachne's Keeper":["Spider's Den"],"Ashfang":["Crimson Isle"],"Atoll Croaker":["Lotus Atoll"],"Automaton":["Crystal Hollows"],"Bal":["Crystal Hollows"],"Banshee":["Sea Creatures - Backwater Bayou"],"Barbarian Duke X":["Crimson Isle"],"Bat":["Private Island","The Catacombs"],"Bat Pi\u00f1ata":["Spooky Festival"],"Bayou Sludge":["Sea Creatures - Backwater Bayou"],"Beetle":["The Garden"],"Bezal":["Crimson Isle"],"Bladesoul":["Crimson Isle"],"Blaze":["Crimson Isle"],"Blazing Golem":["Kuudra"],"Blight":["Kuudra"],"Blue Jerry":["Jerry's Workshop"],"Blue Ringed Octopus":["Sea Creatures - Water"],"Blue Shark":["Sea Creatures - Fishing Festival"],"Bogged":["Galatea"],"Bonzo":["The Catacombs"],"Boss Corleone":["Crystal Hollows"],"Broodmother":["Spider's Den"],"Butterfly":["Crystal Hollows"],"Carrot King":["Sea Creatures - Water"],"Catfish":["Sea Creatures - Water"],"Cellar Spider":["The Catacombs"],"Chaosmite":["The Catacombs"],"Chicken":["The Farming Islands"],"Chill":["Galatea"],"Chillblade":["Galatea"],"Chillshot":["Galatea"],"Cow":["The Farming Islands"],"Crazy Witch":["Spooky Festival"],"Creeper":["Private Island"],"Cretan Bull":["Mythological"],"Cricket":["The Garden"],"Crypt Dreadlord":["The Catacombs"],"Crypt Ghoul":["Hub"],"Crypt Lurker":["The Catacombs"],"Crypt Souleater":["The Catacombs"],"Crypt Undead":["The Catacombs"],"Dasher Spider":["Spider's Den"],"Deep Sea Protector":["Sea Creatures - Water"],"Diamond Goblin":["Dwarven Mines"],"Dragonfly":["The Garden"],"Dropship":["Kuudra"],"Drowned Captain":["Lotus Atoll"],"Dumpster Diver":["Sea Creatures - Backwater Bayou"],"Earthworm":["The Garden"],"Emerald Slime":["Deep Caverns"],"End Stone Protector":["The End"],"Ender Dragon":["The End"],"Enderman":["Private Island","The End"],"Endermite":["The End"],"Ent":["Galatea"],"Explosive Imp":["Kuudra"],"Fels":["The Catacombs"],"Field Mouse":["The Garden"],"Fiery Scuttler":["Sea Creatures - Lava"],"Fire Eel":["Sea Creatures - Lava"],"Firefly":["The Garden"],"Fireproof Witch":["Sea Creatures - Lava"],"Flaming Spider":["Crimson Isle"],"Flaming Worm":["Sea Creatures - Lava"],"Flare":["Crimson Isle"],"Flint Skeleton":["Spider's Den"],"Flipflopper":["Lotus Atoll"],"Fly":["The Garden"],"Fried Chicken":["Sea Creatures - Lava"],"Frog Man":["Sea Creatures - Water"],"Frog Prince":["Lotus Atoll"],"Frosty":["Sea Creatures - Winter"],"Frozen Steve":["Sea Creatures - Winter"],"Gaia Construct":["Mythological"],"Ghast":["Crimson Isle"],"Ghost":["Dwarven Mines"],"Glacite Bowman":["Dwarven Mines"],"Glacite Caver":["Dwarven Mines"],"Glacite Mage":["Dwarven Mines"],"Glacite Mutt":["Dwarven Mines"],"Glacite Walker":["Dwarven Mines"],"Goblin":["Dwarven Mines"],"Goblin Raiders":["Dwarven Mines"],"Golden Ghoul":["Hub"],"Golden Goblin":["Dwarven Mines"],"Golden Jerry":["Jerry's Workshop"],"Golem":["The Catacombs"],"Gravel Skeleton":["Spider's Den"],"Graveyard Zombie":["Hub"],"Great White Shark":["Sea Creatures - Fishing Festival"],"Green Jerry":["Jerry's Workshop"],"Grim Reaper":["Sea Creatures - Spooky"],"Grinch":["Sea Creatures - Winter"],"Grunt":["Crystal Hollows"],"Guardian Defender":["Sea Creatures - Water"],"Harpy":["Mythological"],"Headless Horseman":["Spooky Festival"],"Howling Spirit":["The Park"],"Hydrospear":["Galatea"],"Inferno Demonlord":["Slayer"],"Inferno Magma Cube":["Kuudra"],"Inkling":["Sea Creatures - Water"],"Jumpin' Jack":["Sea Creatures - Spooky"],"Kada Knight":["Crimson Isle"],"Key Guardian":["Crystal Hollows"],"King Midas":["The Catacombs"],"King Minos":["Mythological"],"Kuudra Berserker":["Kuudra"],"Kuudra Follower":["Kuudra"],"Kuudra Knocker":["Kuudra"],"Kuudra Landmine":["Kuudra"],"Kuudra Slasher":["Kuudra"],"Lapis Zombie":["Deep Caverns"],"Lava Blaze":["Sea Creatures - Lava"],"Lava Flame":["Sea Creatures - Lava"],"Lava Leech":["Sea Creatures - Lava"],"Lava Pigman":["Sea Creatures - Lava"],"Littlefoot":["Dwarven Mines"],"Locust":["The Garden"],"Lonely Spider":["The Catacombs"],"Lord Jawbus":["Sea Creatures - Lava"],"Lost Adventurer":["The Catacombs"],"Lotum":["Lotus Atoll"],"Lotus Guardian":["Lotus Atoll"],"Lotusfish":["Lotus Atoll"],"Lunar Moth":["The Garden"],"Mage Outlaw":["Crimson Isle"],"Magma Boss":["Crimson Isle"],"Magma Cube":["Crimson Isle"],"Magma Cube Rider":["Crimson Isle"],"Magma Follower":["Kuudra"],"Magma Pillar":["Sea Creatures - Lava"],"Magma Slug":["Sea Creatures - Lava"],"Manta Ray":["Sea Creatures - Water"],"Manticore":["Mythological"],"Matcho":["Crimson Isle"],"Mega Bat":["Spooky Festival"],"Millennia-Aged Blaze":["Crimson Isle"],"Mimic":["The Catacombs"],"Miner Skeleton":["Deep Caverns"],"Miner Zombie":["Deep Caverns"],"Minos Champion":["Mythological"],"Minos Hunter":["Mythological"],"Minos Inquisitor":["Mythological"],"Minotaur":["Mythological"],"Mite":["The Garden"],"Mithril Grubber":["Sea Creatures - Water"],"Moogma":["Sea Creatures - Lava"],"Mosquito":["The Garden"],"Moth":["The Garden"],"Mushroom Bull":["Crimson Isle"],"Mushroom Cow":["The Farming Islands"],"Mutated Blaze":["Crimson Isle"],"Nessie":["Galatea"],"Nest Endermite":["The End"],"Nightmare":["Sea Creatures - Spooky"],"Nurse Shark":["Sea Creatures - Fishing Festival"],"Nutcracker":["Sea Creatures - Winter"],"Oasis Rabbit":["Sea Creatures - Water"],"Oasis Sheep":["Sea Creatures - Water"],"Obsidian Defender":["The End"],"Old Dragon":["The End"],"Old Wolf":["Hub"],"Pack Spirit":["The Park"],"Phantom Fisher":["Sea Creatures - Spooky"],"Phantom Spirit":["Spooky Festival"],"Pig":["The Farming Islands"],"Plhlegblast":["Sea Creatures - Lava"],"Poisoned Water Worm":["Sea Creatures - Water"],"Powder Ghast":["Dwarven Mines"],"Praying Mantis":["The Garden"],"Protector Dragon":["The End"],"Puddle Jumper":["Lotus Atoll"],"Purple Jerry":["Jerry's Workshop"],"Pyroclastic Worm":["Sea Creatures - Lava"],"Rabbit":["The Farming Islands"],"Ragnarok":["Sea Creatures - Lava"],"Rain Slime":["Spider's Den"],"Rat":["The Garden"],"Redstone Pigman":["Deep Caverns"],"Reindrake":["Sea Creatures - Winter"],"Revenant Horror":["Slayer"],"Rider of the Deep":["Sea Creatures - Water"],"Scarecrow":["Sea Creatures - Spooky"],"Scared Skeleton":["The Catacombs"],"Scary Jerry":["Spooky Festival"],"Scatha":["Crystal Hollows"],"Sea Archer":["Sea Creatures - Water"],"Sea Guardian":["Sea Creatures - Water"],"Sea Leech":["Sea Creatures - Water"],"Sea Walker":["Sea Creatures - Water"],"Sea Witch":["Sea Creatures - Water"],"Seashine":["Lotus Atoll"],"Seer":["The End"],"Shadow Assassin":["The Catacombs"],"Sheep":["The Farming Islands"],"Shiny Pig":["Hub"],"Siamese Lynxes":["Mythological"],"Silverfish":["Spider's Den"],"Skeleton":["Private Island"],"Skeleton Grunt":["The Catacombs"],"Skeleton Lord":["The Catacombs"],"Skeleton Master":["The Catacombs"],"Skeleton Soldier":["The Catacombs"],"Skeletor":["The Catacombs"],"Slime":["Private Island"],"Sludge":["Crystal Hollows"],"Slug":["The Garden"],"Smoldering Blaze":["Crimson Isle"],"Snapping Turtle":["Sea Creatures - Water"],"Sneaky Creeper":["Deep Caverns"],"Sniper":["The Catacombs"],"Soul of the Alpha":["The Park"],"Special Zealot":["The End"],"Sphinx":["Mythological"],"Spider":["Private Island"],"Spider Jockey":["Spider's Den"],"Splitter Spider":["Spider's Den"],"Squid":["Sea Creatures - Water"],"Star Sentry":["Dwarven Mines"],"Stranded Nymph":["Mythological"],"Stridersurfer":["Galatea"],"Strong Dragon":["The End"],"Super Archer":["The Catacombs"],"Super Tank Zombie":["The Catacombs"],"Superior Dragon":["The End"],"Sven Packmaster":["Slayer"],"Tadgang":["Galatea"],"Tank Zombie":["The Catacombs"],"Tarantula Broodfather":["Slayer"],"Taurus":["Sea Creatures - Lava"],"Tentacle":["Crimson Isle"],"Terracotta":["The Catacombs"],"Tewtil":["Lotus Atoll"],"The Loch Emperor":["Galatea"],"The Watcher":["The Catacombs"],"Thunder":["Sea Creatures - Lava"],"Thyst":["Crystal Hollows"],"Tidetot":["Galatea"],"Tiger Shark":["Sea Creatures - Fishing Festival"],"Timestalk Clone":["The Garden"],"Titanoboa":["Sea Creatures - Backwater Bayou"],"Trash Gobbler":["Sea Creatures - Backwater Bayou"],"Treasure Hoarder":["Dwarven Mines"],"Trick or Treater":["Spooky Festival"],"Undead":["The Catacombs"],"Undead Skeleton":["The Catacombs"],"Unstable Dragon":["The End"],"Vanquisher":["Crimson Isle"],"Vittomite":["Crystal Hollows"],"Voidgloom Seraph":["Slayer"],"Voidling":["The End"],"Voidling Extremist":["The End"],"Voidling Fanatic":["The End"],"Volcanic Snail":["Sea Creatures - Lava"],"Voracious Spider":["Spider's Den"],"Wandering Blaze":["Kuudra"],"Water Hydra":["Sea Creatures - Water"],"Water Worm":["Sea Creatures - Water"],"Weaver Spider":["Spider's Den"],"Werewolf":["Sea Creatures - Spooky"],"Wetwing":["Galatea"],"Wiki Tiki":["Sea Creatures - Water"],"Wise Dragon":["The End"],"Witch":["Private Island"],"Wither Gourd":["Spooky Festival"],"Wither Guard":["The Catacombs"],"Wither Husk":["The Catacombs"],"Wither Miner":["The Catacombs"],"Wither Sentry":["Kuudra"],"Wither Skeleton":["Crimson Isle"],"Wither Spectre":["Crimson Isle"],"Withermancer":["The Catacombs"],"Wolf":["Hub"],"Worm":["Crystal Hollows"],"Wraith":["Spooky Festival"],"Yeti":["Sea Creatures - Winter"],"Yog":["Crystal Hollows"],"Young Dragon":["The End"],"Zealot":["The End"],"Zealot Bruiser":["The End"],"Zombie":["Private Island"],"Zombie Commander":["The Catacombs"],"Zombie Grunt":["The Catacombs"],"Zombie Knight":["The Catacombs"],"Zombie Lord":["The Catacombs"],"Zombie Soldier":["The Catacombs"],"Zombie Villager":["Hub"],"Zombuddy":["The Garden"],"gorF":["Lotus Atoll"]};
 
   const ENCHANT_MAP = {
     Undead: "Smite", Skeletal: "Smite", Wither: "Smite",
@@ -445,33 +512,46 @@
   const combatTypes = Object.keys(ENCHANT_MAP).sort((a, b) => typeCounts[b] - typeCounts[a]);
   const flavorTypes = Object.keys(typeCounts).filter(t => !ENCHANT_MAP[t]).sort((a, b) => typeCounts[b] - typeCounts[a]);
 
+  const locationCounts = {};
+  for (const mob in CATEGORIES) {
+    for (const c of CATEGORIES[mob]) locationCounts[c] = (locationCounts[c] || 0) + 1;
+  }
+  const locationTypes = Object.keys(locationCounts).sort((a, b) => locationCounts[b] - locationCounts[a]);
+  document.getElementById("location-count").textContent = "(" + locationTypes.length + ")";
+
   const activeTypes = new Set();
+  const activeLocations = new Set();
   let searchTerm = "";
 
   function renderChips() {
     const combatEl = document.getElementById("chips-combat");
     const flavorEl = document.getElementById("chips-flavor");
+    const locationEl = document.getElementById("chips-location");
     combatEl.innerHTML = "";
     flavorEl.innerHTML = "";
+    locationEl.innerHTML = "";
 
-    function makeChip(type, combat) {
+    function makeChip(type, kind) {
       const chip = document.createElement("div");
-      chip.className = "chip" + (combat ? " combat" : "");
+      chip.className = "chip" + (kind === "combat" ? " combat" : kind === "location" ? " location" : "");
       chip.dataset.type = type;
+      const countSource = kind === "location" ? locationCounts : typeCounts;
       chip.innerHTML = type +
-        (combat ? ` <span class="enchant">&middot; ${ENCHANT_MAP[type]}</span>` : "") +
-        ` <span class="count">${typeCounts[type]}</span>`;
+        (kind === "combat" ? ` <span class="enchant">&middot; ${ENCHANT_MAP[type]}</span>` : "") +
+        ` <span class="count">${countSource[type]}</span>`;
       chip.addEventListener("click", () => {
-        if (activeTypes.has(type)) activeTypes.delete(type);
-        else activeTypes.add(type);
+        const set = kind === "location" ? activeLocations : activeTypes;
+        if (set.has(type)) set.delete(type);
+        else set.add(type);
         chip.classList.toggle("active");
         applyFilters();
       });
       return chip;
     }
 
-    combatTypes.forEach(t => combatEl.appendChild(makeChip(t, true)));
-    flavorTypes.forEach(t => flavorEl.appendChild(makeChip(t, false)));
+    combatTypes.forEach(t => combatEl.appendChild(makeChip(t, "combat")));
+    flavorTypes.forEach(t => flavorEl.appendChild(makeChip(t, "flavor")));
+    locationTypes.forEach(t => locationEl.appendChild(makeChip(t, "location")));
   }
 
   function renderTable() {
@@ -480,8 +560,10 @@
     const names = Object.keys(DATA).sort((a, b) => a.localeCompare(b));
     for (const name of names) {
       const tr = document.createElement("tr");
+      const locs = CATEGORIES[name] || [];
       tr.dataset.name = name.toLowerCase();
       tr.dataset.types = DATA[name].join("|");
+      tr.dataset.locations = locs.join("|");
 
       const tdName = document.createElement("td");
       tdName.className = "name";
@@ -498,6 +580,23 @@
       });
       tr.appendChild(tdTypes);
 
+      const tdLocs = document.createElement("td");
+      tdLocs.className = "locations";
+      if (locs.length === 0) {
+        const dash = document.createElement("span");
+        dash.className = "none-dash";
+        dash.textContent = "—";
+        tdLocs.appendChild(dash);
+      } else {
+        locs.forEach(c => {
+          const pill = document.createElement("span");
+          pill.className = "pill location";
+          pill.textContent = c;
+          tdLocs.appendChild(pill);
+        });
+      }
+      tr.appendChild(tdLocs);
+
       tbody.appendChild(tr);
     }
   }
@@ -508,13 +607,15 @@
     rows.forEach(row => {
       const matchesSearch = !searchTerm || row.dataset.name.includes(searchTerm);
       const rowTypes = row.dataset.types.split("|");
+      const rowLocations = row.dataset.locations ? row.dataset.locations.split("|") : [];
       const matchesTypes = activeTypes.size === 0 || rowTypes.some(t => activeTypes.has(t));
-      const visible = matchesSearch && matchesTypes;
+      const matchesLocations = activeLocations.size === 0 || rowLocations.some(c => activeLocations.has(c));
+      const visible = matchesSearch && matchesTypes && matchesLocations;
       row.classList.toggle("hidden", !visible);
       if (visible) shown++;
     });
     document.getElementById("result-count").textContent = shown + " shown";
-    document.getElementById("clear-btn").classList.toggle("show", activeTypes.size > 0 || searchTerm.length > 0);
+    document.getElementById("clear-btn").classList.toggle("show", activeTypes.size > 0 || activeLocations.size > 0 || searchTerm.length > 0);
 
     const tableWrap = document.querySelector(".table-wrap .scroll");
     let emptyRow = document.getElementById("empty-row");
@@ -540,6 +641,7 @@
 
   document.getElementById("clear-btn").addEventListener("click", () => {
     activeTypes.clear();
+    activeLocations.clear();
     searchTerm = "";
     document.getElementById("search-input").value = "";
     document.querySelectorAll(".chip.active").forEach(c => c.classList.remove("active"));

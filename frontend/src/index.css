@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 body {
-  background: #303030;
-  color: #eee;
-  font-family: Tahoma, sans-serif;
+  background: #0a0b0f;
+  color: #eef1f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -29,405 +29,136 @@ h1.text-xl.font-bold {
 }
 
 /* ---------------------------------------------------------------------------------------
-   Draft theme overrides (see lib/themes.js + components/ThemeSwitcher.jsx).
+   Centralized glassmorphism (see lib/themes.js + components/ThemeSwitcher.jsx,
+   ref: https://freefrontend.com/css-glassmorphism/).
 
-   Every page's chest-GUI chrome reuses the same handful of literal Tailwind utility
-   classes for its panel/slot/highlight/CTA colors (bg-[#c6c6c6], bg-[#8b8b8b],
-   border-t-white, bg-green-400, etc.) rather than a shared component. Rules here are
-   unlayered, so they beat Tailwind's own @layer utilities without needing !important —
-   scoping them under html[data-theme="..."] reskins every page's GUI chrome at once
-   without editing 20 files. If a theme sticks, promote it to real CSS variables/shared
-   components instead of this override layer. */
+   Every page's chest-GUI chrome reuses the same handful of literal Tailwind utility classes
+   for its panel/slot/highlight/CTA/control colors (bg-[#c6c6c6], bg-[#8b8b8b], bg-neutral-800,
+   bg-black, border-t-white, bg-green-400, etc.) rather than a shared component — retargeting
+   those classes here reskins every page's GUI chrome at once, no per-page edits needed. Rules
+   are unlayered so they beat Tailwind's own @layer utilities without !important.
 
-html[data-theme='slate'] body {
-  background: #14161b;
-  color: #e5e7eb;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-html[data-theme='slate'] .bg-\[\#c6c6c6\] {
-  background-color: #1f2330;
-}
-html[data-theme='slate'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='slate'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #1f2330 80%, transparent);
-}
-html[data-theme='slate'] .bg-\[\#8b8b8b\],
-html[data-theme='slate'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #262b3a;
-}
-html[data-theme='slate'] .border-t-white,
-html[data-theme='slate'] .border-l-white {
-  border-color: #323847;
-}
-html[data-theme='slate'] .border-b-\[\#555555\],
-html[data-theme='slate'] .border-r-\[\#555555\] {
-  border-color: #323847;
-}
-html[data-theme='slate'] .outline-black {
-  outline-color: #0a0b0e;
-}
-html[data-theme='slate'] .bg-green-400 {
-  background-color: #2dd4bf;
-}
-html[data-theme='slate'] .bg-\[\#3a8f3a\] {
-  background-color: #0d9488;
-}
-html[data-theme='slate'] .border-t-\[\#6fd66f\],
-html[data-theme='slate'] .border-l-\[\#6fd66f\] {
-  border-color: #5eead4;
-}
-html[data-theme='slate'] .border-b-\[\#1f4f1f\],
-html[data-theme='slate'] .border-r-\[\#1f4f1f\] {
-  border-color: #0f5952;
-}
-/* Most page content text is hardcoded text-black (assuming Classic's light-grey panel) —
-   on Slate's dark panel that's unreadable, so relight it here. Scoped away from
-   bg-neutral-200 buttons (e.g. Hex.jsx's "Refresh Data"), which stay black-on-light. */
-html[data-theme='slate'] .text-black:not(.bg-neutral-200) {
-  color: #e5e7eb;
-}
-html[data-theme='slate'] .text-neutral-700 {
-  color: #94a3b8;
-}
-html[data-theme='slate'] .text-neutral-600 {
-  color: #aab6c4;
+   ONE frosted-glass recipe (translucent dark background + backdrop blur + soft border/shadow)
+   applies everywhere, unscoped by theme, so PageBackground's fixed zone image always shows
+   through underneath every panel. Each html[data-theme="..."] block below changes ONLY the
+   --glass-tint accent (a couple lines) to match its zone's mood — the glass shape, opacity,
+   and blur amount never change, so every theme reads as the same consistent system with just
+   a hint of per-location color, not a different look per theme. */
+
+:root {
+  --glass-tint: 226, 232, 240; /* neutral slate-100 — classic / no zone matched yet */
 }
 
-html[data-theme='parchment'] body {
-  background: #ede1c9;
-  color: #3b2f22;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-html[data-theme='parchment'] .bg-\[\#c6c6c6\] {
-  background-color: #e5d7b8;
-}
-html[data-theme='parchment'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='parchment'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #e5d7b8 80%, transparent);
-}
-html[data-theme='parchment'] .bg-\[\#8b8b8b\],
-html[data-theme='parchment'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #dccca4;
-}
-html[data-theme='parchment'] .border-t-white,
-html[data-theme='parchment'] .border-l-white {
-  border-color: #c9b58a;
-}
-html[data-theme='parchment'] .border-b-\[\#555555\],
-html[data-theme='parchment'] .border-r-\[\#555555\] {
-  border-color: #c9b58a;
-}
-html[data-theme='parchment'] .outline-black {
-  outline-color: #a68f63;
-}
-html[data-theme='parchment'] .bg-green-400 {
-  background-color: #b98a3e;
-}
-html[data-theme='parchment'] .bg-\[\#3a8f3a\] {
-  background-color: #a3722f;
-}
-html[data-theme='parchment'] .border-t-\[\#6fd66f\],
-html[data-theme='parchment'] .border-l-\[\#6fd66f\] {
-  border-color: #d4a860;
-}
-html[data-theme='parchment'] .border-b-\[\#1f4f1f\],
-html[data-theme='parchment'] .border-r-\[\#1f4f1f\] {
-  border-color: #6e4c1c;
+html {
+  color-scheme: dark;
 }
 
-html[data-theme='forest'] body {
-  background: #0d1b15;
-  color: #dbf3e6;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-html[data-theme='forest'] .bg-\[\#c6c6c6\] {
-  background-color: #142720;
-}
-html[data-theme='forest'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='forest'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #142720 80%, transparent);
-}
-html[data-theme='forest'] .bg-\[\#8b8b8b\],
-html[data-theme='forest'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #1c352a;
-}
-html[data-theme='forest'] .border-t-white,
-html[data-theme='forest'] .border-l-white {
-  border-color: #274536;
-}
-html[data-theme='forest'] .border-b-\[\#555555\],
-html[data-theme='forest'] .border-r-\[\#555555\] {
-  border-color: #274536;
-}
-html[data-theme='forest'] .outline-black {
-  outline-color: #081410;
-}
-html[data-theme='forest'] .bg-green-400 {
-  background-color: #a3e635;
-}
-html[data-theme='forest'] .bg-\[\#3a8f3a\] {
-  background-color: #3f6212;
-}
-html[data-theme='forest'] .border-t-\[\#6fd66f\],
-html[data-theme='forest'] .border-l-\[\#6fd66f\] {
-  border-color: #bef264;
-}
-html[data-theme='forest'] .border-b-\[\#1f4f1f\],
-html[data-theme='forest'] .border-r-\[\#1f4f1f\] {
-  border-color: #1a2e05;
-}
-html[data-theme='forest'] .text-black:not(.bg-neutral-200) {
-  color: #dbf3e6;
-}
-html[data-theme='forest'] .text-neutral-700 {
-  color: #7fae95;
-}
-html[data-theme='forest'] .text-neutral-600 {
-  color: #92bea3;
+/* Main panels — Section wrappers, Final Damage/Misc/Magical Power cards, etc. */
+.bg-\[\#c6c6c6\],
+.bg-\[\#c6c6c6\]\/75,
+.bg-\[\#c6c6c6\]\/60 {
+  background-color: rgba(10, 12, 18, 0.42);
+  background-image: linear-gradient(135deg, rgba(var(--glass-tint), 0.14), rgba(var(--glass-tint), 0.03));
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-html[data-theme='frost'] body {
-  background: #eef4f8;
-  color: #1c2b34;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-html[data-theme='frost'] .bg-\[\#c6c6c6\] {
-  background-color: #dbe8ef;
-}
-html[data-theme='frost'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='frost'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #dbe8ef 80%, transparent);
-}
-html[data-theme='frost'] .bg-\[\#8b8b8b\],
-html[data-theme='frost'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #cddfe8;
-}
-html[data-theme='frost'] .border-t-white,
-html[data-theme='frost'] .border-l-white {
-  border-color: #b6cdd9;
-}
-html[data-theme='frost'] .border-b-\[\#555555\],
-html[data-theme='frost'] .border-r-\[\#555555\] {
-  border-color: #b6cdd9;
-}
-html[data-theme='frost'] .outline-black {
-  outline-color: #93aebb;
-}
-html[data-theme='frost'] .bg-green-400 {
-  background-color: #38bdf8;
-}
-html[data-theme='frost'] .bg-\[\#3a8f3a\] {
-  background-color: #0284c7;
-}
-html[data-theme='frost'] .border-t-\[\#6fd66f\],
-html[data-theme='frost'] .border-l-\[\#6fd66f\] {
-  border-color: #7dd3fc;
-}
-html[data-theme='frost'] .border-b-\[\#1f4f1f\],
-html[data-theme='frost'] .border-r-\[\#1f4f1f\] {
-  border-color: #075985;
-}
-
-/* Aurora/Nova: the "AI SaaS" look on purpose — gradients, glass panels, glow, rounded
-   corners — for contrast against the flatter drafts above. Both need the same text-black/
-   text-neutral-700/600 relighting as Slate/Forest since their panels are dark glass. */
-html[data-theme='aurora'] body {
-  background: radial-gradient(circle at 15% 15%, #4c1d9550, transparent 55%),
-    radial-gradient(circle at 85% 0%, #1d4ed850, transparent 55%),
-    radial-gradient(circle at 50% 100%, #db277750, transparent 60%), #0b0b16;
-  color: #ede9fe;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-html[data-theme='aurora'] .bg-\[\#c6c6c6\] {
-  background-color: #1a1730;
-  background-image: linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(59, 130, 246, 0.16));
-  border-radius: 14px;
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.25);
-}
-html[data-theme='aurora'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='aurora'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #1a1730 80%, transparent);
-  background-image: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(59, 130, 246, 0.13));
-  border-radius: 14px;
-}
-html[data-theme='aurora'] .bg-\[\#8b8b8b\],
-html[data-theme='aurora'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #241f3d;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
-  border-radius: 8px;
-}
-html[data-theme='aurora'] .border-t-white,
-html[data-theme='aurora'] .border-l-white {
-  border-color: rgba(196, 181, 253, 0.35);
-}
-html[data-theme='aurora'] .border-b-\[\#555555\],
-html[data-theme='aurora'] .border-r-\[\#555555\] {
-  border-color: rgba(139, 92, 246, 0.18);
-}
-html[data-theme='aurora'] .outline-black {
-  outline-color: rgba(139, 92, 246, 0.35);
-}
-html[data-theme='aurora'] .bg-green-400 {
-  background-color: #a855f7;
-  background-image: linear-gradient(120deg, #8b5cf6, #ec4899);
-}
-html[data-theme='aurora'] .bg-\[\#3a8f3a\] {
-  background-color: #8b5cf6;
-  background-image: linear-gradient(90deg, #8b5cf6, #d946ef, #ec4899);
+/* Inset/slot panels — item slots, the Misc sub-panel, etc. */
+.bg-\[\#8b8b8b\],
+.bg-\[\#8b8b8b\]\/80 {
+  background-color: rgba(var(--glass-tint), 0.08);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   border-radius: 10px;
 }
-html[data-theme='aurora'] .border-t-\[\#6fd66f\],
-html[data-theme='aurora'] .border-l-\[\#6fd66f\] {
-  border-color: rgba(244, 114, 182, 0.7);
+
+.border-t-white,
+.border-l-white {
+  border-color: rgba(255, 255, 255, 0.22);
 }
-html[data-theme='aurora'] .border-b-\[\#1f4f1f\],
-html[data-theme='aurora'] .border-r-\[\#1f4f1f\] {
-  border-color: rgba(76, 29, 149, 0.7);
+.border-b-\[\#555555\],
+.border-r-\[\#555555\] {
+  border-color: rgba(0, 0, 0, 0.35);
 }
-html[data-theme='aurora'] .text-black:not(.bg-neutral-200) {
-  color: #ede9fe;
-}
-html[data-theme='aurora'] .text-neutral-700 {
-  color: #a78bda;
-}
-html[data-theme='aurora'] .text-neutral-600 {
-  color: #bda6e8;
+.outline-black {
+  outline-color: rgba(var(--glass-tint), 0.22);
 }
 
-html[data-theme='nova'] body {
-  background: radial-gradient(circle at 20% 10%, #06b6d450, transparent 55%),
-    radial-gradient(circle at 90% 20%, #2563eb55, transparent 55%),
-    radial-gradient(circle at 50% 100%, #0891b250, transparent 60%), #071019;
-  color: #e0f2fe;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/* CTA / equipped-highlight accent stays a solid, saturated color — it needs to read as
+   "selected"/"primary action", not just decorative glass — but tinted per theme via the same
+   --glass-tint so it never clashes with the panels around it. */
+.bg-green-400 {
+  background-color: rgb(var(--glass-tint));
 }
-html[data-theme='nova'] .bg-\[\#c6c6c6\] {
-  background-color: #0f1e2e;
-  background-image: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(37, 99, 235, 0.18));
-  border-radius: 14px;
-  box-shadow: 0 0 40px rgba(6, 182, 212, 0.22);
+.bg-\[\#3a8f3a\] {
+  background-color: rgba(var(--glass-tint), 0.8);
 }
-html[data-theme='nova'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='nova'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #0f1e2e 80%, transparent);
-  background-image: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(37, 99, 235, 0.14));
-  border-radius: 14px;
+.border-t-\[\#6fd66f\],
+.border-l-\[\#6fd66f\] {
+  border-color: rgba(var(--glass-tint), 0.9);
 }
-html[data-theme='nova'] .bg-\[\#8b8b8b\],
-html[data-theme='nova'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #142838;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
-  border-radius: 8px;
-}
-html[data-theme='nova'] .border-t-white,
-html[data-theme='nova'] .border-l-white {
-  border-color: rgba(103, 232, 249, 0.35);
-}
-html[data-theme='nova'] .border-b-\[\#555555\],
-html[data-theme='nova'] .border-r-\[\#555555\] {
-  border-color: rgba(37, 99, 235, 0.2);
-}
-html[data-theme='nova'] .outline-black {
-  outline-color: rgba(6, 182, 212, 0.35);
-}
-html[data-theme='nova'] .bg-green-400 {
-  background-color: #22d3ee;
-  background-image: linear-gradient(120deg, #22d3ee, #3b82f6);
-}
-html[data-theme='nova'] .bg-\[\#3a8f3a\] {
-  background-color: #0891b2;
-  background-image: linear-gradient(90deg, #06b6d4, #3b82f6, #6366f1);
-  border-radius: 10px;
-}
-html[data-theme='nova'] .border-t-\[\#6fd66f\],
-html[data-theme='nova'] .border-l-\[\#6fd66f\] {
-  border-color: rgba(103, 232, 249, 0.7);
-}
-html[data-theme='nova'] .border-b-\[\#1f4f1f\],
-html[data-theme='nova'] .border-r-\[\#1f4f1f\] {
-  border-color: rgba(30, 58, 138, 0.7);
-}
-html[data-theme='nova'] .text-black:not(.bg-neutral-200) {
-  color: #e0f2fe;
-}
-html[data-theme='nova'] .text-neutral-700 {
-  color: #7dd3e0;
-}
-html[data-theme='nova'] .text-neutral-600 {
-  color: #93dde8;
+.border-b-\[\#1f4f1f\],
+.border-r-\[\#1f4f1f\] {
+  border-color: rgba(var(--glass-tint), 0.35);
 }
 
-/* Inferno: same gradient-glass "AI SaaS" treatment as Aurora/Nova, red/orange palette —
-   paired with the Tomb/Crimson Isle backdrops (see lib/background.js). */
-html[data-theme='inferno'] body {
-  background: radial-gradient(circle at 15% 10%, #9a231550, transparent 55%),
-    radial-gradient(circle at 85% 15%, #ea580c55, transparent 55%),
-    radial-gradient(circle at 50% 100%, #7c2d1250, transparent 60%), #180a05;
-  color: #ffe4d6;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/* Buttons and form controls (Back/Max/Min/+N buttons, number/text inputs) get a lighter,
+   subtler glass so small interactive targets and typed numbers stay crisp and legible. */
+.bg-neutral-800 {
+  background-color: rgba(var(--glass-tint), 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
-html[data-theme='inferno'] .bg-\[\#c6c6c6\] {
-  background-color: #2a140c;
-  background-image: linear-gradient(135deg, rgba(234, 88, 12, 0.22), rgba(220, 38, 38, 0.16));
-  border-radius: 14px;
-  box-shadow: 0 0 40px rgba(234, 88, 12, 0.25);
+.hover\:bg-neutral-700:hover {
+  background-color: rgba(var(--glass-tint), 0.2);
 }
-html[data-theme='inferno'] .bg-\[\#c6c6c6\]\/75,
-html[data-theme='inferno'] .bg-\[\#c6c6c6\]\/60 {
-  background-color: color-mix(in srgb, #2a140c 80%, transparent);
-  background-image: linear-gradient(135deg, rgba(234, 88, 12, 0.18), rgba(220, 38, 38, 0.13));
-  border-radius: 14px;
+.bg-black {
+  background-color: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
-html[data-theme='inferno'] .bg-\[\#8b8b8b\],
-html[data-theme='inferno'] .bg-\[\#8b8b8b\]\/80 {
-  background-color: #3a1d12;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
-  border-radius: 8px;
-}
-html[data-theme='inferno'] .border-t-white,
-html[data-theme='inferno'] .border-l-white {
-  border-color: rgba(253, 186, 116, 0.35);
-}
-html[data-theme='inferno'] .border-b-\[\#555555\],
-html[data-theme='inferno'] .border-r-\[\#555555\] {
-  border-color: rgba(234, 88, 12, 0.18);
-}
-html[data-theme='inferno'] .outline-black {
-  outline-color: rgba(234, 88, 12, 0.35);
-}
-html[data-theme='inferno'] .bg-green-400 {
-  background-color: #f97316;
-  background-image: linear-gradient(120deg, #f97316, #dc2626);
-}
-html[data-theme='inferno'] .bg-\[\#3a8f3a\] {
-  background-color: #ea580c;
-  background-image: linear-gradient(90deg, #f59e0b, #ea580c, #dc2626);
-  border-radius: 10px;
-}
-html[data-theme='inferno'] .border-t-\[\#6fd66f\],
-html[data-theme='inferno'] .border-l-\[\#6fd66f\] {
-  border-color: rgba(253, 186, 116, 0.7);
-}
-html[data-theme='inferno'] .border-b-\[\#1f4f1f\],
-html[data-theme='inferno'] .border-r-\[\#1f4f1f\] {
-  border-color: rgba(124, 45, 18, 0.7);
-}
-html[data-theme='inferno'] .text-black:not(.bg-neutral-200) {
-  color: #ffe4d6;
-}
-html[data-theme='inferno'] .text-neutral-700 {
-  color: #e3a37f;
-}
-html[data-theme='inferno'] .text-neutral-600 {
-  color: #edb492;
+.border-neutral-400,
+.border-neutral-500,
+.border-neutral-500\/40,
+.border-neutral-600,
+.border-neutral-700 {
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Aurora/Nova/Inferno round every bg-[#c6c6c6] panel's corners (see above) for the gradient-glass
-   look, but Landing's little per-slot remove button should stay a plain square X on every theme,
-   not just the flatter ones — opt it back out here. */
-html[data-theme='aurora'] .remove-btn-square,
-html[data-theme='nova'] .remove-btn-square,
-html[data-theme='inferno'] .remove-btn-square {
+/* Universal text relighting — every panel is dark glass now regardless of theme, so the
+   pervasive hardcoded text-black/text-neutral-NNN needs to stay legible everywhere it's used. */
+.text-black:not(.bg-neutral-200) {
+  color: #f1f5f9;
+}
+.text-neutral-800 {
+  color: rgba(241, 245, 249, 0.78);
+}
+.text-neutral-700 {
+  color: rgba(241, 245, 249, 0.7);
+}
+.text-neutral-600 {
+  color: rgba(241, 245, 249, 0.58);
+}
+.text-neutral-500 {
+  color: rgba(241, 245, 249, 0.4);
+}
+
+/* Per-theme tint — the ONLY thing that changes between themes/zones (see lib/background.js
+   for which theme pairs with which Target Mob type/backdrop). Deliberately tiny diffs. */
+html[data-theme='slate'] { --glass-tint: 148, 163, 184; } /* cool blue-grey — Catacombs */
+html[data-theme='parchment'] { --glass-tint: 250, 204, 21; } /* warm gold — Hub by day */
+html[data-theme='forest'] { --glass-tint: 163, 230, 53; } /* green — Hub by night */
+html[data-theme='frost'] { --glass-tint: 125, 211, 252; } /* icy blue */
+html[data-theme='aurora'] { --glass-tint: 196, 181, 253; } /* purple — the Void */
+html[data-theme='nova'] { --glass-tint: 103, 232, 249; } /* cyan — Ocean */
+html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange — Crimson Isle/Tomb */
+
+/* Every panel is rounded now — opt the little per-slot remove button back out to a plain
+   square X on every theme (it previously only opted out on Aurora/Nova/Inferno). */
+.remove-btn-square {
   border-radius: 0;
 }
 
