@@ -158,16 +158,19 @@ async function handleHypixelImport(url, env) {
   let uuid = uuidParam;
   let resolvedUsername = username;
   if (!uuid) {
-    const mojangRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`);
-    if (mojangRes.status === 404) {
-      return jsonResponse({ error: `No Minecraft account named "${username}"` }, 404);
+    // api.mojang.com's bot-protection (Akamai) blocks Cloudflare Workers' shared egress IPs
+    // outright (403 + an HTML challenge page, confirmed live) — PlayerDB proxies the same Mojang
+    // lookup and is reachable from Workers.
+    const lookupRes = await fetch(`https://playerdb.co/api/player/minecraft/${encodeURIComponent(username)}`);
+    const lookup = await lookupRes.json().catch(() => null);
+    if (!lookupRes.ok || !lookup?.success) {
+      if (lookupRes.status === 404 || lookup?.code === "player.not_found") {
+        return jsonResponse({ error: `No Minecraft account named "${username}"` }, 404);
+      }
+      return jsonResponse({ error: "Username lookup failed, try again" }, 502);
     }
-    if (!mojangRes.ok) {
-      return jsonResponse({ error: "Mojang lookup failed, try again" }, 502);
-    }
-    const mojang = await mojangRes.json();
-    uuid = mojang.id;
-    resolvedUsername = mojang.name;
+    uuid = lookup.data.player.raw_id;
+    resolvedUsername = lookup.data.player.username;
   }
 
   const hypixelRes = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?uuid=${uuid}`, {
