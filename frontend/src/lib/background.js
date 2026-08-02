@@ -4,13 +4,19 @@ import { getMobTypes } from './mobTypes';
 // picked off the first selected Target Mob's type, checked in this priority order (most
 // specific first) since a mob can carry more than one type (e.g. Lava Pigman is Magmatic +
 // Undead; Skeletal is itself a more specific Undead subtype).
+//
+// No real footage exists yet for a dedicated Crimson Isle or ocean backdrop — the placeholder
+// stub files that used to sit here (crimson_isle.gif/ocean.gif, ~5KB each, literally just the
+// text "PLACEHOLDER") were shipping to real users, so Magmatic reuses the real Inferno/tomb
+// backdrop (same theme as Infernal) and Aquatic is left unmapped, falling through to the normal
+// hub day/night default below like any other type without a dedicated zone. Swap these back to
+// real per-zone assets once footage is captured — see project backlog.
 const TYPE_ZONES = [
   ['Skeletal', { theme: 'forest', background: '/images/backgrounds/hub_night.gif' }],
-  ['Magmatic', { theme: 'inferno', background: '/images/backgrounds/crimson_isle.gif' }],
+  ['Magmatic', { theme: 'inferno', background: '/images/backgrounds/tomb.gif' }],
   ['Ender', { theme: 'aurora', background: '/images/backgrounds/void.gif' }],
   ['Infernal', { theme: 'inferno', background: '/images/backgrounds/tomb.gif' }],
   ['Undead', { theme: 'slate', background: '/images/backgrounds/catacombs.gif' }],
-  ['Aquatic', { theme: 'nova', background: '/images/backgrounds/ocean.gif' }],
 ];
 
 function isDaytime() {
