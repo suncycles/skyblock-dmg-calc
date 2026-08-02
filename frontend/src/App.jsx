@@ -30,6 +30,7 @@ import PlayerLevels from './pages/PlayerLevels';
 import TargetMobPicker from './pages/TargetMobPicker';
 import Attributes from './pages/Attributes';
 import LoadoutLoader from './pages/LoadoutLoader';
+import HypixelImport from './pages/HypixelImport';
 import Credits from './pages/Credits';
 import ThemeSwitcher from './components/ThemeSwitcher';
 
@@ -72,6 +73,7 @@ export default function App() {
                 <Route path="/target-mob" element={<TargetMobPicker />} />
                 <Route path="/attributes" element={<Attributes />} />
                 <Route path="/loadout/:code" element={<LoadoutLoader />} />
+                <Route path="/hypixel-import" element={<HypixelImport />} />
                 <Route path="/credits" element={<Credits />} />
               </Routes>
               <ThemeSwitcher />

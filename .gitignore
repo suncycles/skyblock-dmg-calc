@@ -2,7 +2,9 @@
 dist
 node_modules/
 .wrangler/
-
+.env
+.dev.vars
+.DS_Store
 # Root-only: deploy-pages.sh and friends, not worker/scripts/ (real
 # tracked source — the old unanchored "scripts/" pattern matched both).
 /scripts/

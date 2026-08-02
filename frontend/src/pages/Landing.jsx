@@ -700,6 +700,12 @@ export default function Landing() {
             >
               📁 Loadouts
             </button>
+            <button
+              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+              onClick={() => navigate('/hypixel-import')}
+            >
+              🌐 Hypixel
+            </button>
           </div>
           {showLoadoutsPanel && (
             <div className="w-64 flex flex-col gap-1">

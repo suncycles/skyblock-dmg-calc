@@ -15,7 +15,7 @@ const FORMAT_VERSION = 1;
 
 const GEAR_SLOTS = ['weapon', 'helmet', 'chestplate', 'leggings', 'boots', 'necklace', 'cloak', 'belt', 'gloves'];
 
-function findGearItem(itemData, id) {
+export function findGearItem(itemData, id) {
   if (!id) return null;
   return (
     (itemData.weapons || []).find((i) => i.id === id) ||

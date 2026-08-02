@@ -428,6 +428,18 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Merges a Hypixel-import gear patch (see lib/hypixelImport.js) into the current loadout —
+  // only the slots present in `patch` are touched (already-full {item, modifiers} entries, not
+  // reset to defaults like selectItem does), everything else about the build (attributes, player
+  // levels, target mobs, misc toggles, the Accessory slot) is left exactly as it was.
+  const importHypixelLoadout = useCallback((patch) => {
+    setLoadout((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // Fully unequips a slot, dropping its key from the loadout entirely.
   const removeSlot = useCallback((slot) => {
     setLoadout((prev) => {
@@ -733,6 +745,7 @@ export function BuildProvider({ children }) {
         blazeCrimsonIsle,
         toggleBlazeCrimsonIsle,
         selectItem,
+        importHypixelLoadout,
         removeSlot,
         applyEnchant,
         applyGemstone,
