@@ -3,9 +3,11 @@ import { useBuild } from '../context/BuildContext';
 import { useTheme } from '../context/ThemeContext';
 import { getZoneStyle } from '../lib/background';
 
-// Fixed zone-themed backdrop (see lib/background.js) shared by every page, not just Landing —
-// keyed off the same Target Mob selection so the whole app stays visually consistent no matter
-// which page you're on, and applies the matching GUI theme too.
+// Fixed zone-themed video backdrop (see lib/background.js) shared by every page, not just
+// Landing — keyed off the same Target Mob selection so the whole app stays visually consistent
+// no matter which page you're on, and applies the matching GUI theme too. `key={video}` forces a
+// fresh <video> element on zone change so autoplay reliably restarts (browsers don't always
+// resume playback just from an src swap on an existing element).
 export default function PageBackground() {
   const { targetMobs } = useBuild();
   const { setTheme } = useTheme();
@@ -16,14 +18,14 @@ export default function PageBackground() {
   }, [zoneStyle.theme, setTheme]);
 
   return (
-    <div
-      className="fixed inset-0 -z-10 w-screen h-screen"
-      style={{
-        backgroundImage: `url(${zoneStyle.background})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
+    <video
+      key={zoneStyle.video}
+      className="fixed inset-0 -z-10 w-screen h-screen object-cover"
+      src={zoneStyle.video}
+      autoPlay
+      loop
+      muted
+      playsInline
     />
   );
 }
