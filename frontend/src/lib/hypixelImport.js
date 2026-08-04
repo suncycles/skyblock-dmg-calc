@@ -1,17 +1,37 @@
 import { findGearItem } from './loadoutCode';
-import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
+import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
 import { fetchEnchantLevels, isUltimateEnchant } from './enchantEffects';
 import { derivePetDisplayName } from './petData';
+import { getPowerById } from './accessoryPowers';
+import { ATTRIBUTE_IDS } from './attributes';
 
 /* Hypixel API "import my current gear" — hits the shared Worker's /api/hypixel/import (which
-   holds the API key server-side and does the gzip+NBT decode; see worker/src/nbt.js), then maps
-   the raw decoded items onto this app's own loadout/modifiers shape. Deliberately scoped to only
-   what's *currently worn* (armor + equipment + best-guess weapon + active pet) per explicit
-   instruction — not attributes, skill levels, or the in-game Loadout/Wardrobe presets.
+   holds the API key server-side, does the gzip+NBT decode, and computes pet level/attribute
+   levels/Wolf Slayer level/Alchemy+Enchanting level server-side; see worker/src/nbt.js and
+   worker/src/index.js's handleHypixelImport), then maps the raw response onto this app's own
+   loadout/attributes/playerStats shape. Scoped to currently-worn gear + active pet + Accessory
+   Power + the account-wide levels named above — not the in-game Loadout/Wardrobe presets.
 
    Weapon has no dedicated Skyblock inventory slot, so the Worker already picked the first
    hotbar/inventory item (in real slot order) that matches a known weapon id — this module just
    consumes that choice, it doesn't re-derive it. */
+
+// Hypixel's raw attribute id order is "<mobType>_ruler" (e.g. "skeletal_ruler") — reversed from
+// this app's own "ruler_<mobType>" id. Every other attribute id (elementals, echoes, deadeye,
+// unlimited_power, maximal_torment, etc.) already matches Hypixel's raw key 1:1, verified against
+// a real account — note the in-game shard's internalName is "MAXIMAL_TORMENT" even though its
+// displayed ability name is "Unlimited Torment".
+const RULER_TYPES = ['skeletal', 'undead', 'woodland', 'arthropod', 'ender', 'magmatic', 'humanoid', 'infernal'];
+const RAW_ATTRIBUTE_ID_REMAP = Object.fromEntries(RULER_TYPES.map((t) => [`${t}_ruler`, `ruler_${t}`]));
+
+function mapHypixelAttributeLevels(rawAttributeLevels) {
+  const result = {};
+  for (const [rawId, level] of Object.entries(rawAttributeLevels || {})) {
+    const id = RAW_ATTRIBUTE_ID_REMAP[rawId] || rawId;
+    if (ATTRIBUTE_IDS.includes(id)) result[id] = level;
+  }
+  return result;
+}
 
 const WORKER_BASE_URL = 'https://dmg-calc-cache.mich536ael.workers.dev';
 
@@ -105,10 +125,12 @@ async function buildItemModifiers(summary, itemData, reforgeLookup) {
   };
 }
 
-// Maps the Worker's raw decoded response onto {loadout, skipped}: `loadout` is ready to merge
-// straight into BuildContext (same {item, modifiers} shape as every other slot-setter), `skipped`
-// lists any item id that didn't resolve against the current NEU-REPO catalog (renamed/removed
-// item) so the caller can surface it rather than silently dropping gear.
+// Maps the Worker's raw decoded response onto {loadout, skipped, attributes, playerStats}:
+// `loadout` is ready to merge straight into BuildContext (same {item, modifiers} shape as every
+// other slot-setter), `skipped` lists any item/power id that didn't resolve against the current
+// NEU-REPO catalog (renamed/removed item) so the caller can surface it rather than silently
+// dropping it, `attributes` is a {id: level} patch for BuildContext's attributes state, and
+// `playerStats` is a patch for its playerStats state (wolfSlayerLevel/alchemyLevel/enchantingLevel).
 export async function mapHypixelImportToLoadout(raw, itemData) {
   const reforgeLookup = buildReforgeNameLookup(itemData);
   const bySlot = {
@@ -157,10 +179,42 @@ export async function mapHypixelImportToLoadout(raw, itemData) {
         tier: raw.pet.tier,
         material: 'BONE',
       },
-      // Pet level isn't imported yet (needs a verified XP-per-level curve) — defaults to 1.
-      modifiers: emptyPetModifiers(),
+      modifiers: {
+        ...emptyPetModifiers(),
+        level: raw.pet.level || 1,
+        petItem: raw.pet.heldItem || null,
+      },
     };
   }
 
-  return { loadout, skipped };
+  if (raw.accessory?.selectedPower) {
+    const power = getPowerById(raw.accessory.selectedPower.toUpperCase());
+    if (power) {
+      loadout.accessory = {
+        item: {
+          id: power.id,
+          name: power.name,
+          iconId: power.sourceItemId || null,
+          material: power.sourceItemId ? 'SKULL' : 'BOOK',
+        },
+        modifiers: { ...emptyAccessoryModifiers(), magicalPower: raw.accessory.magicalPower || 0 },
+      };
+    } else {
+      skipped.push(raw.accessory.selectedPower);
+    }
+  }
+
+  const attributes = mapHypixelAttributeLevels(raw.attributeLevels);
+
+  const playerStats = {};
+  if (typeof raw.slayers?.wolf === 'number') playerStats.wolfSlayerLevel = raw.slayers.wolf;
+  if (typeof raw.skills?.alchemy === 'number') playerStats.alchemyLevel = raw.skills.alchemy;
+  if (typeof raw.skills?.enchanting === 'number') playerStats.enchantingLevel = raw.skills.enchanting;
+  if (typeof raw.skills?.combat === 'number') playerStats.combatLevel = raw.skills.combat;
+  if (typeof raw.skills?.foraging === 'number') playerStats.foragingLevel = raw.skills.foraging;
+  if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
+  if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
+  if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
+
+  return { loadout, skipped, attributes, playerStats };
 }

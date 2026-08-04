@@ -440,6 +440,29 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Merges a Hypixel-import attribute-level patch (see lib/hypixelImport.js) — only the ids
+  // present in `patch` are touched, everything else stays as it was.
+  const importHypixelAttributes = useCallback((patch) => {
+    setAttributesState((prev) => {
+      const next = { ...prev };
+      for (const [id, level] of Object.entries(patch || {})) {
+        if (ATTRIBUTE_IDS.includes(id)) next[id] = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(level) || 0));
+      }
+      localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Merges a Hypixel-import player-stats patch (wolfSlayerLevel/alchemyLevel/enchantingLevel) —
+  // only the keys present in `patch` are touched.
+  const importHypixelPlayerStats = useCallback((patch) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // Fully unequips a slot, dropping its key from the loadout entirely.
   const removeSlot = useCallback((slot) => {
     setLoadout((prev) => {
@@ -746,6 +769,8 @@ export function BuildProvider({ children }) {
         toggleBlazeCrimsonIsle,
         selectItem,
         importHypixelLoadout,
+        importHypixelAttributes,
+        importHypixelPlayerStats,
         removeSlot,
         applyEnchant,
         applyGemstone,

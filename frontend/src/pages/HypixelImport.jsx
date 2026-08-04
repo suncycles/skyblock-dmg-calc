@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
-import { useConfirmDialog } from '../context/ConfirmDialogContext';
 import { fetchHypixelImport, mapHypixelImportToLoadout, HypixelImportError } from '../lib/hypixelImport';
 import PageHeader from '../components/PageHeader';
 import PageBackground from '../components/PageBackground';
@@ -10,20 +9,22 @@ import PageBackground from '../components/PageBackground';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Imports currently-worn armor/equipment/weapon/pet from a real Hypixel account. Two-step flow:
-// resolve the username (the Worker may come back asking to pick a profile if the account has
-// more than one), then map the chosen profile's gear onto BuildContext via importHypixelLoadout
-// — which only touches those slots, leaving attributes/player levels/target mobs/toggles as-is.
+// Imports currently-worn armor/equipment/weapon/pet/Accessory Power, plus computed pet level,
+// attribute levels, Wolf Slayer level, and Combat/Skyblock/Foraging/Catacombs/Taming/Alchemy/
+// Enchanting level, from a real Hypixel account, then drops straight back onto the Loadout page —
+// no confirmation step, no separate results screen. The only stop along the way is profile
+// picking, and only when the account actually has more than one SkyBlock profile to choose from.
+// Can auto-run on mount when EntryScreen navigates here with a username already typed in.
 export default function HypixelImport() {
   const navigate = useNavigate();
-  const { importHypixelLoadout } = useBuild();
+  const location = useLocation();
+  const { importHypixelLoadout, importHypixelAttributes, importHypixelPlayerStats } = useBuild();
   const { itemData } = useItemData();
-  const { confirmDialog } = useConfirmDialog();
-  const [username, setUsername] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | picking-profile | done
+  const [username, setUsername] = useState(location.state?.username || '');
+  const [status, setStatus] = useState('idle'); // idle | loading | picking-profile
   const [error, setError] = useState(null);
   const [profileChoice, setProfileChoice] = useState(null); // { uuid, username, profiles }
-  const [result, setResult] = useState(null); // { imported: [...slots], skipped: [...ids] }
+  const autoRanRef = useRef(false);
 
   async function runImport(uuid, byUuid, profile) {
     setError(null);
@@ -35,19 +36,16 @@ export default function HypixelImport() {
         setStatus('picking-profile');
         return;
       }
-      const { loadout, skipped } = await mapHypixelImportToLoadout(raw, itemData);
+      const { loadout, attributes, playerStats } = await mapHypixelImportToLoadout(raw, itemData);
       if (Object.keys(loadout).length === 0) {
         setError("Couldn't match any currently-worn item to this app's item catalog.");
         setStatus('idle');
         return;
       }
-      if (!(await confirmDialog(`Import ${raw.username}'s currently-worn gear? This replaces your weapon/armor/equipment/pet slots.`))) {
-        setStatus('idle');
-        return;
-      }
       importHypixelLoadout(loadout);
-      setResult({ imported: Object.keys(loadout), skipped });
-      setStatus('done');
+      if (Object.keys(attributes).length > 0) importHypixelAttributes(attributes);
+      if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
+      navigate('/');
     } catch (err) {
       setError(err instanceof HypixelImportError ? err.message : 'Import failed — see console for details.');
       if (!(err instanceof HypixelImportError)) console.error('Hypixel import failed:', err);
@@ -65,6 +63,16 @@ export default function HypixelImport() {
     runImport(profileChoice.uuid, true, profileId);
   }
 
+  // EntryScreen sends the typed username via router state — kick the import off immediately
+  // instead of making the player retype it and press Import again.
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    if (!location.state?.username) return;
+    autoRanRef.current = true;
+    runImport(location.state.username.trim(), false, null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <PageBackground />
@@ -74,11 +82,12 @@ export default function HypixelImport() {
         <div className={`${panel} p-4 flex flex-col gap-3`}>
           <div className="text-xs text-neutral-700 leading-snug">
             Imports what you're <strong>currently wearing</strong> — weapon (first weapon found in your
-            hotbar/inventory), armor, equipment, and active pet. Attributes, skill levels, and saved in-game
-            Loadouts aren't imported yet.
+            hotbar/inventory), armor, equipment, active pet (with level + held item), and Accessory Power —
+            plus your attribute levels, Wolf Slayer level, and Combat/Skyblock/Foraging/Catacombs/Taming/
+            Alchemy/Enchanting level. Saved in-game Loadouts aren't imported.
           </div>
 
-          {status !== 'picking-profile' && status !== 'done' && (
+          {status !== 'picking-profile' && (
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input
                 type="text"
@@ -118,23 +127,6 @@ export default function HypixelImport() {
                   {p.selected ? ' — currently active' : ''}
                 </button>
               ))}
-            </div>
-          )}
-
-          {status === 'done' && result && (
-            <div className="flex flex-col gap-1.5">
-              <div className="text-sm text-black font-bold">Imported: {result.imported.join(', ')}</div>
-              {result.skipped.length > 0 && (
-                <div className="text-xs text-neutral-700">
-                  Skipped (not in this app's item catalog): {result.skipped.join(', ')}
-                </div>
-              )}
-              <button
-                className="mt-1 text-sm font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer self-start"
-                onClick={() => navigate('/')}
-              >
-                Back to Loadout
-              </button>
             </div>
           )}
         </div>
