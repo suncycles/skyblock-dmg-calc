@@ -36,7 +36,7 @@ export const WARRIOR_RATE = 2.5; // %/level, "Increases melee damage dealt by +2
 export const ELITE_RATE = 3; // %/level, "+3%-30% more Damage against bosses and mini-bosses"
 export const UNLIMITED_POWER_RATE = 0.1; // %/level, Strength — applied after everything else
 export const UNLIMITED_ENERGY_RATE = 0.1; // %/level, Crit Damage — applied after everything else
-export const UNLIMITED_TORRENT_RATE = 1; // %/level, Intelligence — applied after everything else
+export const MAXIMAL_TORMENT_RATE = 1; // %/level, Intelligence — applied after everything else
 export const ALMIGHTY_RATE = 5; // %/level, 'Your "Unlimited" Attributes are +5%-50% stronger'
 export const TUNING_BOX_RATE = 1; // Tuning Points/level, "+1-10 Tuning Points"
 export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" — treated as always-active
@@ -48,7 +48,7 @@ export const OTHER_ATTRIBUTES = [
   { id: 'elite', name: 'Elite', rate: ELITE_RATE, unit: '%' },
   { id: 'unlimited_power', name: 'Unlimited Power', rate: UNLIMITED_POWER_RATE, unit: '%' },
   { id: 'unlimited_energy', name: 'Unlimited Energy', rate: UNLIMITED_ENERGY_RATE, unit: '%' },
-  { id: 'unlimited_torrent', name: 'Unlimited Torrent', rate: UNLIMITED_TORRENT_RATE, unit: '%' },
+  { id: 'maximal_torment', name: 'Unlimited Torment', rate: MAXIMAL_TORMENT_RATE, unit: '%' },
   { id: 'almighty', name: 'Almighty', rate: ALMIGHTY_RATE, unit: '%' },
   { id: 'tuning_box', name: 'Tuning Box', rate: TUNING_BOX_RATE, unit: ' pts' },
   { id: 'dominance', name: 'Dominance', rate: DOMINANCE_RATE, unit: '%' },

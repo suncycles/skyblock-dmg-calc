@@ -1,20 +1,22 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageBackground from './PageBackground';
 
 const toolbar =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// SkyCrypt-style entry point: enter an IGN to (eventually) pull a loadout straight from the
-// Hypixel API, or skip straight into the manual builder. Real API integration isn't wired up
-// yet — submitting just surfaces that plainly instead of silently doing nothing or faking it.
+// SkyCrypt-style entry point: enter an IGN to pull a loadout straight from the Hypixel API, or
+// skip straight into the manual builder. Submitting hands the username to /hypixel-import (see
+// HypixelImport.jsx), which auto-runs the import on mount instead of making the player retype it.
 export default function EntryScreen({ onSkip }) {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
-  const [apiNotice, setApiNotice] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
     if (!username.trim()) return;
-    setApiNotice(true);
+    onSkip();
+    navigate('/hypixel-import', { state: { username: username.trim() } });
   }
 
   return (
@@ -41,10 +43,7 @@ export default function EntryScreen({ onSkip }) {
             placeholder="Enter your IGN..."
             className="flex-1 min-w-0 text-sm px-3 py-2 bg-black text-white border-2 border-neutral-700 outline-none focus:border-neutral-400"
             value={username}
-            onChange={(e) => {
-              setUsername(e.target.value);
-              setApiNotice(false);
-            }}
+            onChange={(e) => setUsername(e.target.value)}
           />
           <button
             type="submit"
@@ -53,11 +52,6 @@ export default function EntryScreen({ onSkip }) {
             View Loadout
           </button>
         </div>
-        {apiNotice && (
-          <div className="text-[11px] text-amber-800 bg-amber-200/70 border border-amber-700/40 px-2.5 py-1.5">
-            🚧 Pulling loadouts from the Hypixel API is coming soon. Use "Build Manually" below for now.
-          </div>
-        )}
       </form>
 
       <div className="flex items-center gap-3 w-full max-w-[440px] my-4">

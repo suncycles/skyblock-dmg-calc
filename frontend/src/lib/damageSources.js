@@ -84,7 +84,7 @@ import {
   ELITE_RATE,
   UNLIMITED_POWER_RATE,
   UNLIMITED_ENERGY_RATE,
-  UNLIMITED_TORRENT_RATE,
+  MAXIMAL_TORMENT_RATE,
   ALMIGHTY_RATE,
   DOMINANCE_RATE,
   computeEchoBoost,
@@ -833,10 +833,10 @@ function collectAttributeEntries(attributes, loadout, out) {
   const almightyBoost = computeEchoBoost(ALMIGHTY_RATE, attributes.almighty, attributes.echo_of_echoes);
   const unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
   const unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
-  const unlimitedTorrentPercent = UNLIMITED_TORRENT_RATE * (attributes.unlimited_torrent || 0) * (1 + almightyBoost / 100);
+  const maximalTormentPercent = MAXIMAL_TORMENT_RATE * (attributes.maximal_torment || 0) * (1 + almightyBoost / 100);
   addBaseStat(out, 'strength', out.baseStats.strength * (unlimitedPowerPercent / 100), 'Unlimited Power');
   addBaseStat(out, 'crit_damage', out.baseStats.crit_damage * (unlimitedEnergyPercent / 100), 'Unlimited Energy');
-  addBaseStat(out, 'intelligence', out.baseStats.intelligence * (unlimitedTorrentPercent / 100), 'Unlimited Torrent');
+  addBaseStat(out, 'intelligence', out.baseStats.intelligence * (maximalTormentPercent / 100), 'Unlimited Torment');
 }
 
 // ---------------------------------------------------------------------
