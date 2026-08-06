@@ -100,11 +100,6 @@ export default function Landing() {
     setShowEntry(false);
   }
 
-  // Zone theme+backdrop keyed off the first selected Target Mob (see lib/background.js) —
-  // background and GUI theme always change together so they never clash. Falls back to the
-  // SkyBlock hub, day or night, when nothing's selected. Re-applied whenever the target mob
-  // selection changes; the ThemeSwitcher can still freely override it afterward (shared
-  // ThemeContext keeps both in sync) — this just sets a sensible matching default.
   function persistSavedLoadouts(next) {
     setSavedLoadouts(next);
     localStorage.setItem(SAVED_LOADOUTS_KEY, JSON.stringify(next));
@@ -705,6 +700,12 @@ export default function Landing() {
               onClick={() => navigate('/hypixel-import')}
             >
               🌐 Hypixel
+            </button>
+            <button
+              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+              onClick={() => navigate('/compare')}
+            >
+              ⚖️ Compare
             </button>
           </div>
           {showLoadoutsPanel && (

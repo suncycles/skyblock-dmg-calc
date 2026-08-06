@@ -25,15 +25,17 @@
 // Formula source: https://hypixel-skyblock.fandom.com/wiki/Damage_Calculation
 
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
-import { resolveMobKey, SEA_CREATURE_MOBS } from './mobTypes';
+import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
+const LAVA_SEA_CREATURE_KEYS = new Set(LAVA_SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
 
 // A `condition` string is comma-separated ("Undead, Skeletal, Wither"); each token is either
 // a canonical Mob Type name (matched against the target's own types), the collective "Sea
-// Creatures" grouping (Flaming Flay/Soul Whip), or a literal mob name from an item ability's own
-// text (e.g. "Blazes").
+// Creatures" grouping (Flaming Flay/Soul Whip) or its narrower "Lava Sea Creatures" subset
+// (Taurus Helmet/Flaming Chestplate/Moogma Leggings), or a literal mob name from an item
+// ability's own text (e.g. "Blazes").
 export function conditionMatchesMob(condition, mob) {
   if (!condition || !mob) return false;
   const mobKey = resolveMobKey(mob.name);
@@ -45,6 +47,9 @@ export function conditionMatchesMob(condition, mob) {
       const lower = token.toLowerCase();
       if (KNOWN_TYPE_NAMES.has(lower)) {
         return (mob.types || []).some((t) => t.toLowerCase() === lower);
+      }
+      if (lower === 'lava sea creatures' || lower === 'lava sea creature') {
+        return mobKey != null && LAVA_SEA_CREATURE_KEYS.has(mobKey);
       }
       if (lower === 'sea creatures' || lower === 'sea creature') {
         return mobKey != null && SEA_CREATURE_KEYS.has(mobKey);
