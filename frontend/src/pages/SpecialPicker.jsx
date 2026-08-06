@@ -4,6 +4,7 @@ import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from '../l
 import { parseShorthandNumber } from '../lib/numberInput';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
+import PageBackground from '../components/PageBackground';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -20,7 +21,9 @@ export default function SpecialPicker() {
 
   if (!weapon || !config) {
     return (
-      <div className="min-h-screen flex flex-col items-center p-4">
+      <div className="min-h-screen flex flex-col items-center p-4 relative">
+        <PageBackground />
+
         <header className="w-full max-w-[700px] mb-4">
           <h1 className="text-xl font-bold">SkyDmg — Special</h1>
         </header>
@@ -62,7 +65,9 @@ export default function SpecialPicker() {
               : `Current Damage and Strength Bonus: +${bonus}`;
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">SkyDmg — {formatItemName(weapon.name)}</h1>
       </header>

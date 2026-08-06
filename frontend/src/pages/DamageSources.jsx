@@ -16,7 +16,8 @@ import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
-import { splitKeywords, KEYWORD_SYMBOLS, MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
+import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
+import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
 import PageBackground from '../components/PageBackground';
@@ -38,30 +39,6 @@ function Section({ title, subtitle, children, empty }) {
       {subtitle && <div className="text-[11px] text-neutral-700 leading-snug mt-0.5 mb-1">{subtitle}</div>}
       {children.length === 0 ? <div className="text-xs text-neutral-600 italic">{empty}</div> : children}
     </div>
-  );
-}
-
-const BASE_STAT_KEYS = [
-  'damage',
-  'strength',
-  'crit_chance',
-  'crit_damage',
-  'intelligence',
-  'ability_damage',
-  'bonus_attack_speed',
-  'ferocity',
-];
-
-// Prefixes every stat/mob-type keyword mention with its colored glyph (lib/damageSymbols.js).
-function Keyworded({ text }) {
-  return splitKeywords(text).map((part, i) =>
-    typeof part === 'string' ? (
-      <span key={i}>{part}</span>
-    ) : (
-      <span key={i} style={{ color: KEYWORD_SYMBOLS[part.keyword].color }}>
-        {KEYWORD_SYMBOLS[part.keyword].symbol} {part.matchedText}
-      </span>
-    ),
   );
 }
 
@@ -243,6 +220,13 @@ export default function DamageSources() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="ml-auto text-[11px] underline text-neutral-300 cursor-pointer whitespace-nowrap"
+            onClick={() => navigate('/compare')}
+          >
+            ⚖️ Compare loadouts →
+          </button>
         </div>
       )}
 
@@ -671,15 +655,6 @@ export default function DamageSources() {
       )}
     </div>
   );
-}
-
-function round1(n) {
-  return Math.round(n * 10) / 10;
-}
-
-// Multiplicative sources can be much finer-grained than 1-decimal % entries (Skyblock Level is +0.0001x/level).
-function round4(n) {
-  return Math.round(n * 10000) / 10000;
 }
 
 // `applied` is only meaningful once a target mob is selected — undefined renders normally, false dims the row.

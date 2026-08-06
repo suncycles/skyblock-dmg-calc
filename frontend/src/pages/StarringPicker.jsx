@@ -5,6 +5,7 @@ import { MAX_STARS, MAX_MASTER_STARS, buildStarSuffix, buildMasterStarSuffix } f
 import { SLOT_TEXTURES } from '../lib/icons';
 import McTooltipLines from '../components/McTooltipLines';
 import NumberInput from '../components/NumberInput';
+import PageBackground from '../components/PageBackground';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -23,7 +24,9 @@ export default function StarringPicker() {
 
   if (!item) {
     return (
-      <div className="min-h-screen flex flex-col items-center p-4">
+      <div className="min-h-screen flex flex-col items-center p-4 relative">
+        <PageBackground />
+
         <header className="w-full max-w-[700px] mb-4">
           <h1 className="text-xl font-bold">SkyDmg — Item Upgrades</h1>
         </header>
@@ -43,7 +46,9 @@ export default function StarringPicker() {
   const previewLine = `§7${formatItemName(item.name)}${suffix ? ` ${suffix}` : ''}`;
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">SkyDmg — {formatItemName(item.name)}</h1>
       </header>
