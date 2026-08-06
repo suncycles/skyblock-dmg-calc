@@ -1,10 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { THEME_STORAGE_KEY, loadInitialTheme } from '../lib/themes';
 
-// Single source of truth for the active draft GUI theme (see lib/themes.js), shared between
-// ThemeSwitcher's manual buttons and Landing's auto zone-matched theme (lib/background.js) —
-// both read/write through here so they never drift out of sync with each other or with the
-// actual data-theme attribute on <html>.
+// Single source of truth for the active GUI theme (see lib/themes.js), driven by the zone-matched
+// auto theme (lib/background.js) — reads/writes through here so it never drifts out of sync with
+// the actual data-theme attribute on <html>.
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {

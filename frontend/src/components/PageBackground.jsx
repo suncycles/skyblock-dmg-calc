@@ -20,7 +20,7 @@ export default function PageBackground() {
   return (
     <video
       key={zoneStyle.video}
-      className="fixed inset-0 -z-10 w-screen h-screen object-cover"
+      className="fixed inset-0 -z-10 w-screen h-screen object-cover animate-[bg-video-fade-in_600ms_ease-out]"
       src={zoneStyle.video}
       autoPlay
       loop

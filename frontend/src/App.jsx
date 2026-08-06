@@ -24,6 +24,7 @@ import ReforgesPicker from './pages/ReforgesPicker';
 import SpecialPicker from './pages/SpecialPicker';
 import StarringPicker from './pages/StarringPicker';
 import DamageSources from './pages/DamageSources';
+import Compare from './pages/Compare';
 import AccessoryPowerPicker from './pages/AccessoryPowerPicker';
 import AccessoryTuning from './pages/AccessoryTuning';
 import PlayerLevels from './pages/PlayerLevels';
@@ -32,7 +33,6 @@ import Attributes from './pages/Attributes';
 import LoadoutLoader from './pages/LoadoutLoader';
 import HypixelImport from './pages/HypixelImport';
 import Credits from './pages/Credits';
-import ThemeSwitcher from './components/ThemeSwitcher';
 
 // __BUILD_TIME__ is injected by vite.config.js's `define` at build time — a fixed instant, not "now".
 const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -67,6 +67,7 @@ export default function App() {
                 <Route path="/special/:slot" element={<SpecialPicker />} />
                 <Route path="/stars/:slot" element={<StarringPicker />} />
                 <Route path="/damage-sources" element={<DamageSources />} />
+                <Route path="/compare" element={<Compare />} />
                 <Route path="/accessory" element={<AccessoryPowerPicker />} />
                 <Route path="/accessory/tuning" element={<AccessoryTuning />} />
                 <Route path="/player-levels" element={<PlayerLevels />} />
@@ -76,7 +77,6 @@ export default function App() {
                 <Route path="/hypixel-import" element={<HypixelImport />} />
                 <Route path="/credits" element={<Credits />} />
               </Routes>
-              <ThemeSwitcher />
               <div className="fixed bottom-1 right-2 flex items-center gap-2 text-[10px] text-neutral-500 select-none">
                 <a href="/credits" className="pointer-events-auto underline hover:text-neutral-300">
                   Credits

@@ -377,6 +377,15 @@ export const SEA_CREATURE_MOBS = [
   'Lava Blaze', 'Lava Pigman', 'Abyssal Miner', 'Plhlegblast',
 ];
 
+// The Lava-fishing subset of the above — Taurus Helmet/Flaming Chestplate/Moogma Leggings'
+// real "Damage dealt [to] Lava Sea Creatures is increased" condition is this narrower group,
+// not the full Sea Creature roster (verified against worker/src/data/armor.json's real lore).
+export const LAVA_SEA_CREATURE_MOBS = [
+  'Fiery Scuttler', 'Fire Eel', 'Fireproof Witch', 'Flaming Worm', 'Fried Chicken', 'Lava Blaze',
+  'Lava Flame', 'Lava Leech', 'Lava Pigman', 'Lord Jawbus', 'Magma Pillar', 'Magma Slug', 'Moogma',
+  'Plhlegblast', 'Pyroclastic Worm', 'Ragnarok', 'Taurus', 'Thunder', 'Volcanic Snail',
+];
+
 // Case-insensitive index built once at module load, since item lore/enchant text often uses pluralized or differently-cased mob names.
 const LOOKUP = new Map();
 for (const [name, types] of Object.entries(MOB_TYPES)) {

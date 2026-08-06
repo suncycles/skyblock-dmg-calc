@@ -10,6 +10,7 @@ import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
+import PageBackground from '../components/PageBackground';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -115,7 +116,9 @@ export default function GemstoneSlots() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">SkyDmg — Gemstones</h1>
       </header>

@@ -14,6 +14,7 @@ import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
+import PageBackground from '../components/PageBackground';
 
 // 6 rows x 9 columns, matching the reference screenshot.
 // type: "empty" | "filler" | "item" | "icon" | "barrier"
@@ -79,7 +80,9 @@ export default function Hex() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+
       <header className="w-full max-w-[700px] mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold">SkyDmg — {slotLabel}</h1>
         <div className="flex items-center gap-2.5 text-[13px]">
