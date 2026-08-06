@@ -13,6 +13,18 @@ body {
   image-rendering: pixelated;
 }
 
+/* Zone video backdrop fade-in (see components/PageBackground.jsx) — a fresh <video> element is
+   mounted on every zone change (key={video}), so a plain CSS animation (not a transition, which
+   needs a state change to trigger) reliably replays on every switch. */
+@keyframes bg-video-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ---------------------------------------------------------------------------------------
    Site-wide typography polish. Every page reuses the same literal "text-xl font-bold" h1
    pattern for its title and the same "text-[9px]" size for the tiniest chest-GUI slot labels

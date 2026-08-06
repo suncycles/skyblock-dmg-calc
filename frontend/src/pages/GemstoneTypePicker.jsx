@@ -3,6 +3,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { GEMSTONES, GEMSTONE_IDS } from '../lib/gemstoneData';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
+import PageBackground from '../components/PageBackground';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -87,7 +88,9 @@ export default function GemstoneTypePicker() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <PageBackground />
+
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">SkyDmg — Choose a Gemstone</h1>
       </header>

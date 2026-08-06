@@ -31,6 +31,12 @@ import {
   SUPERIOR_DRAGON_SET,
   SUPERIOR_DRAGON_STAT_BOOST_PERCENT,
   TUXEDO_TIERS,
+  MAGMA_LORD_SET,
+  MAGMA_LORD_MULTIPLIER_PER_PIECE,
+  THUNDER_SET,
+  THUNDER_MULTIPLIER_PER_PIECE,
+  LAVA_SEA_CREATURE_ARMOR_MULTIPLIER,
+  LAVA_SEA_CREATURE_ARMOR_PIECES,
   hasFullSet,
   countSetPieces,
   hasAnyEquippedId,
@@ -350,6 +356,13 @@ const LEGION_PERCENT_PER_PLAYER_PER_LEVEL = 0.07;
 // Ultimate Swarm/Combo: per-enchant-level additive-damage-per-stack percentages.
 const SWARM_PERCENT_BY_LEVEL = [null, 2, 4, 6, 8, 10];
 const COMBO_PERCENT_BY_LEVEL = [null, 1, 2, 3, 4, 5];
+
+// Tarantula/Primordial Helmet's "Radioactive" extra bonus: flat Crit Damage per 10 Strength
+// (real lore: "Grants +1/+1.5 Crit Damage per 10 Strength. (Max 1,000 Strength)"), read off the
+// fully-summed final Strength total (after every other Strength-boosting source, including the
+// final-multiplier stat-boost stage) since that's what a real player's own Strength stat reads.
+const RADIOACTIVE_CRIT_DAMAGE_PER_10_STRENGTH = { TARANTULA_HELMET: 1, PRIMORDIAL_HELMET: 1.5 };
+const RADIOACTIVE_MAX_STRENGTH = 1000;
 
 // Adds to a base stat's running total and records the source for DamageSources.jsx's
 // per-stat breakdown, merging entries that share a label into one running total.
@@ -1101,6 +1114,40 @@ export async function collectDamageSources(
     });
   }
 
+  const magmaLordPieces = countSetPieces(loadout, ARMOR_SLOTS, MAGMA_LORD_SET);
+  if (magmaLordPieces > 0) {
+    out.multiplicative.push({
+      id: 'magma-lord-armor',
+      label: `Magma Lord Armor (${magmaLordPieces} piece${magmaLordPieces > 1 ? 's' : ''})`,
+      source: 'Armor',
+      value: MAGMA_LORD_MULTIPLIER_PER_PIECE ** magmaLordPieces,
+      condition: 'Magmatic',
+    });
+  }
+
+  const thunderPieces = countSetPieces(loadout, ARMOR_SLOTS, THUNDER_SET);
+  if (thunderPieces > 0) {
+    out.multiplicative.push({
+      id: 'thunder-armor',
+      label: `Thunder Armor (${thunderPieces} piece${thunderPieces > 1 ? 's' : ''})`,
+      source: 'Armor',
+      value: THUNDER_MULTIPLIER_PER_PIECE ** thunderPieces,
+      condition: 'Magmatic',
+    });
+  }
+
+  for (const { slot, id, label } of LAVA_SEA_CREATURE_ARMOR_PIECES) {
+    if (loadout[slot]?.item?.id === id) {
+      out.multiplicative.push({
+        id: `lava-sea-creature-${slot}`,
+        label,
+        source: 'Armor',
+        value: LAVA_SEA_CREATURE_ARMOR_MULTIPLIER,
+        condition: 'Lava Sea Creatures',
+      });
+    }
+  }
+
   if (
     hasFullSet(loadout, ARMOR_SLOTS, STRONG_DRAGON_SET) &&
     STRONG_DRAGON_ASPECT_WEAPON_IDS.includes(loadout.weapon?.item?.id)
@@ -1194,6 +1241,14 @@ export async function collectDamageSources(
     for (const statKey of finalMultiplierStats) {
       addBaseStat(out, statKey, preBoostBaseStats[statKey] * (percent / 100), label);
     }
+  }
+
+  // Tarantula/Primordial Helmet's Radioactive bonus — reads the truly final Strength total
+  // (after the stat-boost stage above), same as a real player's own Strength stat would.
+  const radioactiveRate = RADIOACTIVE_CRIT_DAMAGE_PER_10_STRENGTH[loadout.helmet?.item?.id];
+  if (radioactiveRate) {
+    const cappedStrength = Math.min(out.baseStats.strength, RADIOACTIVE_MAX_STRENGTH);
+    addBaseStat(out, 'crit_damage', (cappedStrength / 10) * radioactiveRate, 'Radioactive');
   }
 
   out.dungeonizedBaseStats = {};
