@@ -7,8 +7,9 @@ const panel =
 // Shared "standalone page" header (Back button + title) — used by every page that isn't part of
 // the Hex customization grid (those embed their own Back/Close tile in the grid itself, a
 // deliberate separate pattern). One definition instead of several copy-pasted header blocks
-// means layout/styling only needs to change in one place.
-export default function PageHeader({ title, onBack = '/' }) {
+// means layout/styling only needs to change in one place. `right` is an optional node rendered
+// at the header's far right, opposite Back — most pages leave it unset.
+export default function PageHeader({ title, onBack = '/', right }) {
   const navigate = useNavigate();
   return (
     <header className="w-full max-w-[700px] mb-4 flex items-center gap-3">
@@ -20,6 +21,7 @@ export default function PageHeader({ title, onBack = '/' }) {
         Back
       </button>
       <h1 className="text-xl font-bold">{title}</h1>
+      {right && <div className="ml-auto">{right}</div>}
     </header>
   );
 }

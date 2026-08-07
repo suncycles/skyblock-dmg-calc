@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
-import { computeFinalDamage } from '../lib/finalDamage';
+import { computeFinalDamage, computeAbilityDamage } from '../lib/finalDamage';
+import { ABILITY_DAMAGE_TABLE } from '../lib/abilityDamage';
 import {
   VANQUISHED_SET_ID,
   countSetPieces,
@@ -56,6 +57,8 @@ export default function DamageSources() {
     toggleUseDungeonizedStats,
     useMasterMode,
     toggleUseMasterMode,
+    mageMode,
+    toggleMageMode,
     attributes,
     miscStats,
     setMiscStat,
@@ -195,10 +198,44 @@ export default function DamageSources() {
         }, new Set())
       : null;
 
+  // Mage Mode: same per-mob loop, but via the Ability Damage formula instead of melee Final
+  // Damage. hasAbilityWeapon distinguishes "no ability data for this weapon" from "no target
+  // selected" — computeAbilityDamage itself returns null in that case.
+  const hasAbilityWeapon = !!ABILITY_DAMAGE_TABLE[loadout.weapon?.item?.id];
+  const abilityMobResults =
+    mageMode && result
+      ? targetMobs.map((name) => {
+          const types = MOB_TYPES[name] || null;
+          if (!types) return { name, types: null, abilityDamage: null };
+          const mob = { name, types };
+          return { name, types, abilityDamage: computeAbilityDamage(result, mob, loadout, playerStats, useDungeonizedStats, useMasterMode) };
+        })
+      : [];
+
+  // (Base) Stats only shows Intelligence/Ability Damage in Mage Mode, and hides them otherwise —
+  // the two modes describe different damage pipelines, so showing both sets at once is just noise.
+  const visibleStatKeys = mageMode
+    ? BASE_STAT_KEYS.filter((k) => k === 'intelligence' || k === 'ability_damage')
+    : BASE_STAT_KEYS.filter((k) => k !== 'intelligence' && k !== 'ability_damage');
+
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <PageBackground />
-      <PageHeader title="Damage Sources" />
+      <PageHeader
+        title="Damage Sources"
+        right={
+          <button
+            type="button"
+            onClick={toggleMageMode}
+            className={`${panel} px-4 py-2 cursor-pointer flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
+              mageMode ? 'hover:brightness-110' : 'brightness-50'
+            }`}
+          >
+            <img src="/images/manual/mage_mode.png" alt="" className="w-5 h-5" />
+            Ability Damage
+          </button>
+        }
+      />
 
       {savedLoadouts.length > 0 && (
         <div className="w-full max-w-[700px] mb-3 flex items-center gap-2">
@@ -249,6 +286,65 @@ export default function DamageSources() {
                 to compute Final Damage.
               </div>
             </div>
+          ) : mageMode ? (
+            abilityMobResults.map(({ name, types, abilityDamage }) => (
+              <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="text-[13px] font-bold text-black tracking-wide">{name}</span>
+                  <div className="flex items-center gap-2">
+                    {types && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {types.map((t) => {
+                          const meta = MOB_TYPE_SYMBOLS[t];
+                          return (
+                            <span key={t} className="text-[10px] font-mono" style={{ color: meta.color }}>
+                              {meta.symbol} {t}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <button
+                      className="text-[10px] px-1.5 py-0.5 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
+                      onClick={() => toggleTargetMob(name)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                {!types ? (
+                  <div className="text-xs text-neutral-600 italic">"{name}" is no longer in the mob data.</div>
+                ) : !hasAbilityWeapon ? (
+                  <div className="text-xs text-neutral-600 italic">
+                    No known Ability Damage data for the equipped weapon — Mage Mode only covers a hand-curated list of
+                    staffs/wands/dungeon swords for now.
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
+                      <span>Base Ability Damage</span>
+                      <span className="text-right font-mono">{abilityDamage.baseDamage.toLocaleString()}</span>
+                      <span>Ability Scaling</span>
+                      <span className="text-right font-mono">{abilityDamage.scaling}</span>
+                      <span>Initial Damage</span>
+                      <span className="text-right font-mono">{round1(abilityDamage.initialDamage)}</span>
+                      <span>Additive Multiplier</span>
+                      <span className="text-right font-mono">
+                        +{round1(abilityDamage.additivePercent)}% (x{round4(abilityDamage.additiveMultiplier)})
+                      </span>
+                      <span>Multiplicative Multiplier</span>
+                      <span className="text-right font-mono">{round4(abilityDamage.multiplicativeMultiplier)}x</span>
+                    </div>
+                    <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm font-bold text-black">Final Damage (Ability)</span>
+                        <span className="text-2xl font-mono font-bold text-black">{abilityDamage.finalDamage.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))
           ) : (
             mobResults.map(({ name, types, finalDamage, finalDamageWithoutVanquished, finalDamageWithFabledMax }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
@@ -354,7 +450,7 @@ export default function DamageSources() {
                 subtitle="Click a stat to see where it comes from."
                 empty=""
               >
-                {BASE_STAT_KEYS.map((key) => {
+                {visibleStatKeys.map((key) => {
                   const sources = result.baseStatSources[key];
                   const isExpanded = expandedStat === key;
                   const displayed = !useDungeonizedStats
@@ -516,24 +612,31 @@ export default function DamageSources() {
                 />
                 <span className="text-[10px] text-neutral-600 italic">Execute/Prosecute/First Strike/Triple-Strike</span>
               </label>
-              <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="toggle-dungeon-stats">
-                <input id="toggle-dungeon-stats" type="checkbox" checked={useDungeonizedStats} onChange={toggleUseDungeonizedStats} className="mt-0.5 shrink-0" />
-                <span>Toggle Dungeon Stats</span>
-              </label>
-              <label
-                className={`flex items-start gap-1.5 text-[12px] leading-tight ${useDungeonizedStats ? 'text-black' : 'text-neutral-500'}`}
-                htmlFor="toggle-master-mode"
+              <button
+                type="button"
+                onClick={toggleUseDungeonizedStats}
+                className={`${panel} px-3 py-2 cursor-pointer flex items-center gap-2 text-[12px] font-bold text-black transition-[filter] ${
+                  useDungeonizedStats ? 'hover:brightness-110' : 'brightness-50'
+                }`}
               >
-                <input
-                  id="toggle-master-mode"
-                  type="checkbox"
-                  checked={useMasterMode}
-                  disabled={!useDungeonizedStats}
-                  onChange={toggleUseMasterMode}
-                  className="mt-0.5 shrink-0"
-                />
-                <span>Toggle Master Mode</span>
-              </label>
+                <img src="/images/manual/catacombs.webp" alt="" className="w-5 h-5 shrink-0" />
+                Dungeon
+              </button>
+              <button
+                type="button"
+                onClick={toggleUseMasterMode}
+                disabled={!useDungeonizedStats}
+                className={`${panel} px-3 py-2 flex items-center gap-2 text-[12px] font-bold text-black transition-[filter] ${
+                  !useDungeonizedStats
+                    ? 'opacity-40 cursor-not-allowed'
+                    : useMasterMode
+                      ? 'cursor-pointer hover:brightness-110'
+                      : 'cursor-pointer brightness-50'
+                }`}
+              >
+                <img src="/images/manual/master_catacombs.webp" alt="" className="w-5 h-5 shrink-0" />
+                Master
+              </button>
             </div>
           </div>
 

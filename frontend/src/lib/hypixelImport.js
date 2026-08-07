@@ -21,7 +21,25 @@ import { ATTRIBUTE_IDS } from './attributes';
 // unlimited_power, maximal_torment, etc.) already matches Hypixel's raw key 1:1, verified against
 // a real account — note the in-game shard's internalName is "MAXIMAL_TORMENT" even though its
 // displayed ability name is "Unlimited Torment".
-const RULER_TYPES = ['skeletal', 'undead', 'woodland', 'arthropod', 'ender', 'magmatic', 'humanoid', 'infernal'];
+const RULER_TYPES = [
+  'airborne',
+  'animal',
+  'arcane',
+  'arthropod',
+  'construct',
+  'elusive',
+  'ender',
+  'frozen',
+  'humanoid',
+  'infernal',
+  'magmatic',
+  'mythological',
+  'pest',
+  'skeletal',
+  'subterranean',
+  'undead',
+  'woodland',
+];
 const RAW_ATTRIBUTE_ID_REMAP = Object.fromEntries(RULER_TYPES.map((t) => [`${t}_ruler`, `ruler_${t}`]));
 
 function mapHypixelAttributeLevels(rawAttributeLevels) {
