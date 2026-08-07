@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { getWeaponIcon, getSkyblockIcon, FALLBACK_ICON } from '../lib/icons';
+import { getWeaponIcon, getSkyblockIcon, getManualIcon, FALLBACK_ICON } from '../lib/icons';
 
-// Tries the item's bespoke SkyBlock texture first, then the generic vanilla-material icon, then the inline placeholder.
+// Tries a hand-provided override first (images/manual/, for ids the bake pipeline can't
+// render), then the item's bespoke SkyBlock texture, then the generic vanilla-material icon,
+// then the inline placeholder.
 function buildCandidates(id, material) {
   const candidates = [];
+  const manualIcon = getManualIcon(id);
+  if (manualIcon) candidates.push(manualIcon);
   const skyblockIcon = getSkyblockIcon(id);
   if (skyblockIcon) candidates.push(skyblockIcon);
   candidates.push(getWeaponIcon(material));

@@ -53,7 +53,7 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
             onBlur={() => setDropdownOpen(false)}
           />
           {dropdownOpen && query.trim() && (
-            <div className={`${panel} absolute top-full left-0 right-0 z-10 max-h-64 overflow-y-auto !border-t-0`}>
+            <div className={`${panel} search-dropdown absolute top-full left-0 right-0 z-10 max-h-64 overflow-y-auto !border-t-0`}>
               {matches.length === 0 ? (
                 <div className="px-2.5 py-1.5 text-sm text-black/70">No matching items.</div>
               ) : (

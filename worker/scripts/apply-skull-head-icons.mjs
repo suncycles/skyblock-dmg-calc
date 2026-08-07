@@ -94,7 +94,12 @@ async function saveHeadRender(textureHash, outPath) {
     // style Hypixel's own resource-pack icons use, rather than a flat 2D
     // face crop.
     const res = await fetch(`https://mc-heads.net/head/${textureHash}/${HEAD_RENDER_SIZE}`);
-    if (!res.ok) return false;
+    // mc-heads.net returns HTTP 200 with a silent default-Steve-skin render (not an error) for
+    // some real, resolvable texture hashes it doesn't otherwise recognize — verified directly:
+    // PIG;4/SHEEP;4's real Mojang-served texture hashes byte-for-byte match a garbage hash's
+    // render. Its own `x-account-valid` response header is the only reliable signal that
+    // happened; `res.ok` alone can't tell a real render from the Steve fallback.
+    if (!res.ok || res.headers.get('x-account-valid') === 'false') return false;
     const buf = Buffer.from(await res.arrayBuffer());
     writeFileSync(outPath, buf);
     return true;

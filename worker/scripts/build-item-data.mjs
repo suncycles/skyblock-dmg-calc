@@ -82,6 +82,15 @@ const EXCLUDED_IDS = new Set([
   'TIME_KNIFE', // "Time Shuriken" — Rift cosmetic throwable, not a weapon
 ]);
 
+// Inverse of EXCLUDED_IDS: real player-obtainable weapons whose last lore line is just the bare
+// tier (e.g. "§9§lRARE") with no trailing category word, so parseTierAndCategory finds no
+// category and they'd otherwise be silently dropped. Voodoo Doll/Jinxed Voodoo Doll are
+// Zombie Slayer weapon-slot items, verified directly against their real NEU-REPO item files.
+const MANUAL_CATEGORY_OVERRIDES = {
+  VOODOO_DOLL: 'SWORD',
+  VOODOO_DOLL_WILTED: 'SWORD',
+};
+
 function stripColorCodes(str) {
   return str.replace(/§./g, '');
 }
@@ -138,7 +147,10 @@ for (const file of files) {
 
   if (EXCLUDED_IDS.has(raw.internalname)) continue;
 
-  const { tier, category } = parseTierAndCategory(raw.lore);
+  let { tier, category } = parseTierAndCategory(raw.lore);
+  if (!category && MANUAL_CATEGORY_OVERRIDES[raw.internalname]) {
+    category = MANUAL_CATEGORY_OVERRIDES[raw.internalname];
+  }
   if (!category) continue;
 
   const isWeapon = WEAPON_TYPES.some((t) => category.endsWith(t));
