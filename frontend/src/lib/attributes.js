@@ -11,9 +11,28 @@
 export const MAX_ATTRIBUTE_LEVEL = 10;
 
 export const RULER_RATE = 3; // %/level, "+3%-30% more Damage against <Type> mobs"
-export const RULER_ATTRIBUTES = ['Skeletal', 'Undead', 'Woodland', 'Arthropod', 'Ender', 'Magmatic', 'Humanoid', 'Infernal'].map(
-  (mobType) => ({ id: `ruler_${mobType.toLowerCase()}`, name: `${mobType} Ruler`, mobType }),
-);
+// All 17 real Ruler shards (verified against NEU-REPO's constants/attribute_shards.json — every
+// entry there is templated "<Type> Ruler" at the same rate), matching every mob type this app's
+// own damageSymbols.js already recognizes.
+export const RULER_ATTRIBUTES = [
+  'Airborne',
+  'Animal',
+  'Arcane',
+  'Arthropod',
+  'Construct',
+  'Elusive',
+  'Ender',
+  'Frozen',
+  'Humanoid',
+  'Infernal',
+  'Magmatic',
+  'Mythological',
+  'Pest',
+  'Skeletal',
+  'Subterranean',
+  'Undead',
+  'Woodland',
+].map((mobType) => ({ id: `ruler_${mobType.toLowerCase()}`, name: `${mobType} Ruler`, mobType }));
 
 export const ECHO_OF_RULER_RATE = 2; // %/level, boosts every attribute whose name contains "Ruler"
 export const ECHO_OF_ECHOES_RATE = 5; // %/level, boosts every attribute whose name contains "Echo"

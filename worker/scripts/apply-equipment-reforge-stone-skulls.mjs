@@ -55,7 +55,11 @@ async function fetchSkinTextureHash(itemId) {
 async function saveHeadRender(textureHash, outPath) {
   try {
     const res = await fetch(`https://mc-heads.net/head/${textureHash}/${HEAD_RENDER_SIZE}`);
-    if (!res.ok) return false;
+    // mc-heads.net returns HTTP 200 with a silent default-Steve-skin render (not an error) for
+    // some real, resolvable texture hashes it doesn't otherwise recognize — see
+    // apply-skull-head-icons.mjs's saveHeadRender for the full writeup. Its own
+    // `x-account-valid` response header is the only reliable signal that happened.
+    if (!res.ok || res.headers.get('x-account-valid') === 'false') return false;
     const buf = Buffer.from(await res.arrayBuffer());
     writeFileSync(outPath, buf);
     return true;
