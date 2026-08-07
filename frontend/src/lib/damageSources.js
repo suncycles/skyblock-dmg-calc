@@ -612,10 +612,10 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         const hpBasis = key === 'execute' ? 100 - mobHpPercent : mobHpPercent;
         const value = Math.round(ratePerLevel * hpBasis * 100) / 100;
         if (value > 0) {
-          out.additiveNonConditional.push({ id, label: `${name} (at ${mobHpPercent}% HP)`, source, value });
+          out.additiveNonConditional.push({ id, label: `${name} (at ${mobHpPercent}% HP)`, source, value, abilityEligible: true });
         }
       } else if (key === 'giant_killer' && cap != null) {
-        out.additiveNonConditional.push({ id, label: name, source, value: cap });
+        out.additiveNonConditional.push({ id, label: name, source, value: cap, abilityEligible: true });
       } else {
         out.situational.push({ id, label: name, source, note: text, formula: { kind: 'per-target-stat', basis, ratePerLevel, cap } });
       }
@@ -629,7 +629,10 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         // Prefers the canonical Mob Type name over the enchant's own lore text (a few tooltips are stale).
         const mobTypes = ENCHANT_ID_MOB_TYPES[entry.id.toLowerCase()];
         const condition = mobTypes ? mobTypes.join(', ') : cleanTargetText(m[1]);
-        out.additiveConditional.push({ id, label: name, source, value, condition });
+        // Mage Mode only counts the 7 real type-bane enchants (Smite/Ender Slayer/Bane of
+        // Arthropods/Smoldering/Cubism/Impaling/Arcane) toward Ability Damage — mobTypes being
+        // set means entry.id is one of those, since it's the same ENCHANT_ID_MOB_TYPES map.
+        out.additiveConditional.push({ id, label: name, source, value, condition, abilityEligible: !!mobTypes });
       } else if (FIRST_HIT_ENCHANT_IDS.has(entry.id.toLowerCase())) {
         // Only counted at 100% mob HP. Lion's First Pounce scales this up (see collectBaseStats).
         if (mobHpPercent === 100) {
@@ -654,6 +657,13 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 // Y") and subject-first ("Y mobs take Nx damage"). A third shape, "Y mobs DEAL Nx damage," is
 // an incoming-damage penalty rather than a player bonus, so it's excluded entirely.
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
+// "Every Nth strike/hit, deal +X% damage" (Tarantula/Primordial armor's Octodexterity set
+// bonus) is a periodic proc, not a per-hit bonus — the generic "deals +X% damage" match below
+// can't tell the difference and was wrongly counting it as flat unconditional additive damage
+// on every equipped piece (all 4 pieces of each set repeat this same paragraph). Deliberately
+// not modeled at all (not even as a situational note) — excluded entirely, same as
+// INCOMING_DAMAGE_RE above.
+const PERIODIC_PROC_RE = /\bevery\s+\d+(?:st|nd|rd|th)\s+(?:strike|hit)\b/i;
 // "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional.
 const DEALS_TO_TARGET_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\s+(?:to|against)\s+([^.]+?)(?:\s+mobs?)?(?=[.]|$)/i;
 const SUBJECT_MULTIPLIER_RE = /([^.]+?)\s+mobs?\s+takes?\s+\+?([\d.]+)x\s+damage/i;
@@ -661,6 +671,7 @@ const DEALS_FLAT_RE = /deals?\s+\+?([\d.]+)%\s+(?:more\s+)?damage\b/i;
 
 function matchDamageParagraph(text) {
   if (INCOMING_DAMAGE_RE.test(text)) return null;
+  if (PERIODIC_PROC_RE.test(text)) return null;
 
   let m = SUBJECT_MULTIPLIER_RE.exec(text);
   if (m) return { bucket: 'multiplicative', value: parseFloat(m[2]), condition: cleanTargetText(m[1]) };

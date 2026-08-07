@@ -13,6 +13,7 @@ const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
 const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
 const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
+const MAGE_MODE_KEY = 'hexMageMode';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
@@ -57,6 +58,12 @@ function loadInitialUseDungeonizedStats() {
 // Loads the "Toggle Master Mode" on/off switch — only meaningful alongside useDungeonizedStats.
 function loadInitialUseMasterMode() {
   return localStorage.getItem(USE_MASTER_MODE_KEY) === 'true';
+}
+
+// Loads the "Mage Mode" on/off switch (see lib/abilityDamage.js) — reframes Damage Sources
+// around the Ability Damage formula instead of melee/ranged Final Damage.
+function loadInitialMageMode() {
+  return localStorage.getItem(MAGE_MODE_KEY) === 'true';
 }
 
 // Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
@@ -209,6 +216,7 @@ export function BuildProvider({ children }) {
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
   const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
+  const [mageMode, setMageModeState] = useState(loadInitialMageMode);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
@@ -309,6 +317,14 @@ export function BuildProvider({ children }) {
     setUseMasterModeState((prev) => {
       const next = !prev;
       localStorage.setItem(USE_MASTER_MODE_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleMageMode = useCallback(() => {
+    setMageModeState((prev) => {
+      const next = !prev;
+      localStorage.setItem(MAGE_MODE_KEY, String(next));
       return next;
     });
   }, []);
@@ -696,6 +712,9 @@ export function BuildProvider({ children }) {
     setUseMasterModeState(!!state.useMasterMode);
     localStorage.setItem(USE_MASTER_MODE_KEY, String(!!state.useMasterMode));
 
+    setMageModeState(!!state.mageMode);
+    localStorage.setItem(MAGE_MODE_KEY, String(!!state.mageMode));
+
     const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
     setAttributesState(nextAttributes);
     localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(nextAttributes));
@@ -751,6 +770,8 @@ export function BuildProvider({ children }) {
         toggleUseDungeonizedStats,
         useMasterMode,
         toggleUseMasterMode,
+        mageMode,
+        toggleMageMode,
         attributes,
         setAttributeLevel,
         miscStats,

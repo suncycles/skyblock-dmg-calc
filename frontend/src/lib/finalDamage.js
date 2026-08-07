@@ -26,6 +26,8 @@
 
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
+import { computeSkyblockLevelMultiplier } from './playerStats';
+import { ABILITY_DAMAGE_TABLE, LOVING_REFORGE_NAME, LOVING_ABILITY_DAMAGE_MULTIPLIER } from './abilityDamage';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -134,5 +136,55 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
     bonusModifiers,
     finalDamage,
     appliedIds,
+  };
+}
+
+// Mage Mode's Ability Damage formula — deliberately naive per the plan (see lib/abilityDamage.js):
+//   InitialDamage = BaseAbilityDamage * (1 + (Intelligence/100) * AbilityScaling)
+//   FinalDamage   = floor(InitialDamage * AdditiveMultiplier * MultiplicativeMultiplier)
+// AdditiveMultiplier only counts entries tagged `abilityEligible` by collectEnchantEntries
+// (Giant Killer, Execute, Prosecute, and the 7 real type-bane enchants) — every other additive
+// source in the app (One For All, Swarm/Combo, pet perks, etc.) is excluded on purpose.
+// MultiplicativeMultiplier only counts Skyblock Level and a Loving-reforged Chestplate's +5%.
+// No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
+// currently modeled maps to it, left at 0 rather than guessed.
+// Returns null when the equipped weapon has no table entry (not an ability weapon).
+export function computeAbilityDamage(sources, mob, loadout, playerStats, useDungeonizedStats = false, useMasterMode = false) {
+  const table = ABILITY_DAMAGE_TABLE[loadout.weapon?.item?.id];
+  if (!table) return null;
+
+  const { baseStats: normalBaseStats, dungeonizedBaseStats, masterDungeonizedBaseStats, additiveNonConditional, additiveConditional } =
+    sources;
+  const baseStats = !useDungeonizedStats
+    ? normalBaseStats
+    : useMasterMode
+      ? masterDungeonizedBaseStats
+      : dungeonizedBaseStats;
+
+  let additivePercent = 0;
+  for (const e of additiveNonConditional) {
+    if (e.abilityEligible) additivePercent += e.value;
+  }
+  for (const e of additiveConditional) {
+    if (e.abilityEligible && conditionMatchesMob(e.condition, mob)) additivePercent += e.value;
+  }
+
+  let multiplicativeMultiplier = computeSkyblockLevelMultiplier(playerStats?.skyblockLevel);
+  if (loadout.chestplate?.modifiers?.reforge === LOVING_REFORGE_NAME) {
+    multiplicativeMultiplier *= LOVING_ABILITY_DAMAGE_MULTIPLIER;
+  }
+
+  const initialDamage = table.base * (1 + (baseStats.intelligence / 100) * table.scaling);
+  const additiveMultiplier = 1 + additivePercent / 100;
+  const finalDamage = Math.floor(initialDamage * additiveMultiplier * multiplicativeMultiplier);
+
+  return {
+    baseDamage: table.base,
+    scaling: table.scaling,
+    initialDamage,
+    additiveMultiplier,
+    additivePercent,
+    multiplicativeMultiplier,
+    finalDamage,
   };
 }
