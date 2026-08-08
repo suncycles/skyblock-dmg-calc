@@ -5,7 +5,6 @@ import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
 import { TUNING_BOX_RATE } from '../lib/attributes';
 import NumberInput from '../components/NumberInput';
-import PageBackground from '../components/PageBackground';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -21,9 +20,8 @@ export default function AccessoryTuning() {
   if (!loadout.accessory) {
     return (
       <div className="min-h-screen flex flex-col items-center p-4 relative">
-        <PageBackground />
         <header className="w-full max-w-[700px] mb-4">
-          <h1 className="text-xl font-bold">SkyDmg — Stat Tuning</h1>
+          <h1 className="text-xl font-bold">Stat Tuning</h1>
         </header>
         <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">No Accessory Power selected.</div>
         <button
@@ -43,9 +41,8 @@ export default function AccessoryTuning() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">SkyDmg — Stat Tuning</h1>
+        <h1 className="text-xl font-bold">Stat Tuning</h1>
       </header>
 
       <div className={`${translucentPanel} w-full max-w-[500px] p-6 flex flex-col gap-3`}>

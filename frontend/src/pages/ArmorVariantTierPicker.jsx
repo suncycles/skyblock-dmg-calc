@@ -90,7 +90,7 @@ export default function ArmorVariantTierPicker() {
     <div className="min-h-screen flex flex-col items-center p-4">
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">
-          SkyDmg — {familyLabel} {label} Tier
+          {familyLabel} {label} Tier
         </h1>
       </header>
 

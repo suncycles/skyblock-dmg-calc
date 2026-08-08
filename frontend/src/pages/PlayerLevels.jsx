@@ -11,7 +11,6 @@ import {
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
 import NumberInput from '../components/NumberInput';
-import PageBackground from '../components/PageBackground';
 import PageHeader from '../components/PageHeader';
 
 const translucentPanel =
@@ -39,8 +38,7 @@ export default function PlayerLevels() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
-      <PageHeader title="SkyDmg — Player Levels" />
+      <PageHeader title="Player Levels" />
 
       <div className={`${translucentPanel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
         <div className="flex items-center justify-between gap-2">

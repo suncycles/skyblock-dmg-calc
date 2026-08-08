@@ -85,7 +85,7 @@ export default function Attributes() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <PageHeader title="SkyDmg — Attributes" />
+      <PageHeader title="Attributes" />
 
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <Section

@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader';
 export default function Credits() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <PageHeader title="SkyDmg — Credits" />
+      <PageHeader title="Credits" />
 
       <div className="w-full max-w-[700px] flex flex-col gap-4 text-sm text-neutral-200">
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">

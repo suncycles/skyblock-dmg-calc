@@ -27,7 +27,6 @@ import { SLOT_TEXTURES } from '../lib/icons';
 import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
 import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
 import WeaponIcon from '../components/WeaponIcon';
-import PageBackground from '../components/PageBackground';
 import EntryScreen from '../components/EntryScreen';
 
 // Darkens a slot's background once an item's equipped (replacing the old flat green highlight) —
@@ -670,7 +669,6 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
 
       {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow,
           left-aligned at the top of the page rather than fixed/pinned over content, so it can

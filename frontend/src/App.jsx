@@ -4,6 +4,9 @@ import { BuildProvider } from './context/BuildContext';
 import { TooltipProvider } from './context/TooltipContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ConfirmDialogProvider } from './context/ConfirmDialogContext';
+import PageBackground from './components/PageBackground';
+import TopBar from './components/TopBar';
+import GlobalFooter from './components/GlobalFooter';
 import Landing from './pages/Landing';
 import WeaponPicker from './pages/WeaponPicker';
 import ArmorItemPicker from './pages/ArmorItemPicker';
@@ -34,9 +37,6 @@ import LoadoutLoader from './pages/LoadoutLoader';
 import HypixelImport from './pages/HypixelImport';
 import Credits from './pages/Credits';
 
-// __BUILD_TIME__ is injected by vite.config.js's `define` at build time — a fixed instant, not "now".
-const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
 export default function App() {
   return (
     <ItemDataProvider>
@@ -44,6 +44,8 @@ export default function App() {
         <ThemeProvider>
           <TooltipProvider>
             <ConfirmDialogProvider>
+              <PageBackground />
+              <TopBar />
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/weapon" element={<WeaponPicker />} />
@@ -77,12 +79,7 @@ export default function App() {
                 <Route path="/hypixel-import" element={<HypixelImport />} />
                 <Route path="/credits" element={<Credits />} />
               </Routes>
-              <div className="fixed bottom-1 right-2 flex items-center gap-2 text-[10px] text-neutral-500 select-none">
-                <a href="/credits" className="pointer-events-auto underline hover:text-neutral-300">
-                  Credits
-                </a>
-                <span className="pointer-events-none">Latest deploy: {deployTime}</span>
-              </div>
+              <GlobalFooter />
             </ConfirmDialogProvider>
           </TooltipProvider>
         </ThemeProvider>

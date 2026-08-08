@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import WeaponIcon from '../components/WeaponIcon';
-import PageBackground from '../components/PageBackground';
 import PageHeader from '../components/PageHeader';
 import { formatItemName } from '../lib/mcText';
 
@@ -34,7 +33,6 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
       <PageHeader title={title} onBack={onBack} />
 
       <div className="w-full max-w-[700px]">

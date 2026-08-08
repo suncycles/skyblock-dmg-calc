@@ -17,7 +17,6 @@ import {
 } from '../lib/enchantEffects';
 import { SLOT_TEXTURES, ENCHANTED_BOOK_ICON } from '../lib/icons';
 import { formatItemName } from '../lib/mcText';
-import PageBackground from '../components/PageBackground';
 
 const PAGE_SIZE = 28; // 4 rows x 7 cols of interior slots
 
@@ -245,10 +244,8 @@ export default function EnchantList({ ultimate }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
-
       <header className="w-full max-w-[700px] mb-4">
-        <h1 className="text-xl font-bold">SkyDmg — {ultimate ? 'Ultimate Enchantments' : 'Enchantments'}</h1>
+        <h1 className="text-xl font-bold">{ultimate ? 'Ultimate Enchantments' : 'Enchantments'}</h1>
       </header>
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{contextText}</div>
