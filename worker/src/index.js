@@ -11,7 +11,8 @@
      GET  /api/items            -> returns cached data, refreshing first if stale
      POST /api/refresh          -> forces a refetch regardless of staleness
      GET  /api/hypixel/import   -> resolves ?username, fetches their SkyBlock profile(s), decodes
-                                    currently-worn armor/equipment/weapon/pet plus computed pet
+                                    currently-worn armor/equipment/pet plus every carried weapon
+                                    candidate (the frontend lets the user pick), plus computed pet
                                     level, attribute levels, Wolf Slayer level, Alchemy/Enchanting
                                     level, and selected Accessory Power from the Hypixel API (see
                                     handleHypixelImport). Needs env.HYPIXEL_API_KEY.
@@ -353,15 +354,16 @@ async function handleHypixelImport(url, env) {
       equipmentResult[slot] = extractItemSummary(equipmentItems[i]);
     });
 
-    // Weapon: first inventory slot (hotbar first, then the rest, in real slot order) whose item
-    // id is a known weapon — not just slot 0, since Skyblock has no dedicated weapon slot.
-    let weapon = null;
+    // Weapon: every inventory slot (hotbar first, then the rest, in real slot order) whose item
+    // id is a known weapon — Skyblock has no dedicated weapon slot, and a player can be carrying
+    // more than one, so this returns every candidate rather than guessing which one to keep; the
+    // frontend lets the user pick. No dedup by id — two physical copies of the same weapon (e.g.
+    // a main + backup) are two separate candidates, same "trust real inventory position"
+    // treatment the fixed armor/equipment slots already get.
+    const weapons = [];
     for (const raw of invItems) {
       const summary = extractItemSummary(raw);
-      if (summary && WEAPON_IDS.has(summary.id)) {
-        weapon = summary;
-        break;
-      }
+      if (summary && WEAPON_IDS.has(summary.id)) weapons.push(summary);
     }
 
     const pets = (member.pets_data && member.pets_data.pets) || [];
@@ -412,7 +414,7 @@ async function handleHypixelImport(url, env) {
       uuid,
       armor: armorResult,
       equipment: equipmentResult,
-      weapon,
+      weapons,
       pet,
       attributeLevels,
       skills,
