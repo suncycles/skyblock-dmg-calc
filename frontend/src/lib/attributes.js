@@ -5,8 +5,9 @@
 // Deadeye's inverse), Elite (boss/miniboss % damage, scoped to the 5 real Slayer bosses — see
 // lib/damageSources.js's ELITE_BOSS_MOBS), Unlimited Power/Energy/Torrent (post-everything %
 // multipliers on Strength/Crit Damage/Intelligence), Almighty (relative boost to all three
-// Unlimited attributes), Tuning Box (+Accessory Tuning points), and Dominance
-// (always-active). Lifeline is out of scope.
+// Unlimited attributes), Tuning Box (+Accessory Tuning points), Dominance (always-active), and
+// Attack Speed (the "Inferno Demonlord" shard — always-active, feeds Bonus Attack Speed
+// directly). Lifeline is out of scope.
 
 export const MAX_ATTRIBUTE_LEVEL = 10;
 
@@ -59,6 +60,11 @@ export const MAXIMAL_TORMENT_RATE = 1; // %/level, Intelligence — applied afte
 export const ALMIGHTY_RATE = 5; // %/level, 'Your "Unlimited" Attributes are +5%-50% stronger'
 export const TUNING_BOX_RATE = 1; // Tuning Points/level, "+1-10 Tuning Points"
 export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" — treated as always-active
+// "Inferno Demonlord" shard (verified against NEU-REPO's attribute_shards.json: rarity EPIC,
+// internalName ATTRIBUTE_SHARD_ATTACK_SPEED, max level 10 at 32 total shards — same EPIC cost
+// curve already used by the Hypixel import's attribute-level computation). Always-active, feeds
+// the Bonus Attack Speed base stat directly rather than a % damage source.
+export const ATTACK_SPEED_SHARD_RATE = 1; // Bonus Attack Speed %/level, "+1%-10% Bonus Attack Speed"
 
 // Non-Ruler/Elemental/Echo attributes needing a single number input — shared shape for pages/Attributes.jsx to render generically.
 export const OTHER_ATTRIBUTES = [
@@ -71,6 +77,7 @@ export const OTHER_ATTRIBUTES = [
   { id: 'almighty', name: 'Almighty', rate: ALMIGHTY_RATE, unit: '%' },
   { id: 'tuning_box', name: 'Tuning Box', rate: TUNING_BOX_RATE, unit: ' pts' },
   { id: 'dominance', name: 'Dominance', rate: DOMINANCE_RATE, unit: '%' },
+  { id: 'attack_speed', name: 'Attack Speed', rate: ATTACK_SPEED_SHARD_RATE, unit: '%' },
 ];
 
 export const ATTRIBUTE_IDS = [
