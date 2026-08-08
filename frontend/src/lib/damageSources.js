@@ -93,6 +93,7 @@ import {
   MAXIMAL_TORMENT_RATE,
   ALMIGHTY_RATE,
   DOMINANCE_RATE,
+  ATTACK_SPEED_SHARD_RATE,
   computeEchoBoost,
 } from './attributes';
 
@@ -878,6 +879,13 @@ function collectAttributeEntries(attributes, loadout, out) {
   const dominanceLevel = attributes.dominance || 0;
   if (dominanceLevel) {
     out.additiveNonConditional.push({ id: 'attr-dominance', label: 'Dominance', source: 'Attribute', value: DOMINANCE_RATE * dominanceLevel });
+  }
+
+  // Attack Speed shard ("Inferno Demonlord") — always-active, feeds Bonus Attack Speed directly
+  // rather than a % damage source, same treatment as the Elemental families above.
+  const attackSpeedLevel = attributes.attack_speed || 0;
+  if (attackSpeedLevel) {
+    addBaseStat(out, 'bonus_attack_speed', ATTACK_SPEED_SHARD_RATE * attackSpeedLevel, 'Attributes');
   }
 
   // Unlimited Power/Energy/Torrent apply last, as a true multiplier on the fully-summed
