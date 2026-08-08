@@ -13,9 +13,10 @@ import { getMaxStarsForItem, MAX_MASTER_STARS } from './starring';
    loadout/attributes/playerStats shape. Scoped to currently-worn gear + active pet + Accessory
    Power + the account-wide levels named above — not the in-game Loadout/Wardrobe presets.
 
-   Weapon has no dedicated Skyblock inventory slot, so the Worker already picked the first
-   hotbar/inventory item (in real slot order) that matches a known weapon id — this module just
-   consumes that choice, it doesn't re-derive it. */
+   Weapon has no dedicated Skyblock inventory slot, so the Worker returns every carried item that
+   matches a known weapon id (real slot order, hotbar first) as `raw.weapons` — the Review screen
+   (pages/HypixelImport.jsx) lets the user pick one (or none) before mapHypixelImportToLoadout
+   resolves that choice into the loadout. */
 
 // Hypixel's raw attribute id order is "<mobType>_ruler" (e.g. "skeletal_ruler") — reversed from
 // this app's own "ruler_<mobType>" id. Every other attribute id (elementals, echoes, deadeye,
@@ -157,16 +158,42 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   };
 }
 
+// Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
+// into the {id, name, material, category, tier, lore, color} shape both the loadout and the
+// Review screen's candidate rows (icon/name) need — null if the id doesn't match anything in the
+// current NEU-REPO catalog (renamed/removed item since the account last equipped it).
+export function resolveGearSummary(summary, itemData) {
+  if (!summary) return null;
+  const item = findGearItem(itemData, summary.id);
+  if (!item) return null;
+  return {
+    id: item.id,
+    name: item.name,
+    material: item.material,
+    category: item.category,
+    tier: item.tier,
+    lore: item.lore || [],
+    color: item.color,
+  };
+}
+
 // Maps the Worker's raw decoded response onto {loadout, skipped, attributes, playerStats}:
 // `loadout` is ready to merge straight into BuildContext (same {item, modifiers} shape as every
 // other slot-setter), `skipped` lists any item/power id that didn't resolve against the current
 // NEU-REPO catalog (renamed/removed item) so the caller can surface it rather than silently
 // dropping it, `attributes` is a {id: level} patch for BuildContext's attributes state, and
 // `playerStats` is a patch for its playerStats state (wolfSlayerLevel/alchemyLevel/enchantingLevel).
-export async function mapHypixelImportToLoadout(raw, itemData) {
+// `selection.weaponIndex` picks one of `raw.weapons` (null/undefined = don't import a weapon —
+// there's no dedicated slot to guess from, so the caller must choose); `selection.excludedSlots`
+// (a Set of GEAR_SLOT_KEYS names) skips those armor/equipment slots entirely, leaving whatever
+// was already in that BuildContext slot untouched (importHypixelLoadout only patches the keys
+// present in `loadout`, see BuildContext.jsx).
+export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
+  const { weaponIndex = null, excludedSlots } = selection;
+  const excluded = excludedSlots || new Set();
   const reforgeLookup = buildReforgeNameLookup(itemData);
   const bySlot = {
-    weapon: raw.weapon,
+    weapon: weaponIndex != null ? raw.weapons?.[weaponIndex] : null,
     helmet: raw.armor?.helmet,
     chestplate: raw.armor?.chestplate,
     leggings: raw.armor?.leggings,
@@ -181,23 +208,16 @@ export async function mapHypixelImportToLoadout(raw, itemData) {
   const skipped = [];
 
   for (const slot of GEAR_SLOT_KEYS) {
+    if (excluded.has(slot)) continue;
     const summary = bySlot[slot];
     if (!summary) continue;
-    const item = findGearItem(itemData, summary.id);
+    const item = resolveGearSummary(summary, itemData);
     if (!item) {
       skipped.push(summary.id);
       continue;
     }
     loadout[slot] = {
-      item: {
-        id: item.id,
-        name: item.name,
-        material: item.material,
-        category: item.category,
-        tier: item.tier,
-        lore: item.lore || [],
-        color: item.color,
-      },
+      item,
       modifiers: await buildItemModifiers(item, summary, itemData, reforgeLookup),
     };
   }
