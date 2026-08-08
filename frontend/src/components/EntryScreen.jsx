@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageBackground from './PageBackground';
 
 const toolbar =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -21,8 +20,6 @@ export default function EntryScreen({ onSkip }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
-      <PageBackground />
-
       <div className="w-full max-w-[440px] flex flex-col items-center gap-1 mb-8 text-center">
         <h1 className="text-5xl font-bold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">SkyDmg</h1>
         <p className="text-sm text-neutral-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">

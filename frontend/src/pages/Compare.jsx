@@ -11,7 +11,6 @@ import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
 import { loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
 import PageHeader from '../components/PageHeader';
-import PageBackground from '../components/PageBackground';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -230,7 +229,6 @@ export default function Compare() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <PageBackground />
       <PageHeader title="Compare Loadouts" />
 
       <div className="w-full max-w-[1100px] flex flex-col gap-3">

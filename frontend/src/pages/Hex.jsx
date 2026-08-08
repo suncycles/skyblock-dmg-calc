@@ -14,7 +14,6 @@ import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
-import PageBackground from '../components/PageBackground';
 
 // 6 rows x 9 columns, matching the reference screenshot.
 // type: "empty" | "filler" | "item" | "icon" | "barrier"
@@ -42,7 +41,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { status, refresh, itemData } = useItemData();
+  const { itemData } = useItemData();
   const { loadout, toggleRecombobulated, playerStats } = useBuild();
   const { showTooltip, hideTooltip } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
@@ -81,16 +80,8 @@ export default function Hex() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
-
-      <header className="w-full max-w-[700px] mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">SkyDmg — {slotLabel}</h1>
-        <div className="flex items-center gap-2.5 text-[13px]">
-          <span>{status}</span>
-          <button className="text-[13px] px-3 py-1.5 cursor-pointer bg-neutral-200 text-black" onClick={refresh}>
-            Refresh Data
-          </button>
-        </div>
+      <header className="w-full max-w-[700px] mb-4">
+        <h1 className="text-xl font-bold">{slotLabel}</h1>
       </header>
 
       <div className="w-full max-w-[700px] overflow-x-auto">

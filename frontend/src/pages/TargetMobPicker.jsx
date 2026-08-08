@@ -5,7 +5,6 @@ import { MOB_TYPES } from '../lib/mobTypes';
 import { MOB_LOCATIONS, ALL_LOCATIONS, LOCATION_COUNTS } from '../lib/mobLocations';
 import { getMobIconDataUri, getMobModelIcon } from '../lib/mobIcons';
 import PageHeader from '../components/PageHeader';
-import PageBackground from '../components/PageBackground';
 
 const ALL_MOB_NAMES = Object.keys(MOB_TYPES).sort((a, b) => a.localeCompare(b));
 
@@ -81,8 +80,7 @@ export default function TargetMobPicker() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageBackground />
-      <PageHeader title="SkyDmg — Target Mobs" />
+      <PageHeader title="Target Mobs" />
 
       <div className="w-full max-w-[700px] flex flex-col gap-2.5">
         <div className="text-xs text-neutral-300">

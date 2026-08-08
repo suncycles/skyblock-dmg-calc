@@ -13,7 +13,6 @@ import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { formatItemName } from '../lib/mcText';
 import WeaponIcon from '../components/WeaponIcon';
 import PageHeader from '../components/PageHeader';
-import PageBackground from '../components/PageBackground';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -140,8 +139,7 @@ export default function HypixelImport() {
   if (status === 'reviewing' && rawImport) {
     return (
       <div className="min-h-screen flex flex-col items-center p-4">
-        <PageBackground />
-        <PageHeader title="SkyDmg — Review Import" />
+        <PageHeader title="Review Import" />
 
         <div className="w-full max-w-[500px] flex flex-col gap-3">
           <div className={`${panel} p-4 flex flex-col gap-3`}>
@@ -246,8 +244,7 @@ export default function HypixelImport() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <PageBackground />
-      <PageHeader title="SkyDmg — Import from Hypixel" />
+      <PageHeader title="Import from Hypixel" />
 
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <div className={`${panel} p-4 flex flex-col gap-3`}>
