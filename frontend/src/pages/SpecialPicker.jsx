@@ -4,6 +4,7 @@ import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from '../l
 import { parseShorthandNumber } from '../lib/numberInput';
 import { formatItemName } from '../lib/mcText';
 import { SLOT_TEXTURES } from '../lib/icons';
+import { Keyworded } from '../lib/damageFormat';
 import PageBackground from '../components/PageBackground';
 
 const panel =
@@ -85,7 +86,9 @@ export default function SpecialPicker() {
           placeholder="e.g. 25m"
           className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
         />
-        <div className="text-sm text-neutral-800">{bonusText}</div>
+        <div className="text-sm text-neutral-800">
+          <Keyworded text={bonusText} />
+        </div>
 
         {config.rarities && (
           <div className="flex flex-col gap-1 border-t border-neutral-500 pt-3">

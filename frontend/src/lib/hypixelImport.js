@@ -4,6 +4,7 @@ import { fetchEnchantLevels, isUltimateEnchant } from './enchantEffects';
 import { derivePetDisplayName } from './petData';
 import { getPowerById } from './accessoryPowers';
 import { ATTRIBUTE_IDS } from './attributes';
+import { getMaxStarsForItem, MAX_MASTER_STARS } from './starring';
 
 /* Hypixel API "import my current gear" — hits the shared Worker's /api/hypixel/import (which
    holds the API key server-side, does the gzip+NBT decode, and computes pet level/attribute
@@ -129,8 +130,19 @@ async function buildEnchantEntries(enchantments, itemData) {
   return { hexEnchantments, ultimateEnchantment };
 }
 
-async function buildItemModifiers(summary, itemData, reforgeLookup) {
+// Hypixel's raw "stars" count doesn't distinguish base stars from Master Stars — a value past
+// the item's own real cap (see lib/starring.js's getMaxStarsForItem) means the excess (up to 5)
+// is Master Stars, not more base stars. E.g. a 5-cap item reporting stars=7 is 5 base + 2 master.
+function splitRawStars(item, rawStars) {
+  const cap = getMaxStarsForItem(item);
+  const stars = Math.min(cap, rawStars);
+  const masterStars = Math.min(MAX_MASTER_STARS, Math.max(0, rawStars - cap));
+  return { stars, masterStars };
+}
+
+async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   const { hexEnchantments, ultimateEnchantment } = await buildEnchantEntries(summary.enchantments, itemData);
+  const { stars, masterStars } = splitRawStars(item, summary.stars || 0);
   return {
     ...emptyModifiers(),
     hexEnchantments,
@@ -139,7 +151,9 @@ async function buildItemModifiers(summary, itemData, reforgeLookup) {
     books: Math.min(15, summary.hotPotatoBooks || 0),
     recombobulated: !!summary.recombobulated,
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
-    stars: Math.min(15, summary.stars || 0),
+    stars,
+    masterStars,
+    dungeonized: masterStars > 0,
   };
 }
 
@@ -184,7 +198,7 @@ export async function mapHypixelImportToLoadout(raw, itemData) {
         lore: item.lore || [],
         color: item.color,
       },
-      modifiers: await buildItemModifiers(summary, itemData, reforgeLookup),
+      modifiers: await buildItemModifiers(item, summary, itemData, reforgeLookup),
     };
   }
 

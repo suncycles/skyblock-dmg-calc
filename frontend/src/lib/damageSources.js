@@ -375,7 +375,7 @@ function addBaseStat(out, statKey, value, label) {
   else list.push({ label, value });
 }
 
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, out) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
   let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
   out.enderDragonSuperiorPercent = 0;
@@ -488,7 +488,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       tamingLevel,
       undefined,
       undefined,
-      undefined,
+      generalsMedallionDigits,
       undefined,
       potatoBookDoubled,
     );
@@ -531,10 +531,15 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
   if (loadout.accessory?.item) {
     const { item, modifiers } = loadout.accessory;
+    // Includes each Stone Power's flat "Unique Power Bonus" (e.g. Bizarre's +5 Ability Damage,
+    // Hurtful's +15 Bonus Attack Speed) alongside its MP-scaled base stats and Tuning — see
+    // lib/accessoryPowers.js's computeAccessoryTotalStats. Only forwards the stats this file
+    // actually tracks; Powers can also grant health/defense/speed/true_defense (e.g. Pleasant,
+    // Buttery), which have no slot in out.baseStats since they're not damage-relevant.
     const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
-    addBaseStat(out, 'strength', accessoryStats.strength || 0, 'Accessory');
-    addBaseStat(out, 'crit_chance', accessoryStats.crit_chance || 0, 'Accessory');
-    addBaseStat(out, 'crit_damage', accessoryStats.crit_damage || 0, 'Accessory');
+    for (const statKey of ['strength', 'crit_chance', 'crit_damage', 'intelligence', 'ability_damage', 'bonus_attack_speed', 'ferocity']) {
+      addBaseStat(out, statKey, accessoryStats[statKey] || 0, 'Accessory');
+    }
   }
 }
 
@@ -687,7 +692,10 @@ function matchDamageParagraph(text) {
 }
 
 // `asWeaponBonus`: routes a weapon-slot "+X% damage" match into the weaponBonus buckets instead of the general additive ones.
-function pushParagraphMatch(out, text, label, source, id, asWeaponBonus) {
+// `abilityEligible`: tags the pushed entry so Mage Mode's Ability Damage additive multiplier (finalDamage.js's
+// computeAbilityDamage) also counts it — only set true by callers that know this specific paragraph is one of the
+// hand-verified ability-eligible sources (see collectPetEntries).
+function pushParagraphMatch(out, text, label, source, id, asWeaponBonus, abilityEligible) {
   const match = matchDamageParagraph(text);
   if (!match) return;
   if (match.bucket === 'situational') {
@@ -696,10 +704,10 @@ function pushParagraphMatch(out, text, label, source, id, asWeaponBonus) {
     out.multiplicative.push({ id, label, source, value: match.value, condition: match.condition });
   } else if (match.bucket === 'additiveConditional') {
     const bucket = asWeaponBonus ? out.weaponBonusConditional : out.additiveConditional;
-    bucket.push({ id, label, source, value: match.value, condition: match.condition });
+    bucket.push({ id, label, source, value: match.value, condition: match.condition, abilityEligible });
   } else {
     const bucket = asWeaponBonus ? out.weaponBonusNonConditional : out.additiveNonConditional;
-    bucket.push({ id, label, source, value: match.value });
+    bucket.push({ id, label, source, value: match.value, abilityEligible });
   }
 }
 
@@ -748,6 +756,14 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
 const GOLDEN_DRAGON_TREASURE_RE =
   /Gain\s+\+?([\d.]+)%\s+damage\s+for\s+every\s+million\s+coins\s+in\s+your\s+bank\.?\s*(?:\(Max\s+\+?([\d.]+)%\))?/i;
 
+// Pets whose own ability text is a real per-hit damage bonus in the "deals +X% damage to Y
+// mobs" shape Mage Mode's ability formula counts — verified directly against NEU-REPO item
+// lore: Ender Dragon's End Strike (+X% vs Ender), Zombie's Rotten Blade (+X% vs Undead), Wither
+// Skeleton's Wither Blood (+X% vs Wither). Every other pet's ability text either isn't a damage
+// bonus at all or (like Golden Dragon's Legendary Treasure, handled separately below) isn't in
+// this shape, so this is an explicit allowlist rather than a blanket "all pets" flag.
+const ABILITY_ELIGIBLE_PET_IDS = new Set(['ENDER_DRAGON', 'ZOMBIE', 'WITHER_SKELETON']);
+
 async function collectPetEntries(loadout, itemData, out) {
   if (!loadout.pet) return;
   const { item: pet, modifiers } = loadout.pet;
@@ -778,13 +794,27 @@ async function collectPetEntries(loadout, itemData, out) {
         let value = (bankCoins / 1_000_000) * rate;
         if (cap != null) value = Math.min(value, cap);
         if (value > 0) {
-          out.additiveNonConditional.push({ id: 'golden-dragon-legendary-treasure', label: 'Legendary Treasure', source, value });
+          out.additiveNonConditional.push({
+            id: 'golden-dragon-legendary-treasure',
+            label: 'Legendary Treasure',
+            source,
+            value,
+            abilityEligible: true,
+          });
         }
         return; // handled — don't also generic-scan this paragraph
       }
     }
 
-    pushParagraphMatch(out, stripToPlain(stripLeadingHeaderLine(p)), petLabel, source, `pet-${idx}`);
+    pushParagraphMatch(
+      out,
+      stripToPlain(stripLeadingHeaderLine(p)),
+      petLabel,
+      source,
+      `pet-${idx}`,
+      false,
+      ABILITY_ELIGIBLE_PET_IDS.has(pet.petId),
+    );
   });
 }
 
@@ -900,7 +930,7 @@ export async function collectDamageSources(
     overloadBonusPercent: 0,
   };
 
-  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, out);
+  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.generalsMedallionDigits, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');

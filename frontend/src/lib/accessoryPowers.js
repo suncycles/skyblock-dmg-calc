@@ -1,6 +1,8 @@
-// Accessory Bag Powers: the 10 Default Powers + 21 Stone Powers, each with MP-scaled
+// Accessory Bag Powers: the 10 Default Powers + 22 Stone Powers, each with MP-scaled
 // baseStats mapping onto lib/reforgeData.js's STAT_LABELS keys, plus (Stone Powers only) a
-// flat "Unique Power Bonus" that does NOT scale with Magical Power.
+// flat "Unique Power Bonus" that does NOT scale with Magical Power. (23 real stone items exist
+// in worker/src/data/powerStones.json; Unhealthy/VITAMIN_LIFE is deliberately excluded — see
+// the comment after HEALTHY below.)
 
 export const STARTER_POWER = 'Starter Power';
 export const INTERMEDIATE_POWER = 'Intermediate Power';
@@ -365,6 +367,20 @@ export const STONE_POWERS = [
     baseStats: { health: 33.6 },
     uniqueBonus: { health: 200 },
   },
+  {
+    id: 'BUTTERY',
+    name: 'Buttery',
+    type: STONE_POWER,
+    requirement: 'Combat XX',
+    sourceItemId: 'SUNFLOWER_BUTTER',
+    sourceName: 'Sunflower Butter',
+    baseStats: { bonus_attack_speed: 20.83, speed: 23.14 },
+    uniqueBonus: { bonus_attack_speed: 5 },
+  },
+  // Unhealthy (VITAMIN_LIFE) deliberately excluded: an April Fools joke power (99,999,999x
+  // combine cost, "Combat Skill Level MCCXII" requirement) whose only stats are -324 Health
+  // base / -200 Health unique — health isn't a damage-calc stat this app tracks at all, so
+  // modeling it would add a selectable power with zero effect anywhere in the app.
 ];
 
 export const ALL_POWERS = [...DEFAULT_POWERS, ...STONE_POWERS];

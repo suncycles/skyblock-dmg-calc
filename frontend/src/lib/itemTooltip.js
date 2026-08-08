@@ -6,7 +6,7 @@ import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore, computeDaedalusTamingBonus, computeWolfSlayerLevelBonus } from './specialWeapons';
-import { computeStarBonuses, buildStarSuffix, buildMasterStarSuffix, MASTER_STAR_PERCENT_PER_STAR } from './starring';
+import { computeStarBonuses, buildStarSuffix, buildMasterStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
@@ -96,7 +96,10 @@ export async function buildFullItemTooltipLines(
   lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
   // Stars/Wither Blade/Daedalus Taming bonuses merge directly into the item's own base stats.
-  lore = mergeStatIntoBase(lore, computeStarBonuses(item.lore, modifiers.stars), lore.indexOf(''));
+  // starBonus is captured (not discarded) — Dungeonize below needs to subtract this same delta
+  // back out of the fully-merged total to get the Catacombs Boost base (see lib/dungeonize.js).
+  const starBonus = computeStarBonuses(item.lore, modifiers.stars);
+  lore = mergeStatIntoBase(lore, starBonus, lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
@@ -107,13 +110,21 @@ export async function buildFullItemTooltipLines(
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
 
-  // Dungeonize: a dark-grey annotation showing the item's fully Catacombs-scaled total for
-  // every stat it already has — computed off everything merged above, not a separate bonus.
-  // Master Stars (Dungeonize-only) add a dark-blue delta on top, from the item's own pristine
-  // stat lines (same basis as regular Stars) — never present without Dungeonize being on.
+  // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has —
+  // curve[catacombsLevel] + Catacombs Stars (10%/star) + General's Medallion digits, applied to
+  // everything merged above EXCEPT starBonus (the Overworld 2%/star mechanic — see
+  // lib/dungeonize.js). A dark-blue second annotation adds Master Stars (5%/star) on top, shown
+  // only when the item actually has Master Stars — never present without Dungeonize being on.
   if (modifiers.dungeonized) {
-    const masterStarBonus = computeStarBonuses(item.lore, modifiers.masterStars, MASTER_STAR_PERCENT_PER_STAR);
-    lore = applyDungeonizeToLore(lore, catacombsLevel, modifiers.dungeonizeOldCurve, masterStarBonus, generalsMedallionDigits);
+    lore = applyDungeonizeToLore(
+      lore,
+      catacombsLevel,
+      modifiers.dungeonizeOldCurve,
+      starBonus,
+      modifiers.stars,
+      modifiers.masterStars,
+      generalsMedallionDigits,
+    );
   }
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));

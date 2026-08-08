@@ -8,7 +8,7 @@ export const MC_COLORS = {
   c: '#ff5555', d: '#ff55ff', e: '#ffff55', f: '#ffffff',
   // 'p' is separate from 'd' to prevent color-collision with Gemstone stats.
   p: '#ff55fe',
-  // 'q' is Master Stars' dungeonize-difference annotation — not a vanilla MC color.
+  // 'q' is the Catacombs Boost total WITH Master Stars — not a vanilla MC color.
   q: '#1d213d',
 };
 

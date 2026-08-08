@@ -17,6 +17,7 @@ export const STAT_SYMBOLS = {
   'Attack Speed': { symbol: '⚔', color: MC_COLORS.e },
   Ferocity: { symbol: '⫽', color: MC_COLORS.c },
   Intelligence: { symbol: '✎', color: MC_COLORS.b },
+  'Ability Damage': { symbol: '꩜', color: MC_COLORS.c },
 };
 
 export const MOB_TYPE_SYMBOLS = {
