@@ -232,7 +232,7 @@ export default function DamageSources() {
             }`}
           >
             <img src="/images/manual/mage_mode.png" alt="" className="w-5 h-5" />
-            Ability Damage
+            <Keyworded text="Ability Damage" />
           </button>
         }
       />
@@ -316,13 +316,14 @@ export default function DamageSources() {
                   <div className="text-xs text-neutral-600 italic">"{name}" is no longer in the mob data.</div>
                 ) : !hasAbilityWeapon ? (
                   <div className="text-xs text-neutral-600 italic">
-                    No known Ability Damage data for the equipped weapon — Mage Mode only covers a hand-curated list of
-                    staffs/wands/dungeon swords for now.
+                    <Keyworded text="No known Ability Damage data for the equipped weapon — Mage Mode only covers a hand-curated list of staffs/wands/dungeon swords for now." />
                   </div>
                 ) : (
                   <>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
-                      <span>Base Ability Damage</span>
+                      <span>
+                        <Keyworded text="Base Ability Damage" />
+                      </span>
                       <span className="text-right font-mono">{abilityDamage.baseDamage.toLocaleString()}</span>
                       <span>Ability Scaling</span>
                       <span className="text-right font-mono">{abilityDamage.scaling}</span>

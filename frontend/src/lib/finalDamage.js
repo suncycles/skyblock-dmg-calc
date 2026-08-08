@@ -142,9 +142,11 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 // Mage Mode's Ability Damage formula — deliberately naive per the plan (see lib/abilityDamage.js):
 //   InitialDamage = BaseAbilityDamage * (1 + (Intelligence/100) * AbilityScaling)
 //   FinalDamage   = floor(InitialDamage * AdditiveMultiplier * MultiplicativeMultiplier)
-// AdditiveMultiplier only counts entries tagged `abilityEligible` by collectEnchantEntries
-// (Giant Killer, Execute, Prosecute, and the 7 real type-bane enchants) — every other additive
-// source in the app (One For All, Swarm/Combo, pet perks, etc.) is excluded on purpose.
+// AdditiveMultiplier only counts entries tagged `abilityEligible`: Giant Killer, Execute,
+// Prosecute, and the 7 real type-bane enchants (collectEnchantEntries), plus Golden Dragon's
+// Legendary Treasure, Ender Dragon's End Strike, Zombie's Rotten Blade, and Wither Skeleton's
+// Wither Blood (collectPetEntries) — every other additive source in the app (One For All,
+// Swarm/Combo, other pet perks, etc.) is excluded on purpose.
 // MultiplicativeMultiplier only counts Skyblock Level and a Loving-reforged Chestplate's +5%.
 // No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
 // currently modeled maps to it, left at 0 rather than guessed.

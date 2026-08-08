@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
 import { computeTuningPoints } from '../lib/accessoryPowers';
 import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attributes';
-import { MAX_MASTER_STARS } from '../lib/starring';
+import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from '../lib/starring';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
 
@@ -581,12 +581,22 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  const setStarCount = useCallback(
-    (slot, count) => {
-      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, stars: count }));
-    },
-    [updateSlotModifiers],
-  );
+  // Clamped against the equipped item's own real cap (5 normally, 10/15 for whitelisted gear —
+  // see lib/starring.js's getMaxStarsForItem) — not a flat 15 for everything. Not routed through
+  // updateSlotModifiers since it needs the slot's `item`, not just its `modifiers`. Dropping
+  // below the Master Star eligibility threshold also clears masterStars, same as setDungeonized.
+  const setStarCount = useCallback((slot, count) => {
+    setLoadout((prev) => {
+      if (!prev[slot]) return prev;
+      const maxStars = getMaxStarsForItem(prev[slot].item);
+      const stars = Math.max(0, Math.min(maxStars, Math.floor(count) || 0));
+      const modifiers = { ...prev[slot].modifiers, stars };
+      if (stars < MASTER_STAR_MIN_BASE_STARS) modifiers.masterStars = 0;
+      const next = { ...prev, [slot]: { ...prev[slot], modifiers } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // tier === null resets to the item's own real tier — for milestone-upgrading items (e.g. David's Cloak) whose real rarity isn't in the bundled data.
   const setRarityOverride = useCallback(
@@ -615,11 +625,16 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // Master Stars need both Dungeonize on AND the item already at 5+ base stars (usable on any
+  // item once maxed on base stars, not restricted to Dungeon-tagged gear).
   const setMasterStars = useCallback(
     (slot, count) => {
       updateSlotModifiers(slot, (modifiers) => ({
         ...modifiers,
-        masterStars: modifiers.dungeonized ? Math.max(0, Math.min(MAX_MASTER_STARS, Math.floor(count) || 0)) : 0,
+        masterStars:
+          modifiers.dungeonized && modifiers.stars >= MASTER_STAR_MIN_BASE_STARS
+            ? Math.max(0, Math.min(MAX_MASTER_STARS, Math.floor(count) || 0))
+            : 0,
       }));
     },
     [updateSlotModifiers],
