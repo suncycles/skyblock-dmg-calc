@@ -41,6 +41,9 @@ export default function TargetMobPicker() {
   const { showTooltip, hideTooltip } = useTooltip();
   const [query, setQuery] = useState('');
   const [activeLocations, setActiveLocations] = useState(() => new Set());
+  // Collapsed by default — expanded, the 22 location chips push the search box and mob grid
+  // well below the fold on mobile. Active filters still show as a count on the collapsed header.
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   function toggleLocation(loc) {
     setActiveLocations((prev) => {
@@ -90,7 +93,18 @@ export default function TargetMobPicker() {
 
         <div className={`${panel} p-2.5 flex flex-col gap-2`}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-black uppercase tracking-wide">Filter by Location</span>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-[11px] font-bold text-black uppercase tracking-wide cursor-pointer"
+              onClick={() => setFiltersExpanded((v) => !v)}
+              aria-expanded={filtersExpanded}
+            >
+              <span className="text-[9px]">{filtersExpanded ? '▾' : '▸'}</span>
+              Filter by Location
+              {activeLocations.size > 0 && (
+                <span className="normal-case font-normal text-black/60">({activeLocations.size})</span>
+              )}
+            </button>
             {hasFilters && (
               <button
                 type="button"
@@ -101,17 +115,19 @@ export default function TargetMobPicker() {
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {ALL_LOCATIONS.map((loc) => (
-              <LocationChip
-                key={loc}
-                label={loc}
-                count={LOCATION_COUNTS[loc]}
-                active={activeLocations.has(loc)}
-                onClick={() => toggleLocation(loc)}
-              />
-            ))}
-          </div>
+          {filtersExpanded && (
+            <div className="flex flex-wrap gap-1.5">
+              {ALL_LOCATIONS.map((loc) => (
+                <LocationChip
+                  key={loc}
+                  label={loc}
+                  count={LOCATION_COUNTS[loc]}
+                  active={activeLocations.has(loc)}
+                  onClick={() => toggleLocation(loc)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <input

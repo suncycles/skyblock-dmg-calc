@@ -699,14 +699,14 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
 
-      {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow,
-          left-aligned at the top of the page rather than fixed/pinned over content, so it can
-          never overlap the central GUI regardless of viewport size: flow-stacked elements simply
-          can't occupy the same space. */}
-      <div className="w-full flex justify-start mb-1.5">
-        <div className={`z-10 flex flex-col gap-1.5 p-2 ${toolbar}`}>
+      {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow
+          above the grid (not fixed/pinned over content), so it can never overlap the central GUI
+          regardless of viewport size: flow-stacked elements simply can't occupy the same space.
+          Centered to match the grid below instead of hugging the left edge on wide viewports. */}
+      <div className="w-full flex justify-center mb-1.5">
+        <div className={`z-10 flex flex-col gap-1.5 p-2 max-w-full ${toolbar}`}>
           <span className="text-[10px] font-bold text-black uppercase tracking-wide">Loadout</span>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={handleExportLoadout}
