@@ -14,8 +14,10 @@ const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const slotBase =
   'flex flex-col items-center justify-center gap-1 bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
+// Fewer columns on narrow screens — at a fixed 8 columns, cells (and their name labels) shrink
+// to illegible slivers on phone-width viewports. Widens back to 8 once there's room for it.
 const gridPanel =
-  'grid grid-cols-8 gap-1.5 bg-[#c6c6c6]/60 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-1.5';
+  'grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5 bg-[#c6c6c6]/60 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-1.5';
 // Loading skeleton: same slot grid as the real results, just pulsing and empty, so the layout
 // doesn't jump once items arrive — a placeholder shape instead of a plain "Loading..." line.
 const SKELETON_SLOT_COUNT = 32;

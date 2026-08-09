@@ -442,7 +442,9 @@ export default function DamageSources() {
             ))
           )}
 
-          <div className="flex gap-3 items-start">
+          {/* Stacks to one column below sm — side by side, MISC's stat labels wrapped onto 3
+              lines each and became hard to scan on phone-width viewports. */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
             <div className="flex-1">
               <Section
                 title={`(Base) Stats${useDungeonizedStats ? (useMasterMode ? ' (Dungeonized, Master)' : ' (Dungeonized)') : ''}`}
@@ -488,7 +490,7 @@ export default function DamageSources() {
               </Section>
             </div>
 
-            <div className={`${panel} p-3 flex flex-col gap-2 w-[200px] shrink-0`}>
+            <div className={`${panel} p-3 flex flex-col gap-2 w-full sm:w-[200px] sm:shrink-0`}>
               <div className={sectionTitle}>Misc</div>
               <div className="text-[11px] text-neutral-700 leading-snug -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-strength">

@@ -85,8 +85,10 @@ export default function StarringPicker() {
       </header>
 
       <div className={`${panel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
-        {/* Preview */}
-        <div className="mc-tooltip" style={{ position: 'static', fontSize: '13px' }}>
+        {/* Preview. whiteSpace/width override .mc-tooltip's nowrap+max-content sizing (meant for
+            the floating hover tooltip) — without it, a single long lore line (e.g. a Floor
+            requirement line) forces this static, in-flow box wider than the viewport on mobile. */}
+        <div className="mc-tooltip" style={{ position: 'static', fontSize: '13px', whiteSpace: 'normal', width: '100%' }}>
           {tooltipLines ? (
             <McTooltipLines parsedLines={tooltipLines.map(parseMinecraftLine)} />
           ) : (

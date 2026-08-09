@@ -166,7 +166,10 @@ export default function PetDetail() {
           </div>
         </div>
 
-        <div className="mc-tooltip" style={{ position: 'static', fontSize: '11px', lineHeight: 1.35, maxWidth: 260 }}>
+        <div
+          className="mc-tooltip"
+          style={{ position: 'static', fontSize: '11px', lineHeight: 1.35, maxWidth: 260, whiteSpace: 'normal' }}
+        >
           <McTooltipLines parsedLines={tooltipLines.map(parseMinecraftLine)} />
         </div>
       </div>

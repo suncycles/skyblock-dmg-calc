@@ -68,9 +68,20 @@ export default function TopBar() {
             </>
           )}
           <nav className="ml-auto flex items-center gap-4 text-[12px] font-medium shrink-0">
-            <Link to="/credits" className="text-white/50 hover:text-white transition-colors">
-              Credits
-            </Link>
+            {pathname === '/damage-sources' ? (
+              <span className="text-white/30 cursor-default">📊 Damage</span>
+            ) : (
+              <Link to="/damage-sources" className="text-white/50 hover:text-white transition-colors">
+                📊 Damage
+              </Link>
+            )}
+            {pathname === '/credits' ? (
+              <span className="text-white/30 cursor-default">Credits</span>
+            ) : (
+              <Link to="/credits" className="text-white/50 hover:text-white transition-colors">
+                Credits
+              </Link>
+            )}
           </nav>
         </div>
       </header>

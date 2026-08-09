@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import {
   MAX_COMBAT_LEVEL,
@@ -22,7 +21,6 @@ const inputClass = 'w-20 px-2 py-1 text-sm bg-black text-white border-2 border-n
 // flat Strength bonus; Catacombs feeds Ancient reforge/Wither blade per-level bonuses; Taming feeds
 // Daedalus Blade's per-level base stat.
 export default function PlayerLevels() {
-  const navigate = useNavigate();
   const {
     playerStats,
     setCombatLevel,
@@ -139,13 +137,6 @@ export default function PlayerLevels() {
             className={inputClass}
           />
         </div>
-
-        <button
-          className="self-start px-4 py-2 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
-          onClick={() => navigate('/')}
-        >
-          Back
-        </button>
       </div>
     </div>
   );

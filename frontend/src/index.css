@@ -221,3 +221,28 @@ html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange — Crimso
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
+
+/* Right-edge "there's more here" fade for the 9x6 chest-GUI grids (Hex.jsx, Landing.jsx,
+   EnchantList.jsx, and every other page sharing this exact "w-full max-w-[700px]
+   overflow-x-auto" wrapper) — every one of these grids is wider (min-w-[380px], sometimes
+   more) than a phone-width viewport, and without any cue a narrow-screen visitor has no reason
+   to suspect the last column or two is reachable by swiping. Scoped to narrow viewports only
+   (below the wrapper's own 700px cap) since above that width these grids already fit without
+   scrolling and the fade would just be decorative noise. Static rather than scroll-position-
+   aware — simple and safe, at the cost of still showing once you've scrolled all the way right. */
+@media (max-width: 700px) {
+  .overflow-x-auto {
+    position: relative;
+  }
+  .overflow-x-auto::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.5));
+    pointer-events: none;
+    z-index: 5;
+  }
+}
