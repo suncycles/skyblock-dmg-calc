@@ -36,7 +36,12 @@ export default function TopBar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-[rgba(10,11,15,0.55)] border-b border-white/10">
+      {/* fixed (not sticky) — sticky's top:0 still lets the bar get dragged along during
+          rubber-band overscroll past the top of the page, briefly revealing blank space above it
+          since it's the very first element in the document. fixed pins it to the viewport
+          regardless of scroll/overscroll; App.jsx adds matching top padding to the routed content
+          below to compensate for the space this no longer reserves in normal flow. */}
+      <header className="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-[rgba(10,11,15,0.55)] border-b border-white/10">
         <div className="max-w-[900px] mx-auto px-4 h-12 flex items-center gap-2.5">
           <button
             type="button"

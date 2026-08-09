@@ -20,7 +20,12 @@ export default function PageBackground() {
   return (
     <video
       key={zoneStyle.video}
-      className="fixed inset-0 -z-10 w-screen h-screen object-cover animate-[bg-video-fade-in_600ms_ease-out]"
+      // w-full/h-full (not w-screen/h-screen) — 100vw/100vh can render narrower than the true
+      // viewport when a vertical scrollbar is present (browsers disagree on whether vw includes
+      // the scrollbar gutter), leaving a black gap on the right on wide viewports. A fixed
+      // element's percentage width/height resolves against the true viewport with no such
+      // ambiguity, so 100%/100% + inset-0 pins it exactly to all four edges.
+      className="fixed inset-0 -z-10 w-full h-full object-cover animate-[bg-video-fade-in_600ms_ease-out]"
       src={zoneStyle.video}
       autoPlay
       loop
