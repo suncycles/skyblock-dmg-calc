@@ -7,6 +7,18 @@ export default function Credits() {
       <PageHeader title="Credits" />
 
       <div className="w-full max-w-[700px] flex flex-col gap-4 text-sm text-neutral-200">
+        <p className="text-center text-base text-white">
+          Made with <span className="text-red-400">♥</span> by <span className="font-semibold">sammui</span>
+        </p>
+
+        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
+          <h2 className="font-semibold text-white mb-1">Contributors</h2>
+          <p>
+            <span className="font-semibold text-white">mochaccino</span> (SkyblockZ) — some weapon damage
+            calculations.
+          </p>
+        </section>
+
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
           <h2 className="font-semibold text-white mb-1">Item &amp; Pet Data — NotEnoughUpdates-REPO</h2>
           <p>
