@@ -36,6 +36,7 @@ import Attributes from './pages/Attributes';
 import LoadoutLoader from './pages/LoadoutLoader';
 import HypixelImport from './pages/HypixelImport';
 import Credits from './pages/Credits';
+import ComingSoon from './pages/ComingSoon';
 
 export default function App() {
   return (
@@ -78,6 +79,9 @@ export default function App() {
                 <Route path="/loadout/:code" element={<LoadoutLoader />} />
                 <Route path="/hypixel-import" element={<HypixelImport />} />
                 <Route path="/credits" element={<Credits />} />
+                <Route path="/guides" element={<ComingSoon title="Guides" />} />
+                <Route path="/tutorial" element={<ComingSoon title="Tutorial" />} />
+                <Route path="/examples" element={<ComingSoon title="Examples" />} />
               </Routes>
               <GlobalFooter />
             </ConfirmDialogProvider>

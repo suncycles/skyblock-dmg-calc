@@ -33,6 +33,9 @@ const ROUTES = [
   [/^\/loadout\/[^/]+$/, 'Shared Loadout'],
   [/^\/hypixel-import$/, 'Hypixel Import'],
   [/^\/credits$/, 'Credits'],
+  [/^\/guides$/, 'Guides'],
+  [/^\/tutorial$/, 'Tutorial'],
+  [/^\/examples$/, 'Examples'],
 ];
 
 // Returns null for "/" (Landing) — the TopBar just shows the bare brand there.

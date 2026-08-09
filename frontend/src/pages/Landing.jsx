@@ -26,6 +26,7 @@ import { getDisplayTier } from '../lib/recombobulator';
 import { SLOT_TEXTURES } from '../lib/icons';
 import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
 import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
+import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
 
@@ -56,7 +57,7 @@ const removeBtn =
 
 // Session-scoped (not persisted across browser restarts) so every "Back" navigation within the
 // app doesn't re-show the entry screen — only a genuinely fresh visit does. Cleared per-tab.
-const ENTRY_DISMISSED_KEY = 'skydmgEntryDismissed';
+// (Key itself lives in lib/entryScreen.js — TopBar.jsx's brand link needs it too.)
 
 // One-page character screen: 6 rows x 9 columns, real chest-GUI styling. Column B: equipment
 // slots. Column C: armor slots. Column D: accessories/weapon/pet. Columns F/G/H: decorative
