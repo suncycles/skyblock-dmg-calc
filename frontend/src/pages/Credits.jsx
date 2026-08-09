@@ -57,6 +57,67 @@ export default function Credits() {
           </p>
         </section>
 
+        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
+          <h2 className="font-semibold text-white mb-1">Background Videos — ALAND's Immersive Skyblock Modpack</h2>
+          <p>
+            Zone backdrop footage is captured using{' '}
+            <a
+              className="underline text-blue-300 hover:text-blue-200"
+              href="https://modrinth.com/modpack/alands-immersive-hypixel-skyblock"
+              target="_blank"
+              rel="noreferrer"
+            >
+              ALAND's Immersive Skyblock Modpack
+            </a>
+            , which bundles a number of shader and resource-pack mods to give SkyBlock this look — full credit to
+            that modpack and everything it packages together.
+          </p>
+        </section>
+
+        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
+          <h2 className="font-semibold text-white mb-1">Base Assets — Mojang &amp; Hypixel</h2>
+          <p>
+            Item/block/mob textures and the underlying SkyBlock game content this app calculates around belong to{' '}
+            <a className="underline text-blue-300 hover:text-blue-200" href="https://www.minecraft.net/" target="_blank" rel="noreferrer">
+              Mojang
+            </a>{' '}
+            and{' '}
+            <a className="underline text-blue-300 hover:text-blue-200" href="https://hypixel.net/" target="_blank" rel="noreferrer">
+              Hypixel Inc.
+            </a>
+            .
+          </p>
+        </section>
+
+        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
+          <h2 className="font-semibold text-white mb-1">Fonts — Inter &amp; JetBrains Mono</h2>
+          <p>
+            UI text uses{' '}
+            <a className="underline text-blue-300 hover:text-blue-200" href="https://rsms.me/inter/" target="_blank" rel="noreferrer">
+              Inter
+            </a>
+            ; item lore, tooltips, and stat tables use{' '}
+            <a
+              className="underline text-blue-300 hover:text-blue-200"
+              href="https://www.jetbrains.com/lp/mono/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              JetBrains Mono
+            </a>
+            . Both are licensed under the{' '}
+            <a
+              className="underline text-blue-300 hover:text-blue-200"
+              href="https://scripts.sil.org/OFL"
+              target="_blank"
+              rel="noreferrer"
+            >
+              SIL Open Font License 1.1
+            </a>
+            , served via Google Fonts.
+          </p>
+        </section>
+
         <p className="text-xs text-neutral-500 italic">
           Minecraft and Hypixel SkyBlock are trademarks of their respective owners. This project is not affiliated
           with or endorsed by Mojang, Microsoft, or Hypixel Inc.
