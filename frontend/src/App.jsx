@@ -85,6 +85,7 @@ export default function App() {
                   <Route path="/guides" element={<ComingSoon title="Guides" />} />
                   <Route path="/tutorial" element={<ComingSoon title="Tutorial" />} />
                   <Route path="/examples" element={<ComingSoon title="Examples" />} />
+                  <Route path="/spreadsheets" element={<ComingSoon title="Spreadsheets" />} />
                 </Routes>
               </div>
               <GlobalFooter />

@@ -7,6 +7,7 @@ const MENU_LINKS = [
   { to: '/guides', label: 'Guides', icon: '📘' },
   { to: '/tutorial', label: 'Tutorial', icon: '🎓' },
   { to: '/examples', label: 'Examples', icon: '🧩' },
+  { to: '/spreadsheets', label: 'Spreadsheets', icon: '📊' },
 ];
 
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
@@ -95,6 +95,34 @@ export default function Landing() {
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
+  // entry.id -> formatted Helmet name | '' (no helmet) | undefined (not decoded yet) — a saved
+  // loadout's code only holds item ids, so the preview needs a real decode per entry rather than
+  // just reading entry.name. Decoded lazily (only while the panel's open) since it's otherwise
+  // pure wasted work on every page load.
+  const [helmetPreviews, setHelmetPreviews] = useState({});
+
+  useEffect(() => {
+    if (!showLoadoutsPanel) return;
+    const pending = savedLoadouts.filter((entry) => !(entry.id in helmetPreviews));
+    if (pending.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const updates = {};
+      for (const entry of pending) {
+        try {
+          const decoded = await decodeLoadoutCode(entry.code, itemData);
+          const helmetName = decoded.loadout?.helmet?.item?.name;
+          updates[entry.id] = helmetName ? formatItemName(helmetName) : '';
+        } catch {
+          updates[entry.id] = '';
+        }
+      }
+      if (!cancelled) setHelmetPreviews((prev) => ({ ...prev, ...updates }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showLoadoutsPanel, savedLoadouts, itemData, helmetPreviews]);
 
   function dismissEntry() {
     sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
@@ -733,14 +761,19 @@ export default function Landing() {
                 {savedLoadouts.length === 0 ? (
                   <p className="text-[11px] text-black/70 italic">No saved loadouts yet.</p>
                 ) : (
-                  savedLoadouts.map((entry) => (
+                  savedLoadouts.map((entry) => {
+                    const helmetPreview = helmetPreviews[entry.id];
+                    return (
                     <div key={entry.id} className="flex items-center gap-1.5">
                       <button
-                        className="flex-1 min-w-0 text-left text-[12px] px-2 py-1 rounded bg-neutral-800 text-white hover:bg-neutral-700 transition-colors cursor-pointer truncate"
+                        className="flex-1 min-w-0 flex flex-col items-start text-left px-2 py-1 rounded bg-neutral-800 text-white hover:bg-neutral-700 transition-colors cursor-pointer"
                         onClick={() => handleLoadSavedLoadout(entry)}
                         title={entry.name}
                       >
-                        {entry.name}
+                        <span className="text-[12px] w-full truncate">{entry.name}</span>
+                        <span className="text-[10px] text-neutral-400 w-full truncate">
+                          {helmetPreview === undefined ? '…' : helmetPreview ? `⛑️ ${helmetPreview}` : 'No helmet'}
+                        </span>
                       </button>
                       <button
                         className="text-[11px] px-1.5 py-1 rounded bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
@@ -757,7 +790,8 @@ export default function Landing() {
                         ✕
                       </button>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
