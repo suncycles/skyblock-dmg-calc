@@ -47,42 +47,46 @@ export default function App() {
             <ConfirmDialogProvider>
               <PageBackground />
               <TopBar />
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/weapon" element={<WeaponPicker />} />
-                <Route path="/armor/:slot" element={<ArmorItemPicker />} />
-                <Route path="/armor/:slot/variant/:family" element={<ArmorVariantTierPicker />} />
-                <Route path="/equipment/:slot" element={<EquipmentItemPicker />} />
-                <Route path="/pet" element={<PetPicker />} />
-                <Route path="/pet/detail" element={<PetDetail />} />
-                <Route path="/pet/:petId" element={<PetRarityPicker />} />
-                <Route path="/pet/item" element={<PetItemPicker />} />
-                <Route path="/hex/:slot" element={<Hex />} />
-                <Route path="/enchants/:slot" element={<EnchantList ultimate={false} />} />
-                <Route path="/ultimate-enchants/:slot" element={<EnchantList ultimate />} />
-                <Route path="/enchant-levels/:slot/:enchantId" element={<EnchantLevels />} />
-                <Route path="/gemstones/:slot" element={<GemstoneSlots />} />
-                <Route path="/gemstones/:slot/:slotIndex" element={<GemstoneTypePicker />} />
-                <Route path="/gemstones/:slot/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
-                <Route path="/books/:slot" element={<BooksPicker />} />
-                <Route path="/reforges/:slot" element={<ReforgesPicker blacksmith={false} />} />
-                <Route path="/reforges/:slot/blacksmith" element={<ReforgesPicker blacksmith />} />
-                <Route path="/special/:slot" element={<SpecialPicker />} />
-                <Route path="/stars/:slot" element={<StarringPicker />} />
-                <Route path="/damage-sources" element={<DamageSources />} />
-                <Route path="/compare" element={<Compare />} />
-                <Route path="/accessory" element={<AccessoryPowerPicker />} />
-                <Route path="/accessory/tuning" element={<AccessoryTuning />} />
-                <Route path="/player-levels" element={<PlayerLevels />} />
-                <Route path="/target-mob" element={<TargetMobPicker />} />
-                <Route path="/attributes" element={<Attributes />} />
-                <Route path="/loadout/:code" element={<LoadoutLoader />} />
-                <Route path="/hypixel-import" element={<HypixelImport />} />
-                <Route path="/credits" element={<Credits />} />
-                <Route path="/guides" element={<ComingSoon title="Guides" />} />
-                <Route path="/tutorial" element={<ComingSoon title="Tutorial" />} />
-                <Route path="/examples" element={<ComingSoon title="Examples" />} />
-              </Routes>
+              {/* pt-12 matches TopBar's fixed h-12 — TopBar no longer reserves this space in
+                  normal flow (see its own comment for why it switched from sticky to fixed). */}
+              <div className="pt-12">
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/weapon" element={<WeaponPicker />} />
+                  <Route path="/armor/:slot" element={<ArmorItemPicker />} />
+                  <Route path="/armor/:slot/variant/:family" element={<ArmorVariantTierPicker />} />
+                  <Route path="/equipment/:slot" element={<EquipmentItemPicker />} />
+                  <Route path="/pet" element={<PetPicker />} />
+                  <Route path="/pet/detail" element={<PetDetail />} />
+                  <Route path="/pet/:petId" element={<PetRarityPicker />} />
+                  <Route path="/pet/item" element={<PetItemPicker />} />
+                  <Route path="/hex/:slot" element={<Hex />} />
+                  <Route path="/enchants/:slot" element={<EnchantList ultimate={false} />} />
+                  <Route path="/ultimate-enchants/:slot" element={<EnchantList ultimate />} />
+                  <Route path="/enchant-levels/:slot/:enchantId" element={<EnchantLevels />} />
+                  <Route path="/gemstones/:slot" element={<GemstoneSlots />} />
+                  <Route path="/gemstones/:slot/:slotIndex" element={<GemstoneTypePicker />} />
+                  <Route path="/gemstones/:slot/:slotIndex/:gemType" element={<GemstoneTierPicker />} />
+                  <Route path="/books/:slot" element={<BooksPicker />} />
+                  <Route path="/reforges/:slot" element={<ReforgesPicker blacksmith={false} />} />
+                  <Route path="/reforges/:slot/blacksmith" element={<ReforgesPicker blacksmith />} />
+                  <Route path="/special/:slot" element={<SpecialPicker />} />
+                  <Route path="/stars/:slot" element={<StarringPicker />} />
+                  <Route path="/damage-sources" element={<DamageSources />} />
+                  <Route path="/compare" element={<Compare />} />
+                  <Route path="/accessory" element={<AccessoryPowerPicker />} />
+                  <Route path="/accessory/tuning" element={<AccessoryTuning />} />
+                  <Route path="/player-levels" element={<PlayerLevels />} />
+                  <Route path="/target-mob" element={<TargetMobPicker />} />
+                  <Route path="/attributes" element={<Attributes />} />
+                  <Route path="/loadout/:code" element={<LoadoutLoader />} />
+                  <Route path="/hypixel-import" element={<HypixelImport />} />
+                  <Route path="/credits" element={<Credits />} />
+                  <Route path="/guides" element={<ComingSoon title="Guides" />} />
+                  <Route path="/tutorial" element={<ComingSoon title="Tutorial" />} />
+                  <Route path="/examples" element={<ComingSoon title="Examples" />} />
+                </Routes>
+              </div>
               <GlobalFooter />
             </ConfirmDialogProvider>
           </TooltipProvider>
