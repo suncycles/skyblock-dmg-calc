@@ -1,55 +1,60 @@
 import { getMobLocations } from './mobLocations';
 
-// Zone theme+video backdrop, keyed off the first selected Target Mob — checked in this priority
+// Zone theme+image backdrop, keyed off the first selected Target Mob — checked in this priority
 // order: (1) the mob has its own unique background (currently just the 5 named Slayer bosses,
 // whose location is otherwise just the generic "Slayer" bucket), (2) the mob's real Bestiary
 // location (see lib/mobLocations.js) has a mapped background, (3) no mob selected (or an
 // unmapped location) falls back to the Hub, day or night depending on the player's local clock.
 //
-// Video file notes (all /public/images/backgrounds/*.mp4):
-// - "Isle.mp4" is Crimson Isle (Lotus Atoll has its own "Atoll.mp4").
-// - "Jerry.mp4" is the land Jerry's Workshop zone; "Jerry_SC.mp4" is Jerry's Pond, the Winter
+// Each image is a single frame grabbed from the original ALAND's Immersive Skyblock Modpack
+// footage (see Credits), cropped to remove a black border baked into the source recordings
+// (an OBS export artifact, not a bug in this app) and lightly blurred — see
+// docs/rebuild-backgrounds.md for the exact ffmpeg recipe if these ever need regenerating.
+//
+// Image file notes (all /public/images/backgrounds/*.jpg):
+// - "Isle.jpg" is Crimson Isle (Lotus Atoll has its own "Atoll.jpg").
+// - "Jerry.jpg" is the land Jerry's Workshop zone; "Jerry_SC.jpg" is Jerry's Pond, the Winter
 //   Island fishing spot the wiki's Bestiary lists under the "Winter" Sea Creatures tab.
-// - "Lava_SC.mp4" is Lava fishing (Crimson Isle's lava lakes), distinct from Crimson Isle itself.
-// - "Catacombs_1.mp4" is used for The Catacombs; "Catacombs_2.mp4" is an unused alternate.
+// - "Lava_SC.jpg" is Lava fishing (Crimson Isle's lava lakes), distinct from Crimson Isle itself.
+// - "Catacombs_1.jpg" is used for The Catacombs.
 // - Sea Creatures - Water/Fishing Festival/Spooky and Private Island/Spooky Festival have no
 //   dedicated footage — all of these are Hub-hosted activities (open-water fishing, the two
-//   festivals, and Private Island's own hub-like scenery), so they fall back to "Hub.mp4".
+//   festivals, and Private Island's own hub-like scenery), so they fall back to "Hub.jpg".
 const LOCATION_BACKGROUNDS = {
-  'Crimson Isle': { theme: 'inferno', video: '/images/backgrounds/Isle.mp4' },
-  'Crystal Hollows': { theme: 'nova', video: '/images/backgrounds/Hollows.mp4' },
-  'Deep Caverns': { theme: 'slate', video: '/images/backgrounds/Deep.mp4' },
-  'Dwarven Mines': { theme: 'slate', video: '/images/backgrounds/Dwarven.mp4' },
-  Galatea: { theme: 'aurora', video: '/images/backgrounds/Galatea.mp4' },
-  Hub: { theme: 'parchment', video: '/images/backgrounds/Hub.mp4' },
-  "Jerry's Workshop": { theme: 'frost', video: '/images/backgrounds/Jerry.mp4' },
-  Kuudra: { theme: 'inferno', video: '/images/backgrounds/Kuudra.mp4' },
-  'Lotus Atoll': { theme: 'parchment', video: '/images/backgrounds/Atoll.mp4' },
-  Mythological: { theme: 'aurora', video: '/images/backgrounds/Mythological.mp4' },
-  'Private Island': { theme: 'parchment', video: '/images/backgrounds/Hub.mp4' },
-  'Sea Creatures - Backwater Bayou': { theme: 'forest', video: '/images/backgrounds/Bayou.mp4' },
-  'Sea Creatures - Fishing Festival': { theme: 'parchment', video: '/images/backgrounds/Hub.mp4' },
-  'Sea Creatures - Lava': { theme: 'inferno', video: '/images/backgrounds/Lava_SC.mp4' },
-  'Sea Creatures - Spooky': { theme: 'slate', video: '/images/backgrounds/Hub.mp4' },
-  'Sea Creatures - Water': { theme: 'parchment', video: '/images/backgrounds/Hub.mp4' },
-  'Sea Creatures - Winter': { theme: 'frost', video: '/images/backgrounds/Jerry_SC.mp4' },
-  "Spider's Den": { theme: 'forest', video: '/images/backgrounds/Den.mp4' },
-  'Spooky Festival': { theme: 'slate', video: '/images/backgrounds/Hub.mp4' },
-  'The Catacombs': { theme: 'slate', video: '/images/backgrounds/Catacombs_1.mp4' },
-  'The End': { theme: 'aurora', video: '/images/backgrounds/End.mp4' },
-  'The Farming Islands': { theme: 'forest', video: '/images/backgrounds/Farm.mp4' },
-  'The Garden': { theme: 'forest', video: '/images/backgrounds/Garden.mp4' },
-  'The Park': { theme: 'forest', video: '/images/backgrounds/Park.mp4' },
+  'Crimson Isle': { theme: 'inferno', image: '/images/backgrounds/Isle.jpg' },
+  'Crystal Hollows': { theme: 'nova', image: '/images/backgrounds/Hollows.jpg' },
+  'Deep Caverns': { theme: 'slate', image: '/images/backgrounds/Deep.jpg' },
+  'Dwarven Mines': { theme: 'slate', image: '/images/backgrounds/Dwarven.jpg' },
+  Galatea: { theme: 'aurora', image: '/images/backgrounds/Galatea.jpg' },
+  Hub: { theme: 'parchment', image: '/images/backgrounds/Hub.jpg' },
+  "Jerry's Workshop": { theme: 'frost', image: '/images/backgrounds/Jerry.jpg' },
+  Kuudra: { theme: 'inferno', image: '/images/backgrounds/Kuudra.jpg' },
+  'Lotus Atoll': { theme: 'parchment', image: '/images/backgrounds/Atoll.jpg' },
+  Mythological: { theme: 'aurora', image: '/images/backgrounds/Mythological.jpg' },
+  'Private Island': { theme: 'parchment', image: '/images/backgrounds/Hub.jpg' },
+  'Sea Creatures - Backwater Bayou': { theme: 'forest', image: '/images/backgrounds/Bayou.jpg' },
+  'Sea Creatures - Fishing Festival': { theme: 'parchment', image: '/images/backgrounds/Hub.jpg' },
+  'Sea Creatures - Lava': { theme: 'inferno', image: '/images/backgrounds/Lava_SC.jpg' },
+  'Sea Creatures - Spooky': { theme: 'slate', image: '/images/backgrounds/Hub.jpg' },
+  'Sea Creatures - Water': { theme: 'parchment', image: '/images/backgrounds/Hub.jpg' },
+  'Sea Creatures - Winter': { theme: 'frost', image: '/images/backgrounds/Jerry_SC.jpg' },
+  "Spider's Den": { theme: 'forest', image: '/images/backgrounds/Den.jpg' },
+  'Spooky Festival': { theme: 'slate', image: '/images/backgrounds/Hub.jpg' },
+  'The Catacombs': { theme: 'slate', image: '/images/backgrounds/Catacombs_1.jpg' },
+  'The End': { theme: 'aurora', image: '/images/backgrounds/End.jpg' },
+  'The Farming Islands': { theme: 'forest', image: '/images/backgrounds/Farm.jpg' },
+  'The Garden': { theme: 'forest', image: '/images/backgrounds/Garden.jpg' },
+  'The Park': { theme: 'forest', image: '/images/backgrounds/Park.jpg' },
 };
 
 // The 5 Slayer bosses get their own unique footage instead of the generic "Slayer" location
 // bucket every other Slayer-only mob would otherwise share.
 const MOB_BACKGROUND_OVERRIDES = {
-  'inferno demonlord': { theme: 'inferno', video: '/images/backgrounds/Inferno_Demonlord.mp4' },
-  'revenant horror': { theme: 'slate', video: '/images/backgrounds/Revenant_Horror.mp4' },
-  'sven packmaster': { theme: 'forest', video: '/images/backgrounds/Sven_Packmaster.mp4' },
-  'tarantula broodfather': { theme: 'forest', video: '/images/backgrounds/Tarantula_Broodfather.mp4' },
-  'voidgloom seraph': { theme: 'aurora', video: '/images/backgrounds/Voidgloom_Seraph.mp4' },
+  'inferno demonlord': { theme: 'inferno', image: '/images/backgrounds/Inferno_Demonlord.jpg' },
+  'revenant horror': { theme: 'slate', image: '/images/backgrounds/Revenant_Horror.jpg' },
+  'sven packmaster': { theme: 'forest', image: '/images/backgrounds/Sven_Packmaster.jpg' },
+  'tarantula broodfather': { theme: 'forest', image: '/images/backgrounds/Tarantula_Broodfather.jpg' },
+  'voidgloom seraph': { theme: 'aurora', image: '/images/backgrounds/Voidgloom_Seraph.jpg' },
 };
 
 function isDaytime() {
@@ -59,8 +64,8 @@ function isDaytime() {
 
 function hubDefault() {
   return isDaytime()
-    ? { theme: 'parchment', video: '/images/backgrounds/day_hub.mp4' }
-    : { theme: 'forest', video: '/images/backgrounds/night_hub.mp4' };
+    ? { theme: 'parchment', image: '/images/backgrounds/day_hub.jpg' }
+    : { theme: 'forest', image: '/images/backgrounds/night_hub.jpg' };
 }
 
 // No mob selected (or its location isn't one of the mapped ones) falls back to the SkyBlock hub
