@@ -18,19 +18,22 @@ export default function PageBackground() {
   }, [zoneStyle.theme, setTheme]);
 
   return (
-    <video
-      key={zoneStyle.video}
-      // w-full/h-full (not w-screen/h-screen) — 100vw/100vh can render narrower than the true
-      // viewport when a vertical scrollbar is present (browsers disagree on whether vw includes
-      // the scrollbar gutter), leaving a black gap on the right on wide viewports. A fixed
-      // element's percentage width/height resolves against the true viewport with no such
-      // ambiguity, so 100%/100% + inset-0 pins it exactly to all four edges.
-      className="fixed inset-0 -z-10 w-full h-full object-cover animate-[bg-video-fade-in_600ms_ease-out]"
-      src={zoneStyle.video}
-      autoPlay
-      loop
-      muted
-      playsInline
-    />
+    // Outer wrapper is a plain (non-replaced) box pinned via inset-0 alone, with no width/height
+    // of its own — that's the one sizing technique with zero cross-browser ambiguity for a fixed
+    // element (unlike a percentage or vw/vh width, which resolve against the initial containing
+    // block and have historically been inconsistent across browsers/scrollbar configurations).
+    // The <video> then just fills 100%/100% of THIS already-guaranteed-correct box instead of the
+    // viewport directly, so its own sizing can't inherit any of that ambiguity either.
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <video
+        key={zoneStyle.video}
+        className="w-full h-full object-cover animate-[bg-video-fade-in_600ms_ease-out]"
+        src={zoneStyle.video}
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
+    </div>
   );
 }
