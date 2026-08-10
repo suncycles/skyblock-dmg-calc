@@ -139,15 +139,22 @@ function extractGemstones(gems) {
 
 // Splits raw {enchant_id: level} into hexEnchantments/ultimateEnchantment, looking up each
 // enchant's real max level (fetchEnchantLevels caches per id, so repeats across armor pieces
-// only fetch once).
+// only fetch once). Levels are looked up concurrently rather than one id at a time — with an
+// item carrying several enchants this turns N sequential round trips into one, and Promise.all
+// preserves Object.entries' order regardless of which fetch resolves first.
 async function buildEnchantEntries(enchantments, itemData) {
+  const entries = await Promise.all(
+    Object.entries(enchantments || {}).map(async ([id, level]) => {
+      const levels = await fetchEnchantLevels(id, itemData.enchants);
+      const maxLevel = levels && levels.length > 0 ? levels[levels.length - 1].level : level;
+      return { id, level, maxLevel };
+    }),
+  );
+
   const hexEnchantments = [];
   let ultimateEnchantment = null;
-  for (const [id, level] of Object.entries(enchantments || {})) {
-    const levels = await fetchEnchantLevels(id, itemData.enchants);
-    const maxLevel = levels && levels.length > 0 ? levels[levels.length - 1].level : level;
-    const entry = { id, level, maxLevel };
-    if (isUltimateEnchant(id)) ultimateEnchantment = entry;
+  for (const entry of entries) {
+    if (isUltimateEnchant(entry.id)) ultimateEnchantment = entry;
     else hexEnchantments.push(entry);
   }
   return { hexEnchantments, ultimateEnchantment };
@@ -229,6 +236,10 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   const loadout = {};
   const skipped = [];
 
+  // Resolving each summary against the catalog is synchronous, so gather the slots that need
+  // building first, then build every item's modifiers concurrently instead of one slot at a
+  // time — `loadout` is a plain object keyed by slot name, so build order doesn't matter.
+  const toBuild = [];
   for (const slot of GEAR_SLOT_KEYS) {
     if (excluded.has(slot)) continue;
     const summary = bySlot[slot];
@@ -238,11 +249,16 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
       skipped.push(summary.id);
       continue;
     }
-    loadout[slot] = {
-      item,
-      modifiers: await buildItemModifiers(item, summary, itemData, reforgeLookup),
-    };
+    toBuild.push({ slot, item, summary });
   }
+  await Promise.all(
+    toBuild.map(async ({ slot, item, summary }) => {
+      loadout[slot] = {
+        item,
+        modifiers: await buildItemModifiers(item, summary, itemData, reforgeLookup),
+      };
+    }),
+  );
 
   if (raw.pet) {
     loadout.pet = {
