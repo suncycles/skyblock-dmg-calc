@@ -1,6 +1,6 @@
 // Hypixel Skyblock Attributes — Hunting skill shards syphoned to level an account-wide,
 // non-item-bound attribute 1-10. Only the damage-relevant subset is modeled: Ruler (per-Mob-
-// Type % damage), the Echo chain (relative boosts to Ruler/Elemental attributes), Strength
+// Type % damage), the Echo chain (relative boosts to Ruler/Elemental/Tuning Box attributes), Strength
 // Elemental, Intelligence Elemental, Deadeye (bow-only % damage), Warrior (melee-only,
 // Deadeye's inverse), Elite (boss/miniboss % damage, scoped to the 5 real Slayer bosses — see
 // lib/damageSources.js's ELITE_BOSS_MOBS), Unlimited Power/Energy/Torrent (post-everything %
@@ -38,6 +38,10 @@ export const RULER_ATTRIBUTES = [
 export const ECHO_OF_RULER_RATE = 2; // %/level, boosts every attribute whose name contains "Ruler"
 export const ECHO_OF_ECHOES_RATE = 5; // %/level, boosts every attribute whose name contains "Echo"
 export const ECHO_OF_ELEMENTAL_RATE = 2; // %/level, boosts the (Strength-granting) Elemental family
+// Legendary tier. Boosts Tuning Box's own point grant (not the Magical Power-derived points) —
+// +2%-20% at level 10, boosted by Echo of Echoes up to +30% total at both maxed. See
+// lib/accessoryPowers.js's computeTotalTuningPoints.
+export const ECHO_OF_BOXES_RATE = 2; // %/level, boosts Tuning Box's point grant
 
 export const ELEMENTAL_STRENGTH_RATE = 1; // Strength/level, "Grants Strength +1-10"
 export const STRENGTH_ELEMENTAL_ATTRIBUTES = ['Light', 'Stone', 'Lightning', 'Wind', 'Storm'].map((prefix) => ({
@@ -85,6 +89,7 @@ export const ATTRIBUTE_IDS = [
   'echo_of_ruler',
   'echo_of_echoes',
   'echo_of_elemental',
+  'echo_of_boxes',
   ...STRENGTH_ELEMENTAL_ATTRIBUTES.map((a) => a.id),
   ...INTELLIGENCE_ELEMENTAL_ATTRIBUTES.map((a) => a.id),
   ...OTHER_ATTRIBUTES.map((a) => a.id),

@@ -4,6 +4,8 @@
 // in worker/src/data/powerStones.json; Unhealthy/VITAMIN_LIFE is deliberately excluded — see
 // the comment after HEALTHY below.)
 
+import { TUNING_BOX_RATE, ECHO_OF_BOXES_RATE, computeEchoBoost } from './attributes';
+
 export const STARTER_POWER = 'Starter Power';
 export const INTERMEDIATE_POWER = 'Intermediate Power';
 export const STONE_POWER = 'Stone Power';
@@ -398,6 +400,16 @@ export function computeAccessoryMultiplier(mp) {
 // 1 Tuning Point per 10 Magical Power, spendable across the 8 stats below.
 export function computeTuningPoints(mp) {
   return Math.floor(Math.max(0, mp || 0) / 10);
+}
+
+// Total spendable Tuning Points: Magical Power-derived points, plus the Tuning Box attribute's
+// own flat grant — which Echo of Boxes boosts (itself boosted by Echo of Echoes, same chained-
+// boost mechanism as Echo of Ruler/Echo of Elemental — see lib/attributes.js's computeEchoBoost).
+// The Magical Power-derived points are NOT affected by Echo of Boxes.
+export function computeTotalTuningPoints(mp, tuningBoxLevel, echoOfBoxesLevel, echoOfEchoesLevel) {
+  const echoOfBoxesBoost = computeEchoBoost(ECHO_OF_BOXES_RATE, echoOfBoxesLevel, echoOfEchoesLevel);
+  const tuningBoxPoints = TUNING_BOX_RATE * (tuningBoxLevel || 0) * (1 + echoOfBoxesBoost / 100);
+  return computeTuningPoints(mp) + Math.floor(tuningBoxPoints);
 }
 
 export const TUNING_STATS = [

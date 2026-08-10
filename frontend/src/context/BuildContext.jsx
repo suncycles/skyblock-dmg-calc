@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
-import { computeTuningPoints } from '../lib/accessoryPowers';
-import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL, TUNING_BOX_RATE } from '../lib/attributes';
+import { computeTotalTuningPoints } from '../lib/accessoryPowers';
+import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL } from '../lib/attributes';
 import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from '../lib/starring';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
@@ -685,7 +685,12 @@ export function BuildProvider({ children }) {
   const setAccessoryTuningPoint = useCallback(
     (statKey, points) => {
       updateSlotModifiers('accessory', (modifiers) => {
-        const totalPoints = computeTuningPoints(modifiers.magicalPower) + attributes.tuning_box * TUNING_BOX_RATE;
+        const totalPoints = computeTotalTuningPoints(
+          modifiers.magicalPower,
+          attributes.tuning_box,
+          attributes.echo_of_boxes,
+          attributes.echo_of_echoes,
+        );
         const otherPointsSpent = Object.entries(modifiers.tuning)
           .filter(([key]) => key !== statKey)
           .reduce((sum, [, v]) => sum + v, 0);
@@ -693,7 +698,7 @@ export function BuildProvider({ children }) {
         return { ...modifiers, tuning: { ...modifiers.tuning, [statKey]: clamped } };
       });
     },
-    [updateSlotModifiers, attributes.tuning_box],
+    [updateSlotModifiers, attributes.tuning_box, attributes.echo_of_boxes, attributes.echo_of_echoes],
   );
 
   // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
