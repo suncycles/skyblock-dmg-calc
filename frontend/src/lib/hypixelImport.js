@@ -1,4 +1,5 @@
 import { findGearItem } from './loadoutCode';
+import { WORKER_BASE_URL } from './apiConfig';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
 import { fetchEnchantLevels, isUltimateEnchant } from './enchantEffects';
 import { derivePetDisplayName } from './petData';
@@ -75,8 +76,6 @@ function mapHypixelAttributeLevels(rawAttributeLevels) {
   }
   return result;
 }
-
-const WORKER_BASE_URL = 'https://dmg-calc-cache.mich536ael.workers.dev';
 
 const GEAR_SLOT_KEYS = ['weapon', 'helmet', 'chestplate', 'leggings', 'boots', 'necklace', 'cloak', 'belt', 'gloves'];
 

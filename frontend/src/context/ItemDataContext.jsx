@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-
-const WORKER_BASE_URL = 'https://dmg-calc-cache.mich536ael.workers.dev';
+import { WORKER_BASE_URL } from '../lib/apiConfig';
 
 const EMPTY = { weapons: [], armor: [], equipment: [], enchants: {}, lastFetched: null };
 

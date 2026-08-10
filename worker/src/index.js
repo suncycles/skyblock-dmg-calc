@@ -87,6 +87,7 @@ async function handleGetItems(env) {
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
     return jsonResponse(fresh);
   } catch (err) {
+    console.error("handleGetItems: buildFreshData failed:", err);
     if (cached) return jsonResponse(cached);
     return jsonResponse({ error: "Failed to fetch item data", detail: String(err) }, 502);
   }
@@ -98,6 +99,7 @@ async function handleRefresh(env) {
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
     return jsonResponse(fresh);
   } catch (err) {
+    console.error("handleRefresh: buildFreshData failed:", err);
     return jsonResponse({ error: "Failed to refresh item data", detail: String(err) }, 502);
   }
 }
@@ -270,6 +272,7 @@ async function handleHypixelImport(url, env) {
     try {
       lookupRes = await fetch(`https://playerdb.co/api/player/minecraft/${encodeURIComponent(username)}`);
     } catch (err) {
+      console.error("handleHypixelImport: PlayerDB lookup failed:", err);
       return jsonResponse({ error: "Username lookup failed, try again", code: "lookup_failed" }, 502);
     }
     const lookup = await lookupRes.json().catch(() => null);
@@ -288,11 +291,12 @@ async function handleHypixelImport(url, env) {
 
   let hypixelRes, hypixel;
   try {
-    hypixelRes = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?uuid=${uuid}`, {
+    hypixelRes = await fetch(`https://api.hypixel.net/v2/skyblock/profiles?uuid=${encodeURIComponent(uuid)}`, {
       headers: { "API-Key": env.HYPIXEL_API_KEY },
     });
     hypixel = await hypixelRes.json();
   } catch (err) {
+    console.error("handleHypixelImport: Hypixel API request failed:", err);
     return jsonResponse({ error: "Hypixel API request failed, try again", code: "hypixel_unreachable" }, 502);
   }
   if (!hypixel.success) {
@@ -425,6 +429,7 @@ async function handleHypixelImport(url, env) {
       accessory,
     });
   } catch (err) {
+    console.error("handleHypixelImport: failed to decode inventory data:", err);
     return jsonResponse({ error: "Failed to decode this player's item data", detail: String(err) }, 500);
   }
 }
