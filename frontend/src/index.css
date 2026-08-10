@@ -20,9 +20,9 @@ body {
   image-rendering: pixelated;
 }
 
-/* Zone video backdrop fade-in (see components/PageBackground.jsx) — a fresh <video> element is
-   mounted on every zone change (key={video}), so a plain CSS animation (not a transition, which
-   needs a state change to trigger) reliably replays on every switch. */
+/* Zone backdrop fade-in (see components/PageBackground.jsx) — a fresh <img> element is mounted
+   on every zone change (key={image}), so a plain CSS animation (not a transition, which needs a
+   state change to trigger) reliably replays on every switch. */
 @keyframes bg-video-fade-in {
   from {
     opacity: 0;
