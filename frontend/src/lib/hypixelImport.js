@@ -44,6 +44,29 @@ const RULER_TYPES = [
 ];
 const RAW_ATTRIBUTE_ID_REMAP = Object.fromEntries(RULER_TYPES.map((t) => [`${t}_ruler`, `ruler_${t}`]));
 
+// Hypixel's raw Stat Tuning field names differ from this app's own TUNING_STATS ids (see
+// lib/accessoryPowers.js) — remapped 1:1. The Hypixel API docs don't cover this field; verified
+// against community-maintained type definitions (node-hypixel, SkyblockerMod's profile viewer).
+const RAW_TUNING_KEY_MAP = {
+  health: 'health',
+  defense: 'defense',
+  walk_speed: 'speed',
+  strength: 'strength',
+  critical_damage: 'crit_damage',
+  critical_chance: 'crit_chance',
+  attack_speed: 'bonus_attack_speed',
+  intelligence: 'intelligence',
+};
+
+function mapHypixelTuning(rawTuning) {
+  const tuning = { ...emptyAccessoryModifiers().tuning };
+  for (const [rawKey, value] of Object.entries(rawTuning || {})) {
+    const key = RAW_TUNING_KEY_MAP[rawKey];
+    if (key) tuning[key] = Math.max(0, Math.floor(value) || 0);
+  }
+  return tuning;
+}
+
 function mapHypixelAttributeLevels(rawAttributeLevels) {
   const result = {};
   for (const [rawId, level] of Object.entries(rawAttributeLevels || {})) {
@@ -249,7 +272,11 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
           iconId: power.sourceItemId || null,
           material: power.sourceItemId ? 'SKULL' : 'BOOK',
         },
-        modifiers: { ...emptyAccessoryModifiers(), magicalPower: raw.accessory.magicalPower || 0 },
+        modifiers: {
+          ...emptyAccessoryModifiers(),
+          magicalPower: raw.accessory.magicalPower || 0,
+          tuning: mapHypixelTuning(raw.accessory.tuning),
+        },
       };
     } else {
       skipped.push(raw.accessory.selectedPower);
