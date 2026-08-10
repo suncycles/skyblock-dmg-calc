@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
-import { TUNING_STATS, TUNING_RATE_PER_POINT, computeTuningPoints } from '../lib/accessoryPowers';
+import { TUNING_STATS, TUNING_RATE_PER_POINT, computeTotalTuningPoints } from '../lib/accessoryPowers';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { SLOT_TEXTURES } from '../lib/icons';
-import { TUNING_BOX_RATE } from '../lib/attributes';
 import NumberInput from '../components/NumberInput';
 
 const panel =
@@ -36,7 +35,7 @@ export default function AccessoryTuning() {
   }
 
   const { magicalPower, tuning } = loadout.accessory.modifiers;
-  const totalPoints = computeTuningPoints(magicalPower) + attributes.tuning_box * TUNING_BOX_RATE;
+  const totalPoints = computeTotalTuningPoints(magicalPower, attributes.tuning_box, attributes.echo_of_boxes, attributes.echo_of_echoes);
   const spentPoints = TUNING_STATS.reduce((sum, key) => sum + (tuning[key] || 0), 0);
 
   return (

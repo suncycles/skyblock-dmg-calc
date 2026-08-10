@@ -18,6 +18,7 @@ const ECHO_ATTRIBUTES = [
   { id: 'echo_of_ruler', name: 'Echo of Ruler' },
   { id: 'echo_of_echoes', name: 'Echo of Echoes' },
   { id: 'echo_of_elemental', name: 'Echo of Elemental' },
+  { id: 'echo_of_boxes', name: 'Echo of Boxes' },
 ];
 
 // Small "[max]" text button — maxes a single attribute, one section, or every attribute depending on call site.
