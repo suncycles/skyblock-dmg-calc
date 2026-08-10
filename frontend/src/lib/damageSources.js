@@ -230,7 +230,7 @@ const WOLF_FAMILY_MOBS = [
   'Wolf',
 ];
 
-// Warden Helmet's Brute Force ability, assumed fully active, also maxes out at 161% rather than 160%. 
+// Warden Helmet's Brute Force ability, assumed fully active, also maxes out at 161% rather than 160%.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 161;
 
 // Each tiered Slayer weapon's own damage bonus against its line's mob family, applied as an

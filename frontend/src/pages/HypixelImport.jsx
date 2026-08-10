@@ -8,8 +8,8 @@ import {
   resolveGearSummary,
   HypixelImportError,
 } from '../lib/hypixelImport';
-import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
-import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
+import { ARMOR_SLOTS } from '../lib/armorSlots';
+import { EQUIPMENT_SLOTS } from '../lib/equipmentSlots';
 import { formatItemName } from '../lib/mcText';
 import WeaponIcon from '../components/WeaponIcon';
 import PageHeader from '../components/PageHeader';
