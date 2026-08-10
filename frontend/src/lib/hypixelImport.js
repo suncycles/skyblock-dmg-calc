@@ -183,7 +183,10 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
     stars,
     masterStars,
-    dungeonized: masterStars > 0,
+    // Master Stars imply dungeonized (can't exist otherwise), but so does the item's own rarity
+    // line reading e.g. "LEGENDARY DUNGEON LEGGINGS" — baked into `category` as a "DUNGEON "
+    // prefix (see lib/armorSlots.js) — which catches dungeon-drop gear with 0 Master Stars too.
+    dungeonized: masterStars > 0 || (item.category || '').includes('DUNGEON'),
   };
 }
 
