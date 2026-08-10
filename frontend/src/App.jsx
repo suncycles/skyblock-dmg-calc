@@ -36,6 +36,8 @@ import Attributes from './pages/Attributes';
 import LoadoutLoader from './pages/LoadoutLoader';
 import HypixelImport from './pages/HypixelImport';
 import Credits from './pages/Credits';
+import Resources from './pages/Resources';
+import Tutorial from './pages/Tutorial';
 import ComingSoon from './pages/ComingSoon';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -88,9 +90,9 @@ export default function App() {
                     <Route path="/hypixel-import" element={<HypixelImport />} />
                     <Route path="/credits" element={<Credits />} />
                     <Route path="/guides" element={<ComingSoon title="Guides" />} />
-                    <Route path="/tutorial" element={<ComingSoon title="Tutorial" />} />
+                    <Route path="/tutorial" element={<Tutorial />} />
                     <Route path="/examples" element={<ComingSoon title="Examples" />} />
-                    <Route path="/spreadsheets" element={<ComingSoon title="Spreadsheets" />} />
+                    <Route path="/resources" element={<Resources />} />
                   </Routes>
                 </ErrorBoundary>
               </div>

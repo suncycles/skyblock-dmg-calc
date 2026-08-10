@@ -4,10 +4,10 @@ import { getPageLabel } from '../lib/pageTitles';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 
 const MENU_LINKS = [
-  { to: '/guides', label: 'Guides', icon: '/icons/book.svg' },
   { to: '/tutorial', label: 'Tutorial', icon: '/icons/compass.svg' },
+  { to: '/guides', label: 'Guides', icon: '/icons/book.svg' },
   { to: '/examples', label: 'Examples', icon: '/icons/chest.svg' },
-  { to: '/spreadsheets', label: 'Spreadsheets', icon: '/icons/ledger.svg' },
+  { to: '/resources', label: 'Resources', icon: '/icons/ledger.svg' },
 ];
 
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
