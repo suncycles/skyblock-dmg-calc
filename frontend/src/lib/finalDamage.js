@@ -60,27 +60,22 @@ export function conditionMatchesMob(condition, mob) {
     });
 }
 
+// Picks which of damageSources.js's three parallel baseStats totals (normal / dungeonized /
+// master-dungeonized) applies, per the useDungeonizedStats+useMasterMode toggles described above
+// computeFinalDamage and computeAbilityDamage (both need this same selection).
+function selectBaseStats(sources, useDungeonizedStats, useMasterMode) {
+  if (!useDungeonizedStats) return sources.baseStats;
+  return useMasterMode ? sources.masterDungeonizedBaseStats : sources.dungeonizedBaseStats;
+}
+
 // `sources` is damageSources.js's collectDamageSources() result; `mob` is {name, types}.
 // Situational entries (formula-based, no live target HP state) are never included.
 // `useDungeonizedStats` swaps in each dungeonized gear item's own Catacombs-scaled stat total
 // (sources.dungeonizedBaseStats) in place of its normal one; `useMasterMode` (only meaningful
 // alongside useDungeonizedStats) additionally folds in each item's Master Star delta — see lib/dungeonize.js.
 export function computeFinalDamage(sources, mob, useDungeonizedStats = false, useMasterMode = false) {
-  const {
-    baseStats: normalBaseStats,
-    dungeonizedBaseStats,
-    masterDungeonizedBaseStats,
-    additiveNonConditional,
-    additiveConditional,
-    weaponBonusNonConditional,
-    weaponBonusConditional,
-    multiplicative,
-  } = sources;
-  const baseStats = !useDungeonizedStats
-    ? normalBaseStats
-    : useMasterMode
-      ? masterDungeonizedBaseStats
-      : dungeonizedBaseStats;
+  const { additiveNonConditional, additiveConditional, weaponBonusNonConditional, weaponBonusConditional, multiplicative } = sources;
+  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
   const appliedIds = new Set();
 
   let additivePercent = 0;
@@ -155,13 +150,8 @@ export function computeAbilityDamage(sources, mob, loadout, playerStats, useDung
   const table = ABILITY_DAMAGE_TABLE[loadout.weapon?.item?.id];
   if (!table) return null;
 
-  const { baseStats: normalBaseStats, dungeonizedBaseStats, masterDungeonizedBaseStats, additiveNonConditional, additiveConditional } =
-    sources;
-  const baseStats = !useDungeonizedStats
-    ? normalBaseStats
-    : useMasterMode
-      ? masterDungeonizedBaseStats
-      : dungeonizedBaseStats;
+  const { additiveNonConditional, additiveConditional } = sources;
+  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
 
   let additivePercent = 0;
   for (const e of additiveNonConditional) {
