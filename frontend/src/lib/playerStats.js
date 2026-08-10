@@ -69,6 +69,14 @@ export function computeAncientReforgeCritDamage(catacombsLevel) {
   return Math.max(0, Math.min(MAX_CATACOMBS_LEVEL, catacombsLevel || 0));
 }
 
+// The Withered reforge (Wither Blood stone, sword/fishing rod): "Withered Bonus — Grants +1
+// Strength per Catacombs level" (verified against NEU-REPO's WITHER_BLOOD.json + the SkyBlock
+// Wiki). Unlike Ancient, this stacks ON TOP of Withered's own flat per-rarity Strength rather
+// than replacing it — that flat table is correct/current, not stale.
+export function computeWitheredReforgeStrength(catacombsLevel) {
+  return Math.max(0, Math.min(MAX_CATACOMBS_LEVEL, catacombsLevel || 0));
+}
+
 export const MAX_TAMING_LEVEL = 60;
 
 export const MAX_WOLF_SLAYER_LEVEL = 9;
