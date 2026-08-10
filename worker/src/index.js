@@ -406,6 +406,9 @@ async function handleHypixelImport(url, env) {
     const accessory = {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
       magicalPower: member.accessory_bag_storage?.highest_magical_power || 0,
+      // slot_0 is the account's currently active Stat Tuning allocation; slots 1-4 are saved
+      // presets and aren't imported.
+      tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
     };
 
     return jsonResponse({

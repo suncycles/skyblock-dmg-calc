@@ -161,6 +161,14 @@ export default function TargetMobPicker() {
                   onMouseEnter={(e) => handleHover(name, e)}
                   onMouseLeave={hideTooltip}
                 >
+                  {MOB_TYPES[name]?.includes('Boss') && (
+                    <span
+                      className="absolute top-0.5 left-0.5 text-[10px] leading-none text-red-500 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]"
+                      title="Boss"
+                    >
+                      ☠
+                    </span>
+                  )}
                   <div className="flex-1 w-full min-h-0 flex items-center justify-center">
                     <img
                       src={getMobModelIcon(name) || getMobIconDataUri(name)}
