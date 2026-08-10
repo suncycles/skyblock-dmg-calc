@@ -4,10 +4,10 @@ import { getPageLabel } from '../lib/pageTitles';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 
 const MENU_LINKS = [
-  { to: '/guides', label: 'Guides', icon: '📘' },
-  { to: '/tutorial', label: 'Tutorial', icon: '🎓' },
-  { to: '/examples', label: 'Examples', icon: '🧩' },
-  { to: '/spreadsheets', label: 'Spreadsheets', icon: '📊' },
+  { to: '/guides', label: 'Guides', icon: '/icons/book.svg' },
+  { to: '/tutorial', label: 'Tutorial', icon: '/icons/compass.svg' },
+  { to: '/examples', label: 'Examples', icon: '/icons/chest.svg' },
+  { to: '/spreadsheets', label: 'Spreadsheets', icon: '/icons/ledger.svg' },
 ];
 
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
@@ -58,7 +58,7 @@ export default function TopBar() {
             onClick={handleBrandClick}
             className="flex items-center gap-2 text-[15px] font-extrabold tracking-tight text-white hover:opacity-80 transition-opacity shrink-0"
           >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'rgb(var(--glass-tint))' }} />
+            <img src="/icons/sword.svg" alt="" className="w-[18px] h-[18px] shrink-0 pixelated" />
             SkyDmg
           </Link>
           {pageLabel && (
@@ -69,10 +69,12 @@ export default function TopBar() {
           )}
           <nav className="ml-auto flex items-center gap-4 text-[12px] font-medium shrink-0">
             {pathname === '/damage-sources' ? (
-              <span className="text-white/30 cursor-default">📊 Damage</span>
+              <span className="text-white/30 cursor-default">
+                <img src="/icons/sword.svg" alt="" className="inline w-3.5 h-3.5 -mt-0.5 mr-0.5 pixelated opacity-60" /> Damage
+              </span>
             ) : (
               <Link to="/damage-sources" className="text-white/50 hover:text-white transition-colors">
-                📊 Damage
+                <img src="/icons/sword.svg" alt="" className="inline w-3.5 h-3.5 -mt-0.5 mr-0.5 pixelated" /> Damage
               </Link>
             )}
             {pathname === '/credits' ? (
@@ -117,7 +119,7 @@ export default function TopBar() {
               to={item.to}
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[14px] font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
             >
-              <span className="text-base leading-none">{item.icon}</span>
+              <img src={item.icon} alt="" className="w-5 h-5 shrink-0 pixelated" />
               {item.label}
             </Link>
           ))}
