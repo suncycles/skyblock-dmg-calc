@@ -175,7 +175,6 @@ function loadInitialPlayerStats() {
   }
 }
 
-
 // Loads the loadout — a sparse map, absent slot keys meaning nothing equipped there.
 function loadInitial() {
   const stored = localStorage.getItem(STORAGE_KEY);
