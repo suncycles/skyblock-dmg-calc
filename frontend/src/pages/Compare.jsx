@@ -130,9 +130,13 @@ function useLoadoutResult(selection, itemData, currentState, savedLoadouts) {
   return { state, result, missing };
 }
 
+// `result` and `state` are set by separate effects in useLoadoutResult (see its comment), so
+// there's a render or two — right after switching a side's selection — where `result` still
+// holds the *previous* selection's value while `state` has already gone back to null. Treat
+// that exactly like "still loading" rather than reading off a null `state`.
 function computeSideMobResult(side, mobName) {
   if (side.missing) return { status: 'missing' };
-  if (!side.result) return { status: 'loading' };
+  if (!side.result || !side.state) return { status: 'loading' };
   const types = MOB_TYPES[mobName] || null;
   if (!types) return { status: 'unknown-mob' };
   const finalDamage = computeFinalDamage(side.result, { name: mobName, types }, side.state.useDungeonizedStats, side.state.useMasterMode);
@@ -140,7 +144,7 @@ function computeSideMobResult(side, mobName) {
 }
 
 function displayedStat(side, key) {
-  if (!side.result) return null;
+  if (!side.result || !side.state) return null;
   if (!side.state.useDungeonizedStats) return side.result.baseStats[key];
   return side.state.useMasterMode ? side.result.masterDungeonizedBaseStats[key] : side.result.dungeonizedBaseStats[key];
 }
