@@ -1,6 +1,7 @@
 import { derivePetDisplayName } from './petData';
 import { getPowerById } from './accessoryPowers';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
+import { WORKER_BASE_URL } from './apiConfig';
 
 /* Encodes the entire build into one compact, URL-safe string and decodes it back — powers
    the "Loadouts" Export/Import buttons and the /loadout/:code share-link route. Only
@@ -8,10 +9,20 @@ import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './de
    array, reconstructed from itemData on decode); everything else passes through as plain
    JSON. Modifiers are diffed against their type's defaults before encoding (most items only
    touch a handful of the ~15 fields) and re-filled with defaults on decode — most real builds
-   shrink substantially since a lot of slots and stats sit at their default value. Gzipped via
-   the browser's native CompressionStream, then base64url-encoded. */
+   shrink substantially since a lot of slots and stats sit at their default value. Deflated via
+   the browser's native CompressionStream, then base64url-encoded.
 
-const FORMAT_VERSION = 1;
+   shortenLoadoutCode() additionally uploads that encoded blob to the Worker's KV store (see
+   worker/src/index.js) under a short random id — decodeLoadoutCode() tries the embedded-blob
+   decode first and only falls back to resolving `code` as a KV id if that fails, so both a raw
+   embedded blob and a short id can hit the same /loadout/:code route with no separate URL shape
+   needed to tell them apart. Only the Export/share-link flow shortens; saved-locally Loadouts
+   keep the plain embedded blob so loading your own saved builds never needs a network round trip. */
+
+const FORMAT_VERSION = 2;
+// v1 links (gzip-wrapped, enchant/gemstone entries as keyed objects) are still decodable —
+// expandState() branches on compact.v. Only v2 (deflate-raw, tuple-packed) is ever encoded now.
+const SUPPORTED_VERSIONS = new Set([1, 2]);
 
 const GEAR_SLOTS = ['weapon', 'helmet', 'chestplate', 'leggings', 'boots', 'necklace', 'cloak', 'belt', 'gloves'];
 
@@ -37,6 +48,35 @@ function diffFromDefaults(obj, defaults) {
 
 function withDefaults(diff, defaults) {
   return { ...defaults, ...(diff || {}) };
+}
+
+// v2 packs {id, level, maxLevel} enchant entries and {gem, tier} gemstone entries as plain
+// positional tuples instead of keyed objects — same values, just without the repeated field-name
+// text (JSON key names are otherwise the single biggest compressible-but-still-there cost for a
+// fully-decked item with a dozen-plus enchants and 3-4 gemstones).
+function packEnchant(e) {
+  return [e.id, e.level, e.maxLevel];
+}
+function unpackEnchant(t) {
+  return { id: t[0], level: t[1], maxLevel: t[2] };
+}
+function packGemstone(g) {
+  return g ? [g.gem, g.tier] : null;
+}
+function unpackGemstone(t) {
+  return t ? { gem: t[0], tier: t[1] } : null;
+}
+
+// Only called for v2 compacts — v1's enchant/gemstone entries are already the keyed-object shape
+// withDefaults() expects, so running them through this would silently scramble them instead of
+// throwing (array-index access on a plain object just reads undefined).
+function unpackModifiersDiff(diff) {
+  if (!diff) return diff;
+  const out = { ...diff };
+  if (out.hexEnchantments) out.hexEnchantments = out.hexEnchantments.map(unpackEnchant);
+  if (out.ultimateEnchantment) out.ultimateEnchantment = unpackEnchant(out.ultimateEnchantment);
+  if (out.gemstones) out.gemstones = out.gemstones.map(unpackGemstone);
+  return out;
 }
 
 // Drops zero-valued numeric entries — safe wherever the decode side already zero-fills missing
@@ -72,7 +112,11 @@ function buildEncodableState({
   for (const slot of GEAR_SLOTS) {
     const entry = loadout[slot];
     if (!entry) continue;
-    encodedLoadout[slot] = { id: entry.item.id, modifiers: diffFromDefaults(entry.modifiers, emptyModifiers()) };
+    const modifiersDiff = diffFromDefaults(entry.modifiers, emptyModifiers());
+    if (modifiersDiff.hexEnchantments) modifiersDiff.hexEnchantments = modifiersDiff.hexEnchantments.map(packEnchant);
+    if (modifiersDiff.ultimateEnchantment) modifiersDiff.ultimateEnchantment = packEnchant(modifiersDiff.ultimateEnchantment);
+    if (modifiersDiff.gemstones) modifiersDiff.gemstones = modifiersDiff.gemstones.map(packGemstone);
+    encodedLoadout[slot] = { id: entry.item.id, modifiers: modifiersDiff };
   }
 
   if (loadout.pet) {
@@ -122,6 +166,7 @@ function expandState(compact, itemData) {
     if (!encoded) continue;
     const item = findGearItem(itemData, encoded.id);
     if (!item) continue;
+    const rawModifiers = compact.v >= 2 ? unpackModifiersDiff(encoded.modifiers) : encoded.modifiers;
     loadout[slot] = {
       item: {
         id: item.id,
@@ -132,7 +177,7 @@ function expandState(compact, itemData) {
         lore: item.lore || [],
         color: item.color,
       },
-      modifiers: withDefaults(encoded.modifiers, emptyModifiers()),
+      modifiers: withDefaults(rawModifiers, emptyModifiers()),
     };
   }
 
@@ -214,15 +259,23 @@ async function readAllChunks(readable) {
   return result;
 }
 
-async function gzip(bytes) {
-  const stream = new CompressionStream('gzip');
+async function compress(bytes) {
+  const stream = new CompressionStream('deflate-raw');
   const writer = stream.writable.getWriter();
   writer.write(bytes);
   writer.close();
   return readAllChunks(stream.readable);
 }
 
-async function gunzip(bytes) {
+async function decompressDeflateRaw(bytes) {
+  const stream = new DecompressionStream('deflate-raw');
+  const writer = stream.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  return readAllChunks(stream.readable);
+}
+
+async function decompressGzip(bytes) {
   const stream = new DecompressionStream('gzip');
   const writer = stream.writable.getWriter();
   writer.write(bytes);
@@ -230,19 +283,65 @@ async function gunzip(bytes) {
   return readAllChunks(stream.readable);
 }
 
+// Old (v1) links were gzip-wrapped; gzip's fixed 2-byte magic number (0x1f 0x8b) identifies them
+// unambiguously — raw deflate (v2+) has no header at all, so a byte-signature check is enough to
+// route each format to the right decompressor without needing a separate URL shape for old vs new.
+async function decompress(bytes) {
+  if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return decompressGzip(bytes);
+  return decompressDeflateRaw(bytes);
+}
+
 export async function encodeLoadout(state) {
   const compact = buildEncodableState(state);
   const json = JSON.stringify(compact);
-  const compressed = await gzip(new TextEncoder().encode(json));
+  const compressed = await compress(new TextEncoder().encode(json));
   return bytesToBase64Url(compressed);
 }
 
-// Returns the expanded state, or throws if `code` doesn't decode to valid JSON, is an
-// unsupported format version, or isn't the right shape — callers should catch and show a friendly error.
-export async function decodeLoadoutCode(code, itemData) {
+async function decodeEmbeddedBlob(code, itemData) {
   const compressed = base64UrlToBytes(code);
-  const bytes = await gunzip(compressed);
+  const bytes = await decompress(compressed);
   const compact = JSON.parse(new TextDecoder().decode(bytes));
-  if (compact.v !== FORMAT_VERSION) throw new Error('Unsupported loadout link format.');
+  if (!SUPPORTED_VERSIONS.has(compact.v)) throw new Error('Unsupported loadout link format.');
   return expandState(compact, itemData);
+}
+
+// Returns the expanded state, or throws if `code` doesn't decode to valid JSON, is an
+// unsupported format version, or isn't the right shape — callers should catch and show a friendly
+// error. `code` is either a self-contained embedded blob (the original scheme, and still what
+// saved-locally Loadouts use) or a short id minted by shortenLoadoutCode() — tried in that order,
+// since a short id is the wrong shape entirely to parse as an embedded blob and will always fail
+// fast, so no separate URL pattern is needed to tell the two apart.
+export async function decodeLoadoutCode(code, itemData) {
+  try {
+    return await decodeEmbeddedBlob(code, itemData);
+  } catch (localErr) {
+    let res;
+    try {
+      res = await fetch(`${WORKER_BASE_URL}/api/loadout/${encodeURIComponent(code)}`);
+    } catch {
+      throw localErr;
+    }
+    if (!res.ok) throw localErr;
+    const { code: resolvedCode } = await res.json();
+    return decodeEmbeddedBlob(resolvedCode, itemData);
+  }
+}
+
+// Uploads the embedded blob to the Worker's KV store for a short share id. Falls back to
+// returning the embedded blob itself if the Worker call fails for any reason, so Export still
+// works (just with a long link) rather than breaking entirely.
+export async function shortenLoadoutCode(code) {
+  try {
+    const res = await fetch(`${WORKER_BASE_URL}/api/loadout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) return code;
+    const { id } = await res.json();
+    return id || code;
+  } catch {
+    return code;
+  }
 }

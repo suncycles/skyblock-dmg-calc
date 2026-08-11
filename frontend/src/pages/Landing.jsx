@@ -24,7 +24,7 @@ import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName, rarityGlowFilter } from '../lib/mcText';
 import { getDisplayTier } from '../lib/recombobulator';
 import { SLOT_TEXTURES } from '../lib/icons';
-import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
+import { encodeLoadout, decodeLoadoutCode, shortenLoadoutCode } from '../lib/loadoutCode';
 import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
@@ -194,7 +194,8 @@ export default function Landing() {
         legionPlayers,
         blazeCrimsonIsle,
       });
-      await navigator.clipboard.writeText(`${window.location.origin}/loadout/${code}`);
+      const shortCode = await shortenLoadoutCode(code);
+      await navigator.clipboard.writeText(`${window.location.origin}/loadout/${shortCode}`);
       setExportStatus('Copied!');
     } catch (err) {
       console.error('Failed to export loadout:', err);

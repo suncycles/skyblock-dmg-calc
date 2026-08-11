@@ -16,6 +16,11 @@
                                     level, attribute levels, Wolf Slayer level, Alchemy/Enchanting
                                     level, and selected Accessory Power from the Hypixel API (see
                                     handleHypixelImport). Needs env.HYPIXEL_API_KEY.
+     POST /api/loadout          -> stores a frontend-encoded loadout blob (see
+                                    frontend/src/lib/loadoutCode.js) under a short random id,
+                                    returns { id } — lets share links be a handful of characters
+                                    instead of embedding the whole compressed build in the URL.
+     GET  /api/loadout/:id      -> resolves a short id minted above back to { code }.
 
    Requires a KV namespace bound as CACHE (see wrangler.toml). */
 
@@ -45,6 +50,13 @@ const NEU_LEVELING_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
+// Short-link storage for /api/loadout — namespaced within the same CACHE KV so it can't collide
+// with the single fixed CACHE_KEY the item-data cache uses.
+const LOADOUT_KEY_PREFIX = "loadout:";
+const LOADOUT_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const LOADOUT_ID_LENGTH = 8;
+const MAX_LOADOUT_CODE_LENGTH = 20000; // generous headroom over any real encoded build, blocks abuse
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -69,6 +81,14 @@ export default {
 
     if (url.pathname === "/api/hypixel/import" && request.method === "GET") {
       return handleHypixelImport(url, env);
+    }
+
+    if (url.pathname === "/api/loadout" && request.method === "POST") {
+      return handleCreateLoadoutLink(request, env);
+    }
+
+    if (url.pathname.startsWith("/api/loadout/") && request.method === "GET") {
+      return handleGetLoadoutLink(url, env);
     }
 
     return jsonResponse({ error: "Not found" }, 404);
@@ -102,6 +122,47 @@ async function handleRefresh(env) {
     console.error("handleRefresh: buildFreshData failed:", err);
     return jsonResponse({ error: "Failed to refresh item data", detail: String(err) }, 502);
   }
+}
+
+// Mints an id and retries on the (astronomically unlikely) chance it's already taken —
+// 8 chars from a 62-char alphabet is ~218 trillion combinations, so this should basically never
+// loop more than once, but a check-and-retry is cheap insurance against a stored blob getting
+// silently overwritten by an id collision.
+async function handleCreateLoadoutLink(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+  const code = typeof body?.code === "string" ? body.code.trim() : "";
+  if (!code) return jsonResponse({ error: "Missing code" }, 400);
+  if (code.length > MAX_LOADOUT_CODE_LENGTH) return jsonResponse({ error: "Loadout too large" }, 413);
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const id = randomLoadoutId();
+    const existing = await env.CACHE.get(LOADOUT_KEY_PREFIX + id);
+    if (existing) continue;
+    await env.CACHE.put(LOADOUT_KEY_PREFIX + id, code);
+    return jsonResponse({ id });
+  }
+  return jsonResponse({ error: "Could not allocate a short id, try again" }, 500);
+}
+
+function randomLoadoutId() {
+  const bytes = new Uint8Array(LOADOUT_ID_LENGTH);
+  crypto.getRandomValues(bytes);
+  let id = "";
+  for (const b of bytes) id += LOADOUT_ID_ALPHABET[b % LOADOUT_ID_ALPHABET.length];
+  return id;
+}
+
+async function handleGetLoadoutLink(url, env) {
+  const id = url.pathname.slice("/api/loadout/".length);
+  if (!id) return jsonResponse({ error: "Missing id" }, 400);
+  const code = await env.CACHE.get(LOADOUT_KEY_PREFIX + id);
+  if (!code) return jsonResponse({ error: "Loadout not found" }, 404);
+  return jsonResponse({ code });
 }
 
 async function buildFreshData() {
