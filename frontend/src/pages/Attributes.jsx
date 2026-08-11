@@ -5,7 +5,7 @@ import {
   STRENGTH_ELEMENTAL_ATTRIBUTES,
   INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
   OTHER_ATTRIBUTES,
-  MAX_ATTRIBUTE_LEVEL,
+  getAttributeMaxLevel,
 } from '../lib/attributes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import NumberInput from '../components/NumberInput';
@@ -35,12 +35,13 @@ function MaxButton({ label, onClick }) {
 }
 
 function LevelInput({ id, level, onChange }) {
+  const maxLevel = getAttributeMaxLevel(id);
   return (
     <div className="flex items-center gap-1.5">
-      <MaxButton label="max" onClick={() => onChange(MAX_ATTRIBUTE_LEVEL)} />
+      <MaxButton label="max" onClick={() => onChange(maxLevel)} />
       <NumberInput
         id={id}
-        max={MAX_ATTRIBUTE_LEVEL}
+        max={maxLevel}
         value={level}
         onChange={onChange}
         className="w-14 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
@@ -71,7 +72,7 @@ export default function Attributes() {
     ids.forEach((id) => setAttributeLevel(id, level));
   }
   function maxAll(ids) {
-    setAllTo(ids, MAX_ATTRIBUTE_LEVEL);
+    ids.forEach((id) => setAttributeLevel(id, getAttributeMaxLevel(id)));
   }
   function minAll(ids) {
     setAllTo(ids, 0);

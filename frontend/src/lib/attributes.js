@@ -10,6 +10,13 @@
 // directly). Lifeline is out of scope.
 
 export const MAX_ATTRIBUTE_LEVEL = 10;
+// Dominance is an Epic-tier shard (32 total copies -> max level 32), unlike every other
+// attribute here, which tops out at the Common-tier 10.
+export const DOMINANCE_MAX_LEVEL = 32;
+
+export function getAttributeMaxLevel(id) {
+  return id === 'dominance' ? DOMINANCE_MAX_LEVEL : MAX_ATTRIBUTE_LEVEL;
+}
 
 export const RULER_RATE = 3; // %/level, "+3%-30% more Damage against <Type> mobs"
 // All 17 real Ruler shards (verified against NEU-REPO's constants/attribute_shards.json — every

@@ -47,3 +47,16 @@ export const ABILITY_DAMAGE_TABLE = {
 // 1.1x. Verified against NEU-REPO's constants/reforgestones.json (RED_SCARF stone).
 export const LOVING_REFORGE_NAME = 'Loving';
 export const LOVING_ABILITY_DAMAGE_MULTIPLIER = 1.05;
+
+// Implosion Belt: user-verified 1.25x multiplier to Hyperion/Spirit Sceptre/Yeti Sword's own
+// ability damage specifically (not a generic Ability Damage source) — the belt's bundled lore
+// text describes a different, unrelated "explosion damage" bonus, so this can't be scanned for.
+export const IMPLOSION_BELT_ID = 'IMPLOSION_BELT';
+export const IMPLOSION_BELT_ABILITY_MULTIPLIER = 1.25;
+export const IMPLOSION_BELT_WEAPON_IDS = new Set([
+  'HYPERION',
+  'BAT_WAND', // Spirit Sceptre
+  'STARRED_BAT_WAND',
+  'YETI_SWORD',
+  'STARRED_YETI_SWORD',
+]);

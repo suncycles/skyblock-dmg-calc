@@ -27,7 +27,14 @@
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 import { computeSkyblockLevelMultiplier } from './playerStats';
-import { ABILITY_DAMAGE_TABLE, LOVING_REFORGE_NAME, LOVING_ABILITY_DAMAGE_MULTIPLIER } from './abilityDamage';
+import {
+  ABILITY_DAMAGE_TABLE,
+  LOVING_REFORGE_NAME,
+  LOVING_ABILITY_DAMAGE_MULTIPLIER,
+  IMPLOSION_BELT_ID,
+  IMPLOSION_BELT_ABILITY_MULTIPLIER,
+  IMPLOSION_BELT_WEAPON_IDS,
+} from './abilityDamage';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -137,17 +144,27 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 // Mage Mode's Ability Damage formula — deliberately naive per the plan (see lib/abilityDamage.js):
 //   InitialDamage = BaseAbilityDamage * (1 + (Intelligence/100) * AbilityScaling)
 //   FinalDamage   = floor(InitialDamage * AdditiveMultiplier * MultiplicativeMultiplier)
+// User-verified against real in-game numbers + spreadsheets (10000 base/0.3 scaling, 3057
+// Intelligence, 33 Ability Damage stat, 466% additive, 5% multiplicative -> 803947 Final Damage):
+//   Initial Damage = Base Ability Damage * (1 + Intelligence/100 * Scaling) * (1 + Ability Damage stat/100)
+//   Final Damage   = Initial Damage * (1 + AdditivePercent/100) * MultiplicativeMultiplier
+// `table.base` ("Base Ability Damage", e.g. Hyperion's fixed 10000) and `baseStats.ability_damage`
+// ("Ability Damage" stat, e.g. from Wither Goggles) are two different things that both feed this
+// formula — kept as separate variables/fields below so they never get conflated.
 // AdditiveMultiplier only counts entries tagged `abilityEligible`: Giant Killer, Execute,
-// Prosecute, and the 7 real type-bane enchants (collectEnchantEntries), plus Golden Dragon's
-// Legendary Treasure, Ender Dragon's End Strike, Zombie's Rotten Blade, and Wither Skeleton's
-// Wither Blood (collectPetEntries) — every other additive source in the app (One For All,
-// Swarm/Combo, other pet perks, etc.) is excluded on purpose.
-// MultiplicativeMultiplier only counts Skyblock Level and a Loving-reforged Chestplate's +5%.
+// Prosecute, the 7 real type-bane enchants (collectEnchantEntries), Ruler and Dominance
+// attributes (collectAttributeEntries), plus Golden Dragon's Legendary Treasure, Ender Dragon's
+// End Strike, Zombie's Rotten Blade, and Wither Skeleton's Wither Blood (collectPetEntries) —
+// every other additive source in the app (One For All, Swarm/Combo, other pet perks, etc.) is
+// excluded on purpose.
+// MultiplicativeMultiplier counts Skyblock Level, a Loving-reforged Chestplate's +5%, and the
+// Implosion Belt's 1.25x (Hyperion/Spirit Sceptre/Yeti Sword only).
 // No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
 // currently modeled maps to it, left at 0 rather than guessed.
 // Returns null when the equipped weapon has no table entry (not an ability weapon).
 export function computeAbilityDamage(sources, mob, loadout, playerStats, useDungeonizedStats = false, useMasterMode = false) {
-  const table = ABILITY_DAMAGE_TABLE[loadout.weapon?.item?.id];
+  const weaponId = loadout.weapon?.item?.id;
+  const table = ABILITY_DAMAGE_TABLE[weaponId];
   if (!table) return null;
 
   const { additiveNonConditional, additiveConditional } = sources;
@@ -165,14 +182,19 @@ export function computeAbilityDamage(sources, mob, loadout, playerStats, useDung
   if (loadout.chestplate?.modifiers?.reforge === LOVING_REFORGE_NAME) {
     multiplicativeMultiplier *= LOVING_ABILITY_DAMAGE_MULTIPLIER;
   }
+  if (loadout.belt?.item?.id === IMPLOSION_BELT_ID && IMPLOSION_BELT_WEAPON_IDS.has(weaponId)) {
+    multiplicativeMultiplier *= IMPLOSION_BELT_ABILITY_MULTIPLIER;
+  }
 
-  const initialDamage = table.base * (1 + (baseStats.intelligence / 100) * table.scaling);
+  const abilityDamageStat = baseStats.ability_damage || 0;
+  const initialDamage = table.base * (1 + (baseStats.intelligence / 100) * table.scaling) * (1 + abilityDamageStat / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
   const finalDamage = Math.floor(initialDamage * additiveMultiplier * multiplicativeMultiplier);
 
   return {
     baseDamage: table.base,
     scaling: table.scaling,
+    abilityDamageStat,
     initialDamage,
     additiveMultiplier,
     additivePercent,

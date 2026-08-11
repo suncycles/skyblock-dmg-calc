@@ -834,7 +834,7 @@ function collectAttributeEntries(attributes, loadout, out) {
     if (!level) continue;
     const base = RULER_RATE * level;
     const value = base * (1 + echoOfRulerBoost / 100);
-    out.additiveConditional.push({ id: `attr-${id}`, label: name, source: 'Attribute', value, condition: mobType });
+    out.additiveConditional.push({ id: `attr-${id}`, label: name, source: 'Attribute', value, condition: mobType, abilityEligible: true });
   }
 
   // Folded into one "Attributes" base-stat source line. Echo of Elemental boosts the whole
@@ -878,7 +878,13 @@ function collectAttributeEntries(attributes, loadout, out) {
 
   const dominanceLevel = attributes.dominance || 0;
   if (dominanceLevel) {
-    out.additiveNonConditional.push({ id: 'attr-dominance', label: 'Dominance', source: 'Attribute', value: DOMINANCE_RATE * dominanceLevel });
+    out.additiveNonConditional.push({
+      id: 'attr-dominance',
+      label: 'Dominance',
+      source: 'Attribute',
+      value: DOMINANCE_RATE * dominanceLevel,
+      abilityEligible: true,
+    });
   }
 
   // Attack Speed shard ("Inferno Demonlord") — always-active, feeds Bonus Attack Speed directly

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
 import { computeTotalTuningPoints } from '../lib/accessoryPowers';
-import { ATTRIBUTE_IDS, MAX_ATTRIBUTE_LEVEL } from '../lib/attributes';
+import { ATTRIBUTE_IDS, getAttributeMaxLevel } from '../lib/attributes';
 import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from '../lib/starring';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
@@ -131,7 +131,7 @@ function loadInitialAttributes() {
   try {
     const parsed = JSON.parse(stored);
     for (const id of ATTRIBUTE_IDS) {
-      if (typeof parsed[id] === 'number') defaults[id] = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(parsed[id])));
+      if (typeof parsed[id] === 'number') defaults[id] = Math.max(0, Math.min(getAttributeMaxLevel(id), Math.floor(parsed[id])));
     }
     return defaults;
   } catch (err) {
@@ -265,7 +265,7 @@ export function BuildProvider({ children }) {
 
   const setAttributeLevel = useCallback((id, level) => {
     setAttributesState((prev) => {
-      const clamped = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(level) || 0));
+      const clamped = Math.max(0, Math.min(getAttributeMaxLevel(id), Math.floor(level) || 0));
       const next = { ...prev, [id]: clamped };
       localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(next));
       return next;
@@ -461,7 +461,7 @@ export function BuildProvider({ children }) {
     setAttributesState((prev) => {
       const next = { ...prev };
       for (const [id, level] of Object.entries(patch || {})) {
-        if (ATTRIBUTE_IDS.includes(id)) next[id] = Math.max(0, Math.min(MAX_ATTRIBUTE_LEVEL, Math.floor(level) || 0));
+        if (ATTRIBUTE_IDS.includes(id)) next[id] = Math.max(0, Math.min(getAttributeMaxLevel(id), Math.floor(level) || 0));
       }
       localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(next));
       return next;
