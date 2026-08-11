@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ItemDataProvider } from './context/ItemDataContext';
 import { BuildProvider } from './context/BuildContext';
 import { TooltipProvider } from './context/TooltipContext';
@@ -93,6 +93,7 @@ export default function App() {
                     <Route path="/tutorial" element={<Tutorial />} />
                     <Route path="/examples" element={<ComingSoon title="Examples" />} />
                     <Route path="/resources" element={<Resources />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </ErrorBoundary>
               </div>

@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/* Site-wide +15% scale — `zoom` (not `transform: scale`) so every dimension (text, padding,
+   gaps, icon sizes, arbitrary px values) grows together in lockstep, the same way a real browser
+   zoom does, which is what actually guarantees every component's spacing stays proportionally
+   correct without hand-editing the dozens of files that use fixed/arbitrary Tailwind sizes. No
+   vw/vh units exist anywhere in this codebase (checked — see components/PageBackground.jsx's own
+   comment on why), so there's nothing here that resolves against the raw viewport and could drift
+   out of proportion. */
+html {
+  zoom: 1.15;
+  /* Reserves clearance for the fixed h-12 TopBar (components/TopBar.jsx) whenever the browser
+     auto-scrolls to bring a focused/anchored element into view (e.g. EntryScreen's autoFocus
+     username input) — without this, a short viewport whose content doesn't fully fit (now more
+     common now that everything renders ~15% larger) scrolls that content flush to the very top,
+     right underneath the fixed header instead of below it. Matches TopBar's own h-12 height. */
+  scroll-padding-top: 48px;
+}
+
 body {
   background: #0a0b0f;
   color: #eef1f5;

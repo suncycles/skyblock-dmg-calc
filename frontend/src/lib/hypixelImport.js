@@ -276,6 +276,12 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
         ...emptyPetModifiers(),
         level: raw.pet.level || 1,
         petItem: raw.pet.heldItem || null,
+        // Only meaningful for Golden Dragon, but imported unconditionally for whichever pet is
+        // active — same "always imported" treatment as level/petItem above. bank is the co-op
+        // bank balance (raw.bank), goldCollection is this player's own Gold Ingot collection;
+        // either is 0 if the account has that Hypixel API setting turned off.
+        bankCoins: raw.bank || 0,
+        goldCollection: raw.goldCollection || 0,
       },
     };
   }
