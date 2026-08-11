@@ -26,15 +26,7 @@
 
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
-import { computeSkyblockLevelMultiplier } from './playerStats';
-import {
-  ABILITY_DAMAGE_TABLE,
-  LOVING_REFORGE_NAME,
-  LOVING_ABILITY_DAMAGE_MULTIPLIER,
-  IMPLOSION_BELT_ID,
-  IMPLOSION_BELT_ABILITY_MULTIPLIER,
-  IMPLOSION_BELT_WEAPON_IDS,
-} from './abilityDamage';
+import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -157,17 +149,21 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 // End Strike, Zombie's Rotten Blade, and Wither Skeleton's Wither Blood (collectPetEntries) —
 // every other additive source in the app (One For All, Swarm/Combo, other pet perks, etc.) is
 // excluded on purpose.
-// MultiplicativeMultiplier counts Skyblock Level, a Loving-reforged Chestplate's +5%, and the
-// Implosion Belt's 1.25x (Hyperion/Spirit Sceptre/Yeti Sword only).
+// MultiplicativeMultiplier is the product of sources.abilityMultiplicative (built in
+// damageSources.js): Skyblock Level and the Implosion Belt's 1.25x (Hyperion/Spirit Sceptre/Yeti
+// Sword only) — deliberately its own bucket, not filtered from the melee `multiplicative` list,
+// since most of that list doesn't apply here at all. Loving's chestplate bonus is a flat +5
+// Ability Damage stat instead, folded into baseStats.ability_damage like any other source (see
+// lib/reforges.js).
 // No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
 // currently modeled maps to it, left at 0 rather than guessed.
 // Returns null when the equipped weapon has no table entry (not an ability weapon).
-export function computeAbilityDamage(sources, mob, loadout, playerStats, useDungeonizedStats = false, useMasterMode = false) {
+export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats = false, useMasterMode = false) {
   const weaponId = loadout.weapon?.item?.id;
   const table = ABILITY_DAMAGE_TABLE[weaponId];
   if (!table) return null;
 
-  const { additiveNonConditional, additiveConditional } = sources;
+  const { additiveNonConditional, additiveConditional, abilityMultiplicative } = sources;
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
 
   let additivePercent = 0;
@@ -178,12 +174,9 @@ export function computeAbilityDamage(sources, mob, loadout, playerStats, useDung
     if (e.abilityEligible && conditionMatchesMob(e.condition, mob)) additivePercent += e.value;
   }
 
-  let multiplicativeMultiplier = computeSkyblockLevelMultiplier(playerStats?.skyblockLevel);
-  if (loadout.chestplate?.modifiers?.reforge === LOVING_REFORGE_NAME) {
-    multiplicativeMultiplier *= LOVING_ABILITY_DAMAGE_MULTIPLIER;
-  }
-  if (loadout.belt?.item?.id === IMPLOSION_BELT_ID && IMPLOSION_BELT_WEAPON_IDS.has(weaponId)) {
-    multiplicativeMultiplier *= IMPLOSION_BELT_ABILITY_MULTIPLIER;
+  let multiplicativeMultiplier = 1;
+  for (const e of abilityMultiplicative) {
+    if (!e.condition || conditionMatchesMob(e.condition, mob)) multiplicativeMultiplier *= e.value;
   }
 
   const abilityDamageStat = baseStats.ability_damage || 0;

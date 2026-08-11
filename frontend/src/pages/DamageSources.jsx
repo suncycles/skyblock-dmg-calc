@@ -207,7 +207,7 @@ export default function DamageSources() {
           const types = MOB_TYPES[name] || null;
           if (!types) return { name, types: null, abilityDamage: null };
           const mob = { name, types };
-          return { name, types, abilityDamage: computeAbilityDamage(result, mob, loadout, playerStats, useDungeonizedStats, useMasterMode) };
+          return { name, types, abilityDamage: computeAbilityDamage(result, mob, loadout, useDungeonizedStats, useMasterMode) };
         })
       : [];
 
@@ -720,8 +720,12 @@ export default function DamageSources() {
             ))}
           </Section>
 
-          <Section title="Multiplicative Damage Sources" empty="None equipped.">
-            {result.multiplicative.map((e) => (
+          <Section
+            title="Multiplicative Damage Sources"
+            subtitle={mageMode ? 'Only Ability Damage-eligible sources are shown while in Mage Mode.' : undefined}
+            empty="None equipped."
+          >
+            {(mageMode ? result.abilityMultiplicative : result.multiplicative).map((e) => (
               <Row
                 key={e.id}
                 left={e.label}

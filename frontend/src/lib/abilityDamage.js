@@ -42,12 +42,6 @@ export const ABILITY_DAMAGE_TABLE = {
   VOODOO_DOLL_WILTED: { base: 2222, scaling: 1 }, // Jinxed Voodoo Doll
 };
 
-// Loving reforge (Chestplate-only): "Increases ability damage by +5%" — a hidden-bonus-style
-// ability line, not part of the structured reforgeStats block, same situation as Vanquished's
-// 1.1x. Verified against NEU-REPO's constants/reforgestones.json (RED_SCARF stone).
-export const LOVING_REFORGE_NAME = 'Loving';
-export const LOVING_ABILITY_DAMAGE_MULTIPLIER = 1.05;
-
 // Implosion Belt: user-verified 1.25x multiplier to Hyperion/Spirit Sceptre/Yeti Sword's own
 // ability damage specifically (not a generic Ability Damage source) — the belt's bundled lore
 // text describes a different, unrelated "explosion damage" bonus, so this can't be scanned for.

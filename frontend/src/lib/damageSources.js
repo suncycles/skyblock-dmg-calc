@@ -6,6 +6,7 @@ import {
   sumMasterDungeonizedStatFromTooltipLines,
 } from './dungeonize';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
+import { IMPLOSION_BELT_ID, IMPLOSION_BELT_ABILITY_MULTIPLIER, IMPLOSION_BELT_WEAPON_IDS } from './abilityDamage';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -940,6 +941,13 @@ export async function collectDamageSources(
     weaponBonusNonConditional: [],
     weaponBonusConditional: [],
     multiplicative: [],
+    // Mage Mode's own multiplicative bucket — deliberately separate from `multiplicative` above
+    // rather than filtered from it, since most of that list (armor-set bonuses, Crown of
+    // Avarice, etc.) genuinely doesn't apply to Ability Damage at all per the user-verified
+    // formula (see lib/finalDamage.js's computeAbilityDamage) — a shared "abilityEligible" flag
+    // like the additive buckets use would risk a bonus meant to be ability-only (Implosion Belt)
+    // still leaking into melee Final Damage's own loop, which doesn't check that flag.
+    abilityMultiplicative: [],
     situational: [],
     overloadBonusPercent: 0,
   };
@@ -1000,7 +1008,31 @@ export async function collectDamageSources(
 
   const skyblockLevelMultiplier = computeSkyblockLevelMultiplier(playerStats?.skyblockLevel);
   if (skyblockLevelMultiplier !== 1) {
-    out.multiplicative.push({ id: 'skyblock-level', label: 'Skyblock Level', source: 'Player', value: skyblockLevelMultiplier });
+    const skyblockLevelEntry = { id: 'skyblock-level', label: 'Skyblock Level', source: 'Player', value: skyblockLevelMultiplier };
+    out.multiplicative.push(skyblockLevelEntry);
+    // Applies identically to Ability Damage, per the user-verified Mage Mode formula.
+    out.abilityMultiplicative.push(skyblockLevelEntry);
+  }
+
+  // Implosion Belt: user-verified 1.25x multiplier to Hyperion/Spirit Sceptre/Yeti Sword's own
+  // Ability Damage specifically — never melee Final Damage, hence abilityMultiplicative only.
+  // Surfaced as an inactive situational note (rather than nothing at all) when the belt/weapon
+  // combo isn't currently equipped, so the bonus isn't invisible either way.
+  if (loadout.belt?.item?.id === IMPLOSION_BELT_ID && IMPLOSION_BELT_WEAPON_IDS.has(loadout.weapon?.item?.id)) {
+    out.abilityMultiplicative.push({
+      id: 'implosion-belt',
+      label: 'Implosion Belt',
+      source: 'Belt',
+      value: IMPLOSION_BELT_ABILITY_MULTIPLIER,
+    });
+  } else {
+    out.situational.push({
+      id: 'implosion-belt-inactive',
+      label: 'Implosion Belt',
+      source: 'Ability Damage',
+      note: `Not currently active — requires the Implosion Belt equipped with Hyperion, Spirit Sceptre, or Yeti Sword for a +${Math.round((IMPLOSION_BELT_ABILITY_MULTIPLIER - 1) * 100)}% Ability Damage multiplier.`,
+      formula: null,
+    });
   }
 
   for (const slot of GEAR_SLOTS) {
