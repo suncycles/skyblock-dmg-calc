@@ -38,6 +38,7 @@ import HypixelImport from './pages/HypixelImport';
 import Credits from './pages/Credits';
 import Resources from './pages/Resources';
 import Tutorial from './pages/Tutorial';
+import Examples from './pages/Examples';
 import ComingSoon from './pages/ComingSoon';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -91,7 +92,7 @@ export default function App() {
                     <Route path="/credits" element={<Credits />} />
                     <Route path="/guides" element={<ComingSoon title="Guides" />} />
                     <Route path="/tutorial" element={<Tutorial />} />
-                    <Route path="/examples" element={<ComingSoon title="Examples" />} />
+                    <Route path="/examples" element={<Examples />} />
                     <Route path="/resources" element={<Resources />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
