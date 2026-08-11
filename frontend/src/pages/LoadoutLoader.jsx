@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
+import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -23,6 +24,7 @@ export default function LoadoutLoader() {
     decodeLoadoutCode(code, itemData)
       .then((state) => {
         loadFullState(state);
+        sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
         navigate('/', { replace: true });
       })
       .catch((err) => {
