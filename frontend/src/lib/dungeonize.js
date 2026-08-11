@@ -2,7 +2,11 @@ import { REFORGE_COLOR } from './reforges';
 import { BOOKS_COLOR } from './books';
 import { GEMSTONE_COLOR } from './gemstones';
 import { STAT_LABELS, formatStatValue } from './reforgeData';
-import { CATACOMBS_STAR_PERCENT_PER_STAR, MASTER_STAR_PERCENT_PER_STAR } from './starring';
+import {
+  CATACOMBS_STAR_PERCENT_PER_STAR,
+  MASTER_STAR_PERCENT_PER_STAR,
+  ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR,
+} from './starring';
 
 /* Hypixel's real "Dungeonize" mechanic: computes a *separate* Catacombs Boost total for each
    stat, independent of the item's Overworld total (see lib/starring.js's computeStarBonuses for
@@ -36,6 +40,14 @@ export function computeCatacombsBoostPercent(catacombsLevel, useOldCurve, stars,
   const digitBonus = Math.max(0, Math.min(MAX_GENERALS_MEDALLION_DIGITS, Math.floor(generalsMedallionDigits || 0)));
   const starsPercent = CATACOMBS_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(stars || 0));
   const withoutMaster = curve[level] + starsPercent + digitBonus;
+  const masterPercent = MASTER_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(masterStars || 0));
+  return { withoutMaster, withMaster: withoutMaster + masterPercent };
+}
+
+// Ability Damage's own dungeon scaling (see lib/starring.js): stars only, no Catacombs Level
+// curve/General's Medallion term, at its own 11%/star rate — Master Stars still stack normally.
+export function computeAbilityDamageCatacombsBoostPercent(stars, masterStars = 0) {
+  const withoutMaster = ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(stars || 0));
   const masterPercent = MASTER_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(masterStars || 0));
   return { withoutMaster, withMaster: withoutMaster + masterPercent };
 }
@@ -106,23 +118,23 @@ export function sumMasterDungeonizedStatFromTooltipLines(finalLines, label) {
 export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, starBonus, stars, masterStars, generalsMedallionDigits) {
   if (!lore) return lore;
   const { withoutMaster, withMaster } = computeCatacombsBoostPercent(catacombsLevel, useOldCurve, stars, generalsMedallionDigits, masterStars);
+  const abilityBoost = computeAbilityDamageCatacombsBoostPercent(stars, masterStars);
   return lore.map((line) => {
     const plain = line.replace(/§./g, '');
     const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
     if (!labelMatch) return line;
     const statKey = Object.keys(STAT_LABELS).find((k) => STAT_LABELS[k].label === labelMatch[2]);
     if (!statKey) return line;
-    // Ability Damage (Wither/Shadow/Dark Goggles, Aurora Helmet, Gilded Midas Staff) doesn't
-    // scale with the Catacombs curve in the real game — skip it here.
-    if (statKey === 'ability_damage') return line;
+    const { withoutMaster: statWithoutMaster, withMaster: statWithMaster } =
+      statKey === 'ability_damage' ? abilityBoost : { withoutMaster, withMaster };
     const total = sumStatFromTooltipLines(lore, labelMatch[2]);
     if (!total) return line;
     const catacombsBase = total - (starBonus?.[statKey] || 0);
     if (!catacombsBase) return line;
-    const boostedNoMaster = Math.round(catacombsBase * (1 + withoutMaster / 100) * 10) / 10;
+    const boostedNoMaster = Math.round(catacombsBase * (1 + statWithoutMaster / 100) * 10) / 10;
     let result = `${line} §${DUNGEONIZE_COLOR}(${formatStatValue(statKey, boostedNoMaster)})`;
     if (masterStars > 0) {
-      const boostedWithMaster = Math.round(catacombsBase * (1 + withMaster / 100) * 10) / 10;
+      const boostedWithMaster = Math.round(catacombsBase * (1 + statWithMaster / 100) * 10) / 10;
       result += ` §${MASTER_STAR_COLOR}(${formatStatValue(statKey, boostedWithMaster)})`;
     }
     return result;
