@@ -17,7 +17,7 @@ import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
-import { MOB_TYPE_SYMBOLS, KEYWORD_SYMBOLS } from '../lib/damageSymbols';
+import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
@@ -664,24 +664,24 @@ export default function DamageSources() {
 
           <Section
             title="Non-conditional % Additive Damage"
-            subtitle={
-              <>
-                <Keyworded text="Ability Damage" />-tagged sources also count in Mage Mode.
-              </>
-            }
+            subtitle={mageMode ? 'Only Ability Damage-eligible sources are shown while in Mage Mode.' : undefined}
             empty="None equipped."
           >
-            {result.additiveNonConditional.map((e) => (
-              <Row key={e.id} left={e.label} right={`+${round1(e.value)}%`} source={e.source} abilityEligible={e.abilityEligible} />
+            {(mageMode ? result.additiveNonConditional.filter((e) => e.abilityEligible) : result.additiveNonConditional).map((e) => (
+              <Row key={e.id} left={e.label} right={`+${round1(e.value)}%`} source={e.source} />
             ))}
           </Section>
 
           <Section
             title="Conditional % Additive Damage"
-            subtitle="Only applies against the listed target(s)."
+            subtitle={
+              mageMode
+                ? 'Only applies against the listed target(s). Only Ability Damage-eligible sources are shown while in Mage Mode.'
+                : 'Only applies against the listed target(s).'
+            }
             empty="None equipped."
           >
-            {result.additiveConditional.map((e) => (
+            {(mageMode ? result.additiveConditional.filter((e) => e.abilityEligible) : result.additiveConditional).map((e) => (
               <Row
                 key={e.id}
                 left={e.label}
@@ -692,7 +692,6 @@ export default function DamageSources() {
                 }
                 source={e.source}
                 applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
-                abilityEligible={e.abilityEligible}
               />
             ))}
           </Section>
@@ -775,19 +774,11 @@ export default function DamageSources() {
 }
 
 // `applied` is only meaningful once a target mob is selected — undefined renders normally, false dims the row.
-// `abilityEligible` marks sources that also count toward Mage Mode's Ability Damage total
-// (finalDamage.js's computeAbilityDamage) — most melee % additive sources don't, so the badge
-// only shows up for the ones that are dual-purpose.
-function Row({ left, right, source, applied, abilityEligible }) {
+function Row({ left, right, source, applied }) {
   return (
     <div className={`flex justify-between items-baseline text-[13px] text-black gap-2 ${applied === false ? 'opacity-40' : ''}`}>
       <span>
         {left} <span className="text-[11px] text-neutral-600">— {source}</span>
-        {abilityEligible && (
-          <span className="ml-1 text-[9px] font-bold uppercase tracking-wide" style={{ color: KEYWORD_SYMBOLS['Ability Damage'].color }}>
-            {KEYWORD_SYMBOLS['Ability Damage'].symbol} Ability
-          </span>
-        )}
       </span>
       <span className="font-mono whitespace-nowrap">{right}</span>
     </div>
