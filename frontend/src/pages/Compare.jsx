@@ -9,7 +9,8 @@ import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
-import { loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
+import { loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
+import { formatItemName } from '../lib/mcText';
 import PageHeader from '../components/PageHeader';
 
 const panel =
@@ -149,15 +150,23 @@ function displayedStat(side, key) {
   return side.state.useMasterMode ? side.result.masterDungeonizedBaseStats[key] : side.result.dungeonizedBaseStats[key];
 }
 
-function LoadoutSelect({ label, value, onChange, savedLoadouts }) {
+// `helmetPreview` per option is a formatted item name | '' (no helmet) | undefined (still
+// decoding) — same convention as lib/savedLoadouts.js's useSavedLoadoutHelmetPreviews, appended
+// to each option's label since a native <select> can't render an icon inside <option>.
+function previewSuffix(preview) {
+  if (preview === undefined) return '';
+  return preview ? ` — ⛑️ ${preview}` : ' — (no helmet)';
+}
+
+function LoadoutSelect({ label, value, onChange, savedLoadouts, currentHelmetPreview, helmetPreviews }) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wide whitespace-nowrap w-20">{label}</label>
       <select value={value} onChange={onChange} className={`${panel} text-sm px-2 py-1.5 text-black cursor-pointer flex-1`}>
-        <option value="current">Current Build</option>
+        <option value="current">{`Current Build${previewSuffix(currentHelmetPreview)}`}</option>
         {savedLoadouts.map((l) => (
           <option key={l.id} value={l.id}>
-            {l.name}
+            {`${l.name}${previewSuffix(helmetPreviews[l.id])}`}
           </option>
         ))}
       </select>
@@ -221,6 +230,9 @@ export default function Compare() {
   const currentState = useCurrentBuildState(build);
   const sideA = useLoadoutResult(selectionA, itemData, currentState, savedLoadouts);
   const sideB = useLoadoutResult(selectionB, itemData, currentState, savedLoadouts);
+  const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true);
+  const currentHelmetName = build.loadout.helmet?.item?.name;
+  const currentHelmetPreview = currentHelmetName ? formatItemName(currentHelmetName) : '';
 
   function sideLabel(selection) {
     if (selection === 'current') return 'Current Build';
@@ -237,8 +249,22 @@ export default function Compare() {
 
       <div className="w-full max-w-[1100px] flex flex-col gap-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <LoadoutSelect label="Loadout A" value={selectionA} onChange={(e) => setSelectionA(e.target.value)} savedLoadouts={savedLoadouts} />
-          <LoadoutSelect label="Loadout B" value={selectionB} onChange={(e) => setSelectionB(e.target.value)} savedLoadouts={savedLoadouts} />
+          <LoadoutSelect
+            label="Loadout A"
+            value={selectionA}
+            onChange={(e) => setSelectionA(e.target.value)}
+            savedLoadouts={savedLoadouts}
+            currentHelmetPreview={currentHelmetPreview}
+            helmetPreviews={helmetPreviews}
+          />
+          <LoadoutSelect
+            label="Loadout B"
+            value={selectionB}
+            onChange={(e) => setSelectionB(e.target.value)}
+            savedLoadouts={savedLoadouts}
+            currentHelmetPreview={currentHelmetPreview}
+            helmetPreviews={helmetPreviews}
+          />
         </div>
 
         {savedLoadouts.length === 0 && (

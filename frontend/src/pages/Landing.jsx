@@ -25,7 +25,7 @@ import { formatItemName, rarityGlowFilter } from '../lib/mcText';
 import { getDisplayTier } from '../lib/recombobulator';
 import { SLOT_TEXTURES } from '../lib/icons';
 import { encodeLoadout, decodeLoadoutCode } from '../lib/loadoutCode';
-import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
+import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
@@ -95,34 +95,7 @@ export default function Landing() {
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
-  // entry.id -> formatted Helmet name | '' (no helmet) | undefined (not decoded yet) — a saved
-  // loadout's code only holds item ids, so the preview needs a real decode per entry rather than
-  // just reading entry.name. Decoded lazily (only while the panel's open) since it's otherwise
-  // pure wasted work on every page load.
-  const [helmetPreviews, setHelmetPreviews] = useState({});
-
-  useEffect(() => {
-    if (!showLoadoutsPanel) return;
-    const pending = savedLoadouts.filter((entry) => !(entry.id in helmetPreviews));
-    if (pending.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const updates = {};
-      for (const entry of pending) {
-        try {
-          const decoded = await decodeLoadoutCode(entry.code, itemData);
-          const helmetName = decoded.loadout?.helmet?.item?.name;
-          updates[entry.id] = helmetName ? formatItemName(helmetName) : '';
-        } catch {
-          updates[entry.id] = '';
-        }
-      }
-      if (!cancelled) setHelmetPreviews((prev) => ({ ...prev, ...updates }));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [showLoadoutsPanel, savedLoadouts, itemData, helmetPreviews]);
+  const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel);
 
   function dismissEntry() {
     sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
@@ -180,7 +153,8 @@ export default function Landing() {
     }
   }
 
-  function handleDeleteSavedLoadout(id) {
+  async function handleDeleteSavedLoadout(id, name) {
+    if (!(await confirmDialog(`Delete "${name}"? This can't be undone.`))) return;
     persistSavedLoadouts(savedLoadouts.filter((l) => l.id !== id));
   }
 
@@ -785,7 +759,7 @@ export default function Landing() {
                       <button
                         className="text-[11px] px-1.5 py-1 rounded bg-neutral-800 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
                         title={`Delete "${entry.name}"`}
-                        onClick={() => handleDeleteSavedLoadout(entry.id)}
+                        onClick={() => handleDeleteSavedLoadout(entry.id, entry.name)}
                       >
                         ✕
                       </button>

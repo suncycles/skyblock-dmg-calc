@@ -415,6 +415,14 @@ async function handleHypixelImport(url, env) {
       tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
     };
 
+    // Golden Dragon's Legendary Treasure/Shining Scales perks (see lib/damageSources.js) need
+    // the co-op bank balance (profile-level, shared across every member on this profile — not
+    // "personal", there's no such thing as a personal bank in Skyblock) and this player's own
+    // Gold Ingot mining collection. Either is `null` if the account has the relevant Hypixel API
+    // setting (Banking API / Collections API) turned off.
+    const bank = typeof profile.banking?.balance === "number" ? profile.banking.balance : null;
+    const goldCollection = typeof member.collection?.GOLD_INGOT === "number" ? member.collection.GOLD_INGOT : null;
+
     return jsonResponse({
       profile: { profile_id: profile.profile_id, cute_name: profile.cute_name },
       username: resolvedUsername,
@@ -427,6 +435,8 @@ async function handleHypixelImport(url, env) {
       skills,
       slayers,
       accessory,
+      bank,
+      goldCollection,
     });
   } catch (err) {
     console.error("handleHypixelImport: failed to decode inventory data:", err);
