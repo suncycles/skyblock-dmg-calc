@@ -213,7 +213,7 @@ function MobResultCard({ label, r }) {
 export default function Compare() {
   const navigate = useNavigate();
   const build = useBuild();
-  const { itemData } = useItemData();
+  const { itemData, loading: itemDataLoading } = useItemData();
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const [selectionA, setSelectionAState] = useState(() => loadInitialSelection(SELECTION_A_KEY, false));
   const [selectionB, setSelectionBState] = useState(() => loadInitialSelection(SELECTION_B_KEY, true));
@@ -230,7 +230,7 @@ export default function Compare() {
   const currentState = useCurrentBuildState(build);
   const sideA = useLoadoutResult(selectionA, itemData, currentState, savedLoadouts);
   const sideB = useLoadoutResult(selectionB, itemData, currentState, savedLoadouts);
-  const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true);
+  const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true, itemDataLoading);
   const currentHelmetName = build.loadout.helmet?.item?.name;
   const currentHelmetPreview = currentHelmetName ? formatItemName(currentHelmetName) : '';
 

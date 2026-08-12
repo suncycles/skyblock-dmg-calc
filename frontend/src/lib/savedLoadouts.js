@@ -21,11 +21,14 @@ export function loadSavedLoadoutsFromStorage() {
 // just reading entry.name. Decoded lazily (only while `enabled`), since it's otherwise pure
 // wasted work on every page load. Shared by Landing's Loadouts panel and Compare's loadout
 // picker so both show the exact same preview for the same saved loadout.
-export function useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, enabled) {
+// `itemDataLoading` must be threaded in from ItemDataContext: decoding against the still-EMPTY
+// placeholder itemData (before its fetch resolves) silently finds no gear and caches a permanent
+// wrong '' for that entry.id, since a cached id is never retried once ItemData finishes loading.
+export function useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, enabled, itemDataLoading) {
   const [previews, setPreviews] = useState({});
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || itemDataLoading) return;
     const pending = savedLoadouts.filter((entry) => !(entry.id in previews));
     if (pending.length === 0) return;
     let cancelled = false;
@@ -45,7 +48,7 @@ export function useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, enabled) 
     return () => {
       cancelled = true;
     };
-  }, [enabled, savedLoadouts, itemData, previews]);
+  }, [enabled, savedLoadouts, itemData, previews, itemDataLoading]);
 
   return previews;
 }

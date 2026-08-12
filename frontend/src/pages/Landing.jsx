@@ -85,7 +85,7 @@ export default function Landing() {
     blazeCrimsonIsle,
     loadFullState,
   } = useBuild();
-  const { itemData } = useItemData();
+  const { itemData, loading: itemDataLoading } = useItemData();
   const { showTooltip, hideTooltip } = useTooltip();
   const { confirmDialog, alertDialog } = useConfirmDialog();
   const [exportStatus, setExportStatus] = useState(null);
@@ -95,7 +95,7 @@ export default function Landing() {
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
-  const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel);
+  const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
 
   function dismissEntry() {
     sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
