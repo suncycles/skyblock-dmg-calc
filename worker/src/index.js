@@ -12,9 +12,9 @@
      POST /api/refresh          -> forces a refetch regardless of staleness
      GET  /api/hypixel/import   -> resolves ?username, fetches their SkyBlock profile(s), decodes
                                     currently-worn armor/equipment/pet plus every carried weapon
-                                    candidate and every non-empty Wardrobe armor set (the frontend
-                                    lets the user pick), plus computed pet level, attribute levels,
-                                    Wolf Slayer level, Alchemy/Enchanting level, and selected
+                                    candidate and every non-empty Wardrobe armor/equipment set (the
+                                    frontend lets the user pick), plus computed pet level, attribute
+                                    levels, Wolf Slayer level, Alchemy/Enchanting level, and selected
                                     Accessory Power from the Hypixel API (see handleHypixelImport).
                                     Needs env.HYPIXEL_API_KEY.
      POST /api/loadout          -> stores a frontend-encoded loadout blob (see
@@ -206,18 +206,52 @@ async function fetchReforgeStones() {
   return byName;
 }
 
-// Currently-worn is still the default and the only source for equipment — deliberately ignores
-// member.inventory.loadout (the in-game Loadout preset pointer) since its own "equipped_set"
-// index isn't reliable (can point at an empty saved slot). Armor can additionally come from a
-// user-picked Wardrobe set (wardrobeSets below) instead of what's currently worn — sidesteps that
-// same reliability problem by making the pick explicit rather than trusting an auto-pointer.
-// Equipment Wardrobe (a separate wardrobe for necklace/cloak/belt/gloves) isn't a released
-// Hypixel feature yet, so equipment still only ever comes from inventory.equipment_contents.
+// Currently-worn is still the default source for both armor and equipment — deliberately ignores
+// member.loadout.armor/equipment's own "equipped_set" pointer since it isn't reliable (can point
+// at an empty saved slot, confirmed against a real account: equipped_set pointed at a set with no
+// items while the player was visibly wearing something else entirely). Both armor and equipment
+// can additionally come from a user-picked Wardrobe set (wardrobeSets/wardrobeEquipmentSets below)
+// instead of what's currently worn — sidesteps that same reliability problem by making the pick
+// explicit rather than trusting the auto-pointer.
 const WEAPON_IDS = new Set(weapons.map((w) => w.id));
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
 const ARMOR_SLOT_ORDER = ["boots", "leggings", "chestplate", "helmet"];
 const EQUIPMENT_SLOT_ORDER = ["necklace", "cloak", "belt", "gloves"];
+
+// Wardrobe data is NOT a single combined blob (unlike inv_armor/equipment_contents) — it lives at
+// member.loadout.armor / member.loadout.equipment, each keyed by 1-based set-number strings ("1",
+// "2", ...) plus a non-numeric "equipped_set" pointer key to skip. Each set is itself an object
+// with one SEPARATELY gzip+base64-encoded NBT blob per real slot (only present when that slot has
+// an item) — confirmed against a real account's raw API response, since the NEU-REPO-adjacent
+// assumption that it'd match inv_armor's shape (one combined blob) turned out to be wrong.
+const WARDROBE_ARMOR_SLOT_KEYS = { helmet: "HELMET", chestplate: "CHESTPLATE", leggings: "LEGGINGS", boots: "BOOTS" };
+const WARDROBE_EQUIPMENT_SLOT_KEYS = { necklace: "EQUIPMENT_SLOT_1", cloak: "EQUIPMENT_SLOT_2", belt: "EQUIPMENT_SLOT_3", gloves: "EQUIPMENT_SLOT_4" };
+
+// Decodes member.loadout.armor or member.loadout.equipment into a list of non-empty sets, each
+// {index, <slot>: summary|null}. slotKeys maps our slot names to the real per-slot NBT key names
+// above. Every set's every slot is decoded concurrently (each decode is its own tiny gzip blob) —
+// a saved account can have up to ~19-27 sets depending on rank/Community Center purchases, so this
+// is dozens of small decodes per import, all run in parallel rather than sequentially awaited.
+async function decodeWardrobeSets(sets, slotKeys) {
+  const entries = Object.entries(sets || {}).filter(([key]) => key !== "equipped_set");
+  const decoded = await Promise.all(
+    entries.map(async ([key, set]) => {
+      const slotEntries = await Promise.all(
+        Object.entries(slotKeys).map(async ([slot, nbtKey]) => {
+          const blob = set[nbtKey];
+          if (!blob?.data) return [slot, null];
+          const items = await decodeInventoryB64(blob.data);
+          return [slot, extractItemSummary(items[0])];
+        }),
+      );
+      const result = { index: Number(key), ...Object.fromEntries(slotEntries) };
+      const hasAny = slotEntries.some(([, summary]) => summary);
+      return hasAny ? result : null;
+    }),
+  );
+  return decoded.filter(Boolean).sort((a, b) => a.index - b.index);
+}
 
 // Pet level XP curve, per rarity tier: cumulative XP to reach level x is a*(b^x - 1) — given
 // directly (not NEU-sourced), verified against real account data. Golden/Rose/Jade Dragon are a
@@ -405,11 +439,10 @@ async function handleHypixelImport(url, env) {
   }
 
   try {
-    const [armorItems, equipmentItems, invItems, wardrobeItems, attributeShards, leveling] = await Promise.all([
+    const [armorItems, equipmentItems, invItems, attributeShards, leveling] = await Promise.all([
       member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
       member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
       member.inventory?.inv_contents?.data ? decodeInventoryB64(member.inventory.inv_contents.data) : [],
-      member.inventory?.wardrobe_contents?.data ? decodeInventoryB64(member.inventory.wardrobe_contents.data) : [],
       fetch(NEU_ATTRIBUTE_SHARDS_URL).then((r) => r.json()),
       fetch(NEU_LEVELING_URL).then((r) => r.json()),
     ]);
@@ -424,22 +457,10 @@ async function handleHypixelImport(url, env) {
       equipmentResult[slot] = extractItemSummary(equipmentItems[i]);
     });
 
-    // Wardrobe: same dense-array-per-slot NBT shape as inv_armor, just 18 sets of 4 back to back
-    // (real cap depends on rank — Default 4/VIP 6/VIP+ 10/MVP 14/MVP+ 18 slots, plus up to 9
-    // purchasable via the Community Center — array length varies accordingly, chunking by 4
-    // handles any length). Only sets with at least one real item are returned — an untouched
-    // slot's 4 entries all decode to null, same "nothing to import" case as an unworn slot.
-    const wardrobeSets = [];
-    for (let s = 0; s * 4 < wardrobeItems.length; s++) {
-      const set = { index: s };
-      let hasAny = false;
-      ARMOR_SLOT_ORDER.forEach((slot, i) => {
-        const summary = extractItemSummary(wardrobeItems[s * 4 + i]);
-        set[slot] = summary;
-        if (summary) hasAny = true;
-      });
-      if (hasAny) wardrobeSets.push(set);
-    }
+    const [wardrobeSets, wardrobeEquipmentSets] = await Promise.all([
+      decodeWardrobeSets(member.loadout?.armor, WARDROBE_ARMOR_SLOT_KEYS),
+      decodeWardrobeSets(member.loadout?.equipment, WARDROBE_EQUIPMENT_SLOT_KEYS),
+    ]);
 
     // Weapon: every inventory slot (hotbar first, then the rest, in real slot order) whose item
     // id is a known weapon — Skyblock has no dedicated weapon slot, and a player can be carrying
@@ -513,6 +534,7 @@ async function handleHypixelImport(url, env) {
       armor: armorResult,
       equipment: equipmentResult,
       wardrobeSets,
+      wardrobeEquipmentSets,
       weapons,
       pet,
       attributeLevels,
