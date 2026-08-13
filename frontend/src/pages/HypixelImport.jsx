@@ -254,9 +254,8 @@ export default function HypixelImport() {
         <div className="w-full max-w-[500px] flex flex-col gap-3">
           <div className={`${panel} p-4 flex flex-col gap-3`}>
             <div className="text-xs text-neutral-700 leading-snug">
-              Pet, Accessory Power (with Stat Tuning), and your attribute/skill levels are always imported. Pick a weapon and choose
-              which armor/equipment slots to bring in below — anything left unchecked keeps whatever's already in
-              that slot.
+              Pet, Accessory Power, and attribute/skill levels are always imported. Pick a weapon and an armor/equipment
+              source below — unchecked slots keep whatever's already there.
             </div>
 
             <div className="flex flex-col gap-1">
@@ -382,11 +381,8 @@ export default function HypixelImport() {
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <div className={`${panel} p-4 flex flex-col gap-3`}>
           <div className="text-xs text-neutral-700 leading-snug">
-            Imports what you're <strong>currently wearing</strong> — you'll get to pick which weapon (if you're
-            carrying more than one) and which armor/equipment slots to bring in next, plus your active pet (with
-            level + held item), Accessory Power (with Stat Tuning), attribute levels, Wolf Slayer level, and
-            Combat/Skyblock/Foraging/Catacombs/Taming/Alchemy/Enchanting level. Saved in-game Loadouts aren't
-            imported.
+            Imports your weapon, armor/equipment (worn or any saved Wardrobe set), active pet, Accessory Power, and
+            attribute/skill levels — you'll pick specifics on the next screen. Saved in-game Loadouts aren't imported.
           </div>
 
           {status !== 'picking-profile' && (
