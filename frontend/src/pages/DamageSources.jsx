@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
-import { computeFinalDamage, computeAbilityDamage } from '../lib/finalDamage';
+import { computeFinalDamage, computeAbilityDamage, computeMageStaffBeamDamage } from '../lib/finalDamage';
 import { ABILITY_DAMAGE_TABLE } from '../lib/abilityDamage';
 import {
   VANQUISHED_SET_ID,
@@ -201,13 +201,26 @@ export default function DamageSources() {
   // Damage. hasAbilityWeapon distinguishes "no ability data for this weapon" from "no target
   // selected" — computeAbilityDamage itself returns null in that case.
   const hasAbilityWeapon = !!ABILITY_DAMAGE_TABLE[loadout.weapon?.item?.id];
+  // Mage Staff "Beam" isn't gated on hasAbilityWeapon — it's a cut of melee Final Damage, not the
+  // weapon's own ability, so it applies even when the equipped weapon has no ABILITY_DAMAGE_TABLE
+  // entry. mobResults[idx] lines up 1:1 with targetMobs[idx] (mobResults is computed unconditionally
+  // above over the same array/order), so it's safe to zip by index instead of a name lookup.
   const abilityMobResults =
     mageMode && result
-      ? targetMobs.map((name) => {
+      ? targetMobs.map((name, idx) => {
           const types = MOB_TYPES[name] || null;
-          if (!types) return { name, types: null, abilityDamage: null };
+          if (!types) return { name, types: null, abilityDamage: null, beamDamage: null };
           const mob = { name, types };
-          return { name, types, abilityDamage: computeAbilityDamage(result, mob, loadout, useDungeonizedStats, useMasterMode) };
+          const meleeFinalDamage = mobResults[idx]?.finalDamage?.finalDamage;
+          return {
+            name,
+            types,
+            abilityDamage: computeAbilityDamage(result, mob, loadout, useDungeonizedStats, useMasterMode),
+            beamDamage:
+              meleeFinalDamage != null
+                ? computeMageStaffBeamDamage(result, meleeFinalDamage, useDungeonizedStats, useMasterMode)
+                : null,
+          };
         })
       : [];
 
@@ -285,7 +298,7 @@ export default function DamageSources() {
               </div>
             </div>
           ) : mageMode ? (
-            abilityMobResults.map(({ name, types, abilityDamage }) => (
+            abilityMobResults.map(({ name, types, abilityDamage, beamDamage }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
                   <span className="text-[13px] font-bold text-black tracking-wide">{name}</span>
@@ -312,38 +325,48 @@ export default function DamageSources() {
                 </div>
                 {!types ? (
                   <div className="text-xs text-neutral-600 italic">"{name}" is no longer in the mob data.</div>
-                ) : !hasAbilityWeapon ? (
-                  <div className="text-xs text-neutral-600 italic">
-                    <Keyworded text="No known Ability Damage data for the equipped weapon — Mage Mode only covers a hand-curated list of staffs/wands/dungeon swords for now." />
-                  </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
-                      <span>
-                        <Keyworded text="Base Ability Damage" />
-                      </span>
-                      <span className="text-right font-mono">{abilityDamage.baseDamage.toLocaleString()}</span>
-                      <span>Ability Scaling</span>
-                      <span className="text-right font-mono">{abilityDamage.scaling}</span>
-                      <span>
-                        <Keyworded text="Ability Damage" /> (stat)
-                      </span>
-                      <span className="text-right font-mono">+{round1(abilityDamage.abilityDamageStat)}%</span>
-                      <span>Initial Damage</span>
-                      <span className="text-right font-mono">{round1(abilityDamage.initialDamage)}</span>
-                      <span>Additive Multiplier</span>
-                      <span className="text-right font-mono">
-                        +{round1(abilityDamage.additivePercent)}% (x{round4(abilityDamage.additiveMultiplier)})
-                      </span>
-                      <span>Multiplicative Multiplier</span>
-                      <span className="text-right font-mono">{round4(abilityDamage.multiplicativeMultiplier)}x</span>
-                    </div>
-                    <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-sm font-bold text-black">Final Damage (Ability)</span>
-                        <span className="text-2xl font-mono font-bold text-black">{abilityDamage.finalDamage.toLocaleString()}</span>
+                    {!hasAbilityWeapon ? (
+                      <div className="text-xs text-neutral-600 italic">
+                        <Keyworded text="No known Ability Damage data for the equipped weapon — Mage Mode only covers a hand-curated list of staffs/wands/dungeon swords for now." />
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
+                          <span>
+                            <Keyworded text="Base Ability Damage" />
+                          </span>
+                          <span className="text-right font-mono">{abilityDamage.baseDamage.toLocaleString()}</span>
+                          <span>Ability Scaling</span>
+                          <span className="text-right font-mono">{abilityDamage.scaling}</span>
+                          <span>
+                            <Keyworded text="Ability Damage" /> (stat)
+                          </span>
+                          <span className="text-right font-mono">+{round1(abilityDamage.abilityDamageStat)}%</span>
+                          <span>Initial Damage</span>
+                          <span className="text-right font-mono">{round1(abilityDamage.initialDamage)}</span>
+                          <span>Additive Multiplier</span>
+                          <span className="text-right font-mono">
+                            +{round1(abilityDamage.additivePercent)}% (x{round4(abilityDamage.additiveMultiplier)})
+                          </span>
+                          <span>Multiplicative Multiplier</span>
+                          <span className="text-right font-mono">{round4(abilityDamage.multiplicativeMultiplier)}x</span>
+                        </div>
+                        <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
+                          <span className="text-sm font-bold text-black">Final Damage (Ability)</span>
+                          <span className="text-2xl font-mono font-bold text-black">{abilityDamage.finalDamage.toLocaleString()}</span>
+                        </div>
+                      </>
+                    )}
+                    {beamDamage && (
+                      <div
+                        className={`flex items-baseline justify-between ${hasAbilityWeapon ? '' : 'border-t-2 border-neutral-500 pt-2 mt-1'}`}
+                      >
+                        <span className="text-sm font-bold text-black">Final Damage (Beam)</span>
+                        <span className="text-2xl font-mono font-bold text-black">{beamDamage.finalDamage.toLocaleString()}</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
