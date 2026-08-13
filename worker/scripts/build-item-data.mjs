@@ -82,15 +82,23 @@ const EXCLUDED_IDS = new Set([
   'TIME_KNIFE', // "Time Shuriken" — Rift cosmetic throwable, not a weapon
 ]);
 
-// Items whose lore matches the /rift/i scan below but are real, normal-Skyblock gear —
-// exceptions to that filter, not to EXCLUDED_IDS above:
+// Items whose lore matches the /rift/i scan below but are kept anyway — exceptions to that
+// filter, not to EXCLUDED_IDS above:
 //   GYROKINETIC_WAND: "Create a large rift at the aimed location" — a lowercase common noun
 //     describing the ability's visual effect (a spatial tear), not the Rift Dimension game mode.
 //   BUBBA_BLISTER / CHOCOLATE_CHIP: their own "X Rift-Exportable X" line is an incidental
 //     drop-mechanic footnote (any item that CAN be carried out of the Rift gets this tag) — the
 //     Accessory Powers they unlock (Bubba/Crumbly, see lib/accessoryPowers.js) are real,
 //     non-Rift-exclusive Powers used in normal Skyblock combat.
-const RIFT_MENTION_KEEP_IDS = new Set(['GYROKINETIC_WAND', 'BUBBA_BLISTER', 'CHOCOLATE_CHIP']);
+//   RIFT_NECKLACE_INSIDE / RIFT_NECKLACE_OUTSIDE: genuinely Rift-dimension gear (unlike the
+//     three above, not a false-positive scan hit) — kept by explicit user request regardless.
+const RIFT_MENTION_KEEP_IDS = new Set([
+  'GYROKINETIC_WAND',
+  'BUBBA_BLISTER',
+  'CHOCOLATE_CHIP',
+  'RIFT_NECKLACE_INSIDE',
+  'RIFT_NECKLACE_OUTSIDE',
+]);
 
 // Inverse of EXCLUDED_IDS: real player-obtainable weapons whose last lore line is just the bare
 // tier (e.g. "§9§lRARE") with no trailing category word, so parseTierAndCategory finds no
