@@ -8,3 +8,8 @@ node_modules/
 # Root-only: deploy-pages.sh and friends, not worker/scripts/ (real
 # tracked source — the old unanchored "scripts/" pattern matched both).
 /scripts/
+
+# Dev-reference notes only — never fetched/served by the app, just cited
+# from source comments for regeneration instructions.
+/docs/
+/CLAUDE.md
