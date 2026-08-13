@@ -219,17 +219,23 @@ export function resolveGearSummary(summary, itemData) {
 // there's no dedicated slot to guess from, so the caller must choose); `selection.excludedSlots`
 // (a Set of GEAR_SLOT_KEYS names) skips those armor/equipment slots entirely, leaving whatever
 // was already in that BuildContext slot untouched (importHypixelLoadout only patches the keys
-// present in `loadout`, see BuildContext.jsx).
+// present in `loadout`, see BuildContext.jsx). `selection.wardrobeSetIndex` sources the 4 armor
+// slots from `raw.wardrobeSets[index]` instead of `raw.armor` (currently worn) — equipment always
+// comes from `raw.equipment` since Equipment Wardrobe isn't a released Hypixel feature.
 export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
-  const { weaponIndex = null, excludedSlots } = selection;
+  const { weaponIndex = null, excludedSlots, wardrobeSetIndex = null } = selection;
   const excluded = excludedSlots || new Set();
   const reforgeLookup = buildReforgeNameLookup(itemData);
+  // wardrobeSetIndex is the set's real Wardrobe slot number (raw.wardrobeSets[].index), not an
+  // array position — empty sets are already filtered out worker-side, so the two diverge as soon
+  // as there's a gap (e.g. slot 1 empty, slot 2 populated leaves it at array position 0).
+  const armorSource = wardrobeSetIndex != null ? raw.wardrobeSets?.find((s) => s.index === wardrobeSetIndex) : raw.armor;
   const bySlot = {
     weapon: weaponIndex != null ? raw.weapons?.[weaponIndex] : null,
-    helmet: raw.armor?.helmet,
-    chestplate: raw.armor?.chestplate,
-    leggings: raw.armor?.leggings,
-    boots: raw.armor?.boots,
+    helmet: armorSource?.helmet,
+    chestplate: armorSource?.chestplate,
+    leggings: armorSource?.leggings,
+    boots: armorSource?.boots,
     necklace: raw.equipment?.necklace,
     cloak: raw.equipment?.cloak,
     belt: raw.equipment?.belt,

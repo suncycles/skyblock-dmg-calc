@@ -39,13 +39,35 @@ function GearRow({ item, checked, onToggle }) {
   );
 }
 
+// Compact 4-icon preview for a Wardrobe set's armor pieces, used in the Armor Source picker.
+function WardrobeSetPreview({ set, itemData }) {
+  return (
+    <span className="flex items-center gap-1">
+      {ARMOR_SLOTS.map((slot) => {
+        const item = resolveGearSummary(set[slot], itemData);
+        return (
+          <span key={slot} title={item ? formatItemName(item.name) : 'Empty'}>
+            {item ? (
+              <WeaponIcon id={item.id} material={item.material} alt={item.name} className="w-5 h-5 object-contain pixelated" color={item.color} />
+            ) : (
+              <span className="block w-5 h-5 bg-black/10" />
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 // Imports currently-worn armor/equipment/active pet/Accessory Power, plus computed pet level,
 // attribute levels, Wolf Slayer level, and Combat/Skyblock/Foraging/Catacombs/Taming/Alchemy/
 // Enchanting level, from a real Hypixel account. Pet/Accessory Power/levels are always imported
 // unconditionally; weapon and each armor/equipment slot go through a Review step first — weapon
 // because Skyblock has no dedicated weapon slot (the Worker returns every carried candidate, not
 // a guess), armor/equipment because the user may want to keep what's already in a given loadout
-// slot instead of having the import overwrite it. Can auto-run on mount when EntryScreen
+// slot instead of having the import overwrite it. Armor can additionally be sourced from any
+// non-empty Wardrobe set instead of currently-worn (Equipment Wardrobe isn't a released Hypixel
+// feature, so equipment always comes from currently-worn). Can auto-run on mount when EntryScreen
 // navigates here with a username already typed in.
 export default function HypixelImport() {
   const navigate = useNavigate();
@@ -58,6 +80,7 @@ export default function HypixelImport() {
   const [profileChoice, setProfileChoice] = useState(null); // { uuid, username, profiles }
   const [rawImport, setRawImport] = useState(null);
   const [weaponChoice, setWeaponChoice] = useState(null); // null = undecided, SKIP_WEAPON, or a raw.weapons index
+  const [wardrobeChoice, setWardrobeChoice] = useState(null); // null = currently worn, or a raw.wardrobeSets index
   const [includedSlots, setIncludedSlots] = useState(() => new Set());
   const autoRanRef = useRef(false);
 
@@ -73,6 +96,7 @@ export default function HypixelImport() {
       }
       setRawImport(raw);
       setWeaponChoice(null);
+      setWardrobeChoice(null);
       // Pre-checked for every slot Hypixel actually reports something worn in — an empty slot has nothing to import either way.
       const bySlot = { ...raw.armor, ...raw.equipment };
       setIncludedSlots(new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => bySlot[slot])));
@@ -93,12 +117,29 @@ export default function HypixelImport() {
     });
   }
 
+  // Switching Armor Source re-checks/unchecks the 4 armor slots to match what the newly chosen
+  // source actually has (same "pre-checked when present" rule as the initial load) — equipment
+  // slots are untouched since Equipment Wardrobe doesn't exist to source from.
+  function handleWardrobeChoice(choice) {
+    setWardrobeChoice(choice);
+    const source = choice == null ? rawImport.armor : rawImport.wardrobeSets?.find((s) => s.index === choice);
+    setIncludedSlots((prev) => {
+      const next = new Set(prev);
+      for (const slot of ARMOR_SLOTS) {
+        if (source?.[slot]) next.add(slot);
+        else next.delete(slot);
+      }
+      return next;
+    });
+  }
+
   async function handleConfirmImport() {
     const weaponIndex = typeof weaponChoice === 'number' ? weaponChoice : null;
     const excludedSlots = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => !includedSlots.has(slot)));
     const { loadout, attributes, playerStats } = await mapHypixelImportToLoadout(rawImport, itemData, {
       weaponIndex,
       excludedSlots,
+      wardrobeSetIndex: wardrobeChoice,
     });
     if (Object.keys(loadout).length === 0) {
       setError("Nothing selected to import.");
@@ -135,6 +176,7 @@ export default function HypixelImport() {
     [rawImport, itemData],
   );
   const weaponPending = weaponCandidates.length > 0 && weaponChoice === null;
+  const armorSource = wardrobeChoice == null ? rawImport?.armor : rawImport?.wardrobeSets?.find((s) => s.index === wardrobeChoice);
 
   if (status === 'reviewing' && rawImport) {
     return (
@@ -190,12 +232,39 @@ export default function HypixelImport() {
               )}
             </div>
 
+            {rawImport.wardrobeSets?.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className="text-[11px] font-bold text-black uppercase tracking-wide">Armor Source</div>
+                <div className="flex flex-col">
+                  <label className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110">
+                    <input type="radio" name="wardrobe-choice" checked={wardrobeChoice == null} onChange={() => handleWardrobeChoice(null)} />
+                    <span>Currently worn</span>
+                  </label>
+                  {rawImport.wardrobeSets.map((set) => (
+                    <label
+                      key={set.index}
+                      className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110"
+                    >
+                      <input
+                        type="radio"
+                        name="wardrobe-choice"
+                        checked={wardrobeChoice === set.index}
+                        onChange={() => handleWardrobeChoice(set.index)}
+                      />
+                      <span>Wardrobe Set {set.index + 1}</span>
+                      <WardrobeSetPreview set={set} itemData={itemData} />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-1">
               <div className="text-[11px] font-bold text-black uppercase tracking-wide">Armor</div>
               {ARMOR_SLOTS.map((slot) => (
                 <GearRow
                   key={slot}
-                  item={resolveGearSummary(rawImport.armor?.[slot], itemData)}
+                  item={resolveGearSummary(armorSource?.[slot], itemData)}
                   checked={includedSlots.has(slot)}
                   onToggle={() => toggleSlot(slot)}
                 />
