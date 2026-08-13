@@ -5,7 +5,6 @@ import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 
 const MENU_LINKS = [
   { to: '/tutorial', label: 'Tutorial', icon: '/icons/compass.svg' },
-  { to: '/guides', label: 'Guides', icon: '/icons/book.svg' },
   { to: '/examples', label: 'Examples', icon: '/icons/chest.svg' },
   { to: '/resources', label: 'Resources', icon: '/icons/ledger.svg' },
 ];
