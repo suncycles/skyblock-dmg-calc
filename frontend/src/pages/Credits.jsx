@@ -12,14 +12,6 @@ export default function Credits() {
         </p>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Contributors</h2>
-          <p>
-            <span className="font-semibold text-white">mochaccino</span> (SkyblockZ) — some weapon damage
-            calculations.
-          </p>
-        </section>
-
-        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
           <h2 className="font-semibold text-white mb-1">Item &amp; Pet Data — NotEnoughUpdates-REPO</h2>
           <p>
             Item, pet, reforge, and enchantment data, plus most icons, come from{' '}
@@ -70,9 +62,9 @@ export default function Credits() {
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Background Videos — ALAND's Immersive Skyblock Modpack</h2>
+          <h2 className="font-semibold text-white mb-1">Background Images — ALAND's Immersive Skyblock Modpack</h2>
           <p>
-            Zone backdrop footage is captured using{' '}
+            Zone backdrop images are captured using{' '}
             <a
               className="underline text-blue-300 hover:text-blue-200"
               href="https://modrinth.com/modpack/alands-immersive-hypixel-skyblock"
@@ -98,26 +90,6 @@ export default function Credits() {
               Hypixel Inc.
             </a>
             .
-          </p>
-        </section>
-
-        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Font — Inter</h2>
-          <p>
-            Every bit of text on the site, including item lore, tooltips, and stat tables, uses{' '}
-            <a className="underline text-blue-300 hover:text-blue-200" href="https://rsms.me/inter/" target="_blank" rel="noreferrer">
-              Inter
-            </a>
-            , licensed under the{' '}
-            <a
-              className="underline text-blue-300 hover:text-blue-200"
-              href="https://scripts.sil.org/OFL"
-              target="_blank"
-              rel="noreferrer"
-            >
-              SIL Open Font License 1.1
-            </a>
-            , served via Google Fonts.
           </p>
         </section>
 
