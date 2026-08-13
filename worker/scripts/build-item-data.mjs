@@ -147,6 +147,12 @@ for (const file of files) {
 
   if (EXCLUDED_IDS.has(raw.internalname)) continue;
 
+  // Rift-dimension items (Rift Damage/Rift Time/Rift-Transferable/Rift-Exportable/Rift Gallery
+  // etc.) — their whole stat line only matters inside the Rift, a separate game mode this
+  // calculator doesn't model at all, so they're dead weight in every picker. Text-scanned rather
+  // than a hardcoded id list so any future Rift item NEU-REPO adds is caught automatically.
+  if (raw.lore.some((line) => /rift/i.test(line))) continue;
+
   let { tier, category } = parseTierAndCategory(raw.lore);
   if (!category && MANUAL_CATEGORY_OVERRIDES[raw.internalname]) {
     category = MANUAL_CATEGORY_OVERRIDES[raw.internalname];
