@@ -184,6 +184,14 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'HEARTFIRE_DAGGER',
   'HEARTMAW_DAGGER',
   'MAWDUST_DAGGER',
+  // Hyperion family — "Deals +50% damage to Wither mobs." sits directly above two unrelated
+  // Catacombs-level-scaling clauses with no blank line between them, same paragraph-bleed issue
+  // as Pooch Sword above; hardcoded in HYPERION_FAMILY_WITHER_DAMAGE_PERCENT instead.
+  'HYPERION',
+  'ASTRAEA',
+  'VALKYRIE',
+  'SCYLLA',
+  'NECRON_BLADE',
 ]);
 
 // Each Blaze Slayer dagger's own two-mob-type multipliers (real lore, both clauses).
@@ -215,6 +223,14 @@ const DAGGER_MOB_MULTIPLIERS = {
     { multiplier: 2, condition: 'Skeletal' },
   ],
 };
+
+// Hyperion/Astraea/Valkyrie/Scylla/Necron's Blade (Unrefined) all carry the identical "Deals
+// +50% damage to Wither mobs." line — see SPECIAL_SCAN_EXCLUDE_IDS above for why this can't go
+// through the generic ability-text scan. A flat +50% is the same thing as a 1.5x multiplier here
+// since it's the weapon's only weaponBonusConditional entry (finalDamage.js's WeaponBonusMultiplier
+// is 1 + summed weaponBonus%), so it's pushed as the standard +50% entry rather than a separate 1.5x.
+const HYPERION_FAMILY_WITHER_DAMAGE_PERCENT = 50;
+const HYPERION_FAMILY_WEAPON_IDS = new Set(['HYPERION', 'ASTRAEA', 'VALKYRIE', 'SCYLLA', 'NECRON_BLADE']);
 
 // Pooch Sword's "+200% Damage against Wolves" — see SPECIAL_SCAN_EXCLUDE_IDS above for why
 // this can't go through the generic ability-text scan. "Wolves" covers every wolf-family mob,
@@ -1094,6 +1110,16 @@ export async function collectDamageSources(
         value: POOCH_SWORD_WOLF_DAMAGE_PERCENT,
         condition: WOLF_FAMILY_MOBS.join(', '),
         conditionLabel: 'Wolves',
+      });
+    }
+
+    if (HYPERION_FAMILY_WEAPON_IDS.has(equipped.item.id)) {
+      out.weaponBonusConditional.push({
+        id: 'hyperion-family-wither-damage',
+        label: `${itemLabel} (against Wither mobs)`,
+        source: slotLabel,
+        value: HYPERION_FAMILY_WITHER_DAMAGE_PERCENT,
+        condition: 'Wither',
       });
     }
 
