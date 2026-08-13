@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SkyDmg</title>
     <link rel="icon" type="image/svg+xml" href="/icons/sword.svg" />
+    <!-- Baseline link-preview tags for Discord/Slack/Twitter unfurlers, which never execute the
+         SPA's JS — functions/loadout/[code].js rewrites og:title/og:description/og:url's content
+         in place (via HTMLRewriter) for /loadout/:code requests specifically; every other route
+         just gets this generic copy as-is. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SkyDmg" />
+    <meta property="og:title" content="SkyDmg — Hypixel Skyblock Damage Calculator" />
+    <meta property="og:description" content="Calculate your Hypixel Skyblock melee, mage, and slayer damage down to the exact source." />
+    <meta property="og:url" content="https://skydmg.pages.dev/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="SkyDmg — Hypixel Skyblock Damage Calculator" />
+    <meta name="twitter:description" content="Calculate your Hypixel Skyblock melee, mage, and slayer damage down to the exact source." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
