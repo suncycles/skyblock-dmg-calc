@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ItemDataProvider } from './context/ItemDataContext';
 import { BuildProvider } from './context/BuildContext';
@@ -7,40 +8,53 @@ import { ConfirmDialogProvider } from './context/ConfirmDialogContext';
 import PageBackground from './components/PageBackground';
 import TopBar from './components/TopBar';
 import GlobalFooter from './components/GlobalFooter';
-import Landing from './pages/Landing';
-import WeaponPicker from './pages/WeaponPicker';
-import ArmorItemPicker from './pages/ArmorItemPicker';
-import ArmorVariantTierPicker from './pages/ArmorVariantTierPicker';
-import EquipmentItemPicker from './pages/EquipmentItemPicker';
-import PetPicker from './pages/PetPicker';
-import PetRarityPicker from './pages/PetRarityPicker';
-import PetDetail from './pages/PetDetail';
-import PetItemPicker from './pages/PetItemPicker';
-import Hex from './pages/Hex';
-import EnchantList from './pages/EnchantList';
-import EnchantLevels from './pages/EnchantLevels';
-import GemstoneSlots from './pages/GemstoneSlots';
-import GemstoneTypePicker from './pages/GemstoneTypePicker';
-import GemstoneTierPicker from './pages/GemstoneTierPicker';
-import BooksPicker from './pages/BooksPicker';
-import ReforgesPicker from './pages/ReforgesPicker';
-import SpecialPicker from './pages/SpecialPicker';
-import StarringPicker from './pages/StarringPicker';
-import DamageSources from './pages/DamageSources';
-import Compare from './pages/Compare';
-import AccessoryPowerPicker from './pages/AccessoryPowerPicker';
-import AccessoryTuning from './pages/AccessoryTuning';
-import PlayerLevels from './pages/PlayerLevels';
-import TargetMobPicker from './pages/TargetMobPicker';
-import Attributes from './pages/Attributes';
-import LoadoutLoader from './pages/LoadoutLoader';
-import HypixelImport from './pages/HypixelImport';
-import Credits from './pages/Credits';
-import Resources from './pages/Resources';
-import Tutorial from './pages/Tutorial';
-import Examples from './pages/Examples';
-import ComingSoon from './pages/ComingSoon';
 import ErrorBoundary from './components/ErrorBoundary';
+// Landing is the highest-traffic route (every fresh visit hits it) — kept as a normal eager
+// import so there's zero Suspense-fallback flash on first load. Every other page is only reached
+// by clicking into it from Landing (or a direct deep link), so Vite code-splits each one into its
+// own chunk fetched on demand instead of bundling all 30+ pages' code into a single JS payload
+// every visitor downloads regardless of which page they actually use — the previous shape was a
+// single ~520KB bundle with zero splitting.
+import Landing from './pages/Landing';
+const WeaponPicker = lazy(() => import('./pages/WeaponPicker'));
+const ArmorItemPicker = lazy(() => import('./pages/ArmorItemPicker'));
+const ArmorVariantTierPicker = lazy(() => import('./pages/ArmorVariantTierPicker'));
+const EquipmentItemPicker = lazy(() => import('./pages/EquipmentItemPicker'));
+const PetPicker = lazy(() => import('./pages/PetPicker'));
+const PetRarityPicker = lazy(() => import('./pages/PetRarityPicker'));
+const PetDetail = lazy(() => import('./pages/PetDetail'));
+const PetItemPicker = lazy(() => import('./pages/PetItemPicker'));
+const Hex = lazy(() => import('./pages/Hex'));
+const EnchantList = lazy(() => import('./pages/EnchantList'));
+const EnchantLevels = lazy(() => import('./pages/EnchantLevels'));
+const GemstoneSlots = lazy(() => import('./pages/GemstoneSlots'));
+const GemstoneTypePicker = lazy(() => import('./pages/GemstoneTypePicker'));
+const GemstoneTierPicker = lazy(() => import('./pages/GemstoneTierPicker'));
+const BooksPicker = lazy(() => import('./pages/BooksPicker'));
+const ReforgesPicker = lazy(() => import('./pages/ReforgesPicker'));
+const SpecialPicker = lazy(() => import('./pages/SpecialPicker'));
+const StarringPicker = lazy(() => import('./pages/StarringPicker'));
+const DamageSources = lazy(() => import('./pages/DamageSources'));
+const Compare = lazy(() => import('./pages/Compare'));
+const AccessoryPowerPicker = lazy(() => import('./pages/AccessoryPowerPicker'));
+const AccessoryTuning = lazy(() => import('./pages/AccessoryTuning'));
+const PlayerLevels = lazy(() => import('./pages/PlayerLevels'));
+const TargetMobPicker = lazy(() => import('./pages/TargetMobPicker'));
+const Attributes = lazy(() => import('./pages/Attributes'));
+const LoadoutLoader = lazy(() => import('./pages/LoadoutLoader'));
+const HypixelImport = lazy(() => import('./pages/HypixelImport'));
+const Credits = lazy(() => import('./pages/Credits'));
+const Resources = lazy(() => import('./pages/Resources'));
+const Tutorial = lazy(() => import('./pages/Tutorial'));
+const Examples = lazy(() => import('./pages/Examples'));
+const ComingSoon = lazy(() => import('./pages/ComingSoon'));
+
+// Matches LoadoutLoader's own "Loading..." panel style — only visible on a slow connection
+// (fast chunk loads resolve before this would ever paint), so it stays a plain, cheap fallback
+// rather than a full skeleton.
+function RouteFallback() {
+  return <div className="min-h-screen flex items-center justify-center text-sm text-neutral-400">Loading...</div>;
+}
 
 export default function App() {
   const location = useLocation();
@@ -58,6 +72,7 @@ export default function App() {
                   once the user navigates elsewhere (Back to Home) — a fresh key remounts it. */}
               <div className="pt-12">
                 <ErrorBoundary key={location.pathname}>
+                  <Suspense fallback={<RouteFallback />}>
                   <Routes>
                     <Route path="/" element={<Landing />} />
                     <Route path="/weapon" element={<WeaponPicker />} />
@@ -96,6 +111,7 @@ export default function App() {
                     <Route path="/resources" element={<Resources />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
+                  </Suspense>
                 </ErrorBoundary>
               </div>
               <GlobalFooter />

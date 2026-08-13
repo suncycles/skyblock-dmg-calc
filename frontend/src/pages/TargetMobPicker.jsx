@@ -173,6 +173,7 @@ export default function TargetMobPicker() {
                     <img
                       src={getMobModelIcon(name) || getMobIconDataUri(name)}
                       alt={name}
+                      loading="lazy"
                       className="max-w-full max-h-full object-contain pixelated"
                     />
                   </div>
