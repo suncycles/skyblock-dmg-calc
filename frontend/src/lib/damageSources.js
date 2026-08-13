@@ -234,8 +234,10 @@ const HYPERION_FAMILY_WEAPON_IDS = new Set(['HYPERION', 'ASTRAEA', 'VALKYRIE', '
 
 // Pooch Sword's "+200% Damage against Wolves" — see SPECIAL_SCAN_EXCLUDE_IDS above for why
 // this can't go through the generic ability-text scan. "Wolves" covers every wolf-family mob,
-// same list as mobModelIcons.json's wolf.png mapping.
-const POOCH_SWORD_WOLF_DAMAGE_PERCENT = 200;
+// same list as mobModelIcons.json's wolf.png mapping. Real in-game bug: the stated +200% (which
+// would be a 1+200/100 = 3x weapon-bonus multiplier) actually only applies as a flat 2x —
+// pushed to the multiplicative bucket at that real value instead of weaponBonusConditional.
+const POOCH_SWORD_WOLF_DAMAGE_MULTIPLIER = 2;
 const WOLF_FAMILY_MOBS = [
   'Glacite Mutt',
   'Howling Spirit',
@@ -279,9 +281,14 @@ const SLAYER_TIER_BONUSES = {
 
   RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
   TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
-  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
+
+// Scorpion Foil: real in-game bug — its own +250% is applied as a flat additive % (stacked with
+// Strength/enchants/etc. via AdditiveMultiplier) instead of the weapon-bonus multiplicative
+// treatment every other Slayer-tier weapon gets (which would be 1+250/100 = 3.5x). Kept out of
+// SLAYER_TIER_BONUSES so it doesn't get pushed to weaponBonusConditional like its tier-mates.
+const SCORPION_FOIL_ARTHROPOD_DAMAGE_PERCENT = 250;
 
 // Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) — its own damage multiplier.
 const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
@@ -1103,13 +1110,23 @@ export async function collectDamageSources(
     }
 
     if (equipped.item.id === 'POOCH_SWORD') {
-      out.weaponBonusConditional.push({
+      out.multiplicative.push({
         id: 'pooch-sword-wolf-damage',
         label: `${itemLabel} (against Wolves)`,
         source: slotLabel,
-        value: POOCH_SWORD_WOLF_DAMAGE_PERCENT,
+        value: POOCH_SWORD_WOLF_DAMAGE_MULTIPLIER,
         condition: WOLF_FAMILY_MOBS.join(', '),
         conditionLabel: 'Wolves',
+      });
+    }
+
+    if (equipped.item.id === 'SCORPION_FOIL') {
+      out.additiveConditional.push({
+        id: 'scorpion-foil-arthropod-damage',
+        label: `${itemLabel} (against Arthropods)`,
+        source: slotLabel,
+        value: SCORPION_FOIL_ARTHROPOD_DAMAGE_PERCENT,
+        condition: 'Arthropod',
       });
     }
 
