@@ -17,24 +17,31 @@ const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
 
-const SELECTION_A_KEY = 'hexCompareLoadoutA';
-const SELECTION_B_KEY = 'hexCompareLoadoutB';
+const SELECTIONS_KEY = 'hexCompareSelections';
+const MIN_COMPARE_SLOTS = 2;
+// ponytail: fixed cap for grid readability, not a hard technical limit — raise if users actually want more.
+const MAX_COMPARE_SLOTS = 6;
 
-// B defaults to the first saved loadout (not Current Build again) so a first-time visit doesn't
-// show a pointless "Current vs Current" comparison — A always defaults to Current Build.
-function loadInitialSelection(key, fallbackToFirstSaved) {
-  const stored = localStorage.getItem(key);
-  if (stored) return stored;
-  if (fallbackToFirstSaved) {
-    const saved = loadSavedLoadoutsFromStorage();
-    if (saved.length > 0) return saved[0].id;
+// Second slot defaults to the first saved loadout (not Current Build again) so a first-time
+// visit doesn't show a pointless "Current vs Current" comparison — the first slot always
+// defaults to Current Build.
+function loadInitialSelections() {
+  const stored = localStorage.getItem(SELECTIONS_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length >= MIN_COMPARE_SLOTS) return parsed;
+    } catch {
+      // fall through to defaults
+    }
   }
-  return 'current';
+  const saved = loadSavedLoadoutsFromStorage();
+  return ['current', saved.length > 0 ? saved[0].id : 'current'];
 }
 
 // Snapshots the live build into the same shape decodeLoadoutCode() produces for a saved
 // loadout, memoized so its identity only changes when the underlying build state actually does
-// (collectDamageSources runs off this identity — see useLoadoutResult below).
+// (collectDamageSources runs off this identity — see useLoadoutResults below).
 function useCurrentBuildState(build) {
   return useMemo(
     () => ({
@@ -72,69 +79,72 @@ function useCurrentBuildState(build) {
   );
 }
 
-// Resolves one side's selection (either 'current' or a saved-loadout id) into a full build
-// state, then runs the same collectDamageSources() pipeline DamageSources.jsx uses — both are
-// plain functions taking explicit args, not tied to context, so this is the only new plumbing
-// needed to compute two independent results at once.
-function useLoadoutResult(selection, itemData, currentState, savedLoadouts) {
-  const [decoded, setDecoded] = useState(null);
-  const [result, setResult] = useState(null);
-  const decodeToken = useRef(0);
-  const resultToken = useRef(0);
-
-  const entry = selection === 'current' ? null : savedLoadouts.find((l) => l.id === selection) || null;
-  const missing = selection !== 'current' && !entry;
-
-  useEffect(() => {
-    if (!entry) {
-      setDecoded(null);
-      return;
-    }
-    const token = ++decodeToken.current;
-    decodeLoadoutCode(entry.code, itemData)
-      .then((s) => {
-        if (decodeToken.current === token) setDecoded(s);
-      })
-      .catch((err) => {
-        console.error('Failed to decode saved loadout for comparison:', err);
-        if (decodeToken.current === token) setDecoded(null);
-      });
-  }, [entry, itemData]);
-
-  const state = selection === 'current' ? currentState : decoded;
+// Resolves every slot's selection (each either 'current' or a saved-loadout id) into
+// { state, result, missing }, running the same collectDamageSources() pipeline
+// DamageSources.jsx uses for each. A single hook over the whole selections array (rather than
+// one hook call per slot) since the array's length is dynamic — React's rules of hooks forbid
+// calling a hook a variable number of times. Results are cached by selection value, so two
+// slots pointing at the same loadout (including two both left on 'current') share one
+// computation instead of duplicating it. Per-key tokens guard against a stale async resolution
+// (e.g. rapid selection changes) overwriting a newer one.
+function useLoadoutResults(selections, itemData, currentState, savedLoadouts) {
+  const [resultsByKey, setResultsByKey] = useState({});
+  const tokensRef = useRef({});
 
   useEffect(() => {
-    if (!state) {
-      setResult(null);
-      return;
-    }
-    const token = ++resultToken.current;
-    collectDamageSources(
-      state.loadout,
-      itemData,
-      state.playerStats,
-      state.godPotionActive,
-      state.attributes,
-      state.miscStats,
-      state.mobHpPercent,
-      state.infernalCrimsonStacks,
-      state.useDungeonizedStats,
-      state.swarmMobs,
-      state.comboKills,
-      state.legionPlayers,
-      state.blazeCrimsonIsle,
-    ).then((r) => {
-      if (resultToken.current === token) setResult(r);
-    });
-  }, [state, itemData]);
+    let cancelled = false;
+    for (const selection of selections) {
+      const entry = selection === 'current' ? null : savedLoadouts.find((l) => l.id === selection) || null;
+      const missing = selection !== 'current' && !entry;
+      if (missing) {
+        setResultsByKey((prev) => ({ ...prev, [selection]: { state: null, result: null, missing: true } }));
+        continue;
+      }
 
-  return { state, result, missing };
+      const token = (tokensRef.current[selection] = (tokensRef.current[selection] || 0) + 1);
+      (async () => {
+        const state =
+          selection === 'current'
+            ? currentState
+            : await decodeLoadoutCode(entry.code, itemData).catch((err) => {
+                console.error('Failed to decode saved loadout for comparison:', err);
+                return null;
+              });
+        if (cancelled || tokensRef.current[selection] !== token) return;
+        if (!state) {
+          setResultsByKey((prev) => ({ ...prev, [selection]: { state: null, result: null, missing: false } }));
+          return;
+        }
+        const result = await collectDamageSources(
+          state.loadout,
+          itemData,
+          state.playerStats,
+          state.godPotionActive,
+          state.attributes,
+          state.miscStats,
+          state.mobHpPercent,
+          state.infernalCrimsonStacks,
+          state.useDungeonizedStats,
+          state.swarmMobs,
+          state.comboKills,
+          state.legionPlayers,
+          state.blazeCrimsonIsle,
+        );
+        if (cancelled || tokensRef.current[selection] !== token) return;
+        setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));
+      })();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [selections, itemData, currentState, savedLoadouts]);
+
+  return selections.map((s) => resultsByKey[s] || { state: null, result: null, missing: false });
 }
 
-// `result` and `state` are set by separate effects in useLoadoutResult (see its comment), so
-// there's a render or two — right after switching a side's selection — where `result` still
-// holds the *previous* selection's value while `state` has already gone back to null. Treat
-// that exactly like "still loading" rather than reading off a null `state`.
+// `result` and `state` land in state together (see useLoadoutResults above), so there's a render
+// or two — right after switching a slot's selection — where the map still holds no entry yet for
+// the new key. Treat that exactly like "still loading" rather than reading off a null `state`.
 function computeSideMobResult(side, mobName) {
   if (side.missing) return { status: 'missing' };
   if (!side.result || !side.state) return { status: 'loading' };
@@ -158,11 +168,11 @@ function previewSuffix(preview) {
   return preview ? ` — ⛑️ ${preview}` : ' — (no helmet)';
 }
 
-function LoadoutSelect({ label, value, onChange, savedLoadouts, currentHelmetPreview, helmetPreviews }) {
+function LoadoutSelect({ label, value, onChange, savedLoadouts, currentHelmetPreview, helmetPreviews, onRemove }) {
   return (
     <div className="flex items-center gap-2">
       <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wide whitespace-nowrap w-20">{label}</label>
-      <select value={value} onChange={onChange} className={`${panel} text-sm px-2 py-1.5 text-black cursor-pointer flex-1`}>
+      <select value={value} onChange={onChange} className={`${panel} min-w-0 text-sm px-2 py-1.5 text-black cursor-pointer flex-1`}>
         <option value="current">{`Current Build${previewSuffix(currentHelmetPreview)}`}</option>
         {savedLoadouts.map((l) => (
           <option key={l.id} value={l.id}>
@@ -170,6 +180,16 @@ function LoadoutSelect({ label, value, onChange, savedLoadouts, currentHelmetPre
           </option>
         ))}
       </select>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove this loadout from the comparison"
+          className="shrink-0 w-7 h-7 flex items-center justify-center bg-neutral-800 text-white cursor-pointer hover:brightness-110"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }
@@ -207,29 +227,38 @@ function MobResultCard({ label, r }) {
   );
 }
 
-// Side-by-side Final Damage / (Base) Stats comparison of two loadouts (Current Build and/or any
-// saved loadout, see lib/savedLoadouts.js) against the app's shared target mob selection —
-// avoids swapping the live build back and forth or duplicating the browser tab just to compare numbers.
+// Side-by-side (or N-way) Final Damage / (Base) Stats comparison of loadouts (Current Build
+// and/or any saved loadout, see lib/savedLoadouts.js) against the app's shared target mob
+// selection — avoids swapping the live build back and forth or duplicating the browser tab just
+// to compare numbers. Starts with 2 slots; every extra slot's delta is shown against slot 0 (the
+// first slot) as a baseline, the same way slot B was always compared against slot A before.
 export default function Compare() {
   const navigate = useNavigate();
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
-  const [selectionA, setSelectionAState] = useState(() => loadInitialSelection(SELECTION_A_KEY, false));
-  const [selectionB, setSelectionBState] = useState(() => loadInitialSelection(SELECTION_B_KEY, true));
+  const [selections, setSelectionsState] = useState(loadInitialSelections);
 
-  function setSelectionA(value) {
-    setSelectionAState(value);
-    localStorage.setItem(SELECTION_A_KEY, value);
+  function setSelections(next) {
+    setSelectionsState(next);
+    localStorage.setItem(SELECTIONS_KEY, JSON.stringify(next));
   }
-  function setSelectionB(value) {
-    setSelectionBState(value);
-    localStorage.setItem(SELECTION_B_KEY, value);
+  function setSelectionAt(index, value) {
+    const next = [...selections];
+    next[index] = value;
+    setSelections(next);
+  }
+  function addSlot() {
+    if (selections.length >= MAX_COMPARE_SLOTS) return;
+    setSelections([...selections, 'current']);
+  }
+  function removeSlot(index) {
+    if (selections.length <= MIN_COMPARE_SLOTS) return;
+    setSelections(selections.filter((_, i) => i !== index));
   }
 
   const currentState = useCurrentBuildState(build);
-  const sideA = useLoadoutResult(selectionA, itemData, currentState, savedLoadouts);
-  const sideB = useLoadoutResult(selectionB, itemData, currentState, savedLoadouts);
+  const sides = useLoadoutResults(selections, itemData, currentState, savedLoadouts);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true, itemDataLoading);
   const currentHelmetName = build.loadout.helmet?.item?.name;
   const currentHelmetPreview = currentHelmetName ? formatItemName(currentHelmetName) : '';
@@ -239,8 +268,8 @@ export default function Compare() {
     return savedLoadouts.find((l) => l.id === selection)?.name || 'Unknown loadout';
   }
 
-  const labelA = sideLabel(selectionA);
-  const labelB = sideLabel(selectionB);
+  const labels = selections.map(sideLabel);
+  const slotLetters = selections.map((_, i) => String.fromCharCode(65 + i));
   const targetMobs = build.targetMobs;
 
   return (
@@ -249,27 +278,33 @@ export default function Compare() {
 
       <div className="w-full max-w-[1100px] flex flex-col gap-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <LoadoutSelect
-            label="Loadout A"
-            value={selectionA}
-            onChange={(e) => setSelectionA(e.target.value)}
-            savedLoadouts={savedLoadouts}
-            currentHelmetPreview={currentHelmetPreview}
-            helmetPreviews={helmetPreviews}
-          />
-          <LoadoutSelect
-            label="Loadout B"
-            value={selectionB}
-            onChange={(e) => setSelectionB(e.target.value)}
-            savedLoadouts={savedLoadouts}
-            currentHelmetPreview={currentHelmetPreview}
-            helmetPreviews={helmetPreviews}
-          />
+          {selections.map((selection, i) => (
+            <LoadoutSelect
+              key={i}
+              label={`Loadout ${slotLetters[i]}`}
+              value={selection}
+              onChange={(e) => setSelectionAt(i, e.target.value)}
+              savedLoadouts={savedLoadouts}
+              currentHelmetPreview={currentHelmetPreview}
+              helmetPreviews={helmetPreviews}
+              onRemove={selections.length > MIN_COMPARE_SLOTS ? () => removeSlot(i) : null}
+            />
+          ))}
         </div>
+
+        {selections.length < MAX_COMPARE_SLOTS && (
+          <button
+            type="button"
+            onClick={addSlot}
+            className="self-start text-[12px] font-bold px-3 py-1.5 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
+          >
+            + Compare More
+          </button>
+        )}
 
         {savedLoadouts.length === 0 && (
           <div className={`${panel} p-3 text-xs text-neutral-700`}>
-            Both sides show your Current Build for now — save a build from the{' '}
+            Every slot shows your Current Build for now — save a build from the{' '}
             <button className="underline cursor-pointer font-bold" onClick={() => navigate('/')}>
               📁 Loadouts
             </button>{' '}
@@ -291,10 +326,8 @@ export default function Compare() {
         ) : (
           targetMobs.map((name) => {
             const types = MOB_TYPES[name] || null;
-            const a = computeSideMobResult(sideA, name);
-            const b = computeSideMobResult(sideB, name);
-            const delta = a.status === 'ok' && b.status === 'ok' ? b.finalDamage.finalDamage - a.finalDamage.finalDamage : null;
-            const deltaPct = delta != null && a.finalDamage.finalDamage !== 0 ? (delta / a.finalDamage.finalDamage) * 100 : null;
+            const results = sides.map((side) => computeSideMobResult(side, name));
+            const baseline = results[0];
             return (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
@@ -312,55 +345,68 @@ export default function Compare() {
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <MobResultCard label={labelA} r={a} />
-                  <MobResultCard label={labelB} r={b} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {results.map((r, i) => (
+                    <MobResultCard key={i} label={labels[i]} r={r} />
+                  ))}
                 </div>
-                {delta != null && (
-                  <div
-                    className={`text-center text-sm font-mono font-bold pt-2 mt-1 border-t-2 border-neutral-500 ${
-                      delta > 0 ? 'text-green-700' : delta < 0 ? 'text-red-700' : 'text-neutral-600'
-                    }`}
-                  >
-                    {labelB} vs {labelA}: {delta > 0 ? '+' : ''}
-                    {delta.toLocaleString()} ({deltaPct > 0 ? '+' : ''}
-                    {round1(deltaPct)}%)
-                  </div>
-                )}
+                {results.slice(1).map((r, i) => {
+                  const idx = i + 1;
+                  const delta = baseline.status === 'ok' && r.status === 'ok' ? r.finalDamage.finalDamage - baseline.finalDamage.finalDamage : null;
+                  const deltaPct = delta != null && baseline.finalDamage.finalDamage !== 0 ? (delta / baseline.finalDamage.finalDamage) * 100 : null;
+                  if (delta == null) return null;
+                  return (
+                    <div
+                      key={idx}
+                      className={`text-center text-sm font-mono font-bold pt-2 mt-1 border-t-2 border-neutral-500 ${
+                        delta > 0 ? 'text-green-700' : delta < 0 ? 'text-red-700' : 'text-neutral-600'
+                      }`}
+                    >
+                      {labels[idx]} vs {labels[0]}: {delta > 0 ? '+' : ''}
+                      {delta.toLocaleString()} ({deltaPct > 0 ? '+' : ''}
+                      {round1(deltaPct)}%)
+                    </div>
+                  );
+                })}
               </div>
             );
           })
         )}
 
-        <div className={`${panel} p-3 flex flex-col gap-1.5`}>
+        <div className={`${panel} p-3 flex flex-col gap-1.5 overflow-x-auto`}>
           <div className={sectionTitle}>(Base) Stats</div>
-          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1 text-[12px] text-black">
+          <div
+            className="grid gap-x-3 gap-y-1 text-[12px] text-black"
+            style={{ gridTemplateColumns: `1fr repeat(${selections.length}, auto)` }}
+          >
             <span></span>
-            <span className="font-bold text-[10px] uppercase text-neutral-600 text-right truncate max-w-[120px]">{labelA}</span>
-            <span className="font-bold text-[10px] uppercase text-neutral-600 text-right truncate max-w-[120px]">{labelB}</span>
-            {BASE_STAT_KEYS.map((key) => {
-              const a = displayedStat(sideA, key);
-              const b = displayedStat(sideB, key);
-              return (
-                <Fragment key={key}>
-                  <span>
-                    <Keyworded text={STAT_LABELS[key].label} />
-                  </span>
-                  <span className="text-right font-mono">{a != null ? formatStatValue(key, Math.round(a * 10) / 10) : '—'}</span>
-                  <span className="text-right font-mono">{b != null ? formatStatValue(key, Math.round(b * 10) / 10) : '—'}</span>
-                </Fragment>
-              );
-            })}
+            {labels.map((label, i) => (
+              <span key={i} className="font-bold text-[10px] uppercase text-neutral-600 text-right truncate max-w-[120px]">
+                {label}
+              </span>
+            ))}
+            {BASE_STAT_KEYS.map((key) => (
+              <Fragment key={key}>
+                <span>
+                  <Keyworded text={STAT_LABELS[key].label} />
+                </span>
+                {sides.map((side, i) => {
+                  const value = displayedStat(side, key);
+                  return (
+                    <span key={i} className="text-right font-mono">
+                      {value != null ? formatStatValue(key, Math.round(value * 10) / 10) : '—'}
+                    </span>
+                  );
+                })}
+              </Fragment>
+            ))}
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            { key: 'A', selection: selectionA, side: sideA, label: labelA },
-            { key: 'B', selection: selectionB, side: sideB, label: labelB },
-          ].map(({ key, side, label }) => (
+          {sides.map((side, i) => (
             <button
-              key={key}
+              key={i}
               type="button"
               disabled={!side.state}
               className="text-[11px] underline text-neutral-300 disabled:text-neutral-600 disabled:no-underline disabled:cursor-not-allowed cursor-pointer text-left"
@@ -369,7 +415,7 @@ export default function Compare() {
                 navigate('/damage-sources');
               }}
             >
-              View full breakdown for {label} →
+              View full breakdown for {labels[i]} →
             </button>
           ))}
         </div>
