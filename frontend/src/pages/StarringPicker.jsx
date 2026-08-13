@@ -8,7 +8,6 @@ import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import { SLOT_TEXTURES } from '../lib/icons';
 import McTooltipLines from '../components/McTooltipLines';
-import NumberInput from '../components/NumberInput';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -97,24 +96,30 @@ export default function StarringPicker() {
         </div>
 
         {/* Stars */}
-        <label className="text-sm font-bold text-black" htmlFor="star-count">
-          Stars (0-{maxStars})
-        </label>
-        <NumberInput
-          id="star-count"
-          max={maxStars}
-          value={stars}
-          onChange={(num) => setStarCount(slot, num)}
-          className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
-        />
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-bold text-black">Stars (0-{maxStars})</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {Array.from({ length: maxStars }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setStarCount(slot, stars === n ? 0 : n)}
+                className={`text-3xl leading-none cursor-pointer transition-colors ${
+                  n <= stars ? 'text-amber-400 hover:text-amber-300' : 'text-neutral-600 hover:text-neutral-400'
+                }`}
+                aria-label={`${n} Star${n > 1 ? 's' : ''}`}
+                title={`${n} Star${n > 1 ? 's' : ''}`}
+              >
+                ✪
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="text-sm text-neutral-800">
           Out of a dungeon: +2%/star, merged into the item's own stats. In a dungeon (Damage Sources' "Dungeon"
           toggle): instead +10%/star, summed with Catacombs Level, General's Medallion, and Master Stars into a
           separate Catacombs Boost total, applied to the item's non-star total.
         </div>
-        {maxStars > 5 && (
-          <div className="text-xs text-neutral-700 -mt-2">This item can hold up to {maxStars} stars.</div>
-        )}
 
         {/* Dungeonize toggle — same bright-on/dark-off skull-icon button style as Damage Sources' "Dungeon" toggle */}
         <button
