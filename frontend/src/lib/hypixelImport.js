@@ -219,27 +219,28 @@ export function resolveGearSummary(summary, itemData) {
 // there's no dedicated slot to guess from, so the caller must choose); `selection.excludedSlots`
 // (a Set of GEAR_SLOT_KEYS names) skips those armor/equipment slots entirely, leaving whatever
 // was already in that BuildContext slot untouched (importHypixelLoadout only patches the keys
-// present in `loadout`, see BuildContext.jsx). `selection.wardrobeSetIndex` sources the 4 armor
-// slots from `raw.wardrobeSets[index]` instead of `raw.armor` (currently worn) — equipment always
-// comes from `raw.equipment` since Equipment Wardrobe isn't a released Hypixel feature.
+// present in `loadout`, see BuildContext.jsx). `selection.wardrobeSetIndex`/`wardrobeEquipmentSetIndex`
+// source the 4 armor / 4 equipment slots from `raw.wardrobeSets`/`raw.wardrobeEquipmentSets`
+// instead of `raw.armor`/`raw.equipment` (currently worn). Both are the set's real in-game
+// Wardrobe slot number, matched by `.index` rather than treated as an array position — empty sets
+// are already filtered out worker-side, so the two diverge as soon as there's a gap.
 export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
-  const { weaponIndex = null, excludedSlots, wardrobeSetIndex = null } = selection;
+  const { weaponIndex = null, excludedSlots, wardrobeSetIndex = null, wardrobeEquipmentSetIndex = null } = selection;
   const excluded = excludedSlots || new Set();
   const reforgeLookup = buildReforgeNameLookup(itemData);
-  // wardrobeSetIndex is the set's real Wardrobe slot number (raw.wardrobeSets[].index), not an
-  // array position — empty sets are already filtered out worker-side, so the two diverge as soon
-  // as there's a gap (e.g. slot 1 empty, slot 2 populated leaves it at array position 0).
   const armorSource = wardrobeSetIndex != null ? raw.wardrobeSets?.find((s) => s.index === wardrobeSetIndex) : raw.armor;
+  const equipmentSource =
+    wardrobeEquipmentSetIndex != null ? raw.wardrobeEquipmentSets?.find((s) => s.index === wardrobeEquipmentSetIndex) : raw.equipment;
   const bySlot = {
     weapon: weaponIndex != null ? raw.weapons?.[weaponIndex] : null,
     helmet: armorSource?.helmet,
     chestplate: armorSource?.chestplate,
     leggings: armorSource?.leggings,
     boots: armorSource?.boots,
-    necklace: raw.equipment?.necklace,
-    cloak: raw.equipment?.cloak,
-    belt: raw.equipment?.belt,
-    gloves: raw.equipment?.gloves,
+    necklace: equipmentSource?.necklace,
+    cloak: equipmentSource?.cloak,
+    belt: equipmentSource?.belt,
+    gloves: equipmentSource?.gloves,
   };
 
   const loadout = {};
