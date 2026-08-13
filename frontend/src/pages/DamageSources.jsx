@@ -224,10 +224,13 @@ export default function DamageSources() {
         })
       : [];
 
-  // (Base) Stats only shows Intelligence/Ability Damage in Mage Mode, and hides them otherwise —
-  // the two modes describe different damage pipelines, so showing both sets at once is just noise.
+  // (Base) Stats shows Intelligence/Ability Damage (the Ability Damage formula's own inputs) plus
+  // Strength/Crit Damage (relevant to the Mage Staff Beam's underlying melee Final Damage) in Mage
+  // Mode, and hides Intelligence/Ability Damage otherwise — the two modes describe different
+  // damage pipelines, so showing every stat from both at once would just be noise.
+  const MAGE_MODE_STAT_KEYS = new Set(['intelligence', 'ability_damage', 'strength', 'crit_damage']);
   const visibleStatKeys = mageMode
-    ? BASE_STAT_KEYS.filter((k) => k === 'intelligence' || k === 'ability_damage')
+    ? BASE_STAT_KEYS.filter((k) => MAGE_MODE_STAT_KEYS.has(k))
     : BASE_STAT_KEYS.filter((k) => k !== 'intelligence' && k !== 'ability_damage');
 
   return (
