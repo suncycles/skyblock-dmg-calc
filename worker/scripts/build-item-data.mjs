@@ -82,6 +82,16 @@ const EXCLUDED_IDS = new Set([
   'TIME_KNIFE', // "Time Shuriken" — Rift cosmetic throwable, not a weapon
 ]);
 
+// Items whose lore matches the /rift/i scan below but are real, normal-Skyblock gear —
+// exceptions to that filter, not to EXCLUDED_IDS above:
+//   GYROKINETIC_WAND: "Create a large rift at the aimed location" — a lowercase common noun
+//     describing the ability's visual effect (a spatial tear), not the Rift Dimension game mode.
+//   BUBBA_BLISTER / CHOCOLATE_CHIP: their own "X Rift-Exportable X" line is an incidental
+//     drop-mechanic footnote (any item that CAN be carried out of the Rift gets this tag) — the
+//     Accessory Powers they unlock (Bubba/Crumbly, see lib/accessoryPowers.js) are real,
+//     non-Rift-exclusive Powers used in normal Skyblock combat.
+const RIFT_MENTION_KEEP_IDS = new Set(['GYROKINETIC_WAND', 'BUBBA_BLISTER', 'CHOCOLATE_CHIP']);
+
 // Inverse of EXCLUDED_IDS: real player-obtainable weapons whose last lore line is just the bare
 // tier (e.g. "§9§lRARE") with no trailing category word, so parseTierAndCategory finds no
 // category and they'd otherwise be silently dropped. Voodoo Doll/Jinxed Voodoo Doll are
@@ -151,7 +161,7 @@ for (const file of files) {
   // etc.) — their whole stat line only matters inside the Rift, a separate game mode this
   // calculator doesn't model at all, so they're dead weight in every picker. Text-scanned rather
   // than a hardcoded id list so any future Rift item NEU-REPO adds is caught automatically.
-  if (raw.lore.some((line) => /rift/i.test(line))) continue;
+  if (!RIFT_MENTION_KEEP_IDS.has(raw.internalname) && raw.lore.some((line) => /rift/i.test(line))) continue;
 
   let { tier, category } = parseTierAndCategory(raw.lore);
   if (!category && MANUAL_CATEGORY_OVERRIDES[raw.internalname]) {
