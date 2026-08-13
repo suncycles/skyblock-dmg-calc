@@ -102,22 +102,13 @@ export default function Credits() {
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Fonts — Inter &amp; JetBrains Mono</h2>
+          <h2 className="font-semibold text-white mb-1">Font — Inter</h2>
           <p>
-            UI text uses{' '}
+            Every bit of text on the site, including item lore, tooltips, and stat tables, uses{' '}
             <a className="underline text-blue-300 hover:text-blue-200" href="https://rsms.me/inter/" target="_blank" rel="noreferrer">
               Inter
             </a>
-            ; item lore, tooltips, and stat tables use{' '}
-            <a
-              className="underline text-blue-300 hover:text-blue-200"
-              href="https://www.jetbrains.com/lp/mono/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              JetBrains Mono
-            </a>
-            . Both are licensed under the{' '}
+            , licensed under the{' '}
             <a
               className="underline text-blue-300 hover:text-blue-200"
               href="https://scripts.sil.org/OFL"

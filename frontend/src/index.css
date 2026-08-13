@@ -17,20 +17,25 @@ html {
   scroll-padding-top: 48px;
 }
 
+:root {
+  --font-global: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 body {
   background: #0a0b0f;
   color: #eef1f5;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-global);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Tailwind's font-mono utility (numeric damage/stat tables in Compare.jsx/DamageSources.jsx) —
-   swapped from the generic ui-monospace stack to the same modern mono face as the item-lore
-   tooltip below, so every fixed-width number in the app reads as one consistent typeface. */
+/* Tailwind's font-mono utility (numeric damage/stat tables in Compare.jsx/DamageSources.jsx) and
+   the item-lore tooltip below both used to run a dedicated monospace face (JetBrains Mono) —
+   switched to the same global font as the rest of the site for one consistent typeface
+   everywhere, referencing the single --font-global definition above instead of duplicating it. */
 .font-mono {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-global);
 }
 
 .pixelated {
@@ -219,7 +224,7 @@ html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange — Crimso
   background: #140314;
   border: 2px solid #25005e;
   padding: 6px 8px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-global);
   font-size: 13px;
   line-height: 1.5;
   pointer-events: none;
