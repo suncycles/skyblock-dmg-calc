@@ -116,9 +116,8 @@ export default function StarringPicker() {
           </div>
         </div>
         <div className="text-sm text-neutral-800">
-          Out of a dungeon: +2%/star, merged into the item's own stats. In a dungeon (Damage Sources' "Dungeon"
-          toggle): instead +10%/star, summed with Catacombs Level, General's Medallion, and Master Stars into a
-          separate Catacombs Boost total, applied to the item's non-star total.
+          +2%/star normally. In a dungeon: +10%/star instead, combined with Catacombs Level, General's Medallion,
+          and Master Stars into a separate Catacombs Boost total.
         </div>
 
         {/* Dungeonize toggle — same bright-on/dark-off skull-icon button style as Damage Sources' "Dungeon" toggle */}
@@ -133,8 +132,7 @@ export default function StarringPicker() {
           Dungeonize Item
         </button>
         <div className="text-xs text-neutral-700 -mt-2">
-          Shows this item's Catacombs Boost total (dark grey) and lets Damage Sources' "Dungeon" toggle use it
-          instead of the Overworld total.
+          Shows the Catacombs Boost total (dark grey) and lets the Dungeon toggle use it instead.
         </div>
 
         {/* Master Stars */}
