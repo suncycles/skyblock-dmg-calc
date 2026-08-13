@@ -17,32 +17,46 @@ import PageHeader from '../components/PageHeader';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
+// Raised-bevel Minecraft-button treatment for every selectable row on the Review screen (weapon
+// candidates, Wardrobe source sets, per-slot include toggles) — mirrors the same bevel already
+// used for this page's own Import button (grey-unselected / green-selected) instead of native
+// radio/checkbox inputs, so a whole group of options reads as a stack of buttons.
+const optionButtonBase =
+  'flex items-center gap-2 px-2.5 py-2 text-sm text-left border-[3px] outline outline-2 outline-black transition-[filter] w-full min-w-0';
+const optionButtonOff =
+  'bg-[#8b8b8b] border-t-[#c9c9c9] border-l-[#c9c9c9] border-b-[#4a4a4a] border-r-[#4a4a4a] text-white cursor-pointer hover:brightness-110';
+const optionButtonOn =
+  'bg-[#3a8f3a] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] text-white cursor-pointer hover:brightness-110';
+const optionButtonDisabled =
+  'bg-black/10 border-t-black/10 border-l-black/10 border-b-black/10 border-r-black/10 text-black/40 cursor-default';
+
 // "Don't import a weapon" — a real, explicit choice alongside the real candidates, not just
 // "nothing picked" (see the Review step's weapon section below for why that distinction matters).
 const SKIP_WEAPON = 'skip';
 
 function GearRow({ item, checked, onToggle }) {
+  if (!item) {
+    return (
+      <div className={`${optionButtonBase} ${optionButtonDisabled}`}>
+        <span className="italic">Nothing worn</span>
+      </div>
+    );
+  }
   return (
-    <label
-      className={`flex items-center gap-2 px-2.5 py-1.5 text-sm text-black ${item ? 'cursor-pointer hover:brightness-110' : 'cursor-default opacity-70'}`}
-    >
-      <input type="checkbox" checked={item ? checked : false} disabled={!item} onChange={onToggle} />
-      {item ? (
-        <>
-          <WeaponIcon id={item.id} material={item.material} alt={item.name} className="w-5 h-5 object-contain pixelated" color={item.color} />
-          <span>{formatItemName(item.name)}</span>
-        </>
-      ) : (
-        <span className="text-black/50 italic">Nothing worn</span>
-      )}
-    </label>
+    <button type="button" onClick={onToggle} className={`${optionButtonBase} justify-between ${checked ? optionButtonOn : optionButtonOff}`}>
+      <span className="flex items-center gap-2 min-w-0">
+        <WeaponIcon id={item.id} material={item.material} alt={item.name} className="w-5 h-5 object-contain pixelated shrink-0" color={item.color} />
+        <span className="truncate">{formatItemName(item.name)}</span>
+      </span>
+      {checked && <span className="shrink-0 text-xs font-bold">✓</span>}
+    </button>
   );
 }
 
 // Compact 4-icon preview for a Wardrobe set's pieces, used in the Armor/Equipment Source pickers.
 function WardrobeSetPreview({ set, slots, itemData }) {
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex items-center gap-1 shrink-0">
       {slots.map((slot) => {
         const item = resolveGearSummary(set[slot], itemData);
         return (
@@ -50,7 +64,7 @@ function WardrobeSetPreview({ set, slots, itemData }) {
             {item ? (
               <WeaponIcon id={item.id} material={item.material} alt={item.name} className="w-5 h-5 object-contain pixelated" color={item.color} />
             ) : (
-              <span className="block w-5 h-5 bg-black/10" />
+              <span className="block w-5 h-5 bg-white/15" />
             )}
           </span>
         );
@@ -67,20 +81,28 @@ function WardrobeSourcePicker({ label, sets, slots, itemData, choice, onChange }
   return (
     <div className="flex flex-col gap-1">
       <div className="text-[11px] font-bold text-black uppercase tracking-wide">{label}</div>
-      <div className="flex flex-col">
-        <label className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110">
-          <input type="radio" name={`${label}-choice`} checked={choice == null} onChange={() => onChange(null)} />
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className={`${optionButtonBase} justify-between ${choice == null ? optionButtonOn : optionButtonOff}`}
+        >
           <span>Currently worn</span>
-        </label>
+          {choice == null && <span className="shrink-0 text-xs font-bold">✓</span>}
+        </button>
         {sets.map((set) => (
-          <label
+          <button
             key={set.index}
-            className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110"
+            type="button"
+            onClick={() => onChange(set.index)}
+            className={`${optionButtonBase} justify-between ${choice === set.index ? optionButtonOn : optionButtonOff}`}
           >
-            <input type="radio" name={`${label}-choice`} checked={choice === set.index} onChange={() => onChange(set.index)} />
-            <span>Wardrobe Set {set.index}</span>
-            <WardrobeSetPreview set={set} slots={slots} itemData={itemData} />
-          </label>
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="shrink-0">Wardrobe Set {set.index}</span>
+              <WardrobeSetPreview set={set} slots={slots} itemData={itemData} />
+            </span>
+            {choice === set.index && <span className="shrink-0 text-xs font-bold">✓</span>}
+          </button>
         ))}
       </div>
     </div>
@@ -240,40 +262,45 @@ export default function HypixelImport() {
             <div className="flex flex-col gap-1">
               <div className="text-[11px] font-bold text-black uppercase tracking-wide">Weapon</div>
               {weaponCandidates.length === 0 ? (
-                <div className="text-sm text-black/60 italic px-2.5 py-1.5">No weapon found in inventory.</div>
+                <div className={`${optionButtonBase} ${optionButtonDisabled}`}>
+                  <span className="italic">No weapon found in inventory.</span>
+                </div>
               ) : (
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-1">
                   {weaponCandidates.map((item, i) => (
-                    <label
+                    <button
                       key={i}
-                      className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110"
+                      type="button"
+                      onClick={() => setWeaponChoice(i)}
+                      className={`${optionButtonBase} justify-between ${weaponChoice === i ? optionButtonOn : optionButtonOff}`}
                     >
-                      <input type="radio" name="weapon-choice" checked={weaponChoice === i} onChange={() => setWeaponChoice(i)} />
-                      {item ? (
-                        <>
-                          <WeaponIcon
-                            id={item.id}
-                            material={item.material}
-                            alt={item.name}
-                            className="w-5 h-5 object-contain pixelated"
-                            color={item.color}
-                          />
-                          <span>{formatItemName(item.name)}</span>
-                        </>
-                      ) : (
-                        <span className="text-black/50 italic">Unknown item (not in current catalog)</span>
-                      )}
-                    </label>
+                      <span className="flex items-center gap-2 min-w-0">
+                        {item ? (
+                          <>
+                            <WeaponIcon
+                              id={item.id}
+                              material={item.material}
+                              alt={item.name}
+                              className="w-5 h-5 object-contain pixelated shrink-0"
+                              color={item.color}
+                            />
+                            <span className="truncate">{formatItemName(item.name)}</span>
+                          </>
+                        ) : (
+                          <span className="italic truncate">Unknown item (not in current catalog)</span>
+                        )}
+                      </span>
+                      {weaponChoice === i && <span className="shrink-0 text-xs font-bold">✓</span>}
+                    </button>
                   ))}
-                  <label className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-black cursor-pointer hover:brightness-110">
-                    <input
-                      type="radio"
-                      name="weapon-choice"
-                      checked={weaponChoice === SKIP_WEAPON}
-                      onChange={() => setWeaponChoice(SKIP_WEAPON)}
-                    />
+                  <button
+                    type="button"
+                    onClick={() => setWeaponChoice(SKIP_WEAPON)}
+                    className={`${optionButtonBase} justify-between ${weaponChoice === SKIP_WEAPON ? optionButtonOn : optionButtonOff}`}
+                  >
                     <span className="italic">Don't import a weapon</span>
-                  </label>
+                    {weaponChoice === SKIP_WEAPON && <span className="shrink-0 text-xs font-bold">✓</span>}
+                  </button>
                 </div>
               )}
             </div>
