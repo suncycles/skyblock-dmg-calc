@@ -760,7 +760,7 @@ export default function DamageSources() {
                     {round4(e.value)}x{e.condition && (
                       <>
                         {' '}
-                        to <Keyworded text={e.condition} />
+                        to <Keyworded text={e.conditionLabel || e.condition} />
                       </>
                     )}
                   </>

@@ -19,10 +19,11 @@ export function computeDaedalusTamingBonus(itemId, tamingLevel) {
   return { damage: rate * tamingLevel };
 }
 
-// Pooch Sword's and Shaman Sword's "+X Damage per Wolf Slayer level" — neither weapon's real
-// lore states this outright, so it's hardcoded (Wolf-mob-multiplier half, where either applies,
-// is hardcoded separately in lib/damageSources.js).
-const WOLF_SLAYER_DAMAGE_PER_LEVEL = { POOCH_SWORD: 20, SHAMAN_SWORD: 10 };
+// Pooch Sword's "+X Damage per Wolf Slayer level" — its real lore doesn't state this outright,
+// so it's hardcoded (Wolf-mob-multiplier half is hardcoded separately in lib/damageSources.js).
+// Shaman Sword is deliberately excluded: real in-game bug means its own ability applies no bonus
+// at all, despite otherwise being the same weapon shape as Pooch Sword.
+const WOLF_SLAYER_DAMAGE_PER_LEVEL = { POOCH_SWORD: 20 };
 
 export function computeWolfSlayerLevelBonus(itemId, wolfSlayerLevel) {
   const rate = WOLF_SLAYER_DAMAGE_PER_LEVEL[itemId];
