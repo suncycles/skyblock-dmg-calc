@@ -4,9 +4,9 @@ import { getPageLabel } from '../lib/pageTitles';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 
 const MENU_LINKS = [
-  { to: '/tutorial', label: 'Tutorial', icon: '/icons/compass.svg' },
-  { to: '/examples', label: 'Examples', icon: '/icons/chest.svg' },
-  { to: '/resources', label: 'Resources', icon: '/icons/ledger.svg' },
+  { to: '/tutorial', label: 'Tutorial', icon: '/images/manual/tutorial_icon.png' },
+  { to: '/examples', label: 'Examples', icon: '/images/manual/Armor_Stand.png' },
+  { to: '/resources', label: 'Calculations', icon: '/images/manual/calculations_icon.png' },
 ];
 
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
@@ -57,7 +57,7 @@ export default function TopBar() {
             onClick={handleBrandClick}
             className="flex items-center gap-2 text-[15px] font-extrabold tracking-tight text-white hover:opacity-80 transition-opacity shrink-0"
           >
-            <img src="/icons/sword.svg" alt="" className="w-[18px] h-[18px] shrink-0 pixelated" />
+            <img src="/icons/favicon.webp" alt="" className="w-[18px] h-[18px] shrink-0 pixelated" />
             SkyDmg
           </Link>
           {pageLabel && (
@@ -68,12 +68,10 @@ export default function TopBar() {
           )}
           <nav className="ml-auto flex items-center gap-4 text-[12px] font-medium shrink-0">
             {pathname === '/damage-sources' ? (
-              <span className="text-white/30 cursor-default">
-                <img src="/icons/sword.svg" alt="" className="inline w-3.5 h-3.5 -mt-0.5 mr-0.5 pixelated opacity-60" /> Damage
-              </span>
+              <span className="text-white/30 cursor-default">Damage</span>
             ) : (
               <Link to="/damage-sources" className="text-white/50 hover:text-white transition-colors">
-                <img src="/icons/sword.svg" alt="" className="inline w-3.5 h-3.5 -mt-0.5 mr-0.5 pixelated" /> Damage
+                Damage
               </Link>
             )}
             {pathname === '/credits' ? (

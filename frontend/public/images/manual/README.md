@@ -49,3 +49,7 @@ melee/vanilla fallback if missing (just a broken image icon until the file exist
 
 - `mage_mode.png` — icon next to the "Mage Mode" toggle button, `pages/DamageSources.jsx`.
   User-provided art (a purple/black "corrupted" cube), not sourced from NEU-REPO.
+- `tutorial_icon.png` / `calculations_icon.png` — drawer menu icons for Tutorial/Calculations,
+  `components/TopBar.jsx`'s `MENU_LINKS`. Custom-head renders (not real Skyblock items), fetched
+  from mc-heads.net using texture hashes sourced from minecraft-heads.com (Info Books / Stack of
+  Newspapers).
