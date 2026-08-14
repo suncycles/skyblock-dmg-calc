@@ -1,6 +1,7 @@
 import { annotateStatLines, mergeStatIntoBase } from './statLines';
 import { getReforgeStatBonus } from './reforgeData';
 import { computeAncientReforgeCritDamage, computeWitheredReforgeStrength } from './playerStats';
+import { LOVING_REFORGE_NAME } from './abilityDamage';
 
 // §9 (blue) — distinct from Gemstones' pink and Books' green.
 export const REFORGE_COLOR = '9';
@@ -51,6 +52,12 @@ export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertB
     const witheredBonus = computeWitheredReforgeStrength(catacombsLevel);
     if (witheredBonus > 0) bonus.strength = (bonus.strength || 0) + witheredBonus;
   }
+
+  // Loving's bundled reforgeStats table lists a flat "+5 Ability Damage" stat, but that's really
+  // a 1.05x Ability Damage multiplier — applied separately via abilityMultiplicative
+  // (lib/damageSources.js) so it stacks correctly on top of any other real Ability Damage stat
+  // instead of just summing with it. Stripped here so it isn't double-counted as a base stat.
+  if (reforgeName === LOVING_REFORGE_NAME) delete bonus.ability_damage;
 
   if (Object.keys(bonus).length === 0) return lore;
   // Merged into the item's own base stat number, annotated with the delta on top for visibility.

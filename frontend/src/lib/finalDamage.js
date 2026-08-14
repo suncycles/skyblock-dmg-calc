@@ -145,16 +145,17 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 // formula — kept as separate variables/fields below so they never get conflated.
 // AdditiveMultiplier only counts entries tagged `abilityEligible`: Giant Killer, Execute,
 // Prosecute, the 7 real type-bane enchants (collectEnchantEntries), Ruler and Dominance
-// attributes (collectAttributeEntries), plus Golden Dragon's Legendary Treasure, Ender Dragon's
-// End Strike, Zombie's Rotten Blade, and Wither Skeleton's Wither Blood (collectPetEntries) —
-// every other additive source in the app (One For All, Swarm/Combo, other pet perks, etc.) is
-// excluded on purpose.
+// attributes (collectAttributeEntries), Combat Level (Player), plus Golden Dragon's Legendary
+// Treasure, Ender Dragon's End Strike, Zombie's Rotten Blade, and Wither Skeleton's Wither Blood
+// (collectPetEntries) — every other additive source in the app (One For All, Swarm/Combo, other
+// pet perks, etc.) is excluded on purpose.
 // MultiplicativeMultiplier is the product of sources.abilityMultiplicative (built in
-// damageSources.js): Skyblock Level and the Implosion Belt's 1.25x (Hyperion/Spirit Sceptre/Yeti
-// Sword only) — deliberately its own bucket, not filtered from the melee `multiplicative` list,
-// since most of that list doesn't apply here at all. Loving's chestplate bonus is a flat +5
-// Ability Damage stat instead, folded into baseStats.ability_damage like any other source (see
-// lib/reforges.js).
+// damageSources.js): Skyblock Level, the Implosion Belt's 1.25x (Hyperion/Spirit Sceptre/Yeti
+// Sword only), and the Loving reforge's 1.05x (chestplate-only; its bundled reforgeStats table
+// lists a flat +5 "Ability Damage" stat, but that's user-confirmed to really be a 1.05x
+// multiplier, so it's stripped out of baseStats.ability_damage in lib/reforges.js and pushed
+// here instead) — deliberately its own bucket, not filtered from the melee `multiplicative`
+// list, since most of that list doesn't apply here at all.
 // No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
 // currently modeled maps to it, left at 0 rather than guessed.
 // Returns null when the equipped weapon has no table entry (not an ability weapon).
