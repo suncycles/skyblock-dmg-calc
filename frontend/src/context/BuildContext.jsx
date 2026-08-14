@@ -107,19 +107,20 @@ function loadInitialBlazeCrimsonIsle() {
   return localStorage.getItem(BLAZE_CRIMSON_ISLE_KEY) === 'true';
 }
 
-// Loads the manually-entered "everything else" Strength/Crit Damage total (Fairy Souls, skill rewards, etc.).
+// Loads the manually-entered "everything else" Strength/Crit Damage/Intelligence total (Fairy Souls, skill rewards, etc.).
 function loadInitialMiscStats() {
   const stored = localStorage.getItem(MISC_STATS_KEY);
-  if (!stored) return { strength: 0, crit_damage: 0 };
+  if (!stored) return { strength: 0, crit_damage: 0, intelligence: 0 };
   try {
     const parsed = JSON.parse(stored);
     return {
       strength: typeof parsed.strength === 'number' ? parsed.strength : 0,
       crit_damage: typeof parsed.crit_damage === 'number' ? parsed.crit_damage : 0,
+      intelligence: typeof parsed.intelligence === 'number' ? parsed.intelligence : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved misc stats:', err);
-    return { strength: 0, crit_damage: 0 };
+    return { strength: 0, crit_damage: 0, intelligence: 0 };
   }
 }
 
@@ -738,7 +739,7 @@ export function BuildProvider({ children }) {
     setAttributesState(nextAttributes);
     localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(nextAttributes));
 
-    const nextMiscStats = { strength: 0, crit_damage: 0, ...(state.miscStats || {}) };
+    const nextMiscStats = { strength: 0, crit_damage: 0, intelligence: 0, ...(state.miscStats || {}) };
     setMiscStatsState(nextMiscStats);
     localStorage.setItem(MISC_STATS_KEY, JSON.stringify(nextMiscStats));
 

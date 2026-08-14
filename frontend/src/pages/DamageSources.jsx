@@ -547,6 +547,20 @@ export default function DamageSources() {
                   className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
                 />
               </label>
+              {mageMode && (
+                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-intelligence">
+                  <span>
+                    <Keyworded text="Intelligence" />
+                  </span>
+                  <NumberInput
+                    id="misc-intelligence"
+                    min={null}
+                    value={miscStats.intelligence}
+                    onChange={(num) => setMiscStat('intelligence', num)}
+                    className="w-full px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center"
+                  />
+                </label>
+              )}
               {hasInfernalCrimsonStacks && (
                 <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="infernal-crimson-stacks">
                   <span className="flex justify-between">
