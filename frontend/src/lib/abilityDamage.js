@@ -54,3 +54,10 @@ export const IMPLOSION_BELT_WEAPON_IDS = new Set([
   'YETI_SWORD',
   'STARRED_YETI_SWORD',
 ]);
+
+// Loving (Red Scarf stone, chestplate-only): user-confirmed to be a genuine 1.05x Ability Damage
+// multiplier, not the flat +5 "Ability Damage" stat its bundled reforgeStats table implies —
+// pulled out of the generic per-rarity stat merge (lib/reforges.js) so it stacks correctly on
+// top of any other real Ability Damage stat instead of just summing with it.
+export const LOVING_REFORGE_NAME = 'Loving';
+export const LOVING_ABILITY_DAMAGE_MULTIPLIER = 1.05;

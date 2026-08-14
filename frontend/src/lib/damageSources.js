@@ -6,7 +6,13 @@ import {
   sumMasterDungeonizedStatFromTooltipLines,
 } from './dungeonize';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
-import { IMPLOSION_BELT_ID, IMPLOSION_BELT_ABILITY_MULTIPLIER, IMPLOSION_BELT_WEAPON_IDS } from './abilityDamage';
+import {
+  IMPLOSION_BELT_ID,
+  IMPLOSION_BELT_ABILITY_MULTIPLIER,
+  IMPLOSION_BELT_WEAPON_IDS,
+  LOVING_REFORGE_NAME,
+  LOVING_ABILITY_DAMAGE_MULTIPLIER,
+} from './abilityDamage';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
@@ -192,6 +198,11 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'VALKYRIE',
   'SCYLLA',
   'NECRON_BLADE',
+  // Flaming Flay/Soul Whip — "Deals Nx damage to Sea Creatures" is object-last like the
+  // percent regexes but an "x" multiplier like the subject-first one, a combination none of
+  // the generic scan's regexes cover; hardcoded in SEA_CREATURE_WHIP_MULTIPLIERS instead.
+  'FLAMING_FLAY',
+  'SOUL_WHIP',
 ]);
 
 // Each Blaze Slayer dagger's own two-mob-type multipliers (real lore, both clauses).
@@ -251,6 +262,15 @@ const WOLF_FAMILY_MOBS = [
 
 // Warden Helmet's Brute Force ability, assumed fully active, also maxes out at 161% rather than 160%.
 const WARDEN_HELMET_BRUTE_FORCE_PERCENT = 161;
+
+// Flaming Flay/Soul Whip's "Deals Nx damage to Sea Creatures" — real lore values, user-confirmed
+// as the actual applied multiplier (no text-vs-function gap here, unlike Pooch Sword above).
+// "Sea Creatures" is a condition token conditionMatchesMob (lib/finalDamage.js) already resolves
+// against the full SEA_CREATURE_MOBS roster, so no per-mob list needs spelling out here.
+const SEA_CREATURE_WHIP_MULTIPLIERS = {
+  FLAMING_FLAY: 3,
+  SOUL_WHIP: 2,
+};
 
 // Each tiered Slayer weapon's own damage bonus against its line's mob family, applied as an
 // independent (1 + bonusPercent/100) factor rather than an additive contribution. Hardcoded
@@ -1026,7 +1046,13 @@ export async function collectDamageSources(
 
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
   if (combatLevelBonus) {
-    out.additiveNonConditional.push({ id: 'combat-level', label: 'Combat Level', source: 'Player', value: combatLevelBonus });
+    out.additiveNonConditional.push({
+      id: 'combat-level',
+      label: 'Combat Level',
+      source: 'Player',
+      value: combatLevelBonus,
+      abilityEligible: true,
+    });
   }
 
   const skyblockLevelMultiplier = computeSkyblockLevelMultiplier(playerStats?.skyblockLevel);
@@ -1120,6 +1146,17 @@ export async function collectDamageSources(
       });
     }
 
+    const seaCreatureMultiplier = SEA_CREATURE_WHIP_MULTIPLIERS[equipped.item.id];
+    if (seaCreatureMultiplier) {
+      out.multiplicative.push({
+        id: `${equipped.item.id.toLowerCase()}-sea-creature`,
+        label: `${itemLabel} (against Sea Creatures)`,
+        source: slotLabel,
+        value: seaCreatureMultiplier,
+        condition: 'Sea Creatures',
+      });
+    }
+
     if (equipped.item.id === 'SCORPION_FOIL') {
       out.additiveConditional.push({
         id: 'scorpion-foil-arthropod-damage',
@@ -1184,6 +1221,17 @@ export async function collectDamageSources(
         label: `${itemLabel} (Fabled Crit Bonus, up to +${FABLED_CRIT_BONUS_MAX_PERCENT}%)`,
         source: slotLabel,
         value: 1,
+      });
+    }
+
+    // Loving: real 1.05x Ability Damage multiplier, not the flat stat its bundled reforgeStats
+    // table implies (stripped from the base-stat merge in lib/reforges.js) — see abilityDamage.js.
+    if (slot === 'chestplate' && equipped.modifiers.reforge === LOVING_REFORGE_NAME) {
+      out.abilityMultiplicative.push({
+        id: 'loving-reforge-ability-damage',
+        label: `${itemLabel} (Loving)`,
+        source: slotLabel,
+        value: LOVING_ABILITY_DAMAGE_MULTIPLIER,
       });
     }
   }
