@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
-import { collectDamageSources } from '../lib/damageSources';
+import { collectDamageSources, FABLED_REFORGE_ID } from '../lib/damageSources';
 import { computeFinalDamage } from '../lib/finalDamage';
+import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
@@ -150,8 +151,26 @@ function computeSideMobResult(side, mobName) {
   if (!side.result || !side.state) return { status: 'loading' };
   const types = MOB_TYPES[mobName] || null;
   if (!types) return { status: 'unknown-mob' };
-  const finalDamage = computeFinalDamage(side.result, { name: mobName, types }, side.state.useDungeonizedStats, side.state.useMasterMode);
-  return { status: 'ok', finalDamage };
+  const mob = { name: mobName, types };
+  const finalDamage = computeFinalDamage(side.result, mob, side.state.useDungeonizedStats, side.state.useMasterMode);
+
+  // Fabled's crit-hit-chance bonus is randomized per hit — main figure stays at the "no bonus" baseline, second figure shows the real max (same treatment as DamageSources.jsx).
+  const hasFabledBonus = side.result.multiplicative.some((e) => e.id === FABLED_REFORGE_ID);
+  const finalDamageWithFabledMax = hasFabledBonus
+    ? computeFinalDamage(
+        {
+          ...side.result,
+          multiplicative: side.result.multiplicative.map((e) =>
+            e.id === FABLED_REFORGE_ID ? { ...e, value: 1 + FABLED_CRIT_BONUS_MAX_PERCENT / 100 } : e,
+          ),
+        },
+        mob,
+        side.state.useDungeonizedStats,
+        side.state.useMasterMode,
+      )
+    : null;
+
+  return { status: 'ok', finalDamage, finalDamageWithFabledMax };
 }
 
 function displayedStat(side, key) {
@@ -221,6 +240,14 @@ function MobResultCard({ label, r }) {
             <span className="text-xs font-bold text-black">Final Damage</span>
             <span className="text-xl font-mono font-bold text-black">{r.finalDamage.finalDamage.toLocaleString()}</span>
           </div>
+          {r.finalDamageWithFabledMax && (
+            <div className="flex items-baseline justify-between">
+              <span className="text-[10px] text-neutral-600">Fabled, up to +{FABLED_CRIT_BONUS_MAX_PERCENT}%</span>
+              <span className="text-xs font-mono text-neutral-600">
+                {r.finalDamage.finalDamage.toLocaleString()} ~ {r.finalDamageWithFabledMax.finalDamage.toLocaleString()}
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>

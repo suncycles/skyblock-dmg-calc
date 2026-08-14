@@ -36,7 +36,7 @@ const ROUTES = [
   [/^\/guides$/, 'Guides'],
   [/^\/tutorial$/, 'Tutorial'],
   [/^\/examples$/, 'Examples'],
-  [/^\/resources$/, 'Resources'],
+  [/^\/resources$/, 'Calculations'],
 ];
 
 // Returns null for "/" (Landing) — the TopBar just shows the bare brand there.
