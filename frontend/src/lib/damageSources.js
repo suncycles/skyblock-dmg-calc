@@ -1007,6 +1007,7 @@ export async function collectDamageSources(
   // Player-entered "everything else" total.
   addBaseStat(out, 'strength', miscStats?.strength || 0, 'Misc');
   addBaseStat(out, 'crit_damage', miscStats?.crit_damage || 0, 'Misc');
+  addBaseStat(out, 'intelligence', miscStats?.intelligence || 0, 'Misc');
 
   // God Potion's aggregate-stat pieces plus Archery IV's bow-only damage bonus.
   if (godPotionActive) {
