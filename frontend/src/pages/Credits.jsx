@@ -11,6 +11,15 @@ export default function Credits() {
           Made with <span className="text-red-400">♥</span> by <span className="font-semibold">sammui</span>
         </p>
 
+        <a
+          href="https://ko-fi.com/sammui"
+          target="_blank"
+          rel="noreferrer"
+          className="self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#29abe0]/20 border border-[#29abe0]/50 text-[#29abe0] text-xs font-semibold hover:bg-[#29abe0]/30 transition-colors"
+        >
+          ☕ buy me half a boba?
+        </a>
+
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
           <h2 className="font-semibold text-white mb-1">Item &amp; Pet Data — NotEnoughUpdates-REPO</h2>
           <p>
