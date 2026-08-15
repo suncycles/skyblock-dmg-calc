@@ -23,7 +23,14 @@ function buildCandidates(id, material) {
 // on top of this already-brown source produces a muddy, wrong-hued result instead.
 const DEFAULT_LEATHER_COLOR = [160, 101, 64];
 
+// Keyed by src+color — the same leather item at the same dye color is tinted often (every grid
+// cell showing it, every remount), and the canvas pixel loop is the expensive part, not the fetch.
+const tintCache = new Map();
+
 function tintLeatherIcon(src, hexColor) {
+  const cacheKey = `${src}|${hexColor}`;
+  const cached = tintCache.get(cacheKey);
+  if (cached) return Promise.resolve(cached);
   return new Promise((resolve, reject) => {
     const target = [
       parseInt(hexColor.slice(0, 2), 16),
@@ -47,7 +54,9 @@ function tintLeatherIcon(src, hexColor) {
         data[i + 2] = Math.min(255, Math.round((data[i + 2] / DEFAULT_LEATHER_COLOR[2]) * target[2]));
       }
       ctx.putImageData(imageData, 0, 0);
-      resolve(canvas.toDataURL());
+      const dataUrl = canvas.toDataURL();
+      tintCache.set(cacheKey, dataUrl);
+      resolve(dataUrl);
     };
     img.onerror = reject;
     img.src = src;
