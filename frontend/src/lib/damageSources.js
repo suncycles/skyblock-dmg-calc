@@ -1156,25 +1156,16 @@ export async function collectDamageSources(
     }
   }
 
-  // Dragon's Greed: assumed always active at its real max (+5% Strength), applied to the fully-summed Strength total so far.
-  if (loadout.pet?.item?.petId === 'GOLDEN_DRAGON') {
-    addBaseStat(
-      out,
-      'strength',
-      out.baseStats.strength * (DRAGONS_GREED_MAX_STRENGTH_PERCENT / 100),
-      "Dragon's Greed (assumed max)",
-    );
-  }
-
-  // Griffin's Sacred Strength: +% Strength scaled by pet level, assumed always active (HP isn't tracked), applied to the player's whole Strength total.
+  // Griffin's Sacred Strength: +% Strength scaled by pet level, assumed always active (HP isn't
+  // tracked). Percent computed here (needs itemData/pet level, both scoped to this function) but
+  // stashed on `out` and applied later, alongside Dragon's Greed, in the shared final-stage
+  // stat-boost loop — same toggle-aware treatment, not a standalone flat addition.
+  out.sacredStrengthPercent = 0;
   if (loadout.pet?.item?.petId === 'GRIFFIN') {
     const { item: pet, modifiers: petModifiers } = loadout.pet;
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
     const otherNums = computeOtherNums(levels, petModifiers.level, getMaxPetLevel(pet.petId));
-    const sacredStrengthPercent = otherNums[0] || 0;
-    if (sacredStrengthPercent) {
-      addBaseStat(out, 'strength', out.baseStats.strength * (sacredStrengthPercent / 100), 'Sacred Strength (assumed active)');
-    }
+    out.sacredStrengthPercent = otherNums[0] || 0;
   }
 
   const combatLevelBonus = computeCombatLevelBonus(playerStats?.combatLevel);
@@ -1560,8 +1551,20 @@ export async function collectDamageSources(
     });
   }
 
-  for (const { percent, label } of statBoostSources) {
-    for (const statKey of finalMultiplierStats) {
+  // Golden Dragon's Dragon's Greed perk: assumed always active at its real max (+5% Strength) —
+  // Strength-only (`stat` below), unlike every other source in this list which applies uniformly
+  // across all of finalMultiplierStats.
+  if (loadout.pet?.item?.petId === 'GOLDEN_DRAGON') {
+    statBoostSources.push({ percent: DRAGONS_GREED_MAX_STRENGTH_PERCENT, label: "Dragon's Greed (assumed max)", stat: 'strength' });
+  }
+
+  // Griffin's Sacred Strength — also Strength-only, percent computed earlier (see out.sacredStrengthPercent above).
+  if (out.sacredStrengthPercent) {
+    statBoostSources.push({ percent: out.sacredStrengthPercent, label: 'Sacred Strength (assumed active)', stat: 'strength' });
+  }
+
+  for (const { percent, label, stat } of statBoostSources) {
+    for (const statKey of stat ? [stat] : finalMultiplierStats) {
       addPercentStatBoost(out, statKey, percent, label, preBoostTotals[statKey]);
     }
   }
