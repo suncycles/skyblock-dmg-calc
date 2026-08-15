@@ -4,6 +4,7 @@ import {
   sumStatFromTooltipLines,
   sumDungeonizedStatFromTooltipLines,
   sumMasterDungeonizedStatFromTooltipLines,
+  computeCatacombsBoostPercent,
 } from './dungeonize';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import {
@@ -190,9 +191,10 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   'HEARTFIRE_DAGGER',
   'HEARTMAW_DAGGER',
   'MAWDUST_DAGGER',
-  // Hyperion family — "Deals +50% damage to Wither mobs." sits directly above two unrelated
-  // Catacombs-level-scaling clauses with no blank line between them, same paragraph-bleed issue
-  // as Pooch Sword above; hardcoded in HYPERION_FAMILY_WITHER_DAMAGE_PERCENT instead.
+  // Wither Blade family (+ Necron's Blade) — "Deals +50% damage to Wither mobs." sits directly
+  // above two unrelated Catacombs-level-scaling clauses with no blank line between them, same
+  // paragraph-bleed issue as Pooch Sword above; hardcoded in WITHER_BLADE_DAMAGE_MULTIPLIER /
+  // NECRON_BLADE_WITHER_DAMAGE_PERCENT instead.
   'HYPERION',
   'ASTRAEA',
   'VALKYRIE',
@@ -235,13 +237,19 @@ const DAGGER_MOB_MULTIPLIERS = {
   ],
 };
 
-// Hyperion/Astraea/Valkyrie/Scylla/Necron's Blade (Unrefined) all carry the identical "Deals
-// +50% damage to Wither mobs." line — see SPECIAL_SCAN_EXCLUDE_IDS above for why this can't go
-// through the generic ability-text scan. A flat +50% is the same thing as a 1.5x multiplier here
-// since it's the weapon's only weaponBonusConditional entry (finalDamage.js's WeaponBonusMultiplier
-// is 1 + summed weaponBonus%), so it's pushed as the standard +50% entry rather than a separate 1.5x.
-const HYPERION_FAMILY_WITHER_DAMAGE_PERCENT = 50;
-const HYPERION_FAMILY_WEAPON_IDS = new Set(['HYPERION', 'ASTRAEA', 'VALKYRIE', 'SCYLLA', 'NECRON_BLADE']);
+// The 4 real "Wither Blade" swords (Hyperion/Astraea/Valkyrie/Scylla — same family
+// lib/witherBladeBonuses.js's Catacombs-level bonuses cover) carry the "Deals +50% damage to
+// Wither mobs." line — see SPECIAL_SCAN_EXCLUDE_IDS above for why this can't go through the
+// generic ability-text scan. User-confirmed real function: a flat 1.5x multiplier, not a +50%
+// that sums with other weapon-bonus sources — pushed to the multiplicative bucket instead of
+// weaponBonusConditional.
+const WITHER_BLADE_DAMAGE_MULTIPLIER = 1.5;
+const WITHER_BLADE_WEAPON_IDS = new Set(['HYPERION', 'ASTRAEA', 'VALKYRIE', 'SCYLLA']);
+
+// Necron's Blade (Unrefined) carries the same lore line but isn't a real Wither Blade — left on
+// the old (mathematically-equivalent-when-it's-the-only-source) +50% weaponBonusConditional
+// treatment rather than assumed to share the same real function without confirming.
+const NECRON_BLADE_WITHER_DAMAGE_PERCENT = 50;
 
 // Pooch Sword's "+200% Damage against Wolves" — see SPECIAL_SCAN_EXCLUDE_IDS above for why
 // this can't go through the generic ability-text scan. "Wolves" covers every wolf-family mob,
@@ -545,6 +553,22 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       // leaves a stat missing — see lib/dungeonize.js's own fallback behavior.
       out.dungeonizeDelta[statKey] += sumDungeonizedStatFromTooltipLines(lines, label) - normal;
       out.masterDungeonizeDelta[statKey] += sumMasterDungeonizedStatFromTooltipLines(lines, label) - normal;
+    }
+    // Mage Mode's fixed "Base Ability Damage" constant (lib/abilityDamage.js's ABILITY_DAMAGE_TABLE,
+    // e.g. Hyperion's 10000) isn't a lore stat line, so it never went through Dungeonize's
+    // tooltip-annotation path above — nothing scaled it. User-confirmed it should scale by the same
+    // Catacombs Stats Boost percentage as every other stat (lib/dungeonize.js's
+    // computeCatacombsBoostPercent): stashed here (weapon slot only) for computeAbilityDamage
+    // (lib/finalDamage.js) to apply as `table.base * (1 + boost/100)`, same formula shape as
+    // applyDungeonizeToLore uses for real stat lines.
+    if (slot === 'weapon' && equipped.modifiers.dungeonized) {
+      out.abilityBaseDamageBoost = computeCatacombsBoostPercent(
+        catacombsLevel,
+        equipped.modifiers.dungeonizeOldCurve,
+        equipped.modifiers.stars,
+        generalsMedallionDigits,
+        equipped.modifiers.masterStars,
+      );
     }
     // Emerald Blade's bonus lives on its own "Current Damage Bonus:" line, not a "Damage:" stat line.
     if (equipped.item.id === 'EMERALD_BLADE') {
@@ -977,6 +1001,10 @@ export async function collectDamageSources(
     // themselves be re-scaled by Dungeonize.
     dungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     masterDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
+    // Weapon-only Catacombs Stats Boost percentage for computeAbilityDamage's Base Ability Damage
+    // scaling — see the `abilityBaseDamageBoost` assignment in collectBaseStats above. Zero (no
+    // boost) when the equipped weapon isn't dungeonized, so the toggle never leaves it undefined.
+    abilityBaseDamageBoost: { withoutMaster: 0, withMaster: 0 },
     additiveNonConditional: [],
     additiveConditional: [],
     // The equipped weapon's own "+X% damage" ability bonuses — kept separate from the
@@ -1168,12 +1196,22 @@ export async function collectDamageSources(
       });
     }
 
-    if (HYPERION_FAMILY_WEAPON_IDS.has(equipped.item.id)) {
-      out.weaponBonusConditional.push({
-        id: 'hyperion-family-wither-damage',
+    if (WITHER_BLADE_WEAPON_IDS.has(equipped.item.id)) {
+      out.multiplicative.push({
+        id: 'wither-blade-damage',
         label: `${itemLabel} (against Wither mobs)`,
         source: slotLabel,
-        value: HYPERION_FAMILY_WITHER_DAMAGE_PERCENT,
+        value: WITHER_BLADE_DAMAGE_MULTIPLIER,
+        condition: 'Wither',
+      });
+    }
+
+    if (equipped.item.id === 'NECRON_BLADE') {
+      out.weaponBonusConditional.push({
+        id: 'necron-blade-wither-damage',
+        label: `${itemLabel} (against Wither mobs)`,
+        source: slotLabel,
+        value: NECRON_BLADE_WITHER_DAMAGE_PERCENT,
         condition: 'Wither',
       });
     }
