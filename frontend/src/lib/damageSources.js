@@ -438,6 +438,46 @@ function addBaseStat(out, statKey, value, label, dungeonizedValue = value, maste
   }
 }
 
+// A stat's current running total in all three toggle states — `dungeonizeDelta`/
+// `masterDungeonizeDelta` are already fully populated by the time any final-stage source below
+// runs (collectBaseStats, the only place that writes them, always runs first), so this is a valid
+// snapshot of "what the player's stat actually reads right now" in each mode.
+function currentStatTotals(out, statKey) {
+  return {
+    normal: out.baseStats[statKey],
+    dungeonized: out.baseStats[statKey] + out.dungeonizeDelta[statKey],
+    master: out.baseStats[statKey] + out.masterDungeonizeDelta[statKey],
+  };
+}
+
+// Records a final-stage stat addition across all three toggle states in one call: writes the
+// labeled breakdown entry (addBaseStat) AND bumps the running dungeonize/master deltas so the
+// toggled top-line total picks the addition up too — without this second part, a source computed
+// here would show correctly in the expanded breakdown but silently vanish from the actual total
+// once Dungeon/Master is toggled.
+function addFinalStatValue(out, statKey, value, dungeonizedValue, masterDungeonizedValue, label) {
+  addBaseStat(out, statKey, value, label, dungeonizedValue, masterDungeonizedValue);
+  out.dungeonizeDelta[statKey] += dungeonizedValue - value;
+  out.masterDungeonizeDelta[statKey] += masterDungeonizedValue - value;
+}
+
+// `percent`% of `base` (a currentStatTotals()-shaped {normal, dungeonized, master} triple) —
+// covers every final-stage "combat stat boost" source (Unlimited Power/Energy/Torment, Superior
+// Dragon, Ender Dragon Superior, Renowned, Legion, Blaze Crimson Isle): each one is a multiplier
+// on the player's CURRENT stat total, which while Dungeonized/Master is the boosted total (gear's
+// own Catacombs Stats Boost already folded into dungeonizeDelta) — not the flat pre-toggle number.
+function addPercentStatBoost(out, statKey, percent, label, base) {
+  if (!percent) return;
+  addFinalStatValue(
+    out,
+    statKey,
+    base.normal * (percent / 100),
+    base.dungeonized * (percent / 100),
+    base.master * (percent / 100),
+    label,
+  );
+}
+
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
   let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
@@ -1034,9 +1074,9 @@ function collectAttributeEntries(attributes, loadout, out) {
   const unlimitedPowerPercent = UNLIMITED_POWER_RATE * (attributes.unlimited_power || 0) * (1 + almightyBoost / 100);
   const unlimitedEnergyPercent = UNLIMITED_ENERGY_RATE * (attributes.unlimited_energy || 0) * (1 + almightyBoost / 100);
   const maximalTormentPercent = MAXIMAL_TORMENT_RATE * (attributes.maximal_torment || 0) * (1 + almightyBoost / 100);
-  addBaseStat(out, 'strength', out.baseStats.strength * (unlimitedPowerPercent / 100), 'Unlimited Power');
-  addBaseStat(out, 'crit_damage', out.baseStats.crit_damage * (unlimitedEnergyPercent / 100), 'Unlimited Energy');
-  addBaseStat(out, 'intelligence', out.baseStats.intelligence * (maximalTormentPercent / 100), 'Unlimited Torment');
+  addPercentStatBoost(out, 'strength', unlimitedPowerPercent, 'Unlimited Power', currentStatTotals(out, 'strength'));
+  addPercentStatBoost(out, 'crit_damage', unlimitedEnergyPercent, 'Unlimited Energy', currentStatTotals(out, 'crit_damage'));
+  addPercentStatBoost(out, 'intelligence', maximalTormentPercent, 'Unlimited Torment', currentStatTotals(out, 'intelligence'));
 }
 
 // ---------------------------------------------------------------------
@@ -1488,8 +1528,10 @@ export async function collectDamageSources(
   // Every active source's percent is computed off the SAME pre-boost snapshot and summed, not
   // chained against the running (already-boosted) total — so Renowned +1% and a hypothetical
   // +1% source add up to a flat +2% of the original total, not 1.01 * 1.01. Each source still
-  // gets its own labeled entry in the (Base) Stats breakdown.
-  const preBoostBaseStats = { ...out.baseStats };
+  // gets its own labeled entry in the (Base) Stats breakdown. Snapshotting all three toggle
+  // states (not just normal) up front, before any source in the loop below can mutate them, is
+  // what keeps this same "flat sum" behavior correct in Dungeonized/Master mode too.
+  const preBoostTotals = Object.fromEntries(finalMultiplierStats.map((key) => [key, currentStatTotals(out, key)]));
   const statBoostSources = [];
 
   if (hasFullSet(loadout, ARMOR_SLOTS, SUPERIOR_DRAGON_SET)) {
@@ -1520,16 +1562,25 @@ export async function collectDamageSources(
 
   for (const { percent, label } of statBoostSources) {
     for (const statKey of finalMultiplierStats) {
-      addBaseStat(out, statKey, preBoostBaseStats[statKey] * (percent / 100), label);
+      addPercentStatBoost(out, statKey, percent, label, preBoostTotals[statKey]);
     }
   }
 
   // Tarantula/Primordial Helmet's Radioactive bonus — reads the truly final Strength total
-  // (after the stat-boost stage above), same as a real player's own Strength stat would.
+  // (after the stat-boost stage above), same as a real player's own Strength stat would; that
+  // includes the Dungeonized/Master total (and its own 1,000 cap) while the toggle is on.
   const radioactiveRate = RADIOACTIVE_CRIT_DAMAGE_PER_10_STRENGTH[loadout.helmet?.item?.id];
   if (radioactiveRate) {
-    const cappedStrength = Math.min(out.baseStats.strength, RADIOACTIVE_MAX_STRENGTH);
-    addBaseStat(out, 'crit_damage', (cappedStrength / 10) * radioactiveRate, 'Radioactive');
+    const strengthTotals = currentStatTotals(out, 'strength');
+    const factor = radioactiveRate / 10;
+    addFinalStatValue(
+      out,
+      'crit_damage',
+      Math.min(strengthTotals.normal, RADIOACTIVE_MAX_STRENGTH) * factor,
+      Math.min(strengthTotals.dungeonized, RADIOACTIVE_MAX_STRENGTH) * factor,
+      Math.min(strengthTotals.master, RADIOACTIVE_MAX_STRENGTH) * factor,
+      'Radioactive',
+    );
   }
 
   out.dungeonizedBaseStats = {};
