@@ -41,7 +41,12 @@ const TIER_NAMES = Object.keys(misc.tier_colors)
   .map((t) => t.replace(/_/g, ' ').toUpperCase())
   .sort((a, b) => b.length - a.length);
 
-const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND'];
+// 'GAUNTLET' is Gemstone Gauntlet's own real tag word ("LEGENDARY GAUNTLET") — a mining tool
+// held in the weapon slot, distinct from Gloves-slot "Gauntlet"-named equipment (Demonslayer
+// Gauntlet etc.), which tags itself GLOVES/BRACELET like every other Gloves item and is
+// unaffected by this addition (verified: no armor.json/equipment.json entry uses category
+// GAUNTLET).
+const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND', 'GAUNTLET'];
 const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 // Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) — a
 // second, parallel armor-like slot set, not variants of HELMET etc.
