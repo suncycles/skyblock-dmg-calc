@@ -686,25 +686,25 @@ export default function Landing() {
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={handleExportLoadout}
             >
-              📤 {exportStatus || 'Export'}
+              <img src="/images/ui/export.png" alt="" className="w-4 h-4" /> {exportStatus || 'Export'}
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={handleImportLoadout}
             >
-              📥 {importStatus || 'Import'}
+              <img src="/images/ui/import.png" alt="" className="w-4 h-4" /> {importStatus || 'Import'}
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={() => setShowLoadoutsPanel((v) => !v)}
             >
-              📁 Loadouts
+              <img src="/images/ui/loadouts.png" alt="" className="w-4 h-4" /> Loadouts
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={() => navigate('/hypixel-import')}
             >
-              🌐 Hypixel
+              <img src="/images/ui/hypixel.png" alt="" className="w-4 h-4" /> Hypixel
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"

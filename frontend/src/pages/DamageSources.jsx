@@ -246,7 +246,7 @@ export default function DamageSources() {
             }`}
           >
             <img src="/images/manual/mage_mode.png" alt="" className="w-5 h-5" />
-            <Keyworded text="Ability Damage" />
+            <Keyworded text="Mage" />
           </button>
         }
       />
@@ -341,6 +341,10 @@ export default function DamageSources() {
                             <Keyworded text="Base Ability Damage" />
                           </span>
                           <span className="text-right font-mono">{abilityDamage.baseDamage.toLocaleString()}</span>
+                          <span>Catacombs Stats Boost</span>
+                          <span className="text-right font-mono">
+                            +{round1(abilityDamage.catacombsBoostPercent)}% (x{round4(abilityDamage.catacombsBoostMultiplier)})
+                          </span>
                           <span>Ability Scaling</span>
                           <span className="text-right font-mono">{abilityDamage.scaling}</span>
                           <span>
