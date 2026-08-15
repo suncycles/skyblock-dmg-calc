@@ -129,10 +129,18 @@ function extractGemstones(gems) {
   if (!gems) return [];
   const result = [];
   for (const [key, value] of Object.entries(gems)) {
-    if (key === 'unlocked_slots' || typeof value !== 'string') continue;
-    const match = key.match(/^([A-Z_]+)_\d+$/);
-    if (!match || !COMBAT_GEM_TYPES.includes(match[1])) continue;
-    result.push({ gem: match[1], tier: value.toLowerCase() });
+    const match = key.match(/^([A-Z]+)_\d+$/);
+    if (!match) continue;
+    // Quality is a bare string on most slots, but Hypixel writes {uuid, quality} for gems that
+    // carry a tracked instance id — same quality info either way.
+    const quality = typeof value === 'string' ? value : value?.quality;
+    if (!quality) continue;
+    // A typed slot (e.g. SAPPHIRE_0) names its gem type in the key itself. A category slot
+    // (COMBAT_0, DEFENSIVE_0, UNIVERSAL_0, ...) only holds quality here — the actual gem type
+    // socketed into it lives in the paired "<key>_gem" entry (e.g. "COMBAT_0_gem": "AMETHYST").
+    const gemType = COMBAT_GEM_TYPES.includes(match[1]) ? match[1] : gems[`${key}_gem`];
+    if (!gemType || !COMBAT_GEM_TYPES.includes(gemType)) continue;
+    result.push({ gem: gemType, tier: quality.toLowerCase() });
   }
   return result;
 }
