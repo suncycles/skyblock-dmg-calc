@@ -83,7 +83,7 @@ export default function TargetMobPicker() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <PageHeader title="Target Mobs" />
+      <PageHeader title="Target Mobs" backLabel="Confirm" />
 
       <div className="w-full max-w-[700px] flex flex-col gap-2.5">
         <div className="text-xs text-neutral-300">
