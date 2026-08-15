@@ -562,8 +562,13 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // Master Stars) — distinct from the real "Ability Damage" STAT (Wither Goggles etc.), which
     // uses a separate no-curve formula, see computeAbilityDamageCatacombsBoostPercent and
     // CLAUDE.md. Stashed here (weapon slot only) for computeAbilityDamage (lib/finalDamage.js) to
-    // apply as `table.base * (1 + boost/100)`.
-    if (slot === 'weapon' && equipped.modifiers.dungeonized) {
+    // apply as `table.base * (1 + boost/100)`. User-confirmed: deliberately NOT gated on the
+    // weapon's own per-item `modifiers.dungeonized` flag (unlike every other stat's boost) — the
+    // Damage Sources page's global "Dungeon" toggle (useDungeonizedStats, applied in
+    // computeAbilityDamage) is the only gate, so Catacombs Level/General's Medallion still apply
+    // even on a weapon that was never individually Dungeonized (stars/Master Stars still come from
+    // the weapon's own modifiers, 0 if it was never starred).
+    if (slot === 'weapon') {
       out.abilityBaseDamageBoost = computeCatacombsBoostPercent(
         catacombsLevel,
         equipped.modifiers.dungeonizeOldCurve,
