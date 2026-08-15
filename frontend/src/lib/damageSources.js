@@ -557,10 +557,12 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // Mage Mode's fixed "Base Ability Damage" constant (lib/abilityDamage.js's ABILITY_DAMAGE_TABLE,
     // e.g. Hyperion's 10000) isn't a lore stat line, so it never went through Dungeonize's
     // tooltip-annotation path above — nothing scaled it. User-confirmed it should scale by the same
-    // Catacombs Stats Boost percentage as every other stat (lib/dungeonize.js's
-    // computeCatacombsBoostPercent): stashed here (weapon slot only) for computeAbilityDamage
-    // (lib/finalDamage.js) to apply as `table.base * (1 + boost/100)`, same formula shape as
-    // applyDungeonizeToLore uses for real stat lines.
+    // GENERAL Catacombs Stats Boost as every other real stat (lib/dungeonize.js's
+    // computeCatacombsBoostPercent — Catacombs Level curve + Stars + General's Medallion digits +
+    // Master Stars) — distinct from the real "Ability Damage" STAT (Wither Goggles etc.), which
+    // uses a separate no-curve formula, see computeAbilityDamageCatacombsBoostPercent and
+    // CLAUDE.md. Stashed here (weapon slot only) for computeAbilityDamage (lib/finalDamage.js) to
+    // apply as `table.base * (1 + boost/100)`.
     if (slot === 'weapon' && equipped.modifiers.dungeonized) {
       out.abilityBaseDamageBoost = computeCatacombsBoostPercent(
         catacombsLevel,
