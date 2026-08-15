@@ -9,6 +9,11 @@ const MENU_LINKS = [
   { to: '/resources', label: 'Calculations', icon: '/images/manual/calculations_icon.png' },
 ];
 
+// Persistent (survives browser restarts, unlike entryScreen.js's ENTRY_DISMISSED_KEY which is
+// sessionStorage-scoped) — tracks whether this browser has ever opened the app before, so the
+// "check the menu/Tutorial" nudge below only ever shows once, on a genuinely first visit.
+const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
+
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
 // route without each page re-declaring it. Deliberately a plain modern navbar rather than the
 // chunky Minecraft chest-GUI bevel used everywhere below it — the contrast reads as "app chrome"
@@ -19,12 +24,27 @@ export default function TopBar() {
   const { pathname } = useLocation();
   const pageLabel = getPageLabel(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showFirstLaunchHint, setShowFirstLaunchHint] = useState(
+    () => localStorage.getItem(FIRST_LAUNCH_KEY) !== '1',
+  );
 
   // Closes the drawer on any navigation (a menu link, the brand, or Back/browser nav) rather than
   // requiring every nav item to remember to close it itself.
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
+
+  function dismissFirstLaunchHint() {
+    localStorage.setItem(FIRST_LAUNCH_KEY, '1');
+    setShowFirstLaunchHint(false);
+  }
+
+  // Opening the menu at all counts as "found it" — no need to keep nudging once they've seen
+  // what's inside (the Tutorial link among it).
+  function handleMenuToggle() {
+    setMenuOpen((v) => !v);
+    if (showFirstLaunchHint) dismissFirstLaunchHint();
+  }
 
   // The brand link's target ("/") is Landing.jsx, which shows the username-entry gate instead of
   // the loadout grid until that gate's been dismissed once this tab (see EntryScreen.jsx). Without
@@ -43,15 +63,34 @@ export default function TopBar() {
           below to compensate for the space this no longer reserves in normal flow. */}
       <header className="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-[rgba(10,11,15,0.55)] border-b border-white/10">
         <div className="max-w-[900px] mx-auto px-4 h-12 flex items-center gap-2.5">
-          <button
-            type="button"
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-            className="shrink-0 -ml-1.5 w-8 h-8 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors cursor-pointer"
-          >
-            <StackIcon open={menuOpen} />
-          </button>
+          <div className="relative shrink-0 -ml-1.5">
+            <button
+              type="button"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              onClick={handleMenuToggle}
+              className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors cursor-pointer"
+            >
+              <StackIcon open={menuOpen} />
+              {showFirstLaunchHint && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+            </button>
+            {showFirstLaunchHint && !menuOpen && (
+              <div className="absolute left-0 top-full mt-2 w-56 z-50 bg-emerald-600 text-white text-[12px] leading-snug rounded-lg shadow-lg p-3 pr-6 animate-[bg-video-fade-in_300ms_ease-out]">
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  onClick={dismissFirstLaunchHint}
+                  className="absolute top-1 right-1.5 w-4 h-4 flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+                <span className="font-bold block mb-0.5">New here?</span>
+                Open this menu to find the Tutorial and other guides.
+              </div>
+            )}
+          </div>
           <Link
             to="/"
             onClick={handleBrandClick}
