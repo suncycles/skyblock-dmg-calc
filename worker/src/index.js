@@ -96,20 +96,25 @@ export default {
   }
 };
 
+// 30 minutes: short enough that a POST /api/refresh (see CLAUDE.md) is reflected for new tabs
+// well within the KV's own 6h CACHE_TTL_MS, long enough to skip re-downloading this ~728KB
+// payload on every hard reload/new tab within a browsing session.
+const ITEMS_RESPONSE_CACHE_HEADERS = { "Cache-Control": "public, max-age=1800" };
+
 async function handleGetItems(env) {
   const cached = await env.CACHE.get(CACHE_KEY, "json");
 
   if (cached && Date.now() - cached.lastFetched < CACHE_TTL_MS) {
-    return jsonResponse(cached);
+    return jsonResponse(cached, 200, ITEMS_RESPONSE_CACHE_HEADERS);
   }
 
   try {
     const fresh = await buildFreshData();
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    return jsonResponse(fresh);
+    return jsonResponse(fresh, 200, ITEMS_RESPONSE_CACHE_HEADERS);
   } catch (err) {
     console.error("handleGetItems: buildFreshData failed:", err);
-    if (cached) return jsonResponse(cached);
+    if (cached) return jsonResponse(cached, 200, ITEMS_RESPONSE_CACHE_HEADERS);
     return jsonResponse({ error: "Failed to fetch item data", detail: String(err) }, 502);
   }
 }
@@ -550,12 +555,13 @@ async function handleHypixelImport(url, env) {
   }
 }
 
-function jsonResponse(obj, status = 200) {
+function jsonResponse(obj, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(obj), {
     status,
     headers: {
       "Content-Type": "application/json",
-      ...CORS_HEADERS
+      ...CORS_HEADERS,
+      ...extraHeaders
     }
   });
 }
