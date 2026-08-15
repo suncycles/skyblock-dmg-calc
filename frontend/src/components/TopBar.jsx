@@ -114,9 +114,9 @@ export default function TopBar() {
               </Link>
             )}
             {pathname === '/credits' ? (
-              <span className="text-white/30 cursor-default">Credits</span>
+              <span className="font-bold text-white/60 cursor-default">Credits</span>
             ) : (
-              <Link to="/credits" className="text-white/50 hover:text-white transition-colors">
+              <Link to="/credits" className="font-bold text-white hover:text-white/80 transition-colors">
                 Credits
               </Link>
             )}
