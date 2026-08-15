@@ -59,6 +59,8 @@ import {
   applyLionPrimalForce,
   applyAnkylosaurusMax,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
+  computeItemChimeraBonus,
+  computeManticoreClawBonus,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
@@ -379,11 +381,9 @@ function cleanTargetText(raw) {
 // it's a standalone replacement total (see dungeonizeDelta below), not an addition, and must
 // only ever reach display via dungeonizedBaseStats when "Toggle Dungeon Stats" is on.
 
-// Chimera enchant: copies 20%/level of the active pet's Strength/Crit Chance/Crit Damage, stacked on top of the pet's own contribution.
-const CHIMERA_PERCENT_PER_LEVEL = 20;
-// Manticore Claw gloves: same "copy the equipped pet's Strength/Crit Chance/Crit Damage" mechanic
-// as Chimera, but a flat 10% (not level-scaled).
-const MANTICORE_CLAW_PERCENT = 10;
+// Chimera enchant and Manticore Claw gloves both copy a cut of the active pet's stat spread onto
+// the item's own displayed lore (computeItemChimeraBonus/computeManticoreClawBonus in petData.js)
+// — their fractions live there, not duplicated here.
 // Skeleton pet: +75% additive Damage when a bow is equipped, doubled to +150% when the
 // "Toggle Dungeon Stats" switch is on.
 const SKELETON_ARROW_BONUS_PERCENT = 75;
@@ -417,15 +417,25 @@ const COMBO_PERCENT_BY_LEVEL = [null, 1, 2, 3, 4, 5];
 const RADIOACTIVE_CRIT_DAMAGE_PER_10_STRENGTH = { TARANTULA_HELMET: 1, PRIMORDIAL_HELMET: 1.5 };
 const RADIOACTIVE_MAX_STRENGTH = 1000;
 
-// Adds to a base stat's running total and records the source for DamageSources.jsx's
-// per-stat breakdown, merging entries that share a label into one running total.
-function addBaseStat(out, statKey, value, label) {
+// Adds to a base stat's running total and records the source for DamageSources.jsx's per-stat
+// breakdown, merging entries that share a label into one running total. `dungeonizedValue`/
+// `masterDungeonizedValue` default to `value` (no change) — correct for every non-gear source
+// (Pet, Attributes, Player Levels, ...), which aren't subject to the Dungeonize mechanic at all.
+// Only the per-item gear-stat-line loop (and the Chimera/Manticore Claw pass below it) pass real
+// dungeonized amounts, so DamageSources.jsx's expanded breakdown can show the toggle-correct
+// per-source value instead of being frozen at the pre-Dungeon-toggle number.
+function addBaseStat(out, statKey, value, label, dungeonizedValue = value, masterDungeonizedValue = dungeonizedValue) {
   if (!value) return;
   out.baseStats[statKey] += value;
   const list = out.baseStatSources[statKey];
   const existing = list.find((e) => e.label === label);
-  if (existing) existing.value += value;
-  else list.push({ label, value });
+  if (existing) {
+    existing.value += value;
+    existing.dungeonizedValue += dungeonizedValue;
+    existing.masterDungeonizedValue += masterDungeonizedValue;
+  } else {
+    list.push({ label, value, dungeonizedValue, masterDungeonizedValue });
+  }
 }
 
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
@@ -548,11 +558,13 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     for (const statKey of TRACKED_STATS) {
       const label = STAT_LABELS[statKey].label;
       const normal = sumStatFromTooltipLines(lines, label);
-      addBaseStat(out, statKey, normal, slotLabel);
       // Falls back to `normal` itself when the item isn't dungeonized, so the toggle never
       // leaves a stat missing — see lib/dungeonize.js's own fallback behavior.
-      out.dungeonizeDelta[statKey] += sumDungeonizedStatFromTooltipLines(lines, label) - normal;
-      out.masterDungeonizeDelta[statKey] += sumMasterDungeonizedStatFromTooltipLines(lines, label) - normal;
+      const dungeonized = sumDungeonizedStatFromTooltipLines(lines, label);
+      const masterDungeonized = sumMasterDungeonizedStatFromTooltipLines(lines, label);
+      addBaseStat(out, statKey, normal, slotLabel, dungeonized, masterDungeonized);
+      out.dungeonizeDelta[statKey] += dungeonized - normal;
+      out.masterDungeonizeDelta[statKey] += masterDungeonized - normal;
     }
     // Mage Mode's fixed "Base Ability Damage" constant (lib/abilityDamage.js's ABILITY_DAMAGE_TABLE,
     // e.g. Hyperion's 10000) isn't a lore stat line, so it never went through Dungeonize's
@@ -583,25 +595,70 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       addBaseStat(out, 'damage', computeSpecialBonus(config, equipped.modifiers.special), slotLabel);
     }
 
-    const chimera = [
-      ...(equipped.modifiers.hexEnchantments || []),
-      ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
-    ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
-    if (chimera) {
-      const fraction = (chimera.level * CHIMERA_PERCENT_PER_LEVEL) / 100;
+    // Chimera (ultimate enchant, any slot) and Manticore Claw (Gloves-slot item) both copy a cut
+    // of the active pet's stat spread onto this item's own displayed lore — computed via a second
+    // buildFullItemTooltipLines call (with the bonus merged in) and diffed against `lines` above,
+    // so the isolated delta picks up this item's own Catacombs Stats Boost exactly like its real
+    // stats do (applyDungeonizeToLore scales the merged line, not just the item's native total).
+    // Each bonus gets its own isolated call rather than combining both into one, so an item with
+    // both applied at once (unusual, but not prevented by the data model) still attributes each
+    // to its own separate breakdown line instead of a lumped, ambiguous delta.
+    const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
+    if (chimeraBonus) {
+      const chimeraLines = await buildFullItemTooltipLines(
+        equipped.item,
+        equipped.modifiers,
+        itemData,
+        catacombsLevel,
+        tamingLevel,
+        undefined,
+        chimeraBonus,
+        generalsMedallionDigits,
+        undefined,
+        potatoBookDoubled,
+      );
       const chimeraLabel = `${slotLabel} (Chimera)`;
-      addBaseStat(out, 'strength', (petStats.STRENGTH || 0) * fraction, chimeraLabel);
-      addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, chimeraLabel);
-      addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, chimeraLabel);
+      for (const statKey of TRACKED_STATS) {
+        const label = STAT_LABELS[statKey].label;
+        const delta = sumStatFromTooltipLines(chimeraLines, label) - sumStatFromTooltipLines(lines, label);
+        if (!delta) continue;
+        const dungeonizedDelta =
+          sumDungeonizedStatFromTooltipLines(chimeraLines, label) - sumDungeonizedStatFromTooltipLines(lines, label);
+        const masterDungeonizedDelta =
+          sumMasterDungeonizedStatFromTooltipLines(chimeraLines, label) - sumMasterDungeonizedStatFromTooltipLines(lines, label);
+        addBaseStat(out, statKey, delta, chimeraLabel, dungeonizedDelta, masterDungeonizedDelta);
+        out.dungeonizeDelta[statKey] += dungeonizedDelta - delta;
+        out.masterDungeonizeDelta[statKey] += masterDungeonizedDelta - delta;
+      }
     }
 
-    // Manticore Claw gloves: same "copy the equipped pet's Combat stats" mechanic as Chimera, flat 10%.
-    if (equipped.item.id === 'MANTICORE_CLAW') {
-      const fraction = MANTICORE_CLAW_PERCENT / 100;
-      const label = `${slotLabel} (Manticore Claw)`;
-      addBaseStat(out, 'strength', (petStats.STRENGTH || 0) * fraction, label);
-      addBaseStat(out, 'crit_chance', (petStats.CRIT_CHANCE || 0) * fraction, label);
-      addBaseStat(out, 'crit_damage', (petStats.CRIT_DAMAGE || 0) * fraction, label);
+    const manticoreBonus = computeManticoreClawBonus(equipped, petStats);
+    if (manticoreBonus) {
+      const manticoreLines = await buildFullItemTooltipLines(
+        equipped.item,
+        equipped.modifiers,
+        itemData,
+        catacombsLevel,
+        tamingLevel,
+        undefined,
+        undefined,
+        generalsMedallionDigits,
+        manticoreBonus,
+        potatoBookDoubled,
+      );
+      const manticoreLabel = `${slotLabel} (Manticore Claw)`;
+      for (const statKey of TRACKED_STATS) {
+        const label = STAT_LABELS[statKey].label;
+        const delta = sumStatFromTooltipLines(manticoreLines, label) - sumStatFromTooltipLines(lines, label);
+        if (!delta) continue;
+        const dungeonizedDelta =
+          sumDungeonizedStatFromTooltipLines(manticoreLines, label) - sumDungeonizedStatFromTooltipLines(lines, label);
+        const masterDungeonizedDelta =
+          sumMasterDungeonizedStatFromTooltipLines(manticoreLines, label) - sumMasterDungeonizedStatFromTooltipLines(lines, label);
+        addBaseStat(out, statKey, delta, manticoreLabel, dungeonizedDelta, masterDungeonizedDelta);
+        out.dungeonizeDelta[statKey] += dungeonizedDelta - delta;
+        out.masterDungeonizeDelta[statKey] += masterDungeonizedDelta - delta;
+      }
     }
   }
 
