@@ -374,6 +374,11 @@ export default function DamageSources() {
                         <span className="text-2xl font-mono font-bold text-black">{beamDamage.finalDamage.toLocaleString()}</span>
                       </div>
                     )}
+                    {useDungeonizedStats && (
+                      <div className="text-[10px] italic text-neutral-600">
+                        Mob Defense is currently not implemented but will be coming soon
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -470,6 +475,11 @@ export default function DamageSources() {
                         </div>
                       )}
                     </div>
+                    {useDungeonizedStats && (
+                      <div className="text-[10px] italic text-neutral-600">
+                        Mob Defense is currently not implemented but will be coming soon
+                      </div>
+                    )}
                   </>
                 )}
               </div>
