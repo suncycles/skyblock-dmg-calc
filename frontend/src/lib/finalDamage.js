@@ -27,10 +27,21 @@
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
+import { getMobLocations } from './mobLocations';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
 const LAVA_SEA_CREATURE_KEYS = new Set(LAVA_SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
+
+// The Garden's mobs (Beetle, Cricket, Rat, ...) and the 4 Jerrys of Jerry's Workshop are joke
+// sets — every one of them deals/takes a token amount of real damage in-game, so this calculator
+// forces their Final Damage to 0 rather than modeling farming/event-specific mechanics. Checked
+// by name before any other formula logic in every damage function below so it's a hard override,
+// not just another multiplier.
+const JOKE_LOCATIONS = new Set(['The Garden', "Jerry's Workshop"]);
+function isJokeMob(mob) {
+  return !!mob?.name && getMobLocations(mob.name).some((loc) => JOKE_LOCATIONS.has(loc));
+}
 
 // A `condition` string is comma-separated ("Undead, Skeletal, Wither"); each token is either
 // a canonical Mob Type name (matched against the target's own types), the collective "Sea
@@ -73,6 +84,20 @@ function selectBaseStats(sources, useDungeonizedStats, useMasterMode) {
 // (sources.dungeonizedBaseStats) in place of its normal one; `useMasterMode` (only meaningful
 // alongside useDungeonizedStats) additionally folds in each item's Master Star delta — see lib/dungeonize.js.
 export function computeFinalDamage(sources, mob, useDungeonizedStats = false, useMasterMode = false) {
+  if (isJokeMob(mob)) {
+    return {
+      initialDamage: 0,
+      additiveMultiplier: 1,
+      additivePercent: 0,
+      weaponBonusMultiplier: 1,
+      weaponBonusPercent: 0,
+      multiplicativeMultiplier: 1,
+      bonusModifiers: 0,
+      finalDamage: 0,
+      appliedIds: new Set(),
+    };
+  }
+
   const { additiveNonConditional, additiveConditional, weaponBonusNonConditional, weaponBonusConditional, multiplicative } = sources;
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
   const appliedIds = new Set();
@@ -171,6 +196,21 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   const table = ABILITY_DAMAGE_TABLE[weaponId];
   if (!table) return null;
 
+  if (isJokeMob(mob)) {
+    return {
+      baseDamage: table.base,
+      scaling: table.scaling,
+      abilityDamageStat: 0,
+      catacombsBoostPercent: 0,
+      catacombsBoostMultiplier: 1,
+      initialDamage: 0,
+      additiveMultiplier: 1,
+      additivePercent: 0,
+      multiplicativeMultiplier: 1,
+      finalDamage: 0,
+    };
+  }
+
   const { additiveNonConditional, additiveConditional, abilityMultiplicative } = sources;
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
 
@@ -223,12 +263,16 @@ const MAGE_STAFF_BEAM_MELEE_PERCENT = 0.3;
 const MAGE_STAFF_BEAM_FLAT_BONUS = 5;
 const MAGE_STAFF_BEAM_INTELLIGENCE_PERCENT_PER_POINT = 0.0009;
 
-export function computeMageStaffBeamDamage(sources, meleeFinalDamage, useDungeonizedStats = false, useMasterMode = false) {
+export function computeMageStaffBeamDamage(sources, meleeFinalDamage, mob, useDungeonizedStats = false, useMasterMode = false) {
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
   const intelligence = baseStats.intelligence || 0;
-  const finalDamage = Math.floor(
-    (meleeFinalDamage * MAGE_STAFF_BEAM_MELEE_PERCENT + MAGE_STAFF_BEAM_FLAT_BONUS) *
-      (MAGE_STAFF_BEAM_INTELLIGENCE_PERCENT_PER_POINT * intelligence),
-  );
+  // Even with meleeFinalDamage already 0 (see isJokeMob in computeFinalDamage), the formula's
+  // flat +5 bonus would still produce a nonzero beam — an explicit gate is needed here too.
+  const finalDamage = isJokeMob(mob)
+    ? 0
+    : Math.floor(
+        (meleeFinalDamage * MAGE_STAFF_BEAM_MELEE_PERCENT + MAGE_STAFF_BEAM_FLAT_BONUS) *
+          (MAGE_STAFF_BEAM_INTELLIGENCE_PERCENT_PER_POINT * intelligence),
+      );
   return { meleeFinalDamage, intelligence, finalDamage };
 }

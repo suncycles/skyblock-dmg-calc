@@ -218,7 +218,7 @@ export default function DamageSources() {
             abilityDamage: computeAbilityDamage(result, mob, loadout, useDungeonizedStats, useMasterMode),
             beamDamage:
               meleeFinalDamage != null
-                ? computeMageStaffBeamDamage(result, meleeFinalDamage, useDungeonizedStats, useMasterMode)
+                ? computeMageStaffBeamDamage(result, meleeFinalDamage, mob, useDungeonizedStats, useMasterMode)
                 : null,
           };
         })
