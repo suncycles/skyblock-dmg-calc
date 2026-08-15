@@ -519,12 +519,19 @@ export default function DamageSources() {
                           {sources.length === 0 ? (
                             <div className="text-[11px] text-neutral-600 italic">No sources.</div>
                           ) : (
-                            sources.map((s) => (
-                              <div key={s.label} className="flex justify-between text-[12px] text-neutral-700">
-                                <span>{s.label}</span>
-                                <span className="font-mono">{formatStatValue(key, Math.round(s.value * 10) / 10)}</span>
-                              </div>
-                            ))
+                            sources.map((s) => {
+                              const sourceValue = !useDungeonizedStats
+                                ? s.value
+                                : useMasterMode
+                                  ? s.masterDungeonizedValue
+                                  : s.dungeonizedValue;
+                              return (
+                                <div key={s.label} className="flex justify-between text-[12px] text-neutral-700">
+                                  <span>{s.label}</span>
+                                  <span className="font-mono">{formatStatValue(key, Math.round(sourceValue * 10) / 10)}</span>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       )}
