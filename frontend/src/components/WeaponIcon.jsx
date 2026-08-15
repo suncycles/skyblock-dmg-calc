@@ -94,8 +94,8 @@ export default function WeaponIcon({ id, material, alt, className, color, style 
   const handleError = () => setIndex((i) => Math.min(i + 1, candidates.length - 1));
 
   if (!color) {
-    return <img src={src} alt={alt} className={className} style={style} onError={handleError} />;
+    return <img src={src} alt={alt} className={className} style={style} loading="lazy" onError={handleError} />;
   }
 
-  return <img src={tintedSrc || src} alt={alt} className={className} style={style} onError={handleError} />;
+  return <img src={tintedSrc || src} alt={alt} className={className} style={style} loading="lazy" onError={handleError} />;
 }
