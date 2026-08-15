@@ -156,11 +156,13 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 // multiplier, so it's stripped out of baseStats.ability_damage in lib/reforges.js and pushed
 // here instead) — deliberately its own bucket, not filtered from the melee `multiplicative`
 // list, since most of that list doesn't apply here at all.
-// `table.base` also picks up the equipped weapon's own Catacombs Stats Boost (dungeonize.js's
-// computeCatacombsBoostPercent, stashed per-weapon on sources.abilityBaseDamageBoost by
-// damageSources.js) as a `(1 + percent/100)` multiplier — user-confirmed formula, e.g. Hyperion's
-// 10000 base at a 449% boost -> 10000 * 4.49. Only applied when useDungeonizedStats is on and the
-// weapon itself is dungeonized (abilityBaseDamageBoost defaults to 0, i.e. a 1x no-op, otherwise).
+// `table.base` also picks up the equipped weapon's own GENERAL Catacombs Stats Boost
+// (dungeonize.js's computeCatacombsBoostPercent — Catacombs Level curve + Stars + General's
+// Medallion digits + Master Stars, the same formula every other real stat uses — stashed
+// per-weapon on sources.abilityBaseDamageBoost by damageSources.js) as a `(1 + percent/100)`
+// multiplier. Distinct from the real "Ability Damage" STAT (Wither Goggles etc.), which uses a
+// separate no-curve-term formula — see CLAUDE.md. Only applied when useDungeonizedStats is on and
+// the weapon itself is dungeonized (abilityBaseDamageBoost defaults to 0, i.e. a 1x no-op, otherwise).
 // No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
 // currently modeled maps to it, left at 0 rather than guessed.
 // Returns null when the equipped weapon has no table entry (not an ability weapon).

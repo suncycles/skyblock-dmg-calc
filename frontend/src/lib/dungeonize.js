@@ -44,10 +44,11 @@ export function computeCatacombsBoostPercent(catacombsLevel, useOldCurve, stars,
   return { withoutMaster, withMaster: withoutMaster + masterPercent };
 }
 
-// Ability Damage's own dungeon scaling (see lib/starring.js): stars only, no Catacombs Level
-// curve/General's Medallion term, at its own 11%/star rate — Master Stars still stack normally.
-export function computeAbilityDamageCatacombsBoostPercent(stars, masterStars = 0) {
-  const withoutMaster = ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(stars || 0));
+// Ability Damage's own dungeon scaling (see lib/starring.js): stars + General's Medallion digits
+// (no Catacombs Level curve term), at its own 10%/star rate — Master Stars still stack normally.
+export function computeAbilityDamageCatacombsBoostPercent(stars, generalsMedallionDigits = 0, masterStars = 0) {
+  const digitBonus = Math.max(0, Math.min(MAX_GENERALS_MEDALLION_DIGITS, Math.floor(generalsMedallionDigits || 0)));
+  const withoutMaster = ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(stars || 0)) + digitBonus;
   const masterPercent = MASTER_STAR_PERCENT_PER_STAR * Math.max(0, Math.floor(masterStars || 0));
   return { withoutMaster, withMaster: withoutMaster + masterPercent };
 }
@@ -118,7 +119,7 @@ export function sumMasterDungeonizedStatFromTooltipLines(finalLines, label) {
 export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, starBonus, stars, masterStars, generalsMedallionDigits) {
   if (!lore) return lore;
   const { withoutMaster, withMaster } = computeCatacombsBoostPercent(catacombsLevel, useOldCurve, stars, generalsMedallionDigits, masterStars);
-  const abilityBoost = computeAbilityDamageCatacombsBoostPercent(stars, masterStars);
+  const abilityBoost = computeAbilityDamageCatacombsBoostPercent(stars, generalsMedallionDigits, masterStars);
   return lore.map((line) => {
     const plain = line.replace(/§./g, '');
     const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
