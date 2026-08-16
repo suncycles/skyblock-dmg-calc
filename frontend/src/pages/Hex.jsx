@@ -43,7 +43,7 @@ export default function Hex() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { loadout, toggleRecombobulated, playerStats } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const gearType = item ? getGearType(item.category) : null;
   const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || EQUIPMENT_SLOT_LABELS[slot] || slot;
@@ -93,7 +93,13 @@ export default function Hex() {
 
               if (type === 'item') {
                 return (
-                  <div key={key} className={slotBase} onMouseEnter={handleItemHover} onMouseLeave={handleItemLeave}>
+                  <div
+                    key={key}
+                    className={slotBase}
+                    onClick={handleTapOrActivate('item', handleItemHover, undefined)}
+                    onMouseEnter={guardHover(handleItemHover)}
+                    onMouseLeave={guardHover(handleItemLeave)}
+                  >
                     {item ? (
                       <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />
                     ) : (

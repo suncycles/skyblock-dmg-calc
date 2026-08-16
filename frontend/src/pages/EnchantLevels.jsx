@@ -24,7 +24,7 @@ export default function EnchantLevels() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { loadout, applyEnchant } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [levels, setLevels] = useState(null); // null = loading
   const modifiers = loadout[slot] && loadout[slot].modifiers;
 
@@ -55,6 +55,15 @@ export default function EnchantLevels() {
     navigate(-1);
   }
 
+  function handleLevelHover(levelEntry, e) {
+    const conflicts = computeConflictingEntries(enchantId, levelEntry.lore, modifiers);
+    const lines =
+      conflicts.length > 0
+        ? [...levelEntry.lore, '', ...conflicts.map((c) => `§c${titleCaseEnchantId(c.id)} will be removed`)]
+        : levelEntry.lore;
+    showTooltip(lines, e.currentTarget);
+  }
+
   const cells = [];
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 9; col++) {
@@ -82,20 +91,9 @@ export default function EnchantLevels() {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110 ${isApplied ? 'bg-green-400' : ''}`}
-              onClick={() => handleSelect(levelEntry)}
-              onMouseEnter={(e) => {
-                const conflicts = computeConflictingEntries(enchantId, levelEntry.lore, modifiers);
-                const lines =
-                  conflicts.length > 0
-                    ? [
-                        ...levelEntry.lore,
-                        '',
-                        ...conflicts.map((c) => `§c${titleCaseEnchantId(c.id)} will be removed`),
-                      ]
-                    : levelEntry.lore;
-                showTooltip(lines, e.currentTarget);
-              }}
-              onMouseLeave={hideTooltip}
+              onClick={handleTapOrActivate(levelEntry.level, (e) => handleLevelHover(levelEntry, e), () => handleSelect(levelEntry))}
+              onMouseEnter={guardHover((e) => handleLevelHover(levelEntry, e))}
+              onMouseLeave={guardHover(hideTooltip)}
             >
               <img src={ENCHANTED_BOOK_ICON} alt={`${displayName} ${toRoman(levelEntry.level)}`} className={iconImg} />
               <span className={`absolute bottom-0.5 right-1 text-xs font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] ${textColor}`}>

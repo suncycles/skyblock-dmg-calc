@@ -21,7 +21,7 @@ export default function ArmorVariantTierPicker() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { selectItem } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
 
   const tiers = useMemo(() => getVariantTierItems(itemData.armor, family, slot), [itemData.armor, family, slot]);
   const label = ARMOR_SLOT_LABELS[slot] || 'Armor';
@@ -49,9 +49,9 @@ export default function ArmorVariantTierPicker() {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110`}
-              onClick={() => handleSelect(item)}
-              onMouseEnter={(e) => handleHover(item, e)}
-              onMouseLeave={hideTooltip}
+              onClick={handleTapOrActivate(item.id, (e) => handleHover(item, e), () => handleSelect(item))}
+              onMouseEnter={guardHover((e) => handleHover(item, e))}
+              onMouseLeave={guardHover(hideTooltip)}
             >
               <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />
               <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">

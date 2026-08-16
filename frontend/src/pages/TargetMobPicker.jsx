@@ -38,7 +38,7 @@ function LocationChip({ label, count, active, onClick }) {
 // multi-select target list.
 export default function TargetMobPicker() {
   const { targetMobs, toggleTargetMob } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [query, setQuery] = useState('');
   const [activeLocations, setActiveLocations] = useState(() => new Set());
   // Collapsed by default — expanded, the 22 location chips push the search box and mob grid
@@ -157,9 +157,9 @@ export default function TargetMobPicker() {
                       ? 'bg-green-400/60 border-green-700 hover:bg-green-300/70'
                       : 'bg-neutral-500/50 border-neutral-700 hover:bg-neutral-400/60'
                   }`}
-                  onClick={() => toggleTargetMob(name)}
-                  onMouseEnter={(e) => handleHover(name, e)}
-                  onMouseLeave={hideTooltip}
+                  onClick={handleTapOrActivate(name, (e) => handleHover(name, e), () => toggleTargetMob(name))}
+                  onMouseEnter={guardHover((e) => handleHover(name, e))}
+                  onMouseLeave={guardHover(hideTooltip)}
                 >
                   {MOB_TYPES[name]?.includes('Boss') && (
                     <span

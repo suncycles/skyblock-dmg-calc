@@ -24,7 +24,7 @@ export default function ReforgesPicker({ blacksmith }) {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { loadout, applyReforge } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [page, setPage] = useState(0);
   const hoveredNameRef = useRef(null);
   const weapon = loadout[slot] && loadout[slot].item;
@@ -100,12 +100,12 @@ export default function ReforgesPicker({ blacksmith }) {
             <div
               key={key}
               className={`${slotBase} cursor-pointer hover:brightness-110 ${current === reforge.name ? 'bg-green-400' : ''}`}
-              onClick={() => handleSelect(reforge.name)}
-              onMouseEnter={(e) => handleHover(reforge, e)}
-              onMouseLeave={() => {
+              onClick={handleTapOrActivate(reforge.name, (e) => handleHover(reforge, e), () => handleSelect(reforge.name))}
+              onMouseEnter={guardHover((e) => handleHover(reforge, e))}
+              onMouseLeave={guardHover(() => {
                 hoveredNameRef.current = null;
                 hideTooltip();
-              }}
+              })}
             >
               <img
                 src={blacksmith ? CATEGORY_ICONS.Reforges : getReforgeStoneIcon(reforge.stoneId) || CATEGORY_ICONS.Reforges}

@@ -86,7 +86,7 @@ export default function Landing() {
     loadFullState,
   } = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const { confirmDialog, alertDialog } = useConfirmDialog();
   const [exportStatus, setExportStatus] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
@@ -367,9 +367,9 @@ export default function Landing() {
         key={key}
         className={`${slotBase} relative cursor-pointer hover:brightness-110`}
         style={equipped ? EQUIPPED_BG_STYLE : undefined}
-        onClick={() => handleGearClick(slot, pickerPath)}
-        onMouseEnter={(e) => handleGearHover(slot, label, e)}
-        onMouseLeave={invalidateHover}
+        onClick={handleTapOrActivate(slot, (e) => handleGearHover(slot, label, e), () => handleGearClick(slot, pickerPath))}
+        onMouseEnter={guardHover((e) => handleGearHover(slot, label, e))}
+        onMouseLeave={guardHover(invalidateHover)}
       >
         {equipped ? (
           <WeaponIcon
@@ -452,9 +452,9 @@ export default function Landing() {
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110`}
             style={loadout.accessory?.item ? EQUIPPED_BG_STYLE : undefined}
-            onClick={() => navigate('/accessory')}
-            onMouseEnter={handleAccessoryHover}
-            onMouseLeave={invalidateHover}
+            onClick={handleTapOrActivate('accessory', handleAccessoryHover, () => navigate('/accessory'))}
+            onMouseEnter={guardHover(handleAccessoryHover)}
+            onMouseLeave={guardHover(invalidateHover)}
           >
             {loadout.accessory?.item ? (
               <WeaponIcon
@@ -489,9 +489,9 @@ export default function Landing() {
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110`}
             style={loadout.weapon ? EQUIPPED_BG_STYLE : undefined}
-            onClick={handleWeaponClick}
-            onMouseEnter={handleWeaponHover}
-            onMouseLeave={invalidateHover}
+            onClick={handleTapOrActivate('weapon', handleWeaponHover, handleWeaponClick)}
+            onMouseEnter={guardHover(handleWeaponHover)}
+            onMouseLeave={guardHover(invalidateHover)}
           >
             {loadout.weapon ? (
               <WeaponIcon
@@ -526,9 +526,9 @@ export default function Landing() {
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110`}
             style={loadout.pet ? EQUIPPED_BG_STYLE : undefined}
-            onClick={() => navigate(loadout.pet ? '/pet/detail' : '/pet')}
-            onMouseEnter={handlePetHover}
-            onMouseLeave={invalidateHover}
+            onClick={handleTapOrActivate('pet', handlePetHover, () => navigate(loadout.pet ? '/pet/detail' : '/pet'))}
+            onMouseEnter={guardHover(handlePetHover)}
+            onMouseLeave={guardHover(invalidateHover)}
           >
             {loadout.pet ? (
               <WeaponIcon
@@ -565,9 +565,9 @@ export default function Landing() {
           <div
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110 col-span-3 row-span-4`}
-            onClick={() => navigate('/target-mob')}
-            onMouseEnter={handleTargetMobHover}
-            onMouseLeave={invalidateHover}
+            onClick={handleTapOrActivate('target-mob', handleTargetMobHover, () => navigate('/target-mob'))}
+            onMouseEnter={guardHover(handleTargetMobHover)}
+            onMouseLeave={guardHover(invalidateHover)}
           >
             {targetMobs.length === 0 ? (
               <span className="text-xs font-bold text-white text-center px-2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
@@ -624,20 +624,17 @@ export default function Landing() {
       // Column D, row 5 (right below Pet): Attributes — plain text tile, account-wide rather than tied to an item.
       if (col === 3 && row === 5) {
         const leveledCount = Object.values(attributes).filter((v) => v > 0).length;
+        const attributesTooltipLines = leveledCount > 0
+          ? [`§d§lAttributes`, `§7${leveledCount} attribute${leveledCount === 1 ? '' : 's'} leveled`]
+          : ['§7Attributes', '§8None leveled — click to edit'];
+        const handleAttributesHover = (e) => showTooltip(attributesTooltipLines, e.currentTarget);
         cells.push(
           <div
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110 ${leveledCount > 0 ? 'bg-green-400' : ''}`}
-            onClick={() => navigate('/attributes')}
-            onMouseEnter={(e) =>
-              showTooltip(
-                leveledCount > 0
-                  ? [`§d§lAttributes`, `§7${leveledCount} attribute${leveledCount === 1 ? '' : 's'} leveled`]
-                  : ['§7Attributes', '§8None leveled — click to edit'],
-                e.currentTarget,
-              )
-            }
-            onMouseLeave={hideTooltip}
+            onClick={handleTapOrActivate('attributes', handleAttributesHover, () => navigate('/attributes'))}
+            onMouseEnter={guardHover(handleAttributesHover)}
+            onMouseLeave={guardHover(hideTooltip)}
           >
             <span className="text-[9px] font-bold text-white text-center px-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
               Attributes
@@ -653,9 +650,13 @@ export default function Landing() {
           <div
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110 ${godPotionActive ? 'bg-green-400' : ''}`}
-            onClick={toggleGodPotion}
-            onMouseEnter={(e) => showTooltip(GOD_POTION_TOOLTIP_LINES, e.currentTarget)}
-            onMouseLeave={hideTooltip}
+            onClick={handleTapOrActivate(
+              'god-potion',
+              (e) => showTooltip(GOD_POTION_TOOLTIP_LINES, e.currentTarget),
+              toggleGodPotion,
+            )}
+            onMouseEnter={guardHover((e) => showTooltip(GOD_POTION_TOOLTIP_LINES, e.currentTarget))}
+            onMouseLeave={guardHover(hideTooltip)}
           >
             <WeaponIcon id="GOD_POTION" material="POTION" alt="God Potion" className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`} />
           </div>,

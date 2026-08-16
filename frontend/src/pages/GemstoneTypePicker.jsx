@@ -15,7 +15,7 @@ export default function GemstoneTypePicker() {
   const { slot, slotIndex } = useParams();
   const navigate = useNavigate();
   const { loadout, removeGemstone } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const idx = Number(slotIndex);
   const current = loadout[slot]?.modifiers?.gemstones?.[idx];
 
@@ -36,9 +36,13 @@ export default function GemstoneTypePicker() {
               key={key}
               className={`${slotBase} cursor-pointer hover:brightness-110 ${current?.gem === gemId ? 'bg-green-400' : ''}`}
               title={`${gem.label} (${gem.statLabel})`}
-              onClick={() => navigate(`/gemstones/${slot}/${idx}/${gemId}`)}
-              onMouseEnter={(e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget)}
-              onMouseLeave={hideTooltip}
+              onClick={handleTapOrActivate(
+                gemId,
+                (e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget),
+                () => navigate(`/gemstones/${slot}/${idx}/${gemId}`),
+              )}
+              onMouseEnter={guardHover((e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget))}
+              onMouseLeave={guardHover(hideTooltip)}
             >
               <img src={getGemstoneIcon(gemId, 'rough')} alt={gem.label} className={iconImg} />
             </div>,

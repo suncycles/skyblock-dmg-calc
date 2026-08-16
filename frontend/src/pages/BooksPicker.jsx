@@ -30,7 +30,7 @@ export default function BooksPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
   const { loadout, setBookCount, toggleArtOfWar, toggleArtOfPeace } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const current = loadout[slot]?.modifiers?.books || 0;
   const artOfWarApplied = Boolean(loadout[slot]?.modifiers?.artOfWar);
   const artOfPeaceApplied = Boolean(loadout[slot]?.modifiers?.artOfPeace);
@@ -146,9 +146,9 @@ export default function BooksPicker() {
               key={key}
               className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
               title="The Art of War — click to toggle"
-              onClick={() => toggleArtOfWar(slot)}
-              onMouseEnter={handleArtOfWarHover}
-              onMouseLeave={handleArtOfWarLeave}
+              onClick={handleTapOrActivate('art-of-war', handleArtOfWarHover, () => toggleArtOfWar(slot))}
+              onMouseEnter={guardHover(handleArtOfWarHover)}
+              onMouseLeave={guardHover(handleArtOfWarLeave)}
             >
               <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
             </div>
@@ -165,9 +165,9 @@ export default function BooksPicker() {
               key={key}
               className={`${navSlot} ${artOfPeaceApplied ? 'bg-green-400' : ''}`}
               title="The Art of Peace — click to toggle"
-              onClick={() => toggleArtOfPeace(slot)}
-              onMouseEnter={handleArtOfPeaceHover}
-              onMouseLeave={handleArtOfPeaceLeave}
+              onClick={handleTapOrActivate('art-of-peace', handleArtOfPeaceHover, () => toggleArtOfPeace(slot))}
+              onMouseEnter={guardHover(handleArtOfPeaceHover)}
+              onMouseLeave={guardHover(handleArtOfPeaceLeave)}
             >
               <img src={ART_OF_WAR_ICON} alt="The Art of Peace" className={iconImg} />
             </div>
@@ -185,9 +185,13 @@ export default function BooksPicker() {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110 ${isApplied ? 'bg-green-400' : ''}`}
-              onClick={() => handleSelectCount(count)}
-              onMouseEnter={(e) => showTooltip(tooltipLines(count), e.currentTarget)}
-              onMouseLeave={hideTooltip}
+              onClick={handleTapOrActivate(
+                `books-${count}`,
+                (e) => showTooltip(tooltipLines(count), e.currentTarget),
+                () => handleSelectCount(count),
+              )}
+              onMouseEnter={guardHover((e) => showTooltip(tooltipLines(count), e.currentTarget))}
+              onMouseLeave={guardHover(hideTooltip)}
             >
               <img src={CATEGORY_ICONS.Books} alt={`${count} books`} className={iconImg} />
               <span className="absolute bottom-0.5 right-1 text-xs font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
