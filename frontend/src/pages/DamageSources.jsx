@@ -17,7 +17,7 @@ import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
-import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
+import { MOB_TYPE_SYMBOLS, STAT_SYMBOLS } from '../lib/damageSymbols';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
@@ -31,6 +31,15 @@ const panel =
 // few one-off panels below it) so the dense stat page reads as consistently-structured sections
 // instead of a pile of bolded labels at varying sizes.
 const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
+
+// Which stat the Enrichments count currently applies to — see damageSources.js's Enrichments source line.
+const ENRICHMENT_TYPES = [
+  { key: 'strength', label: 'Strength', ...STAT_SYMBOLS.Strength },
+  { key: 'crit_damage', label: 'Crit Damage', ...STAT_SYMBOLS['Crit Damage'] },
+  { key: 'crit_chance', label: 'Crit Chance', ...STAT_SYMBOLS['Crit Chance'] },
+  { key: 'intelligence', label: 'Intelligence', ...STAT_SYMBOLS.Intelligence },
+  { key: 'none', label: 'None', symbol: '✕', color: '#666666' },
+];
 
 function Section({ title, subtitle, children, empty }) {
   return (
@@ -74,6 +83,8 @@ export default function DamageSources() {
     blazeCrimsonIsle,
     toggleBlazeCrimsonIsle,
     setAccessoryMagicalPower,
+    setAccessoryEnrichmentCount,
+    setAccessoryEnrichmentType,
     loadFullState,
   } = useBuild();
   const { itemData } = useItemData();
@@ -720,6 +731,45 @@ export default function DamageSources() {
                   +{amount}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className={`${panel} p-3 flex flex-col gap-2`}>
+            <div className="flex items-center gap-3">
+              <div className="text-[13px] font-bold text-black uppercase tracking-wide">Enrichments</div>
+              <span className="font-mono text-[13px] text-black">{loadout.accessory?.modifiers?.enrichmentCount || 0}</span>
+              <div className="flex gap-1.5 ml-auto">
+                {[1, 5].map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    className="text-[12px] px-2.5 py-1 rounded bg-neutral-800 text-white hover:bg-neutral-700 transition-colors cursor-pointer"
+                    onClick={() => setAccessoryEnrichmentCount((loadout.accessory?.modifiers?.enrichmentCount || 0) + amount)}
+                  >
+                    +{amount}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {ENRICHMENT_TYPES.map(({ key, label, symbol, color }) => {
+                const active = (loadout.accessory?.modifiers?.enrichmentType || 'none') === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    title={label}
+                    aria-label={label}
+                    onClick={() => setAccessoryEnrichmentType(key)}
+                    className={`w-8 h-8 flex items-center justify-center text-base font-bold rounded border-2 cursor-pointer transition-[filter] ${
+                      active ? 'border-black bg-white' : 'border-neutral-600 bg-neutral-300 brightness-75 hover:brightness-90'
+                    }`}
+                    style={{ color }}
+                  >
+                    {symbol}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

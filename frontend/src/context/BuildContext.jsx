@@ -732,6 +732,26 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Enrichment count/type — same lazy-create-the-accessory-slot behavior as Magical Power above,
+  // since Enrichments apply per Accessory Bag item regardless of which Power is currently active.
+  const setAccessoryEnrichmentCount = useCallback((value) => {
+    setLoadout((prev) => {
+      const prevSlot = prev.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
+      const next = { ...prev, accessory: { ...prevSlot, modifiers: { ...prevSlot.modifiers, enrichmentCount: Math.max(0, value) } } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setAccessoryEnrichmentType = useCallback((type) => {
+    setLoadout((prev) => {
+      const prevSlot = prev.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
+      const next = { ...prev, accessory: { ...prevSlot, modifiers: { ...prevSlot.modifiers, enrichmentType: type } } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // Clamped so the sum of every stat's assigned points never exceeds the current Magical Power's total.
   const setAccessoryTuningPoint = useCallback(
     (statKey, points) => {
@@ -885,6 +905,8 @@ export function BuildProvider({ children }) {
         setPetBankCoins,
         setPetGoldCollection,
         setAccessoryMagicalPower,
+        setAccessoryEnrichmentCount,
+        setAccessoryEnrichmentType,
         setAccessoryTuningPoint,
         loadFullState,
       }}
