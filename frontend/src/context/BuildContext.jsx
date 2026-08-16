@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { isUltimateEnchant } from '../lib/enchantEffects';
 import { computeTotalTuningPoints } from '../lib/accessoryPowers';
 import { ATTRIBUTE_IDS, getAttributeMaxLevel } from '../lib/attributes';
@@ -22,6 +22,7 @@ const SWARM_MOBS_KEY = 'hexSwarmMobs';
 const COMBO_KILLS_KEY = 'hexComboKills';
 const LEGION_PLAYERS_KEY = 'hexLegionPlayers';
 const BLAZE_CRIMSON_ISLE_KEY = 'hexBlazeCrimsonIsle';
+const LAST_GEAR_MODIFIERS_KEY = 'hexLastGearModifiers';
 
 export const MAX_SWARM_MOBS = 10;
 export const MAX_COMBO_KILLS = 10;
@@ -209,8 +210,25 @@ function loadInitial() {
   }
 }
 
+// Loads the "last modifiers seen per gear slot" stash — see removeSlot/selectItem below. Keyed by
+// slot (weapon/helmet/.../gloves only, never pet or accessory), holding a plain modifiers object.
+function loadInitialLastGearModifiers() {
+  const stored = localStorage.getItem(LAST_GEAR_MODIFIERS_KEY);
+  if (!stored) return {};
+  try {
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) {
+    console.error('Failed to parse saved last-gear-modifiers stash:', err);
+    return {};
+  }
+}
+
 export function BuildProvider({ children }) {
   const [loadout, setLoadout] = useState(loadInitial);
+  // Doesn't need to trigger re-renders (only ever read at selectItem time), so a ref instead of
+  // state — keeps removeSlot/selectItem's useCallback deps stable.
+  const lastGearModifiersRef = useRef(loadInitialLastGearModifiers());
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
@@ -411,9 +429,23 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Equips `item` into `slot`, resetting modifiers to defaults — except Accessory, whose Magical Power/Tuning carry over across Power Stone switches.
+  // Equips `item` into `slot`, resetting modifiers to defaults — except Accessory, whose Magical
+  // Power/Tuning carry over across Power Stone switches, and weapon/armor/equipment, which restore
+  // whatever modifiers (recomb, enchants, gemstones, stars, reforge, ...) were last seen in this
+  // slot (stashed by removeSlot below — the only way to reach here for a non-empty slot is
+  // remove-then-repick, so `prev[slot]` is already gone by now). Stars/masterStars are reclamped
+  // to the new item's own real cap; every other field carries over blind, same as Accessory always
+  // has — a mismatched reforge/gemstone count for the new item is a rare edge the relevant picker
+  // already surfaces, not something worth reconciling here.
   const selectItem = useCallback((slot, item) => {
     setLoadout((prev) => {
+      const stashed = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
+      let gearModifiers = stashed ? { ...emptyModifiers(), ...stashed } : emptyModifiers();
+      if (stashed) {
+        const maxStars = getMaxStarsForItem(item);
+        gearModifiers.stars = Math.max(0, Math.min(maxStars, gearModifiers.stars || 0));
+        if (gearModifiers.stars < MASTER_STAR_MIN_BASE_STARS) gearModifiers.masterStars = 0;
+      }
       const next = {
         ...prev,
         [slot]: {
@@ -432,11 +464,7 @@ export function BuildProvider({ children }) {
                     color: item.color,
                   },
           modifiers:
-            slot === 'pet'
-              ? emptyPetModifiers()
-              : slot === 'accessory'
-                ? prev.accessory?.modifiers || emptyAccessoryModifiers()
-                : emptyModifiers(),
+            slot === 'pet' ? emptyPetModifiers() : slot === 'accessory' ? prev.accessory?.modifiers || emptyAccessoryModifiers() : gearModifiers,
         },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -483,6 +511,16 @@ export function BuildProvider({ children }) {
   const removeSlot = useCallback((slot) => {
     setLoadout((prev) => {
       if (!prev[slot]) return prev;
+      // Stash this slot's modifiers before they're gone — selectItem restores them onto whatever
+      // item gets picked next for this slot, so recomb/enchants/gemstones/etc. survive a
+      // remove-then-repick instead of resetting. Pet/Accessory aren't stashed here: pet's
+      // modifiers (level, held item) don't carry meaning across different species, and Accessory
+      // already carries over via its own `prev.accessory` read in selectItem (reachable without
+      // going through remove first).
+      if (slot !== 'pet' && slot !== 'accessory') {
+        lastGearModifiersRef.current = { ...lastGearModifiersRef.current, [slot]: prev[slot].modifiers };
+        localStorage.setItem(LAST_GEAR_MODIFIERS_KEY, JSON.stringify(lastGearModifiersRef.current));
+      }
       const next = { ...prev };
       delete next[slot];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
