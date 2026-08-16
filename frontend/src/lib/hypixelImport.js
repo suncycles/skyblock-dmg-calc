@@ -6,18 +6,20 @@ import { derivePetDisplayName } from './petData';
 import { getPowerById } from './accessoryPowers';
 import { ATTRIBUTE_IDS } from './attributes';
 import { getMaxStarsForItem, MAX_MASTER_STARS } from './starring';
+import { getSpecialConfig } from './specialWeapons';
 
 /* Hypixel API "import my current gear" — hits the shared Worker's /api/hypixel/import (which
    holds the API key server-side, does the gzip+NBT decode, and computes pet level/attribute
    levels/Wolf Slayer level/Alchemy+Enchanting level server-side; see worker/src/nbt.js and
    worker/src/index.js's handleHypixelImport), then maps the raw response onto this app's own
-   loadout/attributes/playerStats shape. Scoped to currently-worn gear + active pet + Accessory
+   loadout/attributes/playerStats shape. Scoped to currently-worn gear + a chosen pet + Accessory
    Power + the account-wide levels named above — not the in-game Loadout/Wardrobe presets.
 
    Weapon has no dedicated Skyblock inventory slot, so the Worker returns every carried item that
-   matches a known weapon id (real slot order, hotbar first) as `raw.weapons` — the Review screen
-   (pages/HypixelImport.jsx) lets the user pick one (or none) before mapHypixelImportToLoadout
-   resolves that choice into the loadout. */
+   matches a known weapon id (real slot order, hotbar first) as `raw.weapons`; similarly `raw.pets`
+   holds every pet the account owns (each flagged `active` for whichever is currently equipped) —
+   the Review screen (pages/HypixelImport.jsx) lets the user pick a weapon and a pet before
+   mapHypixelImportToLoadout resolves those choices into the loadout. */
 
 // Hypixel's raw attribute id order is "<mobType>_ruler" (e.g. "skeletal_ruler") — reversed from
 // this app's own "ruler_<mobType>" id. Every other attribute id (elementals, echoes, deadeye,
@@ -178,9 +180,31 @@ function splitRawStars(item, rawStars) {
   return { stars, masterStars };
 }
 
+// David's Cloak has no fixed Strength/rarity in the bundled catalog — its tier upgrades via real
+// Hunting Box milestones (not a Recombobulator) and its Strength has no published formula, so
+// both only exist in the account's own copy of the item's lore (e.g. "Strength: +57" and a
+// trailing "MYTHIC CLOAK" tier line) rather than anywhere this app can derive them from. Parsed
+// straight from the real lore Hypixel returns instead of leaving the Special screen's manual
+// inputs (`modifiers.special`/`rarityOverride`) at their defaults.
+function parseDavidsCloakFromLore(lore) {
+  if (!Array.isArray(lore) || lore.length === 0) return { special: 0, rarityOverride: null };
+  const stripped = lore.map((l) => l.replace(/§./g, ''));
+
+  const strengthLine = stripped.find((l) => /^Strength:\s*[+-]?\d+/.test(l.trim()));
+  const strengthMatch = strengthLine && /^Strength:\s*([+-]?\d+)/.exec(strengthLine.trim());
+  const special = strengthMatch ? Math.max(0, parseInt(strengthMatch[1], 10)) : 0;
+
+  const rarities = getSpecialConfig('DAVIDS_CLOAK')?.rarities || [];
+  const lastLine = [...stripped].reverse().find((l) => l.trim());
+  const rarityOverride = (lastLine && rarities.find((r) => lastLine.trim().toUpperCase().startsWith(r))) || null;
+
+  return { special, rarityOverride };
+}
+
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   const { hexEnchantments, ultimateEnchantment } = await buildEnchantEntries(summary.enchantments, itemData);
   const { stars, masterStars } = splitRawStars(item, summary.stars || 0);
+  const davidsCloak = item.id === 'DAVIDS_CLOAK' ? parseDavidsCloakFromLore(summary.lore) : null;
   return {
     ...emptyModifiers(),
     hexEnchantments,
@@ -195,6 +219,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     // line reading e.g. "LEGENDARY DUNGEON LEGGINGS" — baked into `category` as a "DUNGEON "
     // prefix (see lib/armorSlots.js) — which catches dungeon-drop gear with 0 Master Stars too.
     dungeonized: masterStars > 0 || (item.category || '').includes('DUNGEON'),
+    ...davidsCloak,
   };
 }
 
@@ -232,8 +257,9 @@ export function resolveGearSummary(summary, itemData) {
 // instead of `raw.armor`/`raw.equipment` (currently worn). Both are the set's real in-game
 // Wardrobe slot number, matched by `.index` rather than treated as an array position — empty sets
 // are already filtered out worker-side, so the two diverge as soon as there's a gap.
+// `selection.petIndex` picks one of `raw.pets` (null/undefined = don't import a pet).
 export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
-  const { weaponIndex = null, excludedSlots, wardrobeSetIndex = null, wardrobeEquipmentSetIndex = null } = selection;
+  const { weaponIndex = null, excludedSlots, wardrobeSetIndex = null, wardrobeEquipmentSetIndex = null, petIndex = null } = selection;
   const excluded = excludedSlots || new Set();
   const reforgeLookup = buildReforgeNameLookup(itemData);
   const armorSource = wardrobeSetIndex != null ? raw.wardrobeSets?.find((s) => s.index === wardrobeSetIndex) : raw.armor;
@@ -278,21 +304,22 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
     }),
   );
 
-  if (raw.pet) {
+  const pet = petIndex != null ? raw.pets?.[petIndex] : null;
+  if (pet) {
     loadout.pet = {
       item: {
-        id: `${raw.pet.type}_${raw.pet.tier}`,
-        petId: raw.pet.type,
-        name: derivePetDisplayName(raw.pet.type),
-        tier: raw.pet.tier,
+        id: `${pet.type}_${pet.tier}`,
+        petId: pet.type,
+        name: derivePetDisplayName(pet.type),
+        tier: pet.tier,
         material: 'BONE',
       },
       modifiers: {
         ...emptyPetModifiers(),
-        level: raw.pet.level || 1,
-        petItem: raw.pet.heldItem || null,
-        // Only meaningful for Golden Dragon, but imported unconditionally for whichever pet is
-        // active — same "always imported" treatment as level/petItem above. bank is the co-op
+        level: pet.level || 1,
+        petItem: pet.heldItem || null,
+        // Only meaningful for Golden Dragon, but imported unconditionally for whichever pet was
+        // picked — same "always imported" treatment as level/petItem above. bank is the co-op
         // bank balance (raw.bank), goldCollection is this player's own Gold Ingot collection;
         // either is 0 if the account has that Hypixel API setting turned off.
         bankCoins: raw.bank || 0,

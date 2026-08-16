@@ -479,18 +479,20 @@ async function handleHypixelImport(url, env) {
       if (summary && WEAPON_IDS.has(summary.id)) weapons.push(summary);
     }
 
-    const pets = (member.pets_data && member.pets_data.pets) || [];
-    const activePet = pets.find((p) => p.active) || null;
-    const pet = activePet
-      ? {
-          type: activePet.type,
-          tier: activePet.tier,
-          exp: activePet.exp || 0,
-          heldItem: activePet.heldItem || null,
-          skin: activePet.skin || null,
-          level: computePetLevel(activePet.type, activePet.tier, activePet.exp || 0),
-        }
-      : null;
+    // Every pet the account owns (not just the equipped one) — the frontend lets the user pick
+    // which to import, same "return every candidate, let the caller choose" treatment as
+    // `weapons` above. `active` flags which one Hypixel currently has equipped, so the frontend
+    // can default its picker to that instead of forcing a manual choice every time.
+    const rawPets = (member.pets_data && member.pets_data.pets) || [];
+    const pets = rawPets.map((p) => ({
+      type: p.type,
+      tier: p.tier,
+      exp: p.exp || 0,
+      heldItem: p.heldItem || null,
+      skin: p.skin || null,
+      active: !!p.active,
+      level: computePetLevel(p.type, p.tier, p.exp || 0),
+    }));
 
     const rarityMap = buildAttributeRarityMap(attributeShards);
     const thresholds = buildAttributeThresholds(attributeShards.attribute_levelling);
@@ -541,7 +543,7 @@ async function handleHypixelImport(url, env) {
       wardrobeSets,
       wardrobeEquipmentSets,
       weapons,
-      pet,
+      pets,
       attributeLevels,
       skills,
       slayers,
