@@ -45,5 +45,10 @@ export function emptyAccessoryModifiers() {
       bonus_attack_speed: 0,
       intelligence: 0,
     },
+    // Accessory Bag Enrichment count and which stat they're all currently set to — see
+    // lib/damageSources.js's Enrichments source line. 'none' covers enrichments on a stat this
+    // calculator doesn't track (e.g. Magic Find): they still count toward the total but add nothing.
+    enrichmentCount: 0,
+    enrichmentType: 'none',
   };
 }
