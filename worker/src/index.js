@@ -31,7 +31,6 @@ import armor from "./data/armor.json";
 import equipment from "./data/equipment.json";
 import petItems from "./data/petItems.json";
 import powerStones from "./data/powerStones.json";
-import accessories from "./data/accessories.json";
 import { decodeInventoryB64, extractItemSummary } from "./nbt.js";
 
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
@@ -222,12 +221,8 @@ async function fetchReforgeStones() {
 // explicit rather than trusting the auto-pointer.
 const WEAPON_IDS = new Set(weapons.map((w) => w.id));
 
-// Accessory Bag item id -> real base rarity, for the live Magical Power calc below.
-const ACCESSORY_TIER_BY_ID = Object.fromEntries(accessories.map((a) => [a.id, a.tier]));
-
 // Real per-rarity Magical Power contribution — user-confirmed values (not published anywhere
-// structured in NEU-REPO). SPECIAL/VERY_SPECIAL only ever occur recombobulated up from
-// MYTHIC-capped accessories that have no higher real tier.
+// structured in NEU-REPO).
 const RARITY_MAGICAL_POWER = {
   COMMON: 3,
   UNCOMMON: 5,
@@ -239,13 +234,41 @@ const RARITY_MAGICAL_POWER = {
   VERY_SPECIAL: 5,
 };
 
-// Recombobulating an accessory bumps its effective rarity by one tier for Magical Power purposes,
-// same as everywhere else rarity matters in this app (see frontend's lib/recombobulator.js).
-const RARITY_BUMP_ORDER = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"];
+// Longest-first so "VERY SPECIAL" matches before "SPECIAL" — same ordering reason as
+// scripts/build-item-data.mjs's TIER_NAMES.
+const TIER_WORDS = ["VERY SPECIAL", "MYTHIC", "LEGENDARY", "EPIC", "RARE", "UNCOMMON", "COMMON", "SPECIAL"];
 
-function bumpRarity(tier) {
-  const i = RARITY_BUMP_ORDER.indexOf(tier);
-  return i === -1 || i === RARITY_BUMP_ORDER.length - 1 ? tier : RARITY_BUMP_ORDER[i + 1];
+// An accessory's CURRENT rarity is read directly from its own real per-instance lore (the last
+// non-empty line, e.g. "LEGENDARY ACCESSORY" — same convention as build-item-data.mjs's
+// parseTierAndCategory) rather than inferred from the bundled catalog's base tier plus a "+1 tier
+// if recombobulated" assumption. That inference is wrong for a real, non-rare class of
+// accessories (Power Relic, Pulse Ring, Book of Progression, Runebook, Trapper Crest, ...) whose
+// tier is a per-player value unrelated to Recombobulator status, and misses cosmetic items
+// (Party Hats) that aren't in the bundled catalog at all but do carry a real tier in their own
+// lore. Confirmed live against a real account: the catalog+bump approach undercounted Magical
+// Power by ~90 points; reading real lore closes it to within ~5 of the account's known peak
+// (accessory_bag_storage.highest_magical_power) — the small remaining gap is expected, since that
+// peak doesn't drop if an accessory is later sold.
+function realAccessoryTier(item) {
+  const lore = item?.tag?.display?.Lore;
+  if (!lore || lore.length === 0) return null;
+  const lastLine = lore[lore.length - 1]
+    .replace(/§./g, "")
+    .replace(/[^A-Za-z ]/g, "")
+    .trim();
+  for (const word of TIER_WORDS) {
+    if (lastLine.includes(word)) return word.replace(" ", "_");
+  }
+  return null;
+}
+
+// Cosmetic hat accessories (Party Hats, Cake Hats, ...) carry a real "HATCESSORY" tag on their
+// last lore line instead of "ACCESSORY" — Hypixel's own marker for "only one can be worn/counted
+// at a time", so this generically covers every past and future hat year with no id allowlist.
+function isHatAccessory(item) {
+  const lore = item?.tag?.display?.Lore;
+  if (!lore || lore.length === 0) return false;
+  return lore[lore.length - 1].replace(/§./g, "").includes("HATCESSORY");
 }
 
 // Talismans with their own fixed Strength bonus while in the Accessory Bag, beyond their Magical
@@ -264,32 +287,51 @@ const DAY_NIGHT_CRYSTAL_STRENGTH = 5;
 const GRAVITY_TALISMAN_STRENGTH = 5;
 const BLOOD_GOD_CREST_STRENGTH = 5;
 
-// Computes live Magical Power (summed real Accessory Bag rarities, recomb-bumped) and the flat
-// "Talisman Bonuses" Strength total from a decoded talisman_bag item list — see the Promise.all
-// above for where `items` comes from.
-function computeLiveAccessoryStats(items) {
-  let magicalPower = 0;
+// Computes live Magical Power (summed real Accessory Bag rarities) and the flat "Talisman
+// Bonuses" Strength total from a decoded talisman_bag item list — see the Promise.all above for
+// where `items` comes from. Two dedup rules apply, both confirmed by the account owner:
+// - Owning multiple physical copies of the same accessory id only counts the best copy once
+//   (e.g. 4x Personal Compactor 7000 counts only its single highest tier, not all 4 summed).
+// - Hat accessories (see isHatAccessory) are mutually exclusive with each other as a group —
+//   only the single highest-Magical-Power hat owned counts, not every hat summed.
+// `abiphoneContactCount` (member.nether_island_player_data.abiphone.contact_data key count) adds
+// floor(count/2) bonus Magical Power, but only while an Abicase accessory is owned — user-confirmed.
+function computeLiveAccessoryStats(items, abiphoneContactCount) {
+  const bestMagicalPowerById = new Map();
+  let hatMagicalPower = 0;
   let hasDayOrNightCrystal = false;
   let sharkToothStrength = 0;
   let hasGravityTalisman = false;
   let hasBloodGodCrest = false;
+  let hasAbicase = false;
 
   for (const raw of items) {
     const ea = raw?.tag?.ExtraAttributes;
     const id = ea?.id;
     if (!id) continue;
 
-    let tier = ACCESSORY_TIER_BY_ID[id];
-    if (tier && ea.rarity_upgrades) tier = bumpRarity(tier);
-    if (tier && RARITY_MAGICAL_POWER[tier] != null) magicalPower += RARITY_MAGICAL_POWER[tier];
+    const tier = realAccessoryTier(raw);
+    let magicalPower = tier && RARITY_MAGICAL_POWER[tier] != null ? RARITY_MAGICAL_POWER[tier] : 0;
+    // Hegemony Artifact doubles its own Magical Power contribution — user-confirmed.
+    if (id === "HEGEMONY_ARTIFACT") magicalPower *= 2;
+    if (isHatAccessory(raw)) {
+      hatMagicalPower = Math.max(hatMagicalPower, magicalPower);
+    } else {
+      bestMagicalPowerById.set(id, Math.max(bestMagicalPowerById.get(id) || 0, magicalPower));
+    }
 
     if (id === "DAY_CRYSTAL" || id === "NIGHT_CRYSTAL") hasDayOrNightCrystal = true;
     else if (id === "GRAVITY_TALISMAN") hasGravityTalisman = true;
     else if (id === "BLOOD_GOD_CREST") hasBloodGodCrest = true;
+    else if (id === "ABICASE") hasAbicase = true;
     else if (SHARK_TOOTH_STRENGTH_BY_ID[id] != null) {
       sharkToothStrength = Math.max(sharkToothStrength, SHARK_TOOTH_STRENGTH_BY_ID[id]);
     }
   }
+
+  let magicalPower = hatMagicalPower;
+  for (const mp of bestMagicalPowerById.values()) magicalPower += mp;
+  if (hasAbicase) magicalPower += Math.floor((abiphoneContactCount || 0) / 2);
 
   const talismanStrengthBonus =
     (hasDayOrNightCrystal ? DAY_NIGHT_CRYSTAL_STRENGTH : 0) +
@@ -624,7 +666,8 @@ async function handleHypixelImport(url, env) {
     // Live Magical Power/Talisman Bonuses from the real Accessory Bag contents (talismanBagItems,
     // decoded above) — falls back to the stale highest-ever peak only if the bag itself couldn't
     // be decoded (e.g. the account has the relevant Hypixel API setting turned off).
-    const liveAccessoryStats = computeLiveAccessoryStats(talismanBagItems);
+    const abiphoneContactCount = Object.keys(member.nether_island_player_data?.abiphone?.contact_data || {}).length;
+    const liveAccessoryStats = computeLiveAccessoryStats(talismanBagItems, abiphoneContactCount);
     const accessory = {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
