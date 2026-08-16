@@ -76,6 +76,14 @@ const PET_ITEM_CATEGORY = 'PET ITEM';
 // real stone items for their icon/lore.
 const POWER_STONE_CATEGORY = 'POWER STONE';
 
+// Accessory Bag items (Talismans/Rings/Artifacts/Relics) — their trailing lore tag is always
+// "<TIER> ACCESSORY" regardless of the item's own display name/family (verified against several
+// real files, including dungeon-drop ones like WITHER_RELIC's "LEGENDARY DUNGEON ACCESSORY" —
+// `category.endsWith` catches that the same way ARMOR_TYPES catches "DUNGEON HELMET"). Needed to
+// resolve a player's real Accessory Bag contents (member.inventory.bag_contents.talisman_bag) to
+// a rarity for the live Magical Power calc — see worker/src/index.js.
+const ACCESSORY_TYPES = ['ACCESSORY'];
+
 // Items that parse as a weapon/armor category but aren't real
 // player-obtainable gear: Rift NPC "items" (their tier is always null —
 // they're dialogue props, not loot) and one-off cosmetic/quest items
@@ -91,19 +99,28 @@ const EXCLUDED_IDS = new Set([
 // filter, not to EXCLUDED_IDS above:
 //   GYROKINETIC_WAND: "Create a large rift at the aimed location" — a lowercase common noun
 //     describing the ability's visual effect (a spatial tear), not the Rift Dimension game mode.
-//   BUBBA_BLISTER / CHOCOLATE_CHIP: their own "X Rift-Exportable X" line is an incidental
-//     drop-mechanic footnote (any item that CAN be carried out of the Rift gets this tag) — the
-//     Accessory Powers they unlock (Bubba/Crumbly, see lib/accessoryPowers.js) are real,
-//     non-Rift-exclusive Powers used in normal Skyblock combat.
-//   RIFT_NECKLACE_INSIDE / RIFT_NECKLACE_OUTSIDE: genuinely Rift-dimension gear (unlike the
-//     three above, not a false-positive scan hit) — kept by explicit user request regardless.
-const RIFT_MENTION_KEEP_IDS = new Set([
-  'GYROKINETIC_WAND',
-  'BUBBA_BLISTER',
-  'CHOCOLATE_CHIP',
-  'RIFT_NECKLACE_INSIDE',
-  'RIFT_NECKLACE_OUTSIDE',
-]);
+//   RIFT_NECKLACE_INSIDE / RIFT_NECKLACE_OUTSIDE: genuinely Rift-dimension gear — kept by
+//     explicit user request regardless (unlike GYROKINETIC_WAND above, a real scan hit, not a
+//     false positive).
+// The "Rift-Transferable"/"Rift-Exportable" drop-mechanic footnote (any item that CAN be carried
+// out of the Rift gets this tag) used to only need a couple of one-off entries here (see below),
+// but turned out to be common enough on ordinary Accessory Bag items (10+ real talismans found
+// on one live test account alone, e.g. Scarf's Grimoire, Vampire Dentist Relic, Future Calories
+// Talisman) that hand-allowlisting each one doesn't scale — filtered out of the scan itself
+// instead, below.
+const RIFT_MENTION_KEEP_IDS = new Set(['GYROKINETIC_WAND', 'RIFT_NECKLACE_INSIDE', 'RIFT_NECKLACE_OUTSIDE']);
+// Matches only the footnote itself, not genuine Rift-dimension-specific lines (an ability/effect
+// that only works "while in the rift", a Rift-only requirement, etc.), which should still exclude
+// the item.
+const RIFT_FOOTNOTE_RE = /rift-(transferable|exportable)/i;
+// A handful of ordinary accessories (Respiration Artifact, Hocus-Pocus Cipher, ...) have a real,
+// non-footnote Rift mention too — a bonus effect that only triggers while in the Rift, on top of
+// stats/an Accessory Power that work everywhere. Hypixel's own "Works while in Accessory Bag!"
+// line is the authoritative signal that an item is a normal always-on accessory rather than
+// Rift-exclusive content (confirmed absent on genuine Rift-only gear like RIFT_NECKLACE_INSIDE) —
+// checked before excluding on a rift mention, same rescue as RIFT_MENTION_KEEP_IDS but driven by
+// the item's own real text instead of a hand-maintained id list.
+const ACCESSORY_BAG_MARKER_RE = /works while in accessory bag/i;
 
 // Inverse of EXCLUDED_IDS: real player-obtainable weapons whose last lore line is just the bare
 // tier (e.g. "§9§lRARE") with no trailing category word, so parseTierAndCategory finds no
@@ -148,6 +165,7 @@ const armor = [];
 const equipment = [];
 const petItems = [];
 const powerStones = [];
+const accessories = [];
 let skippedNoLore = 0;
 let parseErrors = 0;
 
@@ -170,11 +188,19 @@ for (const file of files) {
 
   if (EXCLUDED_IDS.has(raw.internalname)) continue;
 
-  // Rift-dimension items (Rift Damage/Rift Time/Rift-Transferable/Rift-Exportable/Rift Gallery
-  // etc.) — their whole stat line only matters inside the Rift, a separate game mode this
-  // calculator doesn't model at all, so they're dead weight in every picker. Text-scanned rather
-  // than a hardcoded id list so any future Rift item NEU-REPO adds is caught automatically.
-  if (!RIFT_MENTION_KEEP_IDS.has(raw.internalname) && raw.lore.some((line) => /rift/i.test(line))) continue;
+  // Rift-dimension items (Rift Damage/Rift Time/Rift Gallery etc.) — their whole stat line only
+  // matters inside the Rift, a separate game mode this calculator doesn't model at all, so
+  // they're dead weight in every picker. Text-scanned rather than a hardcoded id list so any
+  // future Rift item NEU-REPO adds is caught automatically. The Rift-Transferable/-Exportable
+  // footnote line itself doesn't count (see RIFT_FOOTNOTE_RE above) — it means the opposite of
+  // Rift-exclusive. Nor does any other rift mention on an item carrying the real "Works while in
+  // Accessory Bag!" tag (see ACCESSORY_BAG_MARKER_RE above).
+  if (
+    !RIFT_MENTION_KEEP_IDS.has(raw.internalname) &&
+    !raw.lore.some((line) => ACCESSORY_BAG_MARKER_RE.test(line)) &&
+    raw.lore.some((line) => !RIFT_FOOTNOTE_RE.test(line) && /rift/i.test(line))
+  )
+    continue;
 
   let { tier, category } = parseTierAndCategory(raw.lore);
   if (!category && MANUAL_CATEGORY_OVERRIDES[raw.internalname]) {
@@ -193,7 +219,9 @@ for (const file of files) {
   const isEquipment = !isWeapon && !isArmor && tier && EQUIPMENT_TYPES.some((t) => category.endsWith(t));
   const isPetItem = !isWeapon && !isArmor && !isEquipment && tier && category === PET_ITEM_CATEGORY;
   const isPowerStone = !isWeapon && !isArmor && !isEquipment && !isPetItem && tier && category === POWER_STONE_CATEGORY;
-  if (!isWeapon && !isArmor && !isEquipment && !isPetItem && !isPowerStone) continue;
+  const isAccessory =
+    !isWeapon && !isArmor && !isEquipment && !isPetItem && !isPowerStone && tier && ACCESSORY_TYPES.some((t) => category.endsWith(t));
+  if (!isWeapon && !isArmor && !isEquipment && !isPetItem && !isPowerStone && !isAccessory) continue;
 
   if (isPetItem) {
     // Pet items have no slot-matching `category` concept (there's only
@@ -211,6 +239,20 @@ for (const file of files) {
 
   if (isPowerStone) {
     powerStones.push({
+      id: raw.internalname,
+      name: stripColorCodes(raw.displayname || raw.internalname || ''),
+      material: materialFromItemId(raw.itemid),
+      tier,
+      lore: raw.lore,
+    });
+    continue;
+  }
+
+  if (isAccessory) {
+    // Only rarity (for the live Magical Power calc) and name/material (in case a future picker
+    // wants to render one) matter here — no `category` breakdown the way weapons/armor get one,
+    // since every accessory shares the single bare "ACCESSORY" tag regardless of family.
+    accessories.push({
       id: raw.internalname,
       name: stripColorCodes(raw.displayname || raw.internalname || ''),
       material: materialFromItemId(raw.itemid),
@@ -239,6 +281,7 @@ console.log(`armor: ${armor.length}`);
 console.log(`equipment: ${equipment.length}`);
 console.log(`pet items: ${petItems.length}`);
 console.log(`power stones: ${powerStones.length}`);
+console.log(`accessories: ${accessories.length}`);
 console.log(`skipped (no lore): ${skippedNoLore}`);
 console.log(`parse errors: ${parseErrors}`);
 
@@ -248,4 +291,5 @@ writeFileSync(path.join(outDir, 'armor.json'), JSON.stringify(armor));
 writeFileSync(path.join(outDir, 'equipment.json'), JSON.stringify(equipment));
 writeFileSync(path.join(outDir, 'petItems.json'), JSON.stringify(petItems));
 writeFileSync(path.join(outDir, 'powerStones.json'), JSON.stringify(powerStones));
-console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, equipment.json, petItems.json, and powerStones.json`);
+writeFileSync(path.join(outDir, 'accessories.json'), JSON.stringify(accessories));
+console.log(`Wrote ${path.join(outDir, 'weapons.json')}, armor.json, equipment.json, petItems.json, powerStones.json, and accessories.json`);
