@@ -160,6 +160,13 @@ export function extractItemSummary(slotItem) {
     modifier: ea.modifier || null,
     recombobulated: !!ea.rarity_upgrades,
     stars: ea.upgrade_level || ea.dungeon_item_level || 0,
+    // Hypixel's real, authoritative "this specific copy is dungeonized" flag — independent of
+    // star count (a dungeonized item can sit at 0-5 base stars same as a normal one) and of the
+    // catalog's own category (only armor pieces that are ALWAYS dungeon drops get a "DUNGEON "
+    // category prefix baked in; weapons like Terminator/Flaming Flay never do). Confirmed live:
+    // `ExtraAttributes.dungeon_item === 1` on a dungeonized Terminator/Flaming Flay with 5 stars,
+    // where masterStars/category both give no signal. See lib/hypixelImport.js's consumer.
+    dungeonized: !!ea.dungeon_item,
     hotPotatoBooks: ea.hot_potato_count || 0,
     enchantments: ea.enchantments || {},
     gems: ea.gems || null,

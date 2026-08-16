@@ -215,10 +215,13 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
     stars,
     masterStars,
-    // Master Stars imply dungeonized (can't exist otherwise), but so does the item's own rarity
-    // line reading e.g. "LEGENDARY DUNGEON LEGGINGS" — baked into `category` as a "DUNGEON "
-    // prefix (see lib/armorSlots.js) — which catches dungeon-drop gear with 0 Master Stars too.
-    dungeonized: masterStars > 0 || (item.category || '').includes('DUNGEON'),
+    // Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source —
+    // a dungeonized weapon can sit at 0-5 base stars same as a normal one, so Master Stars alone
+    // miss it, and only a fixed set of armor pieces that are ALWAYS dungeon drops get a "DUNGEON "
+    // category prefix baked into the catalog (see lib/armorSlots.js); neither signal covers e.g. a
+    // dungeonized Terminator/Flaming Flay. Both older signals kept as a fallback for summaries
+    // built before this field existed (e.g. a saved/shared loadout code).
+    dungeonized: !!summary.dungeonized || masterStars > 0 || (item.category || '').includes('DUNGEON'),
     ...davidsCloak,
   };
 }
