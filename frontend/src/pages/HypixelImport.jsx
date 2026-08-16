@@ -263,7 +263,7 @@ export default function HypixelImport() {
   }, []);
 
   const weaponCandidates = useMemo(
-    () => (rawImport?.weapons || []).map((summary) => resolveGearSummary(summary, itemData)),
+    () => (rawImport?.weapons || []).map((summary) => ({ item: resolveGearSummary(summary, itemData), location: summary.location })),
     [rawImport, itemData],
   );
   const weaponPending = weaponCandidates.length > 0 && weaponChoice === null;
@@ -291,7 +291,7 @@ export default function HypixelImport() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-1">
-                  {weaponCandidates.map((item, i) => (
+                  {weaponCandidates.map(({ item, location }, i) => (
                     <button
                       key={i}
                       type="button"
@@ -314,7 +314,10 @@ export default function HypixelImport() {
                           <span className="italic truncate">Unknown item (not in current catalog)</span>
                         )}
                       </span>
-                      {weaponChoice === i && <span className="shrink-0 text-xs font-bold">✓</span>}
+                      <span className="shrink-0 flex items-center gap-1.5">
+                        <span className="text-[10px] opacity-80">{location}</span>
+                        {weaponChoice === i && <span className="text-xs font-bold">✓</span>}
+                      </span>
                     </button>
                   ))}
                   <button

@@ -11,12 +11,13 @@
      GET  /api/items            -> returns cached data, refreshing first if stale
      POST /api/refresh          -> forces a refetch regardless of staleness
      GET  /api/hypixel/import   -> resolves ?username, fetches their SkyBlock profile(s), decodes
-                                    currently-worn armor/equipment/pet plus every carried weapon
-                                    candidate and every non-empty Wardrobe armor/equipment set (the
-                                    frontend lets the user pick), plus computed pet level, attribute
-                                    levels, Wolf Slayer level, Alchemy/Enchanting level, and selected
-                                    Accessory Power from the Hypixel API (see handleHypixelImport).
-                                    Needs env.HYPIXEL_API_KEY.
+                                    currently-worn armor/equipment/pet plus every weapon candidate
+                                    found across Inventory/Ender Chest/Backpacks and every
+                                    non-empty Wardrobe armor/equipment set (the frontend lets the
+                                    user pick), plus computed pet level, attribute levels, Wolf
+                                    Slayer level, Alchemy/Enchanting level, and selected Accessory
+                                    Power from the Hypixel API (see handleHypixelImport). Needs
+                                    env.HYPIXEL_API_KEY.
      POST /api/loadout          -> stores a frontend-encoded loadout blob (see
                                     frontend/src/lib/loadoutCode.js) under a short random id,
                                     returns { id } — lets share links be a handful of characters
@@ -30,6 +31,7 @@ import armor from "./data/armor.json";
 import equipment from "./data/equipment.json";
 import petItems from "./data/petItems.json";
 import powerStones from "./data/powerStones.json";
+import accessories from "./data/accessories.json";
 import { decodeInventoryB64, extractItemSummary } from "./nbt.js";
 
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
@@ -219,6 +221,84 @@ async function fetchReforgeStones() {
 // instead of what's currently worn — sidesteps that same reliability problem by making the pick
 // explicit rather than trusting the auto-pointer.
 const WEAPON_IDS = new Set(weapons.map((w) => w.id));
+
+// Accessory Bag item id -> real base rarity, for the live Magical Power calc below.
+const ACCESSORY_TIER_BY_ID = Object.fromEntries(accessories.map((a) => [a.id, a.tier]));
+
+// Real per-rarity Magical Power contribution — user-confirmed values (not published anywhere
+// structured in NEU-REPO). SPECIAL/VERY_SPECIAL only ever occur recombobulated up from
+// MYTHIC-capped accessories that have no higher real tier.
+const RARITY_MAGICAL_POWER = {
+  COMMON: 3,
+  UNCOMMON: 5,
+  RARE: 8,
+  EPIC: 12,
+  LEGENDARY: 16,
+  MYTHIC: 22,
+  SPECIAL: 3,
+  VERY_SPECIAL: 5,
+};
+
+// Recombobulating an accessory bumps its effective rarity by one tier for Magical Power purposes,
+// same as everywhere else rarity matters in this app (see frontend's lib/recombobulator.js).
+const RARITY_BUMP_ORDER = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"];
+
+function bumpRarity(tier) {
+  const i = RARITY_BUMP_ORDER.indexOf(tier);
+  return i === -1 || i === RARITY_BUMP_ORDER.length - 1 ? tier : RARITY_BUMP_ORDER[i + 1];
+}
+
+// Talismans with their own fixed Strength bonus while in the Accessory Bag, beyond their Magical
+// Power contribution above — user-confirmed values. Shark Tooth Necklace is a strict tier
+// progression (Raggedy -> ... -> Razor-Sharp); only the best tier owned counts, not every tier
+// summed. Day Crystal and Night Crystal are alternatives, not stacking — owning both still only
+// grants the bonus once.
+const SHARK_TOOTH_STRENGTH_BY_ID = {
+  RAGGEDY_SHARK_TOOTH_NECKLACE: 2,
+  DULL_SHARK_TOOTH_NECKLACE: 4,
+  HONED_SHARK_TOOTH_NECKLACE: 6,
+  SHARP_SHARK_TOOTH_NECKLACE: 8,
+  RAZOR_SHARP_SHARK_TOOTH_NECKLACE: 10,
+};
+const DAY_NIGHT_CRYSTAL_STRENGTH = 5;
+const GRAVITY_TALISMAN_STRENGTH = 5;
+const BLOOD_GOD_CREST_STRENGTH = 5;
+
+// Computes live Magical Power (summed real Accessory Bag rarities, recomb-bumped) and the flat
+// "Talisman Bonuses" Strength total from a decoded talisman_bag item list — see the Promise.all
+// above for where `items` comes from.
+function computeLiveAccessoryStats(items) {
+  let magicalPower = 0;
+  let hasDayOrNightCrystal = false;
+  let sharkToothStrength = 0;
+  let hasGravityTalisman = false;
+  let hasBloodGodCrest = false;
+
+  for (const raw of items) {
+    const ea = raw?.tag?.ExtraAttributes;
+    const id = ea?.id;
+    if (!id) continue;
+
+    let tier = ACCESSORY_TIER_BY_ID[id];
+    if (tier && ea.rarity_upgrades) tier = bumpRarity(tier);
+    if (tier && RARITY_MAGICAL_POWER[tier] != null) magicalPower += RARITY_MAGICAL_POWER[tier];
+
+    if (id === "DAY_CRYSTAL" || id === "NIGHT_CRYSTAL") hasDayOrNightCrystal = true;
+    else if (id === "GRAVITY_TALISMAN") hasGravityTalisman = true;
+    else if (id === "BLOOD_GOD_CREST") hasBloodGodCrest = true;
+    else if (SHARK_TOOTH_STRENGTH_BY_ID[id] != null) {
+      sharkToothStrength = Math.max(sharkToothStrength, SHARK_TOOTH_STRENGTH_BY_ID[id]);
+    }
+  }
+
+  const talismanStrengthBonus =
+    (hasDayOrNightCrystal ? DAY_NIGHT_CRYSTAL_STRENGTH : 0) +
+    (hasGravityTalisman ? GRAVITY_TALISMAN_STRENGTH : 0) +
+    (hasBloodGodCrest ? BLOOD_GOD_CREST_STRENGTH : 0) +
+    sharkToothStrength;
+
+  return { magicalPower, talismanStrengthBonus };
+}
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
 const ARMOR_SLOT_ORDER = ["boots", "leggings", "chestplate", "helmet"];
@@ -444,13 +524,29 @@ async function handleHypixelImport(url, env) {
   }
 
   try {
-    const [armorItems, equipmentItems, invItems, attributeShards, leveling] = await Promise.all([
-      member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
-      member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
-      member.inventory?.inv_contents?.data ? decodeInventoryB64(member.inventory.inv_contents.data) : [],
-      fetch(NEU_ATTRIBUTE_SHARDS_URL).then((r) => r.json()),
-      fetch(NEU_LEVELING_URL).then((r) => r.json()),
-    ]);
+    // Backpack contents live under `inventory.backpack_contents`, keyed "0", "1", ... by the
+    // backpack's real in-game slot — decoded in that order so `Backpack 1`/`Backpack 2`/... below
+    // matches what the player actually sees.
+    const backpackContents = member.inventory?.backpack_contents || {};
+    const backpackIds = Object.keys(backpackContents).sort((a, b) => Number(a) - Number(b));
+
+    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling] =
+      await Promise.all([
+        member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
+        member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
+        member.inventory?.inv_contents?.data ? decodeInventoryB64(member.inventory.inv_contents.data) : [],
+        // Every unlocked Ender Chest page comes back as one already-combined blob (confirmed
+        // live — not paged separately), so no extra per-page fetching is needed.
+        member.inventory?.ender_chest_contents?.data ? decodeInventoryB64(member.inventory.ender_chest_contents.data) : [],
+        Promise.all(backpackIds.map((id) => (backpackContents[id]?.data ? decodeInventoryB64(backpackContents[id].data) : []))),
+        // The real Accessory Bag contents (Hypixel's own internal name for it, confirmed live) —
+        // used below to compute live Magical Power and named "Talisman Bonuses" instead of
+        // relying on accessory_bag_storage.highest_magical_power, which is a permanent high-water
+        // mark that never drops even after selling/swapping accessories out of the bag.
+        member.inventory?.bag_contents?.talisman_bag?.data ? decodeInventoryB64(member.inventory.bag_contents.talisman_bag.data) : [],
+        fetch(NEU_ATTRIBUTE_SHARDS_URL).then((r) => r.json()),
+        fetch(NEU_LEVELING_URL).then((r) => r.json()),
+      ]);
 
     const armorResult = {};
     ARMOR_SLOT_ORDER.forEach((slot, i) => {
@@ -467,17 +563,24 @@ async function handleHypixelImport(url, env) {
       decodeWardrobeSets(member.loadout?.equipment, WARDROBE_EQUIPMENT_SLOT_KEYS),
     ]);
 
-    // Weapon: every inventory slot (hotbar first, then the rest, in real slot order) whose item
-    // id is a known weapon — Skyblock has no dedicated weapon slot, and a player can be carrying
+    // Weapon: every item across the player's Inventory, Ender Chest, and Backpacks whose id is a
+    // known weapon — Skyblock has no dedicated weapon slot, and a player can be carrying/storing
     // more than one, so this returns every candidate rather than guessing which one to keep; the
-    // frontend lets the user pick. No dedup by id — two physical copies of the same weapon (e.g.
-    // a main + backup) are two separate candidates, same "trust real inventory position"
-    // treatment the fixed armor/equipment slots already get.
+    // frontend lets the user pick. Each candidate is tagged with `location` (which storage it was
+    // found in) since a player can easily have duplicates spread across all three. No dedup by
+    // id — two physical copies of the same weapon (e.g. a main + backup) are two separate
+    // candidates, same "trust real inventory position" treatment the fixed armor/equipment slots
+    // already get.
     const weapons = [];
-    for (const raw of invItems) {
-      const summary = extractItemSummary(raw);
-      if (summary && WEAPON_IDS.has(summary.id)) weapons.push(summary);
+    function collectWeapons(items, location) {
+      for (const raw of items) {
+        const summary = extractItemSummary(raw);
+        if (summary && WEAPON_IDS.has(summary.id)) weapons.push({ ...summary, location });
+      }
     }
+    collectWeapons(invItems, "Inventory");
+    collectWeapons(enderChestItems, "Ender Chest");
+    backpackItemLists.forEach((items, i) => collectWeapons(items, `Backpack ${i + 1}`));
 
     // Every pet the account owns (not just the equipped one) — the frontend lets the user pick
     // which to import, same "return every candidate, let the caller choose" treatment as
@@ -518,9 +621,14 @@ async function handleHypixelImport(url, env) {
 
     const slayers = { wolf: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.wolf) };
 
+    // Live Magical Power/Talisman Bonuses from the real Accessory Bag contents (talismanBagItems,
+    // decoded above) — falls back to the stale highest-ever peak only if the bag itself couldn't
+    // be decoded (e.g. the account has the relevant Hypixel API setting turned off).
+    const liveAccessoryStats = computeLiveAccessoryStats(talismanBagItems);
     const accessory = {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
-      magicalPower: member.accessory_bag_storage?.highest_magical_power || 0,
+      magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
+      talismanStrengthBonus: liveAccessoryStats.talismanStrengthBonus,
       // slot_0 is the account's currently active Stat Tuning allocation; slots 1-4 are saved
       // presets and aren't imported.
       tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
