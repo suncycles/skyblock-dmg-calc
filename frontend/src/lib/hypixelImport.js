@@ -15,11 +15,12 @@ import { getSpecialConfig } from './specialWeapons';
    loadout/attributes/playerStats shape. Scoped to currently-worn gear + a chosen pet + Accessory
    Power + the account-wide levels named above — not the in-game Loadout/Wardrobe presets.
 
-   Weapon has no dedicated Skyblock inventory slot, so the Worker returns every carried item that
-   matches a known weapon id (real slot order, hotbar first) as `raw.weapons`; similarly `raw.pets`
-   holds every pet the account owns (each flagged `active` for whichever is currently equipped) —
-   the Review screen (pages/HypixelImport.jsx) lets the user pick a weapon and a pet before
-   mapHypixelImportToLoadout resolves those choices into the loadout. */
+   Weapon has no dedicated Skyblock inventory slot, so the Worker returns every matching item
+   found across Inventory (hotbar first, real slot order), Ender Chest, and every Backpack as
+   `raw.weapons` — each entry tagged `location` so the Review screen can show where it came from.
+   Similarly `raw.pets` holds every pet the account owns (each flagged `active` for whichever is
+   currently equipped) — the Review screen (pages/HypixelImport.jsx) lets the user pick a weapon
+   and a pet before mapHypixelImportToLoadout resolves those choices into the loadout. */
 
 // Hypixel's raw attribute id order is "<mobType>_ruler" (e.g. "skeletal_ruler") — reversed from
 // this app's own "ruler_<mobType>" id. Every other attribute id (elementals, echoes, deadeye,
@@ -363,6 +364,9 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
   if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
   if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
+  // Independent of whether an Accessory Power is selected — named talismans (Day/Night Crystal,
+  // Gravity Talisman, Blood God Crest, Shark Tooth Necklace) grant this regardless.
+  if (typeof raw.accessory?.talismanStrengthBonus === 'number') playerStats.talismanStrengthBonus = raw.accessory.talismanStrengthBonus;
 
   return { loadout, skipped, attributes, playerStats };
 }
