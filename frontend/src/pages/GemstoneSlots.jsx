@@ -28,7 +28,7 @@ export default function GemstoneSlots() {
   const navigate = useNavigate();
   const { loadout, playerStats } = useBuild();
   const { itemData } = useItemData();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const modifiers = loadout[slot] && loadout[slot].modifiers;
   const slotCount = item ? countGemstoneSlots(item.lore) : 0;
@@ -70,7 +70,13 @@ export default function GemstoneSlots() {
 
       if (row === ITEM_ROW && col === ITEM_COL) {
         cells.push(
-          <div key={key} className={`${slotBase} cursor-default`} onMouseEnter={handleItemHover} onMouseLeave={handleItemLeave}>
+          <div
+            key={key}
+            className={`${slotBase} cursor-default`}
+            onClick={handleTapOrActivate('item', handleItemHover, undefined)}
+            onMouseEnter={guardHover(handleItemHover)}
+            onMouseLeave={guardHover(handleItemLeave)}
+          >
             {item && <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />}
           </div>,
         );

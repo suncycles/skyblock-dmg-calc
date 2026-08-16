@@ -33,7 +33,7 @@ export default function EnchantList({ ultimate }) {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { loadout, applyEnchant } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [page, setPage] = useState(0);
   const [massApplying, setMassApplying] = useState(false);
   const hoveredIdRef = useRef(null);
@@ -184,9 +184,13 @@ export default function EnchantList({ ultimate }) {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110 ${appliedEntries.has(id) ? 'bg-green-400' : ''}`}
-              onClick={() => navigate(`/enchant-levels/${slot}/${encodeURIComponent(id)}`)}
-              onMouseEnter={(e) => handleEnchantHover(id, e)}
-              onMouseLeave={handleEnchantLeave}
+              onClick={handleTapOrActivate(
+                id,
+                (e) => handleEnchantHover(id, e),
+                () => navigate(`/enchant-levels/${slot}/${encodeURIComponent(id)}`),
+              )}
+              onMouseEnter={guardHover((e) => handleEnchantHover(id, e))}
+              onMouseLeave={guardHover(handleEnchantLeave)}
             >
               <img src={ENCHANTED_BOOK_ICON} alt={titleCaseEnchantId(id)} className={iconImg} />
               <span

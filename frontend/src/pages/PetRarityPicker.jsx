@@ -28,7 +28,7 @@ export default function PetRarityPicker() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
   const { selectItem } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const hoveredRarityRef = useRef(null);
 
   const name = derivePetDisplayName(petId);
@@ -76,12 +76,12 @@ export default function PetRarityPicker() {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110`}
-              onClick={() => handleSelect(rarity)}
-              onMouseEnter={(e) => handleHover(rarity, e)}
-              onMouseLeave={() => {
+              onClick={handleTapOrActivate(rarity, (e) => handleHover(rarity, e), () => handleSelect(rarity))}
+              onMouseEnter={guardHover((e) => handleHover(rarity, e))}
+              onMouseLeave={guardHover(() => {
                 hoveredRarityRef.current = null;
                 hideTooltip();
-              }}
+              })}
             >
               <WeaponIcon id={petId} material="BONE" alt={rarity} className={iconImg} />
               <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">

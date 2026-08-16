@@ -21,7 +21,7 @@ export default function GemstoneTierPicker() {
   const { slot, slotIndex, gemType } = useParams();
   const navigate = useNavigate();
   const { loadout, applyGemstone } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const idx = Number(slotIndex);
   const gemId = gemType.toUpperCase();
   const gem = GEMSTONES[gemId];
@@ -55,14 +55,22 @@ export default function GemstoneTierPicker() {
                 current?.gem === gemId && current?.tier === tier ? 'bg-green-400' : ''
               }`}
               title={`${titleCase(tier)} ${gem.label}: ${formatGemstoneBoost(gemId, boost)} ${gem.statLabel}`}
-              onClick={() => handleSelect(tier)}
-              onMouseEnter={(e) =>
+              onClick={handleTapOrActivate(
+                tier,
+                (e) =>
+                  showTooltip(
+                    [`§${tierColor}${titleCase(tier)} ${gem.label}`, `§7${gem.statLabel}: §a${formatGemstoneBoost(gemId, boost)}`],
+                    e.currentTarget,
+                  ),
+                () => handleSelect(tier),
+              )}
+              onMouseEnter={guardHover((e) =>
                 showTooltip(
                   [`§${tierColor}${titleCase(tier)} ${gem.label}`, `§7${gem.statLabel}: §a${formatGemstoneBoost(gemId, boost)}`],
                   e.currentTarget,
-                )
-              }
-              onMouseLeave={hideTooltip}
+                ),
+              )}
+              onMouseLeave={guardHover(hideTooltip)}
             >
               <img src={getGemstoneIcon(gemId, tier)} alt={`${titleCase(tier)} ${gem.label}`} className={iconImg} />
               <span className="absolute bottom-0.5 right-1 text-[10px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">

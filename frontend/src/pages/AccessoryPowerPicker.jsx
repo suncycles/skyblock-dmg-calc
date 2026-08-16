@@ -48,7 +48,7 @@ function buildUniqueBonusLines(power) {
 export default function AccessoryPowerPicker() {
   const navigate = useNavigate();
   const { loadout, selectItem, setAccessoryMagicalPower } = useBuild();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [page, setPage] = useState(0);
   const hoveredIdRef = useRef(null);
 
@@ -109,9 +109,9 @@ export default function AccessoryPowerPicker() {
             <div
               key={key}
               className={`${slotBase} relative cursor-pointer hover:brightness-110 ${selectedPowerId === power.id ? 'bg-green-400' : ''}`}
-              onClick={() => handleSelect(power)}
-              onMouseEnter={(e) => handleHover(power, e)}
-              onMouseLeave={handleLeave}
+              onClick={handleTapOrActivate(power.id, (e) => handleHover(power, e), () => handleSelect(power))}
+              onMouseEnter={guardHover((e) => handleHover(power, e))}
+              onMouseLeave={guardHover(handleLeave)}
             >
               <WeaponIcon id={power.sourceItemId} material={power.sourceItemId ? 'SKULL' : 'BOOK'} alt={power.name} className={iconImg} />
               <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
