@@ -70,7 +70,11 @@ export function formatStatValue(statKey, value) {
 // Reforges applicable to a given weapon: matching itemTypes and requiring a rarity the item actually has.
 export function getApplicableReforges(reforges, item) {
   if (!reforges || !item) return [];
-  const categoryTypes = CATEGORY_TO_REFORGE_TYPES[item.category] || [];
+  // ponytail: Gemstone Gauntlet is a one-off — its real category is GAUNTLET (a mining tool, see
+  // build-item-data.mjs), but it reforges off the same table as swords in-game. Matched by id
+  // rather than folded into CATEGORY_TO_REFORGE_TYPES, since there's no general "Gauntlet" rule.
+  const categoryTypes =
+    item.id === 'GEMSTONE_GAUNTLET' ? ['SWORD/ROD', 'SWORD'] : CATEGORY_TO_REFORGE_TYPES[item.category] || [];
   const rarity = (item.tier || '').toUpperCase();
   // No recognized rarity means treat as not-reforgeable rather than showing every reforge as applicable.
   if (!rarity) return [];
