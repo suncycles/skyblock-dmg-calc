@@ -155,6 +155,7 @@ function loadInitialPlayerStats() {
     alchemyLevel: 0,
     enchantingLevel: 0,
     generalsMedallionDigits: 0,
+    talismanStrengthBonus: 0,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
@@ -170,6 +171,7 @@ function loadInitialPlayerStats() {
       alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
       enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
+      talismanStrengthBonus: typeof parsed.talismanStrengthBonus === 'number' ? parsed.talismanStrengthBonus : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -414,6 +416,17 @@ export function BuildProvider({ children }) {
   const setGeneralsMedallionDigits = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, generalsMedallionDigits: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Flat Strength from named talismans with their own fixed bonus (Day/Night Crystal, Gravity
+  // Talisman, Blood God Crest, Shark Tooth Necklace tiers — see lib/damageSources.js's "Talisman
+  // Bonuses" source) — manually entered here, or computed and imported by Hypixel import.
+  const setTalismanStrengthBonus = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, talismanStrengthBonus: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -756,6 +769,7 @@ export function BuildProvider({ children }) {
       alchemyLevel: 0,
       enchantingLevel: 0,
       generalsMedallionDigits: 0,
+      talismanStrengthBonus: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -819,6 +833,7 @@ export function BuildProvider({ children }) {
         setAlchemyLevel,
         setEnchantingLevel,
         setGeneralsMedallionDigits,
+        setTalismanStrengthBonus,
         targetMobs,
         toggleTargetMob,
         clearTargetMobs,
