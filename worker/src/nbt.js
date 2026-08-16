@@ -163,5 +163,10 @@ export function extractItemSummary(slotItem) {
     hotPotatoBooks: ea.hot_potato_count || 0,
     enchantments: ea.enchantments || {},
     gems: ea.gems || null,
+    // Real per-instance lore (with §-codes) — most items don't need this (their real stats come
+    // from the bundled NEU-REPO catalog), but a few (David's Cloak's Strength/rarity, neither of
+    // which has a published formula and both of which live only in the account's own copy of the
+    // item) can only be recovered by reading it directly. See lib/hypixelImport.js's consumer.
+    lore: slotItem.tag.display?.Lore || null,
   };
 }

@@ -11,6 +11,7 @@ import {
 import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS } from '../lib/equipmentSlots';
 import { formatItemName } from '../lib/mcText';
+import { derivePetDisplayName } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
 import PageHeader from '../components/PageHeader';
 
@@ -33,6 +34,9 @@ const optionButtonDisabled =
 // "Don't import a weapon" — a real, explicit choice alongside the real candidates, not just
 // "nothing picked" (see the Review step's weapon section below for why that distinction matters).
 const SKIP_WEAPON = 'skip';
+
+// Same "explicit skip" treatment for the pet picker, offered alongside every owned pet.
+const SKIP_PET = 'skip';
 
 function GearRow({ item, checked, onToggle }) {
   if (!item) {
@@ -116,15 +120,17 @@ function pickSource(sets, choice, fallback) {
   return choice == null ? fallback : sets?.find((s) => s.index === choice);
 }
 
-// Imports currently-worn armor/equipment/active pet/Accessory Power, plus computed pet level,
-// attribute levels, Wolf Slayer level, and Combat/Skyblock/Foraging/Catacombs/Taming/Alchemy/
-// Enchanting level, from a real Hypixel account. Pet/Accessory Power/levels are always imported
-// unconditionally; weapon and each armor/equipment slot go through a Review step first — weapon
-// because Skyblock has no dedicated weapon slot (the Worker returns every carried candidate, not
-// a guess), armor/equipment because the user may want to keep what's already in a given loadout
-// slot instead of having the import overwrite it. Both armor and equipment can additionally be
-// sourced from any non-empty Wardrobe set instead of currently-worn. Can auto-run on mount when
-// EntryScreen navigates here with a username already typed in.
+// Imports currently-worn armor/equipment/Accessory Power, plus computed pet level, attribute
+// levels, Wolf Slayer level, and Combat/Skyblock/Foraging/Catacombs/Taming/Alchemy/Enchanting
+// level, from a real Hypixel account. Accessory Power/levels are always imported unconditionally;
+// weapon, pet, and each armor/equipment slot go through a Review step first — weapon because
+// Skyblock has no dedicated weapon slot (the Worker returns every carried candidate, not a
+// guess), pet because the account may own more than one (the Worker returns every owned pet,
+// pre-selecting whichever is currently equipped), armor/equipment because the user may want to
+// keep what's already in a given loadout slot instead of having the import overwrite it. Both
+// armor and equipment can additionally be sourced from any non-empty Wardrobe set instead of
+// currently-worn. Can auto-run on mount when EntryScreen navigates here with a username already
+// typed in.
 export default function HypixelImport() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -136,6 +142,7 @@ export default function HypixelImport() {
   const [profileChoice, setProfileChoice] = useState(null); // { uuid, username, profiles }
   const [rawImport, setRawImport] = useState(null);
   const [weaponChoice, setWeaponChoice] = useState(null); // null = undecided, SKIP_WEAPON, or a raw.weapons index
+  const [petChoice, setPetChoice] = useState(null); // SKIP_PET, or a raw.pets index (pre-selected to whichever is active)
   const [wardrobeChoice, setWardrobeChoice] = useState(null); // null = currently worn, or a raw.wardrobeSets index
   const [wardrobeEquipmentChoice, setWardrobeEquipmentChoice] = useState(null); // null = currently worn, or a raw.wardrobeEquipmentSets index
   const [includedSlots, setIncludedSlots] = useState(() => new Set());
@@ -153,6 +160,11 @@ export default function HypixelImport() {
       }
       setRawImport(raw);
       setWeaponChoice(null);
+      // Pre-select whichever pet Hypixel reports as currently equipped, same "start from what's
+      // real" default as the armor/equipment slots below — falls back to SKIP_PET if the account
+      // has no pets or none is flagged active.
+      const activePetIndex = (raw.pets || []).findIndex((p) => p.active);
+      setPetChoice(activePetIndex !== -1 ? activePetIndex : SKIP_PET);
       setWardrobeChoice(null);
       setWardrobeEquipmentChoice(null);
       // Pre-checked for every slot Hypixel actually reports something worn in — an empty slot has nothing to import either way.
@@ -201,9 +213,11 @@ export default function HypixelImport() {
 
   async function handleConfirmImport() {
     const weaponIndex = typeof weaponChoice === 'number' ? weaponChoice : null;
+    const petIndex = typeof petChoice === 'number' ? petChoice : null;
     const excludedSlots = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => !includedSlots.has(slot)));
     const { loadout, attributes, playerStats } = await mapHypixelImportToLoadout(rawImport, itemData, {
       weaponIndex,
+      petIndex,
       excludedSlots,
       wardrobeSetIndex: wardrobeChoice,
       wardrobeEquipmentSetIndex: wardrobeEquipmentChoice,
@@ -243,6 +257,7 @@ export default function HypixelImport() {
     [rawImport, itemData],
   );
   const weaponPending = weaponCandidates.length > 0 && weaponChoice === null;
+  const petCandidates = rawImport?.pets || [];
   const armorSource = pickSource(rawImport?.wardrobeSets, wardrobeChoice, rawImport?.armor);
   const equipmentSource = pickSource(rawImport?.wardrobeEquipmentSets, wardrobeEquipmentChoice, rawImport?.equipment);
 
@@ -254,7 +269,7 @@ export default function HypixelImport() {
         <div className="w-full max-w-[500px] flex flex-col gap-3">
           <div className={`${panel} p-4 flex flex-col gap-3`}>
             <div className="text-xs text-neutral-700 leading-snug">
-              Pet, Accessory Power, and attribute/skill levels are always imported. Pick a weapon and an armor/equipment
+              Accessory Power and attribute/skill levels are always imported. Pick a weapon, a pet, and an armor/equipment
               source below — unchecked slots keep whatever's already there.
             </div>
 
@@ -299,6 +314,49 @@ export default function HypixelImport() {
                   >
                     <span className="italic">Don't import a weapon</span>
                     {weaponChoice === SKIP_WEAPON && <span className="shrink-0 text-xs font-bold">✓</span>}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="text-[11px] font-bold text-black uppercase tracking-wide">Pet</div>
+              {petCandidates.length === 0 ? (
+                <div className={`${optionButtonBase} ${optionButtonDisabled}`}>
+                  <span className="italic">No pets found on this profile.</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {petCandidates.map((pet, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPetChoice(i)}
+                      className={`${optionButtonBase} justify-between ${petChoice === i ? optionButtonOn : optionButtonOff}`}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <WeaponIcon
+                          id={pet.type}
+                          material="BONE"
+                          alt={derivePetDisplayName(pet.type)}
+                          className="w-5 h-5 object-contain pixelated shrink-0"
+                        />
+                        <span className="truncate">{derivePetDisplayName(pet.type)}</span>
+                        {pet.active && <span className="shrink-0 text-[10px] italic opacity-80">(equipped)</span>}
+                      </span>
+                      <span className="shrink-0 flex items-center gap-1.5">
+                        <span className="text-[10px] opacity-80">Lvl {pet.level}</span>
+                        {petChoice === i && <span className="text-xs font-bold">✓</span>}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPetChoice(SKIP_PET)}
+                    className={`${optionButtonBase} justify-between ${petChoice === SKIP_PET ? optionButtonOn : optionButtonOff}`}
+                  >
+                    <span className="italic">Don't import a pet</span>
+                    {petChoice === SKIP_PET && <span className="shrink-0 text-xs font-bold">✓</span>}
                   </button>
                 </div>
               )}
@@ -381,7 +439,7 @@ export default function HypixelImport() {
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <div className={`${panel} p-4 flex flex-col gap-3`}>
           <div className="text-xs text-neutral-700 leading-snug">
-            Imports your weapon, armor/equipment (worn or any saved Wardrobe set), active pet, Accessory Power, and
+            Imports your weapon, armor/equipment (worn or any saved Wardrobe set), a pet, Accessory Power, and
             attribute/skill levels — you'll pick specifics on the next screen. Saved in-game Loadouts aren't imported.
           </div>
 
