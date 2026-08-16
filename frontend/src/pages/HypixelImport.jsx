@@ -38,6 +38,16 @@ const SKIP_WEAPON = 'skip';
 // Same "explicit skip" treatment for the pet picker, offered alongside every owned pet.
 const SKIP_PET = 'skip';
 
+// Icon-only square tiles for the Pet grid — a full name+level row per pet (the optionButton*
+// treatment above) doesn't scale to accounts with 100+ pets, so this shows just the skull icon;
+// name/level/equipped move to the native `title` tooltip and small corner badges instead.
+const petTileBase =
+  'relative flex items-center justify-center w-10 h-10 border-[3px] outline outline-2 outline-black transition-[filter] cursor-pointer hover:brightness-110 shrink-0';
+const petTileOff =
+  'bg-[#8b8b8b] border-t-[#c9c9c9] border-l-[#c9c9c9] border-b-[#4a4a4a] border-r-[#4a4a4a]';
+const petTileOn =
+  'bg-[#3a8f3a] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f]';
+
 function GearRow({ item, checked, onToggle }) {
   if (!item) {
     return (
@@ -320,36 +330,44 @@ export default function HypixelImport() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <div className="text-[11px] font-bold text-black uppercase tracking-wide">Pet</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[11px] font-bold text-black uppercase tracking-wide">Pet</div>
+                <div className="text-[11px] text-black/70 truncate">
+                  {typeof petChoice === 'number' && petCandidates[petChoice]
+                    ? `${derivePetDisplayName(petCandidates[petChoice].type)} — Lvl ${petCandidates[petChoice].level}`
+                    : 'None selected'}
+                </div>
+              </div>
               {petCandidates.length === 0 ? (
                 <div className={`${optionButtonBase} ${optionButtonDisabled}`}>
                   <span className="italic">No pets found on this profile.</span>
                 </div>
               ) : (
-                <div className="flex flex-col gap-1">
-                  {petCandidates.map((pet, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setPetChoice(i)}
-                      className={`${optionButtonBase} justify-between ${petChoice === i ? optionButtonOn : optionButtonOff}`}
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <WeaponIcon
-                          id={pet.type}
-                          material="BONE"
-                          alt={derivePetDisplayName(pet.type)}
-                          className="w-5 h-5 object-contain pixelated shrink-0"
-                        />
-                        <span className="truncate">{derivePetDisplayName(pet.type)}</span>
-                        {pet.active && <span className="shrink-0 text-[10px] italic opacity-80">(equipped)</span>}
-                      </span>
-                      <span className="shrink-0 flex items-center gap-1.5">
-                        <span className="text-[10px] opacity-80">Lvl {pet.level}</span>
-                        {petChoice === i && <span className="text-xs font-bold">✓</span>}
-                      </span>
-                    </button>
-                  ))}
+                <div className="flex flex-col gap-1.5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-1">
+                    {petCandidates.map((pet, i) => {
+                      const name = derivePetDisplayName(pet.type);
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          title={`${name} — Lvl ${pet.level}${pet.active ? ' (equipped)' : ''}`}
+                          onClick={() => setPetChoice(i)}
+                          className={`${petTileBase} ${petChoice === i ? petTileOn : petTileOff}`}
+                        >
+                          <WeaponIcon id={pet.type} material="BONE" alt={name} className="w-[70%] h-[70%] object-contain pixelated" />
+                          {pet.active && (
+                            <span className="absolute -top-1 -left-1 text-[10px] leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">★</span>
+                          )}
+                          {petChoice === i && (
+                            <span className="absolute -bottom-1 -right-1 text-[10px] font-bold leading-none text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setPetChoice(SKIP_PET)}
