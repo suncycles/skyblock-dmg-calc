@@ -114,6 +114,11 @@ const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horr
 // Damage stays the no-bonus baseline; DamageSources.jsx uses this id to compute the +15% max range.
 export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 
+// Highest possible "Talisman Bonuses" total (see the addBaseStat call below): Day/Night Crystal
+// (+5, only one counts — see lib/hypixelImport.js) + Gravity Talisman (+5) + Blood God Crest (+5)
+// + Razor-Sharp Shark Tooth Necklace, the best Shark Tooth tier (+10) = 25. User-confirmed values.
+export const MAX_TALISMAN_STRENGTH_BONUS = 25;
+
 /* Aggregates every damage-relevant stat/bonus across the loadout into: base stats (summed),
    % additive damage split into non-conditional vs conditional, a separate weaponBonus pair
    for the equipped weapon's own "+X% damage" abilities, multiplicative sources, and a
@@ -1130,6 +1135,7 @@ export async function collectDamageSources(
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.generalsMedallionDigits, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
+  addBaseStat(out, 'strength', playerStats?.talismanStrengthBonus || 0, 'Talisman Bonuses');
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');
   addBaseStat(out, 'intelligence', computeEnchantingIntelligenceBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'ability_damage', computeEnchantingAbilityDamageBonus(playerStats?.enchantingLevel), 'Enchanting Level');
