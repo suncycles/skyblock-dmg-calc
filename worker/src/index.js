@@ -287,13 +287,20 @@ const DAY_NIGHT_CRYSTAL_STRENGTH = 5;
 const GRAVITY_TALISMAN_STRENGTH = 5;
 const BLOOD_GOD_CREST_STRENGTH = 5;
 
-// Computes live Magical Power (summed real Accessory Bag rarities) and the flat "Talisman
-// Bonuses" Strength total from a decoded talisman_bag item list — see the Promise.all above for
-// where `items` comes from. Two dedup rules apply, both confirmed by the account owner:
+// Computes live Magical Power (summed real Accessory Bag rarities), the flat "Talisman Bonuses"
+// Strength total, and a total Enrichments count from a decoded talisman_bag item list — see the
+// Promise.all above for where `items` comes from. Two dedup rules apply to Magical Power, both
+// confirmed by the account owner:
 // - Owning multiple physical copies of the same accessory id only counts the best copy once
 //   (e.g. 4x Personal Compactor 7000 counts only its single highest tier, not all 4 summed).
 // - Hat accessories (see isHatAccessory) are mutually exclusive with each other as a group —
 //   only the single highest-Magical-Power hat owned counts, not every hat summed.
+// Enrichments count is a flat, undeduped tally of every item carrying a real
+// ExtraAttributes.talisman_enrichment value, regardless of which stat it's actually on — the
+// Enrichments UI (see damageSources.js) always imports as 'none' (0 stat impact) and lets the
+// player manually swap the whole count onto one tracked stat as a "what if" — confirmed by the
+// account owner: e.g. an account with 65 Magic-Find-enriched accessories imports as count 65,
+// type 'none', and the player can swap that to Strength to see the hypothetical +65 Strength.
 // `abiphoneContactCount` (member.nether_island_player_data.abiphone.contact_data key count) adds
 // floor(count/2) bonus Magical Power, but only while an Abicase accessory is owned — user-confirmed.
 function computeLiveAccessoryStats(items, abiphoneContactCount) {
@@ -304,6 +311,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   let hasGravityTalisman = false;
   let hasBloodGodCrest = false;
   let hasAbicase = false;
+  let enrichmentCount = 0;
 
   for (const raw of items) {
     const ea = raw?.tag?.ExtraAttributes;
@@ -319,6 +327,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     } else {
       bestMagicalPowerById.set(id, Math.max(bestMagicalPowerById.get(id) || 0, magicalPower));
     }
+    if (ea.talisman_enrichment) enrichmentCount++;
 
     if (id === "DAY_CRYSTAL" || id === "NIGHT_CRYSTAL") hasDayOrNightCrystal = true;
     else if (id === "GRAVITY_TALISMAN") hasGravityTalisman = true;
@@ -339,7 +348,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     (hasBloodGodCrest ? BLOOD_GOD_CREST_STRENGTH : 0) +
     sharkToothStrength;
 
-  return { magicalPower, talismanStrengthBonus };
+  return { magicalPower, talismanStrengthBonus, enrichmentCount };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -672,6 +681,11 @@ async function handleHypixelImport(url, env) {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
       talismanStrengthBonus: liveAccessoryStats.talismanStrengthBonus,
+      enrichmentCount: liveAccessoryStats.enrichmentCount,
+      // Always imports neutral — the real per-item enrichment stat is usually untracked (Magic
+      // Find, etc.), so this can't grant a real bonus automatically; the player swaps it onto a
+      // tracked stat manually as a "what if" (see computeLiveAccessoryStats' comment).
+      enrichmentType: "none",
       // slot_0 is the account's currently active Stat Tuning allocation; slots 1-4 are saved
       // presets and aren't imported.
       tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
