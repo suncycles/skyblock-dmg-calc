@@ -212,6 +212,11 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   // the generic scan's regexes cover; hardcoded in SEA_CREATURE_WHIP_MULTIPLIERS instead.
   'FLAMING_FLAY',
   'SOUL_WHIP',
+  // Implosion Belt — its real lore's "Increases all explosion damage dealt by 25%" describes an
+  // unrelated generic explosion mechanic, not the Ability Damage bonus this app models (that's
+  // hardcoded via IMPLOSION_BELT_ID below); without this exclusion the generic scan surfaced it
+  // a second time as an unresolved situational note even while the real bonus was already active.
+  IMPLOSION_BELT_ID,
 ]);
 
 // Each Blaze Slayer dagger's own two-mob-type multipliers (real lore, both clauses).

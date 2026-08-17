@@ -42,13 +42,20 @@ export const ABILITY_DAMAGE_TABLE = {
   VOODOO_DOLL_WILTED: { base: 2222, scaling: 1 }, // Jinxed Voodoo Doll
 };
 
-// Implosion Belt: user-verified 1.25x multiplier to Hyperion/Spirit Sceptre/Yeti Sword's own
-// ability damage specifically (not a generic Ability Damage source) — the belt's bundled lore
-// text describes a different, unrelated "explosion damage" bonus, so this can't be scanned for.
+// Implosion Belt: user-verified 1.25x multiplier to the Implosion ability's own damage
+// specifically (not a generic Ability Damage source) — the belt's bundled lore text describes a
+// different, unrelated "explosion damage" bonus, so this can't be scanned for. User-confirmed
+// scope: every weapon that shares the Implosion ability (Hyperion and its Astraea/Valkyrie/
+// Scylla/Necron's Blade (Unrefined) siblings above, none of which have a separate starred id),
+// plus Spirit Sceptre and Yeti Sword's own Implosion-family abilities.
 export const IMPLOSION_BELT_ID = 'IMPLOSION_BELT';
 export const IMPLOSION_BELT_ABILITY_MULTIPLIER = 1.25;
 export const IMPLOSION_BELT_WEAPON_IDS = new Set([
   'HYPERION',
+  'ASTRAEA',
+  'VALKYRIE',
+  'SCYLLA',
+  'NECRON_BLADE', // Necron's Blade (Unrefined)
   'BAT_WAND', // Spirit Sceptre
   'STARRED_BAT_WAND',
   'YETI_SWORD',
