@@ -792,19 +792,21 @@ export default function DamageSources() {
             }
             empty="None equipped."
           >
-            {(mageMode ? result.additiveConditional.filter((e) => e.abilityEligible) : result.additiveConditional).map((e) => (
-              <Row
-                key={e.id}
-                left={e.label}
-                right={
-                  <>
-                    +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
-                  </>
-                }
-                source={e.source}
-                applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
-              />
-            ))}
+            {(mageMode ? result.additiveConditional.filter((e) => e.abilityEligible) : result.additiveConditional)
+              .filter((e) => !appliedToAnyMob || appliedToAnyMob.has(e.id))
+              .map((e) => (
+                <Row
+                  key={e.id}
+                  left={e.label}
+                  right={
+                    <>
+                      +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
+                    </>
+                  }
+                  source={e.source}
+                  applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
+                />
+              ))}
           </Section>
 
           <Section
