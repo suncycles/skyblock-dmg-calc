@@ -7,6 +7,10 @@ export default function Credits() {
       <PageHeader title="Credits" />
 
       <div className="w-full max-w-[700px] flex flex-col gap-4 text-sm text-neutral-200">
+        <p className="text-center text-base text-white">
+          Made with <span className="text-red-400">♥</span> by <span className="font-semibold">sammui</span>
+        </p>
+
         <a
           href="https://ko-fi.com/sammui"
           target="_blank"

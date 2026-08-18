@@ -64,6 +64,25 @@ export default function EntryScreen({ onSkip }) {
       >
         Build Manually
       </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          onSkip();
+          navigate('/hypixel-import', { state: { username: 'sammui' } });
+        }}
+        className={`${toolbar} w-full max-w-[440px] mt-8 p-3 flex items-center gap-3 hover:brightness-110 cursor-pointer text-left`}
+      >
+        <img
+          src="https://mc-heads.net/avatar/sammui/64"
+          alt="sammui's Minecraft head"
+          className="w-10 h-10 [image-rendering:pixelated] border-2 border-black flex-shrink-0"
+        />
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-bold text-black uppercase tracking-wide">Developer</span>
+          <span className="text-sm font-bold text-neutral-800">sammui — view my loadout</span>
+        </div>
+      </button>
     </div>
   );
 }
