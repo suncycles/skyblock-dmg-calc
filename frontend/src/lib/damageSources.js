@@ -39,6 +39,14 @@ import {
   SUPERIOR_DRAGON_SET,
   SUPERIOR_DRAGON_STAT_BOOST_PERCENT,
   TUXEDO_TIERS,
+  MAGMA_LORD_SET,
+  MAGMA_LORD_NECKLACE_ID,
+  MAGMA_LORD_PERCENT_PER_PIECE,
+  THUNDER_SET,
+  THUNDER_NECKLACE_ID,
+  THUNDER_PERCENT_PER_PIECE,
+  LAVA_SEA_CREATURE_ARMOR_PERCENT,
+  LAVA_SEA_CREATURE_ARMOR_PIECES,
   hasFullSet,
   countSetPieces,
   hasAnyEquippedId,
@@ -211,6 +219,15 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   // hardcoded via IMPLOSION_BELT_ID below); without this exclusion the generic scan surfaced it
   // a second time as an unresolved situational note even while the real bonus was already active.
   IMPLOSION_BELT_ID,
+  // Magma Lord/Thunder (+ their necklaces) and Taurus/Flaming/Moogma — real lore phrases the
+  // Magmatic/Lava Sea Creature bonus as an "Nx" multiplier, not "+N%", so the generic scan never
+  // resolves it anyway; excluded so it doesn't surface as a redundant situational note alongside
+  // the hardcoded additiveConditional entry below (same class of bug as Implosion Belt above).
+  ...MAGMA_LORD_SET,
+  MAGMA_LORD_NECKLACE_ID,
+  ...THUNDER_SET,
+  THUNDER_NECKLACE_ID,
+  ...LAVA_SEA_CREATURE_ARMOR_PIECES.map((p) => p.id),
 ]);
 
 // Each Blaze Slayer dagger's own two-mob-type multipliers (real lore, both clauses).
@@ -1442,6 +1459,45 @@ export async function collectDamageSources(
       source: 'Armor',
       value: MONSTER_RAIDER_MULTIPLIER,
     });
+  }
+
+  // Magma Lord/Thunder/Taurus-Flaming-Moogma: flat melee-only additive damage against Magmatic
+  // (Lava Sea Creatures for the latter) — user-confirmed, not Ability Damage-eligible, unlike the
+  // Implosion Belt/Loving reforge pattern above.
+  const magmaLordPieces =
+    countSetPieces(loadout, ARMOR_SLOTS, MAGMA_LORD_SET) + (loadout.necklace?.item?.id === MAGMA_LORD_NECKLACE_ID ? 1 : 0);
+  if (magmaLordPieces > 0) {
+    out.additiveConditional.push({
+      id: 'magma-lord-armor',
+      label: `Magma Lord Armor (${magmaLordPieces} piece${magmaLordPieces > 1 ? 's' : ''})`,
+      source: 'Armor',
+      value: MAGMA_LORD_PERCENT_PER_PIECE * magmaLordPieces,
+      condition: 'Magmatic',
+    });
+  }
+
+  const thunderPieces =
+    countSetPieces(loadout, ARMOR_SLOTS, THUNDER_SET) + (loadout.necklace?.item?.id === THUNDER_NECKLACE_ID ? 1 : 0);
+  if (thunderPieces > 0) {
+    out.additiveConditional.push({
+      id: 'thunder-armor',
+      label: `Thunder Armor (${thunderPieces} piece${thunderPieces > 1 ? 's' : ''})`,
+      source: 'Armor',
+      value: THUNDER_PERCENT_PER_PIECE * thunderPieces,
+      condition: 'Magmatic',
+    });
+  }
+
+  for (const { slot, id, label } of LAVA_SEA_CREATURE_ARMOR_PIECES) {
+    if (loadout[slot]?.item?.id === id) {
+      out.additiveConditional.push({
+        id: `lava-sea-creature-${slot}`,
+        label,
+        source: 'Armor',
+        value: LAVA_SEA_CREATURE_ARMOR_PERCENT,
+        condition: 'Lava Sea Creatures',
+      });
+    }
   }
 
   if (

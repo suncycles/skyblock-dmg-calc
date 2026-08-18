@@ -85,3 +85,29 @@ export const TUXEDO_TIERS = [
 export function hasAnyEquippedId(loadout, slots, ids) {
   return slots.some((slot) => ids.includes(loadout[slot]?.item?.id));
 }
+
+// Magma Lord/Thunder Armor + their matching Necklace (Magma Lord Necklace = MAGMA_LORD_GAUNTLET,
+// Thunderbolt Necklace = THUNDERBOLT_NECKLACE — real ids confirmed against worker/src/data/
+// equipment.json): each piece independently grants a flat, melee-only additive damage bonus
+// against Magmatic mobs (not Ability Damage eligible) — user-confirmed per-piece values. The
+// necklace's own real lore states a different multiplier (1.3x/1.1x) than the matching armor's
+// (itself written as "1.3x"/"1.2x"), but the user confirmed every piece in each set — including
+// the necklace — uses the same flat per-piece percentage as the rest of that set.
+export const MAGMA_LORD_SET = ['MAGMA_LORD_HELMET', 'MAGMA_LORD_CHESTPLATE', 'MAGMA_LORD_LEGGINGS', 'MAGMA_LORD_BOOTS'];
+export const MAGMA_LORD_NECKLACE_ID = 'MAGMA_LORD_GAUNTLET';
+export const MAGMA_LORD_PERCENT_PER_PIECE = 30;
+
+export const THUNDER_SET = ['THUNDER_HELMET', 'THUNDER_CHESTPLATE', 'THUNDER_LEGGINGS', 'THUNDER_BOOTS'];
+export const THUNDER_NECKLACE_ID = 'THUNDERBOLT_NECKLACE';
+export const THUNDER_PERCENT_PER_PIECE = 20;
+
+// Taurus Helmet/Flaming Chestplate/Moogma Leggings: 3 independent items (different slots, not a
+// matched set) each granting a flat, melee-only +10% additive damage bonus against Lava Sea
+// Creatures (their own real lore's mob-type, distinct from Magmatic) when worn — stacks if more
+// than one is worn simultaneously.
+export const LAVA_SEA_CREATURE_ARMOR_PERCENT = 10;
+export const LAVA_SEA_CREATURE_ARMOR_PIECES = [
+  { slot: 'helmet', id: 'TAURUS_HELMET', label: 'Taurus Helmet' },
+  { slot: 'chestplate', id: 'FLAMING_CHESTPLATE', label: 'Flaming Chestplate' },
+  { slot: 'leggings', id: 'MOOGMA_LEGGINGS', label: 'Moogma Leggings' },
+];

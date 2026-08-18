@@ -226,8 +226,60 @@ function loadInitialLastGearModifiers() {
   }
 }
 
+// Undo/redo history depth — bounds memory for a long session; well past what anyone would
+// actually step back through by hand.
+const MAX_LOADOUT_HISTORY = 50;
+
 export function BuildProvider({ children }) {
-  const [loadout, setLoadout] = useState(loadInitial);
+  const [loadout, setLoadoutRaw] = useState(loadInitial);
+  // Past/future loadout snapshots for Undo/Redo. Refs (not state) since they only ever need to be
+  // read at render time alongside a `loadout` change that's already triggering a re-render — every
+  // push/pop below happens in the same tick as a setLoadoutRaw call, so canUndo/canRedo computed
+  // from these refs during render are always current without needing their own state.
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+
+  // Every existing call site below already calls `setLoadout(updater)` (function or plain value,
+  // same as the native useState setter it replaces) — wrapping it here means every one of them
+  // gets Undo/Redo tracking for free, with no changes needed at the call sites themselves. A
+  // no-op update (some updaters return `prev` unchanged, e.g. updateSlotModifiers on an empty
+  // slot) is detected via reference equality and doesn't pollute the history.
+  const setLoadout = useCallback((update) => {
+    setLoadoutRaw((prev) => {
+      const next = typeof update === 'function' ? update(prev) : update;
+      if (next === prev) return prev;
+      undoStackRef.current.push(prev);
+      if (undoStackRef.current.length > MAX_LOADOUT_HISTORY) undoStackRef.current.shift();
+      redoStackRef.current = [];
+      return next;
+    });
+  }, []);
+
+  // Undo/redo bypass the tracked `setLoadout` above (that would just push the current state back
+  // onto its own undo stack) and move snapshots directly between the two stacks instead.
+  const undo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    setLoadoutRaw((prev) => {
+      const previous = undoStackRef.current.pop();
+      redoStackRef.current.push(prev);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(previous));
+      return previous;
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    setLoadoutRaw((prev) => {
+      const next = redoStackRef.current.pop();
+      undoStackRef.current.push(prev);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const canUndo = undoStackRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
+
   // Doesn't need to trigger re-renders (only ever read at selectItem time), so a ref instead of
   // state — keeps removeSlot/selectItem's useCallback deps stable.
   const lastGearModifiersRef = useRef(loadInitialLastGearModifiers());
@@ -624,6 +676,17 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // Hex.jsx's "Clean" button — resets every modifier on the slot's equipped item (enchants,
+  // gemstones, books, recomb, reforge, stars, special, etc.) back to default, without unequipping
+  // the item itself. Independent of removeSlot's lastGearModifiers stash, same as every other
+  // modifier-editing action here.
+  const cleanModifiers = useCallback(
+    (slot) => {
+      updateSlotModifiers(slot, () => emptyModifiers());
+    },
+    [updateSlotModifiers],
+  );
+
   // name === null clears the reforge.
   const applyReforge = useCallback(
     (slot, name) => {
@@ -894,6 +957,7 @@ export function BuildProvider({ children }) {
         toggleArtOfWar,
         toggleArtOfPeace,
         toggleRecombobulated,
+        cleanModifiers,
         applyReforge,
         setStarCount,
         setRarityOverride,
@@ -909,6 +973,10 @@ export function BuildProvider({ children }) {
         setAccessoryEnrichmentType,
         setAccessoryTuningPoint,
         loadFullState,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
       }}
     >
       {children}

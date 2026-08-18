@@ -21,7 +21,7 @@ const GRID_LAYOUT = [
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
   ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Enchantments', 'icon:Ultimate Enchantments', 'icon:Gemstones'],
   ['empty', 'empty', 'empty', 'filler', 'item', 'filler', 'icon:Books', 'icon:Modifiers', 'icon:Special'],
-  ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Reforges', 'icon:Item Upgrades', 'empty'],
+  ['empty', 'empty', 'empty', 'filler', 'filler', 'filler', 'icon:Reforges', 'icon:Item Upgrades', 'icon:Clean'],
   ['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
   ['empty', 'empty', 'empty', 'empty', 'barrier:Close', 'empty', 'empty', 'empty', 'empty'],
 ];
@@ -42,7 +42,7 @@ export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { loadout, toggleRecombobulated, playerStats } = useBuild();
+  const { loadout, toggleRecombobulated, cleanModifiers, playerStats } = useBuild();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const gearType = item ? getGearType(item.category) : null;
@@ -221,6 +221,20 @@ export default function Hex() {
                       className={`${enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`} ${applied ? 'bg-green-400' : ''}`}
                       title={enabled ? 'Recombobulator 3000 — click to toggle' : `${label} — this item can't be recombobulated`}
                       onClick={() => enabled && toggleRecombobulated(slot)}
+                    >
+                      <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
+                    </div>
+                  );
+                }
+
+                if (label === 'Clean') {
+                  const enabled = Boolean(item);
+                  return (
+                    <div
+                      key={key}
+                      className={enabled ? interactiveIcon : `${slotBase} opacity-40 cursor-not-allowed`}
+                      title={enabled ? 'Clean — remove every modifier from this item' : `${label} — select an item first`}
+                      onClick={() => enabled && cleanModifiers(slot)}
                     >
                       <img src={CATEGORY_ICONS[label]} alt={label} className={iconImg} />
                     </div>
