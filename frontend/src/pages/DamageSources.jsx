@@ -235,6 +235,18 @@ export default function DamageSources() {
         })
       : [];
 
+  // Mage Mode's own applied-ids set — needed because ability-only multiplicative sources (e.g.
+  // Implosion Belt, Loving reforge) never appear in the melee `multiplicative` list that
+  // `appliedToAnyMob` above is built from, so they'd always read as "not applied" there even
+  // when genuinely active. Mirrors appliedToAnyMob's shape, sourced from computeAbilityDamage.
+  const abilityAppliedToAnyMob =
+    abilityMobResults.length > 0
+      ? abilityMobResults.reduce((set, r) => {
+          if (r.abilityDamage) for (const id of r.abilityDamage.appliedIds) set.add(id);
+          return set;
+        }, new Set())
+      : null;
+
   // (Base) Stats shows Intelligence/Ability Damage (the Ability Damage formula's own inputs) plus
   // Damage/Strength/Crit Damage (relevant to the Mage Staff Beam's underlying melee Final Damage)
   // in Mage Mode, and hides Intelligence/Ability Damage otherwise — the two modes describe
@@ -838,24 +850,27 @@ export default function DamageSources() {
             subtitle={mageMode ? 'Only Ability Damage-eligible sources are shown while in Mage Mode.' : undefined}
             empty="None equipped."
           >
-            {(mageMode ? result.abilityMultiplicative : result.multiplicative).map((e) => (
-              <Row
-                key={e.id}
-                left={e.label}
-                right={
-                  <>
-                    {round4(e.value)}x{e.condition && (
-                      <>
-                        {' '}
-                        to <Keyworded text={e.conditionLabel || e.condition} />
-                      </>
-                    )}
-                  </>
-                }
-                source={e.source}
-                applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
-              />
-            ))}
+            {(mageMode ? result.abilityMultiplicative : result.multiplicative).map((e) => {
+              const activeSet = mageMode ? abilityAppliedToAnyMob : appliedToAnyMob;
+              return (
+                <Row
+                  key={e.id}
+                  left={e.label}
+                  right={
+                    <>
+                      {round4(e.value)}x{e.condition && (
+                        <>
+                          {' '}
+                          to <Keyworded text={e.conditionLabel || e.condition} />
+                        </>
+                      )}
+                    </>
+                  }
+                  source={e.source}
+                  applied={activeSet ? activeSet.has(e.id) : undefined}
+                />
+              );
+            })}
           </Section>
 
           <div className={`${panel} p-3`}>

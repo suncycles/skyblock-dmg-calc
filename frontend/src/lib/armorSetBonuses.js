@@ -85,23 +85,3 @@ export const TUXEDO_TIERS = [
 export function hasAnyEquippedId(loadout, slots, ids) {
   return slots.some((slot) => ids.includes(loadout[slot]?.item?.id));
 }
-
-// Magma Lord/Thunder Armor: each piece's own real lore independently grants "damage dealt to
-// Magmatic mobs is increased Nx" — stacking multiplicatively per piece worn (verified against
-// worker/src/data/armor.json's real lore; the in-game text describes the bonus as unconditional
-// on having the full set, unlike e.g. Vanquished's full-set-only hidden bonus).
-export const MAGMA_LORD_SET = ['MAGMA_LORD_HELMET', 'MAGMA_LORD_CHESTPLATE', 'MAGMA_LORD_LEGGINGS', 'MAGMA_LORD_BOOTS'];
-export const MAGMA_LORD_MULTIPLIER_PER_PIECE = 1.3;
-
-export const THUNDER_SET = ['THUNDER_HELMET', 'THUNDER_CHESTPLATE', 'THUNDER_LEGGINGS', 'THUNDER_BOOTS'];
-export const THUNDER_MULTIPLIER_PER_PIECE = 1.2;
-
-// Taurus Helmet/Flaming Chestplate/Moogma Leggings: 3 independent items (different slots, not a
-// matched set) whose real lore each grants "damage dealt [to] Lava Sea Creatures is increased
-// 1.1x" — stacks multiplicatively if more than one is worn simultaneously.
-export const LAVA_SEA_CREATURE_ARMOR_MULTIPLIER = 1.1;
-export const LAVA_SEA_CREATURE_ARMOR_PIECES = [
-  { slot: 'helmet', id: 'TAURUS_HELMET', label: 'Taurus Helmet' },
-  { slot: 'chestplate', id: 'FLAMING_CHESTPLATE', label: 'Flaming Chestplate' },
-  { slot: 'leggings', id: 'MOOGMA_LEGGINGS', label: 'Moogma Leggings' },
-];

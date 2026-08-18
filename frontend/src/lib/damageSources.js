@@ -39,12 +39,6 @@ import {
   SUPERIOR_DRAGON_SET,
   SUPERIOR_DRAGON_STAT_BOOST_PERCENT,
   TUXEDO_TIERS,
-  MAGMA_LORD_SET,
-  MAGMA_LORD_MULTIPLIER_PER_PIECE,
-  THUNDER_SET,
-  THUNDER_MULTIPLIER_PER_PIECE,
-  LAVA_SEA_CREATURE_ARMOR_MULTIPLIER,
-  LAVA_SEA_CREATURE_ARMOR_PIECES,
   hasFullSet,
   countSetPieces,
   hasAnyEquippedId,
@@ -1448,50 +1442,6 @@ export async function collectDamageSources(
       source: 'Armor',
       value: MONSTER_RAIDER_MULTIPLIER,
     });
-  }
-
-  // Magma Lord/Thunder/Taurus-Flaming-Moogma's damage-to-Magmatic-mobs bonuses apply to Ability
-  // Damage too (Mage Mode), not just melee — pushed into both the melee `multiplicative` list and
-  // the ability-only `abilityMultiplicative` list (see finalDamage.js's computeAbilityDamage);
-  // `condition` still gates each by the target mob's real type the same way in both lists.
-  const magmaLordPieces = countSetPieces(loadout, ARMOR_SLOTS, MAGMA_LORD_SET);
-  if (magmaLordPieces > 0) {
-    const entry = {
-      id: 'magma-lord-armor',
-      label: `Magma Lord Armor (${magmaLordPieces} piece${magmaLordPieces > 1 ? 's' : ''})`,
-      source: 'Armor',
-      value: MAGMA_LORD_MULTIPLIER_PER_PIECE ** magmaLordPieces,
-      condition: 'Magmatic',
-    };
-    out.multiplicative.push(entry);
-    out.abilityMultiplicative.push(entry);
-  }
-
-  const thunderPieces = countSetPieces(loadout, ARMOR_SLOTS, THUNDER_SET);
-  if (thunderPieces > 0) {
-    const entry = {
-      id: 'thunder-armor',
-      label: `Thunder Armor (${thunderPieces} piece${thunderPieces > 1 ? 's' : ''})`,
-      source: 'Armor',
-      value: THUNDER_MULTIPLIER_PER_PIECE ** thunderPieces,
-      condition: 'Magmatic',
-    };
-    out.multiplicative.push(entry);
-    out.abilityMultiplicative.push(entry);
-  }
-
-  for (const { slot, id, label } of LAVA_SEA_CREATURE_ARMOR_PIECES) {
-    if (loadout[slot]?.item?.id === id) {
-      const entry = {
-        id: `lava-sea-creature-${slot}`,
-        label,
-        source: 'Armor',
-        value: LAVA_SEA_CREATURE_ARMOR_MULTIPLIER,
-        condition: 'Lava Sea Creatures',
-      };
-      out.multiplicative.push(entry);
-      out.abilityMultiplicative.push(entry);
-    }
   }
 
   if (

@@ -208,23 +208,34 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
       additivePercent: 0,
       multiplicativeMultiplier: 1,
       finalDamage: 0,
+      appliedIds: new Set(),
     };
   }
 
   const { additiveNonConditional, additiveConditional, abilityMultiplicative } = sources;
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
+  const appliedIds = new Set();
 
   let additivePercent = 0;
   for (const e of additiveNonConditional) {
-    if (e.abilityEligible) additivePercent += e.value;
+    if (e.abilityEligible) {
+      additivePercent += e.value;
+      appliedIds.add(e.id);
+    }
   }
   for (const e of additiveConditional) {
-    if (e.abilityEligible && conditionMatchesMob(e.condition, mob)) additivePercent += e.value;
+    if (e.abilityEligible && conditionMatchesMob(e.condition, mob)) {
+      additivePercent += e.value;
+      appliedIds.add(e.id);
+    }
   }
 
   let multiplicativeMultiplier = 1;
   for (const e of abilityMultiplicative) {
-    if (!e.condition || conditionMatchesMob(e.condition, mob)) multiplicativeMultiplier *= e.value;
+    if (!e.condition || conditionMatchesMob(e.condition, mob)) {
+      multiplicativeMultiplier *= e.value;
+      appliedIds.add(e.id);
+    }
   }
 
   const abilityDamageStat = baseStats.ability_damage || 0;
@@ -248,6 +259,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
     additivePercent,
     multiplicativeMultiplier,
     finalDamage,
+    appliedIds,
   };
 }
 
