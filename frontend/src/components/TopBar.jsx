@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getPageLabel } from '../lib/pageTitles';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
+import { useBuild } from '../context/BuildContext';
 
 const MENU_LINKS = [
   { to: '/tutorial', label: 'Tutorial', icon: '/images/manual/tutorial_icon.png' },
@@ -23,6 +24,7 @@ const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 export default function TopBar() {
   const { pathname } = useLocation();
   const pageLabel = getPageLabel(pathname);
+  const { undo, redo, canUndo, canRedo } = useBuild();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showFirstLaunchHint, setShowFirstLaunchHint] = useState(
     () => localStorage.getItem(FIRST_LAUNCH_KEY) !== '1',
@@ -106,6 +108,32 @@ export default function TopBar() {
             </>
           )}
           <nav className="ml-auto flex items-center gap-4 text-[12px] font-medium shrink-0">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Undo"
+                title="Undo"
+                disabled={!canUndo}
+                onClick={undo}
+                className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+                  canUndo ? 'text-white/70 hover:text-white hover:bg-white/10 cursor-pointer' : 'text-white/20 cursor-not-allowed'
+                }`}
+              >
+                <UndoIcon />
+              </button>
+              <button
+                type="button"
+                aria-label="Redo"
+                title="Redo"
+                disabled={!canRedo}
+                onClick={redo}
+                className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+                  canRedo ? 'text-white/70 hover:text-white hover:bg-white/10 cursor-pointer' : 'text-white/20 cursor-not-allowed'
+                }`}
+              >
+                <RedoIcon />
+              </button>
+            </div>
             {pathname === '/damage-sources' ? (
               <span className="text-white/30 cursor-default">Damage</span>
             ) : (
@@ -162,6 +190,24 @@ export default function TopBar() {
         </nav>
       </aside>
     </>
+  );
+}
+
+function UndoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 5v4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.5 9a6 6 0 1 1 1.8 4.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 5v4h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14.5 9a6 6 0 1 0-1.8 4.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    </svg>
   );
 }
 

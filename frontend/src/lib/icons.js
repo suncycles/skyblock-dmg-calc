@@ -66,6 +66,7 @@ export const CATEGORY_ICONS = {
   Reforges: '/images/vanilla/Luxurious_Spool.png',
   'Item Upgrades': '/images/vanilla/Dragon_Essence.png',
   Special: '/images/vanilla/Nether_Star.png',
+  Clean: '/images/vanilla/Sponge.png',
 };
 
 export const ENCHANTED_BOOK_ICON = '/images/vanilla/Enchanted_Book.png';

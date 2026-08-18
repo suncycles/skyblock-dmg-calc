@@ -38,11 +38,42 @@ function resolveAlternateFileId(enchantsMeta, id) {
   return null;
 }
 
+// Venomous: user-confirmed real numbers (walk speed reduction %, damage %/s per hit) — NEU-REPO's
+// community data is stale as of this writing (pre-rebalance 1-6 numbers, no level 7 entry at all),
+// so this bypasses the live fetch below entirely rather than surfacing wrong/missing data.
+const VENOMOUS_LEVELS = [
+  { walkSpeed: 2, damage: 0.2 },
+  { walkSpeed: 4, damage: 0.4 },
+  { walkSpeed: 6, damage: 0.6 },
+  { walkSpeed: 8, damage: 0.8 },
+  { walkSpeed: 12, damage: 1.2 },
+  { walkSpeed: 15, damage: 1.6 },
+  { walkSpeed: 20, damage: 2 },
+];
+
+function buildVenomousLevels() {
+  return VENOMOUS_LEVELS.map(({ walkSpeed, damage }, i) => {
+    const level = i + 1;
+    return {
+      level,
+      lore: [
+        `§9Venomous ${toRoman(level)}`,
+        `§7Reduces the target's walk speed`,
+        `§7by §a${walkSpeed}% §7and deals §2+${damage}% §7of`,
+        `§7your damage per second per hit,`,
+        `§7stacking globally up to §240`,
+        `§7hits. Lasts §65s§7.`,
+      ],
+    };
+  });
+}
+
 // Fetches every existing level (1-10, probed) for an enchant with its real lore. Cached per enchant id.
 export function fetchEnchantLevels(id, enchantsMeta) {
   if (levelsCache.has(id)) return levelsCache.get(id);
 
   const promise = (async () => {
+    if (id.toLowerCase() === 'venomous') return buildVenomousLevels();
     let levels = await probeLevels(id.toUpperCase());
     if (levels.length === 0) {
       const altFileId = resolveAlternateFileId(enchantsMeta, id);
