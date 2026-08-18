@@ -12,6 +12,9 @@ export default function GlobalFooter() {
 
   return (
     <div className="fixed bottom-1.5 right-2 z-30 flex flex-col items-end gap-0.5 text-[10px] text-neutral-500 select-none">
+      <span className="pointer-events-none text-neutral-400">
+        Made with <span className="text-red-400">♥</span> by <span className="font-semibold text-neutral-200">sammui</span>
+      </span>
       <div className="flex items-center gap-2 pointer-events-auto">
         <span>{status}</span>
         <button className="underline hover:text-neutral-300 cursor-pointer" onClick={refresh}>
