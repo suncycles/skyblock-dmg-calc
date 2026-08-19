@@ -224,6 +224,11 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   // excluded so it doesn't surface as a redundant "not counted" note alongside the correctly
   // hardcoded multiplicative entry.
   'DEMONLORD_GAUNTLET',
+  // Crown of Avarice — its "deal +0.015x Damage for each digit of Coins consumed" clause has no
+  // fixed number for the generic scan's regexes to match, so it falls through to the situational
+  // fallback; excluded so it doesn't surface as a redundant "not counted" note alongside the
+  // correctly hardcoded per-digit multiplicative entry (collectSpecialMechanicEntries below).
+  'CROWN_OF_AVARICE',
   // Magma Lord/Thunder (+ their necklaces) and Taurus/Flaming/Moogma — real lore phrases the
   // Magmatic/Lava Sea Creature bonus as an "Nx" multiplier, not "+N%", so the generic scan never
   // resolves it anyway; excluded so it doesn't surface as a redundant situational note alongside
