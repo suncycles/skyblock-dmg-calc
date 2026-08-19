@@ -202,10 +202,26 @@ function parseDavidsCloakFromLore(lore) {
   return { special, rarityOverride };
 }
 
+// Midas' Sword/Staff's Greed ability bakes the real coin amount straight into the owned item's
+// lore as its own line (confirmed live against two real accounts — sammui's MIDAS_STAFF and
+// GiantWizard's MIDAS_SWORD both read "§7Price paid: §6{amount} Coins", identical wording/color
+// codes on both weapon types) — parsed from there into `modifiers.special`, the same field the
+// Special screen's manual "Price Paid at Dark Auction" input already writes to.
+function parseMidasPriceFromLore(lore) {
+  if (!Array.isArray(lore)) return 0;
+  const stripped = lore.map((l) => l.replace(/§./g, ''));
+  const priceLine = stripped.find((l) => /^Price paid:/i.test(l.trim()));
+  const match = priceLine && /Price paid:\s*([\d,]+)\s*Coins/i.exec(priceLine);
+  return match ? parseInt(match[1].replace(/,/g, ''), 10) : 0;
+}
+
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   const { hexEnchantments, ultimateEnchantment } = await buildEnchantEntries(summary.enchantments, itemData);
   const { stars, masterStars } = splitRawStars(item, summary.stars || 0);
   const davidsCloak = item.id === 'DAVIDS_CLOAK' ? parseDavidsCloakFromLore(summary.lore) : null;
+  const specialKind = getSpecialConfig(item.id)?.kind;
+  const midasSpecial =
+    specialKind === 'midasSword' || specialKind === 'midasStaff' ? { special: parseMidasPriceFromLore(summary.lore) } : null;
   return {
     ...emptyModifiers(),
     hexEnchantments,
@@ -224,6 +240,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     // built before this field existed (e.g. a saved/shared loadout code).
     dungeonized: !!summary.dungeonized || masterStars > 0 || (item.category || '').includes('DUNGEON'),
     ...davidsCloak,
+    ...midasSpecial,
   };
 }
 
