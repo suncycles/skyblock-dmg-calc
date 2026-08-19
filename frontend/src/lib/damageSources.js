@@ -219,6 +219,11 @@ const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
   // hardcoded via IMPLOSION_BELT_ID below); without this exclusion the generic scan surfaced it
   // a second time as an unresolved situational note even while the real bonus was already active.
   IMPLOSION_BELT_ID,
+  // Demonslayer Gauntlet — its "Deal 1.15x damage against Infernal Mobs" line falls through the
+  // generic scan's regexes to the situational fallback (see DAGGER_MOB_MULTIPLIERS above for why);
+  // excluded so it doesn't surface as a redundant "not counted" note alongside the correctly
+  // hardcoded multiplicative entry.
+  'DEMONLORD_GAUNTLET',
   // Magma Lord/Thunder (+ their necklaces) and Taurus/Flaming/Moogma — real lore phrases the
   // Magmatic/Lava Sea Creature bonus as an "Nx" multiplier, not "+N%", so the generic scan never
   // resolves it anyway; excluded so it doesn't surface as a redundant situational note alongside
@@ -258,6 +263,11 @@ const DAGGER_MOB_MULTIPLIERS = {
     { multiplier: 3.5, condition: 'Infernal' },
     { multiplier: 2, condition: 'Skeletal' },
   ],
+  // Demonslayer Gauntlet (GLOVES, not a dagger — same {itemId: [{multiplier, condition}]} shape
+  // reused as-is): "Deal 1.15x damage against Infernal Mobs" is verb-first with an "x" suffix, a
+  // phrasing none of the generic scan's regexes match (DEALS_TO_TARGET_RE/DEALS_FLAT_RE expect a
+  // "%" bonus, SUBJECT_MULTIPLIER_RE expects "mobs take Nx damage").
+  DEMONLORD_GAUNTLET: [{ multiplier: 1.15, condition: 'Infernal' }],
 };
 
 // The 4 real "Wither Blade" swords (Hyperion/Astraea/Valkyrie/Scylla — same family
