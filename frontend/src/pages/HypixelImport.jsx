@@ -12,6 +12,7 @@ import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS } from '../lib/equipmentSlots';
 import { formatItemName } from '../lib/mcText';
 import { derivePetDisplayName } from '../lib/petData';
+import { isUltimateEnchant, titleCaseEnchantId } from '../lib/enchantEffects';
 import WeaponIcon from '../components/WeaponIcon';
 import PageHeader from '../components/PageHeader';
 
@@ -263,11 +264,25 @@ export default function HypixelImport() {
   }, []);
 
   const weaponCandidates = useMemo(
-    () => (rawImport?.weapons || []).map((summary) => ({ item: resolveGearSummary(summary, itemData), location: summary.location })),
+    () =>
+      (rawImport?.weapons || []).map((summary) => {
+        const ultimateId = Object.keys(summary.enchantments || {}).find((id) => isUltimateEnchant(id));
+        return {
+          item: resolveGearSummary(summary, itemData),
+          location: summary.location,
+          ultimateName: ultimateId ? titleCaseEnchantId(ultimateId) : null,
+        };
+      }),
     [rawImport, itemData],
   );
   const weaponPending = weaponCandidates.length > 0 && weaponChoice === null;
   const petCandidates = rawImport?.pets || [];
+  // Pet items resolve against the same catalog David's Cloak/PetDetail already use — held item id
+  // (raw.pets[i].heldItem) matches an itemData.petItems entry 1:1, no id remapping needed.
+  const petHeldItemName = (pet) => {
+    const petItem = pet.heldItem ? (itemData.petItems || []).find((i) => i.id === pet.heldItem) : null;
+    return petItem ? formatItemName(petItem.name) : null;
+  };
   const armorSource = pickSource(rawImport?.wardrobeSets, wardrobeChoice, rawImport?.armor);
   const equipmentSource = pickSource(rawImport?.wardrobeEquipmentSets, wardrobeEquipmentChoice, rawImport?.equipment);
 
@@ -291,7 +306,7 @@ export default function HypixelImport() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-1">
-                  {weaponCandidates.map(({ item, location }, i) => (
+                  {weaponCandidates.map(({ item, location, ultimateName }, i) => (
                     <button
                       key={i}
                       type="button"
@@ -308,7 +323,10 @@ export default function HypixelImport() {
                               className="w-5 h-5 object-contain pixelated shrink-0"
                               color={item.color}
                             />
-                            <span className="truncate">{formatItemName(item.name)}</span>
+                            <span className="truncate">
+                              {formatItemName(item.name)}
+                              {ultimateName && ` - ${ultimateName}`}
+                            </span>
                           </>
                         ) : (
                           <span className="italic truncate">Unknown item (not in current catalog)</span>
@@ -337,7 +355,8 @@ export default function HypixelImport() {
                 <div className="text-[11px] font-bold text-black uppercase tracking-wide">Pet</div>
                 <div className="text-[11px] text-black/70 truncate">
                   {typeof petChoice === 'number' && petCandidates[petChoice]
-                    ? `${derivePetDisplayName(petCandidates[petChoice].type)} — Lvl ${petCandidates[petChoice].level}`
+                    ? `${derivePetDisplayName(petCandidates[petChoice].type)} — Lvl ${petCandidates[petChoice].level}` +
+                      (petHeldItemName(petCandidates[petChoice]) ? ` — ${petHeldItemName(petCandidates[petChoice])}` : '')
                     : 'None selected'}
                 </div>
               </div>
@@ -354,7 +373,7 @@ export default function HypixelImport() {
                         <button
                           key={i}
                           type="button"
-                          title={`${name} — Lvl ${pet.level}${pet.active ? ' (equipped)' : ''}`}
+                          title={`${name} — Lvl ${pet.level}${petHeldItemName(pet) ? ` — ${petHeldItemName(pet)}` : ''}${pet.active ? ' (equipped)' : ''}`}
                           onClick={() => setPetChoice(i)}
                           className={`${petTileBase} ${petChoice === i ? petTileOn : petTileOff}`}
                         >
