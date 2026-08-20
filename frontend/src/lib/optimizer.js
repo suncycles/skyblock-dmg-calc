@@ -174,7 +174,7 @@ async function evaluateTieredProgression(progression, currentIndex, isCurrent, b
 // Runs the full damage-source pipeline for one candidate loadout and reduces it to the mode's
 // single damage number (melee Total DPS, or Ability Damage) plus the raw sources (needed once,
 // for the baseline call, to also read Bonus Attack Speed).
-async function computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob) {
+export async function computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob) {
   const sources = await collectDamageSources(
     loadout,
     itemData,
@@ -209,7 +209,7 @@ async function computeModeDamageAndSources(loadout, itemData, build, modeConfig,
   return { value: dps.total, sources };
 }
 
-async function computeModeDamage(loadout, itemData, build, modeConfig, mob) {
+export async function computeModeDamage(loadout, itemData, build, modeConfig, mob) {
   return (await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob)).value;
 }
 

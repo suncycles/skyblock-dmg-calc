@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { runOptimizer, applyOptimizerResult, OPTIMIZER_MODES, OPTIMIZER_GEAR_SLOTS, hasCuratedData } from '../lib/optimizer';
@@ -115,6 +115,9 @@ export default function Optimizer() {
     <div className="min-h-screen flex flex-col items-center p-4">
       <PageHeader title="Damage Optimizer" />
       <div className="w-full max-w-[700px] flex flex-col gap-3">
+        <Link to="/accessory-optimizer" className="text-xs text-white/80 underline self-end">
+          💎 Magical Power Optimizer →
+        </Link>
         <div className={`${panel} p-3 flex flex-col gap-2`}>
           <div className={sectionTitle}>Optimize For</div>
           <div className="grid grid-cols-2 gap-2">

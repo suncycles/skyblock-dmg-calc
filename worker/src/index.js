@@ -31,6 +31,8 @@ import armor from "./data/armor.json";
 import equipment from "./data/equipment.json";
 import petItems from "./data/petItems.json";
 import powerStones from "./data/powerStones.json";
+import accessories from "./data/accessories.json";
+import accessoryFamilies from "./data/accessoryFamilies.json";
 import { decodeInventoryB64, extractItemSummary } from "./nbt.js";
 
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
@@ -181,7 +183,20 @@ async function buildFreshData() {
     fetchPetNums(),
   ]);
 
-  return { weapons, armor, equipment, enchants, reforges, reforgeStones, pets, petItems, powerStones, lastFetched: Date.now() };
+  return {
+    weapons,
+    armor,
+    equipment,
+    enchants,
+    reforges,
+    reforgeStones,
+    pets,
+    petItems,
+    powerStones,
+    accessories,
+    accessoryFamilies,
+    lastFetched: Date.now(),
+  };
 }
 
 async function fetchPetNums() {
@@ -710,6 +725,27 @@ async function handleHypixelImport(url, env) {
       // slot_0 is the account's currently active Stat Tuning allocation; slots 1-4 are saved
       // presets and aren't imported.
       tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
+      // Every real accessory id currently owned (best tier per id, same dedup as Magical Power
+      // above) — scanned from the Accessory Bag AND main Inventory (an accessory not yet moved
+      // into the bag still counts as owned), same two sources SkyHelper/SkyCrypt's own "missing
+      // talismans" feature checks. Used by the frontend's Magical Power optimizer
+      // (lib/accessoryOptimizer.js) to diff against the full catalog — resolution (upgrade-family
+      // exclusion, duplicates) happens there, not here, same split as reforge name resolution.
+      owned: (() => {
+        // Ranked by RARITY_MAGICAL_POWER value (not TIER_WORDS' match-priority order, which
+        // isn't a rarity ordering) so "best tier" means "highest Magical Power", consistent with
+        // computeLiveAccessoryStats' own per-id dedup above.
+        const bestTierById = new Map();
+        for (const raw of [...talismanBagItems, ...invItems]) {
+          const id = raw?.tag?.ExtraAttributes?.id;
+          if (!id) continue;
+          const tier = realAccessoryTier(raw);
+          if (!tier) continue;
+          const existing = bestTierById.get(id);
+          if (!existing || (RARITY_MAGICAL_POWER[tier] || 0) > (RARITY_MAGICAL_POWER[existing] || 0)) bestTierById.set(id, tier);
+        }
+        return Array.from(bestTierById, ([id, tier]) => ({ id, tier }));
+      })(),
     };
 
     // Golden Dragon's Legendary Treasure/Shining Scales perks (see lib/damageSources.js) need
