@@ -28,6 +28,8 @@ import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
 import { getMobLocations } from './mobLocations';
+import { CRIMSON_SWIPE_BASE_PERCENT, hasFullSet } from './armorSetBonuses';
+import { ARMOR_SLOTS } from './armorSlots';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -283,4 +285,127 @@ export function computeMageStaffBeamDamage(sources, meleeFinalDamage, useDungeon
     meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + MAGE_STAFF_BEAM_INTELLIGENCE_PERCENT_PER_POINT * intelligence),
   );
   return { meleeFinalDamage, intelligence, finalDamage };
+}
+
+// Crimson Swipe: a melee-only proc, purely multiplicative on meleeFinalDamage — same shape as the
+// Mage Staff Beam above. `swipeInfo` is armorSetBonuses.js's computeCrimsonSwipeInfo() result (null
+// when fewer than 2 Crimson-family pieces are worn, in which case this returns null too). Not
+// shown in the UI yet — computed and stored for a future DPS feature.
+export function computeCrimsonSwipeDamage(meleeFinalDamage, swipeInfo) {
+  if (!swipeInfo) return null;
+  const finalDamage = Math.floor(meleeFinalDamage * swipeInfo.multiplier * (CRIMSON_SWIPE_BASE_PERCENT / 100));
+  return { ...swipeInfo, meleeFinalDamage, finalDamage };
+}
+
+// Venomous: a per-hit-per-second proc. User-confirmed real formula:
+//   BaseDamage = X% of (real melee) Final Damage
+//   ProcDamage = BaseDamage * (product of every "ability-eligible" multiplier)
+// "ability-eligible" is the same additive/multiplicative source set Mage Mode's Ability Damage
+// formula counts (Giant Killer, Execute, the 7 type-bane enchants, Combat Level, Ruler/Dominance,
+// etc. — see collectDamageSources' abilityEligible tagging), explicitly EXCLUDING Skyblock Level
+// even though that's normally ability-eligible too (user-confirmed exclusion). Unlike
+// computeAbilityDamage, this multiplies onto the already-fully-computed meleeFinalDamage rather
+// than a from-scratch InitialDamage — meleeFinalDamage already has every real bonus baked in, and
+// the ability-eligible multiplier is a real second application on top of that, per the confirmed formula.
+// `sources.venomousProc` is null when Venomous isn't equipped, in which case this returns null too.
+const VENOMOUS_EXCLUDED_MULTIPLICATIVE_ID = 'skyblock-level';
+
+// Real Venomous mechanic: every landed hit adds its own independent DoT stack (not a refresh),
+// stacking globally up to 40 — each active stack ticks the same per-hit ProcDamage on its own, so
+// N stacks in flight deal N * ProcDamage per second. computeVenomousProcDamage above returns the
+// single-stack (N=1) value; DamageSources.jsx's stack graph multiplies it out to this cap.
+export const MAX_VENOMOUS_STACKS = 40;
+
+export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
+  const proc = sources.venomousProc;
+  if (!proc) return null;
+  if (isJokeMob(mob)) return { ...proc, finalDamage: 0 };
+
+  const { additiveNonConditional, additiveConditional, abilityMultiplicative } = sources;
+
+  let additivePercent = 0;
+  for (const e of additiveNonConditional) {
+    if (e.abilityEligible) additivePercent += e.value;
+  }
+  for (const e of additiveConditional) {
+    if (e.abilityEligible && conditionMatchesMob(e.condition, mob)) additivePercent += e.value;
+  }
+
+  let multiplicativeMultiplier = 1;
+  for (const e of abilityMultiplicative) {
+    if (e.id === VENOMOUS_EXCLUDED_MULTIPLICATIVE_ID) continue;
+    if (!e.condition || conditionMatchesMob(e.condition, mob)) multiplicativeMultiplier *= e.value;
+  }
+
+  const additiveMultiplier = 1 + additivePercent / 100;
+  const baseDamage = meleeFinalDamage * (proc.percent / 100);
+  const finalDamage = Math.floor(baseDamage * additiveMultiplier * multiplicativeMultiplier);
+
+  return { ...proc, additiveMultiplier, multiplicativeMultiplier, baseDamage, finalDamage };
+}
+
+// Fire Aspect/Thunderlord: simple X% of real melee Final Damage per level — unlike Venomous
+// above, no restricted modifier set, just a straight cut of the same finalDamage already shown.
+// `proc` is sources.fireAspectProc/thunderlordProc (null when that enchant isn't equipped).
+export function computeEnchantProcDamage(meleeFinalDamage, proc) {
+  if (!proc) return null;
+  return { ...proc, finalDamage: Math.floor(meleeFinalDamage * (proc.percent / 100)) };
+}
+
+// Melee hit rate isn't continuous in Bonus Attack Speed — real per-hit time only changes at these
+// exact breakpoints, holding steady in between. User-provided real thresholds.
+const MELEE_HIT_RATE_BREAKPOINTS = [
+  { threshold: 0, secondsPerHit: 0.5 },
+  { threshold: 6, secondsPerHit: 0.45 },
+  { threshold: 18, secondsPerHit: 0.4 },
+  { threshold: 34, secondsPerHit: 0.35 },
+  { threshold: 54, secondsPerHit: 0.3 },
+  { threshold: 82, secondsPerHit: 0.25 },
+  { threshold: 123, secondsPerHit: 0.2 },
+];
+
+// Bonus Attack Speed caps at 100, except the full 4-piece Thermodynamic Armor set raises it to 150.
+const ATTACK_SPEED_CAP = 100;
+const THERMODYNAMIC_ATTACK_SPEED_CAP = 150;
+const THERMODYNAMIC_SET = ['THERMODYNAMIC_HELMET', 'THERMODYNAMIC_CHESTPLATE', 'THERMODYNAMIC_LEGGINGS', 'THERMODYNAMIC_BOOTS'];
+
+// Melee hits/second at a given Bonus Attack Speed — looked up from the real breakpoint table
+// above (not a continuous scale), capped before lookup.
+export function computeMeleeHitsPerSecond(bonusAttackSpeed, loadout) {
+  const cap = hasFullSet(loadout, ARMOR_SLOTS, THERMODYNAMIC_SET) ? THERMODYNAMIC_ATTACK_SPEED_CAP : ATTACK_SPEED_CAP;
+  const clamped = Math.min(bonusAttackSpeed || 0, cap);
+  let secondsPerHit = MELEE_HIT_RATE_BREAKPOINTS[0].secondsPerHit;
+  for (const bp of MELEE_HIT_RATE_BREAKPOINTS) {
+    if (clamped >= bp.threshold) secondsPerHit = bp.secondsPerHit;
+  }
+  return 1 / secondsPerHit;
+}
+
+// DPS Mode: turns each already-computed per-hit/per-proc damage number into damage-per-second by
+// multiplying by its own real hit/proc rate. Melee's rate is the real breakpoint above (varies by
+// loadout); the rest are user-provided fixed rates. A proc missing from `mobResult` (enchant/armor
+// not equipped) contributes 0, same as it being absent from the melee Final Damage panel above.
+export const DPS_HITS_PER_SECOND = {
+  venomous: 1,
+  thunderlord: 0.6,
+  fireAspect: 1,
+  crimsonSwipe: 1,
+};
+
+export function computeDpsBreakdown(mobResult, bonusAttackSpeed, loadout) {
+  const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
+  const melee = (mobResult.finalDamage?.finalDamage || 0) * meleeHitsPerSecond;
+  const venomous = (mobResult.venomousProcDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.venomous;
+  const thunderlord = (mobResult.thunderlordProcDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.thunderlord;
+  const fireAspect = (mobResult.fireAspectProcDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.fireAspect;
+  const crimsonSwipe = (mobResult.crimsonSwipeDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.crimsonSwipe;
+  return {
+    melee,
+    venomous,
+    thunderlord,
+    fireAspect,
+    crimsonSwipe,
+    meleeHitsPerSecond,
+    total: melee + venomous + thunderlord + fireAspect + crimsonSwipe,
+  };
 }

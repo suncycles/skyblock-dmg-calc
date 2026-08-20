@@ -80,7 +80,7 @@ export default function EntryScreen({ onSkip }) {
         />
         <div className="flex flex-col min-w-0">
           <span className="text-[11px] font-bold text-black uppercase tracking-wide">Developer</span>
-          <span className="text-sm font-bold text-neutral-800">sammui — view my loadout</span>
+          <span className="text-sm font-bold text-neutral-800">sammui</span>
         </div>
       </button>
     </div>

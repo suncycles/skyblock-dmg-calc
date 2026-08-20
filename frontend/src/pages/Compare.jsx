@@ -3,7 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources, FABLED_REFORGE_ID } from '../lib/damageSources';
-import { computeFinalDamage } from '../lib/finalDamage';
+import {
+  computeFinalDamage,
+  computeVenomousProcDamage,
+  computeEnchantProcDamage,
+  computeCrimsonSwipeDamage,
+  computeDpsBreakdown,
+  DPS_HITS_PER_SECOND,
+} from '../lib/finalDamage';
+import { computeCrimsonSwipeInfo } from '../lib/armorSetBonuses';
+import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
@@ -170,7 +179,22 @@ function computeSideMobResult(side, mobName) {
       )
     : null;
 
-  return { status: 'ok', finalDamage, finalDamageWithFabledMax };
+  // DPS Mode (see DamageSources.jsx's computeDpsBreakdown) — same per-proc pipeline, computed
+  // unconditionally alongside Final Damage since it's cheap and the toggle only decides which one renders.
+  const venomousProcDamage = computeVenomousProcDamage(side.result, mob, finalDamage.finalDamage);
+  const fireAspectProcDamage = computeEnchantProcDamage(finalDamage.finalDamage, side.result.fireAspectProc);
+  const thunderlordProcDamage = computeEnchantProcDamage(finalDamage.finalDamage, side.result.thunderlordProc);
+  const crimsonSwipeDamage = computeCrimsonSwipeDamage(
+    finalDamage.finalDamage,
+    computeCrimsonSwipeInfo(side.state.loadout, ARMOR_SLOTS),
+  );
+  const dps = computeDpsBreakdown(
+    { finalDamage, venomousProcDamage, fireAspectProcDamage, thunderlordProcDamage, crimsonSwipeDamage },
+    side.result.baseStats.bonus_attack_speed || 0,
+    side.state.loadout,
+  );
+
+  return { status: 'ok', finalDamage, finalDamageWithFabledMax, dps };
 }
 
 function displayedStat(side, key) {
@@ -254,6 +278,37 @@ function MobResultCard({ label, r }) {
   );
 }
 
+function DpsResultCard({ label, r }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide truncate">{label}</div>
+      {r.status === 'loading' && <div className="text-xs text-neutral-500 italic">Loading...</div>}
+      {r.status === 'missing' && <div className="text-xs text-neutral-500 italic">This saved loadout no longer exists.</div>}
+      {r.status === 'unknown-mob' && <div className="text-xs text-neutral-500 italic">Mob data unavailable.</div>}
+      {r.status === 'ok' && (
+        <>
+          <div className="grid grid-cols-2 gap-x-2 text-[11px] text-neutral-700">
+            <span>Melee ({round1(r.dps.meleeHitsPerSecond)}/s)</span>
+            <span className="text-right font-mono">{Math.round(r.dps.melee).toLocaleString()}</span>
+            <span>Venomous ({DPS_HITS_PER_SECOND.venomous}/s)</span>
+            <span className="text-right font-mono">{Math.round(r.dps.venomous).toLocaleString()}</span>
+            <span>Thunderlord ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
+            <span className="text-right font-mono">{Math.round(r.dps.thunderlord).toLocaleString()}</span>
+            <span>Fire Aspect ({DPS_HITS_PER_SECOND.fireAspect}/s)</span>
+            <span className="text-right font-mono">{Math.round(r.dps.fireAspect).toLocaleString()}</span>
+            <span>Crimson Swipe ({DPS_HITS_PER_SECOND.crimsonSwipe}/s)</span>
+            <span className="text-right font-mono">{Math.round(r.dps.crimsonSwipe).toLocaleString()}</span>
+          </div>
+          <div className="flex items-baseline justify-between border-t border-neutral-400 pt-1 mt-1">
+            <span className="text-xs font-bold text-black">Total DPS</span>
+            <span className="text-xl font-mono font-bold text-black">{Math.round(r.dps.total).toLocaleString()}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Side-by-side (or N-way) Final Damage / (Base) Stats comparison of loadouts (Current Build
 // and/or any saved loadout, see lib/savedLoadouts.js) against the app's shared target mob
 // selection — avoids swapping the live build back and forth or duplicating the browser tab just
@@ -301,7 +356,20 @@ export default function Compare() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
-      <PageHeader title="Compare Loadouts" />
+      <PageHeader
+        title="Compare Loadouts"
+        right={
+          <button
+            type="button"
+            onClick={build.toggleDpsMode}
+            className={`${panel} px-4 py-2 cursor-pointer flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
+              build.dpsMode ? 'hover:brightness-110' : 'brightness-50'
+            }`}
+          >
+            DPS
+          </button>
+        }
+      />
 
       <div className="w-full max-w-[1100px] flex flex-col gap-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -341,13 +409,13 @@ export default function Compare() {
 
         {targetMobs.length === 0 ? (
           <div className={`${panel} p-4 flex flex-col gap-2`}>
-            <div className={sectionTitle}>Final Damage</div>
+            <div className={sectionTitle}>{build.dpsMode ? 'DPS' : 'Final Damage'}</div>
             <div className="text-xs text-neutral-600 italic">
               No target selected —{' '}
               <button className="underline cursor-pointer" onClick={() => navigate('/target-mob')}>
                 pick a mob
               </button>{' '}
-              to compare Final Damage.
+              to compare {build.dpsMode ? 'DPS' : 'Final Damage'}.
             </div>
           </div>
         ) : (
@@ -373,14 +441,21 @@ export default function Compare() {
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {results.map((r, i) => (
-                    <MobResultCard key={i} label={labels[i]} r={r} />
-                  ))}
+                  {results.map((r, i) =>
+                    build.dpsMode ? (
+                      <DpsResultCard key={i} label={labels[i]} r={r} />
+                    ) : (
+                      <MobResultCard key={i} label={labels[i]} r={r} />
+                    ),
+                  )}
                 </div>
                 {results.slice(1).map((r, i) => {
                   const idx = i + 1;
-                  const delta = baseline.status === 'ok' && r.status === 'ok' ? r.finalDamage.finalDamage - baseline.finalDamage.finalDamage : null;
-                  const deltaPct = delta != null && baseline.finalDamage.finalDamage !== 0 ? (delta / baseline.finalDamage.finalDamage) * 100 : null;
+                  const baselineValue =
+                    baseline.status === 'ok' ? (build.dpsMode ? Math.round(baseline.dps.total) : baseline.finalDamage.finalDamage) : null;
+                  const value = r.status === 'ok' ? (build.dpsMode ? Math.round(r.dps.total) : r.finalDamage.finalDamage) : null;
+                  const delta = baselineValue != null && value != null ? value - baselineValue : null;
+                  const deltaPct = delta != null && baselineValue !== 0 ? (delta / baselineValue) * 100 : null;
                   if (delta == null) return null;
                   return (
                     <div

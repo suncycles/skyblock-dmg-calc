@@ -5,11 +5,12 @@ import {
   MAX_CATACOMBS_LEVEL,
   MAX_TAMING_LEVEL,
   MAX_WOLF_SLAYER_LEVEL,
+  MAX_TARANTULA_SLAYER_LEVEL,
   MAX_ALCHEMY_LEVEL,
   MAX_ENCHANTING_LEVEL,
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
-import { MAX_TALISMAN_STRENGTH_BONUS } from '../lib/damageSources';
+import { MAX_TALISMAN_STRENGTH_BONUS, MAX_RED_CLAW_CRIT_DAMAGE } from '../lib/damageSources';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
 
@@ -30,10 +31,12 @@ export default function PlayerLevels() {
     setCatacombsLevel,
     setTamingLevel,
     setWolfSlayerLevel,
+    setTarantulaSlayerLevel,
     setAlchemyLevel,
     setEnchantingLevel,
     setGeneralsMedallionDigits,
     setTalismanStrengthBonus,
+    setRedClawCritDamage,
   } = useBuild();
 
   return (
@@ -102,6 +105,19 @@ export default function PlayerLevels() {
         </div>
 
         <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="tarantula-slayer-level">
+            Tarantula Slayer Level
+          </label>
+          <NumberInput
+            id="tarantula-slayer-level"
+            max={MAX_TARANTULA_SLAYER_LEVEL}
+            value={playerStats.tarantulaSlayerLevel}
+            onChange={setTarantulaSlayerLevel}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
           <label className="text-sm text-black" htmlFor="alchemy-level">
             Alchemy Level
           </label>
@@ -149,6 +165,19 @@ export default function PlayerLevels() {
             max={MAX_TALISMAN_STRENGTH_BONUS}
             value={playerStats.talismanStrengthBonus}
             onChange={setTalismanStrengthBonus}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="red-claw-crit-damage">
+            Red Claw Talisman/Ring/Artifact (Crit Damage)
+          </label>
+          <NumberInput
+            id="red-claw-crit-damage"
+            max={MAX_RED_CLAW_CRIT_DAMAGE}
+            value={playerStats.redClawCritDamage}
+            onChange={setRedClawCritDamage}
             className={inputClass}
           />
         </div>

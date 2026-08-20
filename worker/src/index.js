@@ -195,6 +195,10 @@ async function fetchReforges() {
 }
 
 // Re-keys reforgestones.json (keyed by stone item id) by reforgeName instead, keeping stoneId for icon lookup.
+// `nbtModifier` (present on ~1 in 10 entries) is Hypixel's own real ExtraAttributes.modifier id
+// when it diverges from a naive lowercase-underscore of the display name — e.g. Bloodshot's real
+// id is "blood_shot", Warped's is "aote_stone" — kept so Hypixel import (lib/hypixelImport.js) can
+// match a real account's item back to the right reforge instead of guessing at the transform.
 async function fetchReforgeStones() {
   const res = await fetch(NEU_REFORGESTONES_URL);
   const stones = await res.json();
@@ -207,6 +211,7 @@ async function fetchReforgeStones() {
       itemTypes: stone.itemTypes,
       requiredRarities: stone.requiredRarities,
       reforgeStats: stone.reforgeStats,
+      nbtModifier: stone.nbtModifier || null,
     };
   }
   return byName;
@@ -287,6 +292,14 @@ const DAY_NIGHT_CRYSTAL_STRENGTH = 5;
 const GRAVITY_TALISMAN_STRENGTH = 5;
 const BLOOD_GOD_CREST_STRENGTH = 5;
 
+// Red Claw Talisman/Ring/Artifact: strict tier progression (only the best tier owned counts, not
+// summed), +1/+3/+5 Crit Damage — confirmed against each item's real lore.
+const RED_CLAW_CRIT_DAMAGE_BY_ID = {
+  RED_CLAW_TALISMAN: 1,
+  RED_CLAW_RING: 3,
+  RED_CLAW_ARTIFACT: 5,
+};
+
 // Computes live Magical Power (summed real Accessory Bag rarities), the flat "Talisman Bonuses"
 // Strength total, and a total Enrichments count from a decoded talisman_bag item list — see the
 // Promise.all above for where `items` comes from. Two dedup rules apply to Magical Power, both
@@ -312,6 +325,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   let hasBloodGodCrest = false;
   let hasAbicase = false;
   let enrichmentCount = 0;
+  let redClawCritDamage = 0;
 
   for (const raw of items) {
     const ea = raw?.tag?.ExtraAttributes;
@@ -335,6 +349,8 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     else if (id === "ABICASE") hasAbicase = true;
     else if (SHARK_TOOTH_STRENGTH_BY_ID[id] != null) {
       sharkToothStrength = Math.max(sharkToothStrength, SHARK_TOOTH_STRENGTH_BY_ID[id]);
+    } else if (RED_CLAW_CRIT_DAMAGE_BY_ID[id] != null) {
+      redClawCritDamage = Math.max(redClawCritDamage, RED_CLAW_CRIT_DAMAGE_BY_ID[id]);
     }
   }
 
@@ -348,7 +364,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     (hasBloodGodCrest ? BLOOD_GOD_CREST_STRENGTH : 0) +
     sharkToothStrength;
 
-  return { magicalPower, talismanStrengthBonus, enrichmentCount };
+  return { magicalPower, talismanStrengthBonus, enrichmentCount, redClawCritDamage };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -670,7 +686,11 @@ async function handleHypixelImport(url, env) {
       skyblock: Math.floor((member.leveling?.experience || 0) / 100),
     };
 
-    const slayers = { wolf: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.wolf) };
+    const slayers = {
+      wolf: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.wolf),
+      // Tarantula Broodfather is Hypixel's real internal key "spider".
+      spider: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.spider),
+    };
 
     // Live Magical Power/Talisman Bonuses from the real Accessory Bag contents (talismanBagItems,
     // decoded above) — falls back to the stale highest-ever peak only if the bag itself couldn't
@@ -681,6 +701,7 @@ async function handleHypixelImport(url, env) {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
       talismanStrengthBonus: liveAccessoryStats.talismanStrengthBonus,
+      redClawCritDamage: liveAccessoryStats.redClawCritDamage,
       enrichmentCount: liveAccessoryStats.enrichmentCount,
       // Always imports neutral — the real per-item enrichment stat is usually untracked (Magic
       // Find, etc.), so this can't grant a real bonus automatically; the player swaps it onto a

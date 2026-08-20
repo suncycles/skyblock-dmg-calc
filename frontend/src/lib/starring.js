@@ -17,17 +17,20 @@ export const INFERNAL_TIER_MAX_STARS = 15;
 // Magma Lord's 4 armor pieces + Tormentor sword — verified ids in worker/src/data/armor.json/weapons.json.
 const HIGH_STAR_ITEM_IDS = new Set(['MAGMA_LORD_HELMET', 'MAGMA_LORD_CHESTPLATE', 'MAGMA_LORD_LEGGINGS', 'MAGMA_LORD_BOOTS', 'TORMENTOR']);
 
-// Blaze Slayer's 5 armor sets (Aurora/Crimson/Fervor/Hollow/Terror) at any of their 5 power
-// tiers (base/Hot/Burning/Fiery/Infernal prefix) — same 100-id family lib/armorVariants.js
-// groups for the picker UI, verified against worker/src/data/armor.json (exactly 100 ids).
-const INFERNAL_TIER_ARMOR_RE =
-  /^(?:HOT_|BURNING_|FIERY_|INFERNAL_)?(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
+// Blaze Slayer's 5 armor sets (Aurora/Crimson/Fervor/Hollow/Terror), split by power tier
+// (base/Hot/Burning/Fiery vs. Infernal prefix) — same 100-id family lib/armorVariants.js groups
+// for the picker UI, verified against worker/src/data/armor.json (exactly 100 ids). Only the
+// Infernal tier reaches 15 stars; the 4 lower tiers cap at 10 — user-confirmed (a single shared
+// regex previously gave every tier 15, which was wrong for anything below Infernal).
+const INFERNAL_TIER_ARMOR_RE = /^INFERNAL_(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
+const LOWER_TIER_VARIANT_ARMOR_RE = /^(?:HOT_|BURNING_|FIERY_)?(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 
 // The max star count a given item can hold, out of a dungeon (Catacombs Stars in-dungeon use the
 // same count, uncapped by this per real-game data — see lib/dungeonize.js).
 export function getMaxStarsForItem(item) {
   if (!item?.id) return BASE_MAX_STARS;
   if (INFERNAL_TIER_ARMOR_RE.test(item.id)) return INFERNAL_TIER_MAX_STARS;
+  if (LOWER_TIER_VARIANT_ARMOR_RE.test(item.id)) return HIGH_STAR_MAX_STARS;
   if (HIGH_STAR_ITEM_IDS.has(item.id)) return HIGH_STAR_MAX_STARS;
   return BASE_MAX_STARS;
 }

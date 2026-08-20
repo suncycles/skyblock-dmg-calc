@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
@@ -24,11 +24,18 @@ import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName, rarityGlowFilter } from '../lib/mcText';
 import { getDisplayTier } from '../lib/recombobulator';
 import { SLOT_TEXTURES } from '../lib/icons';
+import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import { encodeLoadout, decodeLoadoutCode, shortenLoadoutCode } from '../lib/loadoutCode';
 import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
+import OptimizerSidebar from '../components/OptimizerSidebar';
+
+// Lazy — same reasoning as every other route in App.jsx: keeps Landing's own (highest-traffic)
+// bundle small. Merged inline below the gear grid (see the `embedded` prop) instead of behind a
+// route change, so equipping gear and reading its damage numbers happen on one continuous page.
+const DamageSources = lazy(() => import('./DamageSources'));
 
 // Darkens a slot's background once an item's equipped (replacing the old flat green highlight) —
 // applied as an inline style so it wins over the themed bg-[#8b8b8b] override without needing a
@@ -88,6 +95,7 @@ export default function Landing() {
   const { itemData, loading: itemDataLoading } = useItemData();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const { confirmDialog, alertDialog } = useConfirmDialog();
+  const damageSectionRef = useRef(null);
   const [exportStatus, setExportStatus] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
   const [savedLoadouts, setSavedLoadouts] = useState(loadSavedLoadoutsFromStorage);
@@ -362,6 +370,7 @@ export default function Landing() {
   function renderGearSlot(key, slot, label, pickerPath) {
     const equipped = loadout[slot];
     const tier = equipped ? getDisplayTier(equipped.item, equipped.modifiers) : null;
+    const cornerBadge = equipped ? getItemCornerBadge(equipped.item.id, slot, equipped.modifiers) : null;
     return (
       <div
         key={key}
@@ -395,6 +404,11 @@ export default function Landing() {
         <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
           {label}
         </span>
+        {cornerBadge && (
+          <span className="absolute bottom-0.5 right-0.5 z-20 text-[8px] font-bold text-white bg-black/75 leading-none px-[3px] py-[1px] rounded-[2px]">
+            {cornerBadge}
+          </span>
+        )}
       </div>
     );
   }
@@ -674,6 +688,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
+      <OptimizerSidebar />
 
       {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow
           above the grid (not fixed/pinned over content), so it can never overlap the central GUI
@@ -711,7 +726,12 @@ export default function Landing() {
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={() => navigate('/compare')}
             >
-              ⚖️ Compare
+              <img
+                src="https://images.minecraft-heads.com/render3d/head/0d/0d9a4b2222566d1524b25800efb1a71e.webp"
+                alt=""
+                className="w-4 h-4 pixelated"
+              />{' '}
+              Compare
             </button>
           </div>
           {showLoadoutsPanel && (
@@ -782,11 +802,24 @@ export default function Landing() {
       </div>
 
       <button
-        className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer"
-        onClick={() => navigate('/damage-sources')}
+        className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer flex items-center gap-2"
+        onClick={() => damageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
       >
-        📊 Damage Calculation
+        <img
+          src="https://images.minecraft-heads.com/render3d/head/57/57764d38b5971b7c79f587efffe2d29d.webp"
+          alt=""
+          className="w-6 h-6 pixelated"
+        />
+        Calculate Damage
       </button>
+
+      {/* Merged inline (see the lazy DamageSources import above) instead of a separate route —
+          equipping gear above and reading its damage breakdown below now happen on one page. */}
+      <div ref={damageSectionRef} className="w-full mt-6 pt-6 border-t-2 border-white/10 flex flex-col items-center">
+        <Suspense fallback={<div className="text-sm text-neutral-400">Loading damage calculation...</div>}>
+          <DamageSources embedded />
+        </Suspense>
+      </div>
     </div>
   );
 }

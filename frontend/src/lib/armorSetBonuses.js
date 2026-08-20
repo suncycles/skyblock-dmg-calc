@@ -2,6 +2,8 @@
 // (helmet/chestplate/leggings/boots, necklace/cloak/belt/gloves) so membership can be
 // checked positionally against the loadout.
 
+import { VARIANT_TIERS, getEquippedVariantTier } from './armorVariants';
+
 // Final Destination's Vivacious Darkness set bonus: +30 Strength (unconditional) and +100%
 // damage against Ender-type mobs. The Soulflow-cost/sneaking gate is assumed always active.
 export const FINAL_DESTINATION_SET = [
@@ -100,6 +102,37 @@ export const MAGMA_LORD_PERCENT_PER_PIECE = 30;
 export const THUNDER_SET = ['THUNDER_HELMET', 'THUNDER_CHESTPLATE', 'THUNDER_LEGGINGS', 'THUNDER_BOOTS'];
 export const THUNDER_NECKLACE_ID = 'THUNDERBOLT_NECKLACE';
 export const THUNDER_PERCENT_PER_PIECE = 20;
+
+// Crimson Swipe: a melee-only proc whose damage depends on how many Crimson-family armor pieces
+// (any of the 5 power tiers — see armorVariants.js's VARIANT_TIERS) are equipped, 2-4, and the
+// LOWEST tier among just those equipped pieces — mixing tiers drags the whole bonus down to the
+// weakest piece's row. User-provided table; each cell is a multiplier on CRIMSON_SWIPE_BASE_PERCENT
+// (14.5%) of Final Damage, e.g. table value 1.0 = 14.5% of Final Damage.
+export const CRIMSON_SWIPE_MIN_PIECES = 2;
+export const CRIMSON_SWIPE_BASE_PERCENT = 14.5;
+const CRIMSON_SWIPE_TABLE = {
+  Basic: { 2: 0.5, 3: 1.0, 4: 1.5 },
+  Hot: { 2: 0.625, 3: 1.25, 4: 1.875 },
+  Burning: { 2: 0.75, 3: 1.5, 4: 2.25 },
+  Fiery: { 2: 0.875, 3: 1.75, 4: 2.625 },
+  Infernal: { 2: 1.0, 3: 2.0, 4: 3.0 },
+};
+
+// { pieceCount, tierLabel, multiplier } for the Crimson family across the 4 armor slots, or null
+// when fewer than CRIMSON_SWIPE_MIN_PIECES are worn (no swipe bonus at all below that threshold).
+export function computeCrimsonSwipeInfo(loadout, slots) {
+  let pieceCount = 0;
+  let lowestTierIndex = null;
+  for (const slot of slots) {
+    const tierIndex = getEquippedVariantTier(loadout[slot]?.item?.id, slot, 'CRIMSON');
+    if (tierIndex == null) continue;
+    pieceCount++;
+    if (lowestTierIndex == null || tierIndex < lowestTierIndex) lowestTierIndex = tierIndex;
+  }
+  if (pieceCount < CRIMSON_SWIPE_MIN_PIECES) return null;
+  const tierLabel = VARIANT_TIERS[lowestTierIndex].label;
+  return { pieceCount, tierLabel, multiplier: CRIMSON_SWIPE_TABLE[tierLabel][Math.min(pieceCount, 4)] };
+}
 
 // Taurus Helmet/Flaming Chestplate/Moogma Leggings: 3 independent items (different slots, not a
 // matched set) each granting a flat, melee-only +10% additive damage bonus against Lava Sea
