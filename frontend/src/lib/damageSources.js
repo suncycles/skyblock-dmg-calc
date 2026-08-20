@@ -118,15 +118,6 @@ const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horr
 // Damage stays the no-bonus baseline; DamageSources.jsx uses this id to compute the +15% max range.
 export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 
-// Highest possible "Talisman Bonuses" total (see the addBaseStat call below): Day/Night Crystal
-// (+5, only one counts — see lib/hypixelImport.js) + Gravity Talisman (+5) + Blood God Crest (+5)
-// + Razor-Sharp Shark Tooth Necklace, the best Shark Tooth tier (+10) = 25. User-confirmed values.
-export const MAX_TALISMAN_STRENGTH_BONUS = 25;
-
-// Red Claw Talisman/Ring/Artifact: strict tier progression (only the best tier owned counts, not
-// summed) — +1/+3/+5 Crit Damage respectively. User-confirmed, matches each item's real lore.
-export const MAX_RED_CLAW_CRIT_DAMAGE = 5;
-
 /* Aggregates every damage-relevant stat/bonus across the loadout into: base stats (summed),
    % additive damage split into non-conditional vs conditional, a separate weaponBonus pair
    for the equipped weapon's own "+X% damage" abilities, multiplicative sources, and a
@@ -762,6 +753,17 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     }
   }
 
+  // Every individually-owned accessory's own real stat line (Shark Tooth Necklace's Strength, Red
+  // Claw's Crit Damage, Day/Night Crystal's Strength+Defense, ...) — computed once by the worker
+  // from real Accessory Bag lore during Hypixel import (see emptyAccessoryModifiers' comment) and
+  // applied here unconditionally, same as raw Magical Power — no Accessory Power needs to be
+  // selected for a player's own accessories' stats to count.
+  if (loadout.accessory?.modifiers?.individualAccessoryStats) {
+    for (const [statKey, value] of Object.entries(loadout.accessory.modifiers.individualAccessoryStats)) {
+      if (value) addBaseStat(out, statKey, value, 'Accessories');
+    }
+  }
+
   // Enrichments: a manually-tracked count of Accessory Bag items enriched for one stat, since a
   // player can freely re-roll which stat each item is enriched for — see BuildContext.jsx's
   // setAccessoryEnrichmentCount/setAccessoryEnrichmentType. Applies even without an Accessory
@@ -1222,12 +1224,10 @@ export async function collectDamageSources(
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.generalsMedallionDigits, out);
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
-  addBaseStat(out, 'strength', playerStats?.talismanStrengthBonus || 0, 'Talisman Bonuses');
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');
   addBaseStat(out, 'intelligence', computeEnchantingIntelligenceBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'ability_damage', computeEnchantingAbilityDamageBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'crit_damage', computeTarantulaSlayerCritDamageBonus(playerStats?.tarantulaSlayerLevel), 'Tarantula Slayer Level');
-  addBaseStat(out, 'crit_damage', playerStats?.redClawCritDamage || 0, 'Red Claw Talisman/Ring/Artifact');
   addBaseStat(out, 'crit_chance', computeCombatLevelCritChanceBonus(playerStats?.combatLevel), 'Combat Level');
   // Real Hypixel base stats before any gear.
   addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');

@@ -163,8 +163,6 @@ function loadInitialPlayerStats() {
     alchemyLevel: 0,
     enchantingLevel: 0,
     generalsMedallionDigits: 0,
-    talismanStrengthBonus: 0,
-    redClawCritDamage: 0,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
@@ -181,8 +179,6 @@ function loadInitialPlayerStats() {
       alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
       enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
-      talismanStrengthBonus: typeof parsed.talismanStrengthBonus === 'number' ? parsed.talismanStrengthBonus : 0,
-      redClawCritDamage: typeof parsed.redClawCritDamage === 'number' ? parsed.redClawCritDamage : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -496,27 +492,6 @@ export function BuildProvider({ children }) {
   const setGeneralsMedallionDigits = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, generalsMedallionDigits: value };
-      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
-  // Flat Strength from named talismans with their own fixed bonus (Day/Night Crystal, Gravity
-  // Talisman, Blood God Crest, Shark Tooth Necklace tiers — see lib/damageSources.js's "Talisman
-  // Bonuses" source) — manually entered here, or computed and imported by Hypixel import.
-  const setTalismanStrengthBonus = useCallback((value) => {
-    setPlayerStats((prev) => {
-      const next = { ...prev, talismanStrengthBonus: value };
-      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
-  // Red Claw Talisman/Ring/Artifact's Crit Damage (+1/+3/+5, best tier owned counts — see
-  // lib/damageSources.js) — manually entered here, or computed and imported by Hypixel import.
-  const setRedClawCritDamage = useCallback((value) => {
-    setPlayerStats((prev) => {
-      const next = { ...prev, redClawCritDamage: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -873,6 +848,16 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers, attributes.tuning_box, attributes.echo_of_boxes, attributes.echo_of_echoes],
   );
 
+  // Bulk replace — the "Auto-Spend" action (see lib/tuningOptimizer.js) computes a whole
+  // allocation via the real damage pipeline and applies it in one shot, instead of 8 sequential
+  // setAccessoryTuningPoint calls each re-clamping against a stale snapshot of the others.
+  const setAccessoryTuning = useCallback(
+    (tuning) => {
+      updateSlotModifiers('accessory', (modifiers) => ({ ...modifiers, tuning }));
+    },
+    [updateSlotModifiers],
+  );
+
   // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
   // Target mob(s) are intentionally left untouched: loadouts describe the player, not the encounter, so swapping loadouts keeps whatever mob(s) are currently targeted.
   const loadFullState = useCallback((state) => {
@@ -891,8 +876,6 @@ export function BuildProvider({ children }) {
       alchemyLevel: 0,
       enchantingLevel: 0,
       generalsMedallionDigits: 0,
-      talismanStrengthBonus: 0,
-      redClawCritDamage: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -960,8 +943,6 @@ export function BuildProvider({ children }) {
         setAlchemyLevel,
         setEnchantingLevel,
         setGeneralsMedallionDigits,
-        setTalismanStrengthBonus,
-        setRedClawCritDamage,
         targetMobs,
         toggleTargetMob,
         clearTargetMobs,
@@ -1019,6 +1000,7 @@ export function BuildProvider({ children }) {
         setAccessoryEnrichmentCount,
         setAccessoryEnrichmentType,
         setAccessoryTuningPoint,
+        setAccessoryTuning,
         loadFullState,
         undo,
         redo,

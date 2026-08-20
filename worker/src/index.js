@@ -291,38 +291,99 @@ function isHatAccessory(item) {
   return lore[lore.length - 1].replace(/§./g, "").includes("HATCESSORY");
 }
 
-// Talismans with their own fixed Strength bonus while in the Accessory Bag, beyond their Magical
-// Power contribution above — user-confirmed values. Shark Tooth Necklace is a strict tier
-// progression (Raggedy -> ... -> Razor-Sharp); only the best tier owned counts, not every tier
-// summed. Day Crystal and Night Crystal are alternatives, not stacking — owning both still only
-// grants the bonus once.
-const SHARK_TOOTH_STRENGTH_BY_ID = {
-  RAGGEDY_SHARK_TOOTH_NECKLACE: 2,
-  DULL_SHARK_TOOTH_NECKLACE: 4,
-  HONED_SHARK_TOOTH_NECKLACE: 6,
-  SHARP_SHARK_TOOTH_NECKLACE: 8,
-  RAZOR_SHARP_SHARK_TOOTH_NECKLACE: 10,
-};
-const DAY_NIGHT_CRYSTAL_STRENGTH = 5;
-const GRAVITY_TALISMAN_STRENGTH = 5;
-const BLOOD_GOD_CREST_STRENGTH = 5;
-
-// Red Claw Talisman/Ring/Artifact: strict tier progression (only the best tier owned counts, not
-// summed), +1/+3/+5 Crit Damage — confirmed against each item's real lore.
-const RED_CLAW_CRIT_DAMAGE_BY_ID = {
-  RED_CLAW_TALISMAN: 1,
-  RED_CLAW_RING: 3,
-  RED_CLAW_ARTIFACT: 5,
+// Real Hypixel tooltip label text for every stat this app tracks on gear (see frontend's
+// lib/reforgeData.js's STAT_LABELS — duplicated here since the worker can't import frontend
+// code; both are small/stable, kept in sync manually) — used to read each owned accessory's own
+// real "Stat: +X" lore line directly, instead of a hand-picked allowlist of named items.
+const ACCESSORY_STAT_LABELS = {
+  strength: "Strength",
+  crit_chance: "Crit Chance",
+  crit_damage: "Crit Damage",
+  intelligence: "Intelligence",
+  ability_damage: "Ability Damage",
+  bonus_attack_speed: "Bonus Attack Speed",
+  ferocity: "Ferocity",
 };
 
-// Computes live Magical Power (summed real Accessory Bag rarities), the flat "Talisman Bonuses"
-// Strength total, and a total Enrichments count from a decoded talisman_bag item list — see the
-// Promise.all above for where `items` comes from. Two dedup rules apply to Magical Power, both
-// confirmed by the account owner:
-// - Owning multiple physical copies of the same accessory id only counts the best copy once
-//   (e.g. 4x Personal Compactor 7000 counts only its single highest tier, not all 4 summed).
-// - Hat accessories (see isHatAccessory) are mutually exclusive with each other as a group —
-//   only the single highest-Magical-Power hat owned counts, not every hat summed.
+// Real accessory stat NAME (as written in flavor-text phrasing, lowercased) -> our tracked key —
+// for the narrative "Grants +X <stat>[, and +Y <stat>]" / "Increases your <stat>[ and <stat>] by
+// +X" phrasings several real accessories use instead of a leading "Stat: +X" line (e.g. Day/Night
+// Crystal's "Increases your Strength and Defense by +5 during the Day/Night" — the "+5" is fixed
+// literal text in the item's own real lore, not account-variable, so it resolves the same way a
+// leading stat line would). Superset of ACCESSORY_STAT_LABELS since a couple of real items
+// narratively grant Health/Defense/Speed too — filtered to tracked keys when summed below.
+const ACCESSORY_STAT_NAME_TO_KEY = {
+  strength: "strength",
+  "crit chance": "crit_chance",
+  "crit damage": "crit_damage",
+  intelligence: "intelligence",
+  "ability damage": "ability_damage",
+  "attack speed": "bonus_attack_speed",
+  ferocity: "ferocity",
+};
+
+function stripLoreLine(line) {
+  return line.replace(/§./g, "").replace(/[^\x00-\x7F]/g, "");
+}
+
+// Real leading "Stat: +X" lines only (first match per stat) — no reforge/gemstone/dungeonize
+// annotation handling, since that's this app's own synthetic tooltip system for GEAR (see
+// lib/itemTooltip.js), not how raw Hypixel accessory lore is actually formatted.
+function parseLeadingStatLines(lore) {
+  const stats = {};
+  for (const [statKey, label] of Object.entries(ACCESSORY_STAT_LABELS)) {
+    const re = new RegExp(`^${label}:\\s*([+-]?[\\d.]+)`);
+    for (const rawLine of lore || []) {
+      const m = re.exec(stripLoreLine(rawLine).trim());
+      if (m) {
+        stats[statKey] = parseFloat(m[1]);
+        break;
+      }
+    }
+  }
+  return stats;
+}
+
+// "Grants +X Y[, and +Z W]." / "Increases your X[ and Y] by +Z ..." narrative phrasing — see
+// ACCESSORY_STAT_NAME_TO_KEY above. Genuinely dynamic/positional bonuses that don't resolve to a
+// fixed number in an item's own real lore (Gravity Talisman's distance-to-spawn range, Blood God
+// Crest's kill-counter-digit scaling) are left at 0 here rather than guessed — a real, documented
+// gap, not a silent wrong number.
+function parseNarrativeStatGrants(lore) {
+  const text = stripLoreLine((lore || []).join(" ")).replace(/\s+/g, " ");
+  const stats = {};
+
+  const grants = /Grants\s+([^.]+)\./i.exec(text);
+  if (grants) {
+    const partRe = /\+([\d,.]+)\s+([A-Za-z ]+?)(?=,\s+|\s+and\s+|$)/g;
+    let part;
+    while ((part = partRe.exec(grants[1])) !== null) {
+      const key = ACCESSORY_STAT_NAME_TO_KEY[part[2].trim().toLowerCase()];
+      if (key) stats[key] = (stats[key] || 0) + parseFloat(part[1].replace(/,/g, ""));
+    }
+  }
+
+  const increases = /Increases your\s+([^.]+?)\s+by\s+\+?([\d.]+)/i.exec(text);
+  if (increases) {
+    for (const name of increases[1].split(/,\s*|\s+and\s+/i)) {
+      const key = ACCESSORY_STAT_NAME_TO_KEY[name.trim().toLowerCase()];
+      if (key) stats[key] = (stats[key] || 0) + parseFloat(increases[2]);
+    }
+  }
+
+  return stats;
+}
+
+// Computes live Magical Power (summed real Accessory Bag rarities), every individually-owned
+// accessory's own real stat line (generic — see parseLeadingStatLines/parseNarrativeStatGrants
+// above, replaces a previous hand-picked allowlist of ~5 named items), and a total Enrichments
+// count from a decoded talisman_bag item list — see the Promise.all above for where `items` comes
+// from. Dedup rules, both confirmed by the account owner:
+// - Owning multiple physical copies of the same accessory id only counts the best copy once for
+//   both Magical Power AND its own stat line (e.g. 4x Personal Compactor 7000 counts only its
+//   single highest tier, not all 4 summed).
+// - Hat accessories (see isHatAccessory) are mutually exclusive with each other as a group for
+//   Magical Power — only the single highest-Magical-Power hat owned counts, not every hat summed.
 // Enrichments count is a flat, undeduped tally of every item carrying a real
 // ExtraAttributes.talisman_enrichment value, regardless of which stat it's actually on — the
 // Enrichments UI (see damageSources.js) always imports as 'none' (0 stat impact) and lets the
@@ -333,14 +394,10 @@ const RED_CLAW_CRIT_DAMAGE_BY_ID = {
 // floor(count/2) bonus Magical Power, but only while an Abicase accessory is owned — user-confirmed.
 function computeLiveAccessoryStats(items, abiphoneContactCount) {
   const bestMagicalPowerById = new Map();
+  const bestStatById = {}; // statKey -> Map<id, value>
   let hatMagicalPower = 0;
-  let hasDayOrNightCrystal = false;
-  let sharkToothStrength = 0;
-  let hasGravityTalisman = false;
-  let hasBloodGodCrest = false;
   let hasAbicase = false;
   let enrichmentCount = 0;
-  let redClawCritDamage = 0;
 
   for (const raw of items) {
     const ea = raw?.tag?.ExtraAttributes;
@@ -357,15 +414,14 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
       bestMagicalPowerById.set(id, Math.max(bestMagicalPowerById.get(id) || 0, magicalPower));
     }
     if (ea.talisman_enrichment) enrichmentCount++;
+    if (id === "ABICASE") hasAbicase = true;
 
-    if (id === "DAY_CRYSTAL" || id === "NIGHT_CRYSTAL") hasDayOrNightCrystal = true;
-    else if (id === "GRAVITY_TALISMAN") hasGravityTalisman = true;
-    else if (id === "BLOOD_GOD_CREST") hasBloodGodCrest = true;
-    else if (id === "ABICASE") hasAbicase = true;
-    else if (SHARK_TOOTH_STRENGTH_BY_ID[id] != null) {
-      sharkToothStrength = Math.max(sharkToothStrength, SHARK_TOOTH_STRENGTH_BY_ID[id]);
-    } else if (RED_CLAW_CRIT_DAMAGE_BY_ID[id] != null) {
-      redClawCritDamage = Math.max(redClawCritDamage, RED_CLAW_CRIT_DAMAGE_BY_ID[id]);
+    const lore = raw?.tag?.display?.Lore;
+    const itemStats = { ...parseNarrativeStatGrants(lore), ...parseLeadingStatLines(lore) };
+    for (const [statKey, value] of Object.entries(itemStats)) {
+      if (!value) continue;
+      if (!bestStatById[statKey]) bestStatById[statKey] = new Map();
+      bestStatById[statKey].set(id, Math.max(bestStatById[statKey].get(id) || 0, value));
     }
   }
 
@@ -373,13 +429,14 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   for (const mp of bestMagicalPowerById.values()) magicalPower += mp;
   if (hasAbicase) magicalPower += Math.floor((abiphoneContactCount || 0) / 2);
 
-  const talismanStrengthBonus =
-    (hasDayOrNightCrystal ? DAY_NIGHT_CRYSTAL_STRENGTH : 0) +
-    (hasGravityTalisman ? GRAVITY_TALISMAN_STRENGTH : 0) +
-    (hasBloodGodCrest ? BLOOD_GOD_CREST_STRENGTH : 0) +
-    sharkToothStrength;
+  const itemStats = {};
+  for (const [statKey, map] of Object.entries(bestStatById)) {
+    let total = 0;
+    for (const value of map.values()) total += value;
+    if (total) itemStats[statKey] = Math.round(total * 10) / 10;
+  }
 
-  return { magicalPower, talismanStrengthBonus, enrichmentCount, redClawCritDamage };
+  return { magicalPower, itemStats, enrichmentCount };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -707,16 +764,20 @@ async function handleHypixelImport(url, env) {
       spider: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.spider),
     };
 
-    // Live Magical Power/Talisman Bonuses from the real Accessory Bag contents (talismanBagItems,
-    // decoded above) — falls back to the stale highest-ever peak only if the bag itself couldn't
-    // be decoded (e.g. the account has the relevant Hypixel API setting turned off).
+    // Live Magical Power/individual accessory stats from the real Accessory Bag contents
+    // (talismanBagItems, decoded above) — Magical Power falls back to the stale highest-ever peak
+    // only if the bag itself couldn't be decoded (e.g. the account has the relevant Hypixel API
+    // setting turned off); itemStats has no such fallback (it's not a peak-tracked value on the
+    // account, only derivable from the live bag).
     const abiphoneContactCount = Object.keys(member.nether_island_player_data?.abiphone?.contact_data || {}).length;
     const liveAccessoryStats = computeLiveAccessoryStats(talismanBagItems, abiphoneContactCount);
     const accessory = {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
-      talismanStrengthBonus: liveAccessoryStats.talismanStrengthBonus,
-      redClawCritDamage: liveAccessoryStats.redClawCritDamage,
+      // Every individually-owned accessory's own real stat line, generically summed — see
+      // computeLiveAccessoryStats. Replaces the old talismanStrengthBonus/redClawCritDamage
+      // fields (a hand-picked ~5-item allowlist) with the real thing for every real accessory.
+      itemStats: liveAccessoryStats.itemStats,
       enrichmentCount: liveAccessoryStats.enrichmentCount,
       // Always imports neutral — the real per-item enrichment stat is usually untracked (Magic
       // Find, etc.), so this can't grant a real bonus automatically; the player swaps it onto a

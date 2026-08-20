@@ -10,7 +10,6 @@ import {
   MAX_ENCHANTING_LEVEL,
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
-import { MAX_TALISMAN_STRENGTH_BONUS, MAX_RED_CLAW_CRIT_DAMAGE } from '../lib/damageSources';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
 
@@ -35,8 +34,6 @@ export default function PlayerLevels() {
     setAlchemyLevel,
     setEnchantingLevel,
     setGeneralsMedallionDigits,
-    setTalismanStrengthBonus,
-    setRedClawCritDamage,
   } = useBuild();
 
   return (
@@ -152,32 +149,6 @@ export default function PlayerLevels() {
             max={MAX_GENERALS_MEDALLION_DIGITS}
             value={playerStats.generalsMedallionDigits}
             onChange={setGeneralsMedallionDigits}
-            className={inputClass}
-          />
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <label className="text-sm text-black" htmlFor="talisman-strength-bonus">
-            Talisman Bonuses (Strength)
-          </label>
-          <NumberInput
-            id="talisman-strength-bonus"
-            max={MAX_TALISMAN_STRENGTH_BONUS}
-            value={playerStats.talismanStrengthBonus}
-            onChange={setTalismanStrengthBonus}
-            className={inputClass}
-          />
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <label className="text-sm text-black" htmlFor="red-claw-crit-damage">
-            Red Claw Talisman/Ring/Artifact (Crit Damage)
-          </label>
-          <NumberInput
-            id="red-claw-crit-damage"
-            max={MAX_RED_CLAW_CRIT_DAMAGE}
-            value={playerStats.redClawCritDamage}
-            onChange={setRedClawCritDamage}
             className={inputClass}
           />
         </div>
