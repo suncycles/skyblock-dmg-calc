@@ -37,6 +37,7 @@ const StarringPicker = lazy(() => import('./pages/StarringPicker'));
 const DamageSources = lazy(() => import('./pages/DamageSources'));
 const Compare = lazy(() => import('./pages/Compare'));
 const Optimizer = lazy(() => import('./pages/Optimizer'));
+const AccessoryOptimizer = lazy(() => import('./pages/AccessoryOptimizer'));
 const AccessoryPowerPicker = lazy(() => import('./pages/AccessoryPowerPicker'));
 const AccessoryTuning = lazy(() => import('./pages/AccessoryTuning'));
 const PlayerLevels = lazy(() => import('./pages/PlayerLevels'));
@@ -99,6 +100,7 @@ export default function App() {
                     <Route path="/damage-sources" element={<DamageSources />} />
                     <Route path="/compare" element={<Compare />} />
                     <Route path="/optimizer" element={<Optimizer />} />
+                    <Route path="/accessory-optimizer" element={<AccessoryOptimizer />} />
                     <Route path="/accessory" element={<AccessoryPowerPicker />} />
                     <Route path="/accessory/tuning" element={<AccessoryTuning />} />
                     <Route path="/player-levels" element={<PlayerLevels />} />
