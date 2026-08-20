@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
-import { computeFinalDamage, computeAbilityDamage, computeMageStaffBeamDamage } from '../lib/finalDamage';
+import {
+  computeFinalDamage,
+  computeAbilityDamage,
+  computeMageStaffBeamDamage,
+  computeCrimsonSwipeDamage,
+  computeVenomousProcDamage,
+  computeEnchantProcDamage,
+  computeDpsBreakdown,
+  DPS_HITS_PER_SECOND,
+  MAX_VENOMOUS_STACKS,
+} from '../lib/finalDamage';
 import { ABILITY_DAMAGE_TABLE } from '../lib/abilityDamage';
 import {
   VANQUISHED_SET_ID,
@@ -11,6 +22,7 @@ import {
   INFERNAL_CRIMSON_SET,
   INFERNAL_CRIMSON_MIN_PIECES,
   INFERNAL_CRIMSON_MAX_STACKS,
+  computeCrimsonSwipeInfo,
 } from '../lib/armorSetBonuses';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
@@ -51,9 +63,99 @@ function Section({ title, subtitle, children, empty }) {
   );
 }
 
+// Matches the site-wide "universal text relighting" every panel gets for its dark-glass theme
+// (index.css's .text-neutral-*/.border-neutral-* overrides) — Recharts renders raw SVG with
+// literal stroke/fill props, so those Tailwind classes never apply here and the same colors have
+// to be hardcoded directly instead.
+const GRAPH_AXIS_COLOR = 'rgba(241, 245, 249, 0.7)';
+const GRAPH_GRID_COLOR = 'rgba(255, 255, 255, 0.15)';
+
+function DpsStackTooltip({ active, payload, label }) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="bg-neutral-900/95 border border-white/15 rounded px-2.5 py-1.5 text-[11px] text-white shadow-lg">
+      <div className="font-bold mb-0.5">
+        {label} stack{label === 1 ? '' : 's'}
+      </div>
+      {payload.map((p) => (
+        <div key={p.dataKey} className="flex justify-between gap-3">
+          <span style={{ color: p.color }}>{p.name}</span>
+          <span className="font-mono">{p.value.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Real Venomous mechanic: every landed hit adds its own independent DoT stack, up to
+// MAX_VENOMOUS_STACKS (40) active at once — each stack ticks the same per-hit proc damage
+// independently, so N stacks deal N * perStackVenomousDamage. `otherDps` (Melee/Thunderlord/Fire
+// Aspect/Crimson Swipe — everything except Venomous) stays constant regardless of stack count, so
+// Total DPS at N stacks is just otherDps + N * perStackVenomousDamage — plotted alongside the
+// isolated Venomous contribution so the ramp's real impact on the whole build is visible, not just
+// Venomous in isolation. Always rendered (not gated on Venomous being equipped) — with no Venomous,
+// perStackVenomousDamage is 0 so both lines are just flat at otherDps/0, a "relatively linear"
+// placeholder until this graph grows a real non-Venomous axis to plot against.
+function VenomousStackGraph({ perStackVenomousDamage, otherDps, hasVenomous }) {
+  const data = Array.from({ length: MAX_VENOMOUS_STACKS }, (_, i) => {
+    const stack = i + 1;
+    const venomousDps = Math.round(perStackVenomousDamage * stack * DPS_HITS_PER_SECOND.venomous);
+    return { stack, venomousDps, totalDps: Math.round(otherDps) + venomousDps };
+  });
+
+  return (
+    <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+      <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
+        {hasVenomous ? `Total DPS by Active Venomous Stacks (1-${MAX_VENOMOUS_STACKS})` : 'Total DPS (no Venomous equipped)'}
+      </span>
+      <ResponsiveContainer width="100%" height={180}>
+        <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke={GRAPH_GRID_COLOR} vertical={false} />
+          <XAxis
+            dataKey="stack"
+            tick={{ fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
+            stroke={GRAPH_AXIS_COLOR}
+            label={{ value: 'Active Stacks', position: 'insideBottom', offset: -4, fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
+          />
+          <YAxis tick={{ fill: GRAPH_AXIS_COLOR, fontSize: 11 }} stroke={GRAPH_AXIS_COLOR} width={56} tickFormatter={(v) => v.toLocaleString()} />
+          <Tooltip content={<DpsStackTooltip />} cursor={{ stroke: GRAPH_GRID_COLOR, strokeWidth: 1 }} />
+          <Line
+            type="linear"
+            dataKey="totalDps"
+            name="Total DPS"
+            stroke="#4ade80"
+            strokeWidth={2.5}
+            dot={false}
+            activeDot={{ r: 4 }}
+            isAnimationActive={false}
+          />
+          {hasVenomous && (
+            <Line
+              type="linear"
+              dataKey="venomousDps"
+              name="Venomous DPS"
+              stroke="#38bdf8"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              dot={false}
+              activeDot={{ r: 3 }}
+              isAnimationActive={false}
+            />
+          )}
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // Cross-loadout damage-source breakdown: (Base) stats, non-conditional/conditional % additive damage,
 // Nx multiplicative sources, and a collapsed-by-default situational list for sources not resolvable to a fixed value.
-export default function DamageSources() {
+// `embedded` (used by pages/Landing.jsx to merge the gear and damage-calculation screens into one
+// page) skips the standalone page's PageHeader/full-screen sizing and the "Optimize damage" link
+// (Landing.jsx already has both a header and its own OptimizerSidebar) — everything else renders
+// identically either way, including the Mage/DPS toggles, now inline instead of in PageHeader's
+// `right` slot so they're the same markup in both contexts.
+export default function DamageSources({ embedded = false }) {
   const navigate = useNavigate();
   const {
     loadout,
@@ -67,6 +169,8 @@ export default function DamageSources() {
     toggleUseMasterMode,
     mageMode,
     toggleMageMode,
+    dpsMode,
+    toggleDpsMode,
     attributes,
     miscStats,
     setMiscStat,
@@ -115,6 +219,8 @@ export default function DamageSources() {
   }
 
   const hasInfernalCrimsonStacks = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET) >= INFERNAL_CRIMSON_MIN_PIECES;
+  // Not shown in the UI yet — computed and stashed on mobResults for a future DPS/Crimson Swipe feature.
+  const crimsonSwipeInfo = computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS);
   const weaponUltimateId = loadout.weapon?.modifiers?.ultimateEnchantment?.id?.toLowerCase();
   const hasSwarmEnchant = weaponUltimateId === 'ultimate_swarm';
   const hasComboEnchant = weaponUltimateId === 'ultimate_combo';
@@ -183,18 +289,33 @@ export default function DamageSources() {
     ? targetMobs.map((name) => {
         const types = MOB_TYPES[name] || null;
         if (!types)
-          return { name, types: null, finalDamage: null, finalDamageWithoutVanquished: null, finalDamageWithFabledMax: null };
+          return {
+            name,
+            types: null,
+            finalDamage: null,
+            finalDamageWithoutVanquished: null,
+            finalDamageWithFabledMax: null,
+            crimsonSwipeDamage: null,
+            venomousProcDamage: null,
+            fireAspectProcDamage: null,
+            thunderlordProcDamage: null,
+          };
         const mob = { name, types };
+        const finalDamage = computeFinalDamage(result, mob, useDungeonizedStats, useMasterMode);
         return {
           name,
           types,
-          finalDamage: computeFinalDamage(result, mob, useDungeonizedStats, useMasterMode),
+          finalDamage,
           finalDamageWithoutVanquished: hasVanquishedBonus
             ? computeFinalDamage(withoutVanquishedResult, mob, useDungeonizedStats, useMasterMode)
             : null,
           finalDamageWithFabledMax: hasFabledBonus
             ? computeFinalDamage(withFabledMaxResult, mob, useDungeonizedStats, useMasterMode)
             : null,
+          crimsonSwipeDamage: computeCrimsonSwipeDamage(finalDamage.finalDamage, crimsonSwipeInfo),
+          venomousProcDamage: computeVenomousProcDamage(result, mob, finalDamage.finalDamage),
+          fireAspectProcDamage: computeEnchantProcDamage(finalDamage.finalDamage, result.fireAspectProc),
+          thunderlordProcDamage: computeEnchantProcDamage(finalDamage.finalDamage, result.thunderlordProc),
         };
       })
     : [];
@@ -257,10 +378,11 @@ export default function DamageSources() {
     : BASE_STAT_KEYS.filter((k) => k !== 'intelligence' && k !== 'ability_damage');
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
-      <PageHeader
-        title="Damage Sources"
-        right={
+    <div className={embedded ? 'w-full flex flex-col items-center' : 'min-h-screen flex flex-col items-center p-4'}>
+      {!embedded && <PageHeader title="Damage Sources" />}
+
+      <div className="w-full max-w-[700px] mb-1 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={toggleMageMode}
@@ -271,8 +393,26 @@ export default function DamageSources() {
             <img src="/images/manual/mage_mode.png" alt="" className="w-5 h-5" />
             <Keyworded text="Mage" />
           </button>
-        }
-      />
+          <button
+            type="button"
+            onClick={toggleDpsMode}
+            className={`${panel} px-4 py-2 cursor-pointer flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
+              dpsMode ? 'hover:brightness-110' : 'brightness-50'
+            }`}
+          >
+            DPS
+          </button>
+        </div>
+        {!embedded && (
+          <button
+            type="button"
+            className="text-[11px] underline text-neutral-300 cursor-pointer whitespace-nowrap"
+            onClick={() => navigate('/optimizer')}
+          >
+            🧮 Optimize damage →
+          </button>
+        )}
+      </div>
 
       {savedLoadouts.length > 0 && (
         <div className="w-full max-w-[700px] mb-3 flex items-center gap-2">
@@ -323,6 +463,65 @@ export default function DamageSources() {
                 to compute Final Damage.
               </div>
             </div>
+          ) : dpsMode ? (
+            mobResults.map((mobResult) => {
+              const { name, types } = mobResult;
+              const dps = computeDpsBreakdown(mobResult, result.baseStats.bonus_attack_speed || 0, loadout);
+              return (
+                <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <span className="text-[13px] font-bold text-black tracking-wide">{name}</span>
+                    <div className="flex items-center gap-2">
+                      {types && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {types.map((t) => {
+                            const meta = MOB_TYPE_SYMBOLS[t];
+                            return (
+                              <span key={t} className="text-[10px] font-mono" style={{ color: meta.color }}>
+                                {meta.symbol} {t}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <button
+                        className="text-[10px] px-1.5 py-0.5 bg-neutral-800 text-white cursor-pointer hover:brightness-110"
+                        onClick={() => toggleTargetMob(name)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  {!types ? (
+                    <div className="text-xs text-neutral-600 italic">"{name}" is no longer in the mob data.</div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
+                        <span>Melee DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
+                        <span className="text-right font-mono">{Math.round(dps.melee).toLocaleString()}</span>
+                        <span>Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)</span>
+                        <span className="text-right font-mono">{Math.round(dps.venomous).toLocaleString()}</span>
+                        <span>Thunderlord DPS ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
+                        <span className="text-right font-mono">{Math.round(dps.thunderlord).toLocaleString()}</span>
+                        <span>Fire Aspect DPS ({DPS_HITS_PER_SECOND.fireAspect}/s)</span>
+                        <span className="text-right font-mono">{Math.round(dps.fireAspect).toLocaleString()}</span>
+                        <span>Crimson Swipe DPS ({DPS_HITS_PER_SECOND.crimsonSwipe}/s)</span>
+                        <span className="text-right font-mono">{Math.round(dps.crimsonSwipe).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
+                        <span className="text-sm font-bold text-black">Total DPS</span>
+                        <span className="text-2xl font-mono font-bold text-black">{Math.round(dps.total).toLocaleString()}</span>
+                      </div>
+                      <VenomousStackGraph
+                        perStackVenomousDamage={mobResult.venomousProcDamage?.finalDamage || 0}
+                        otherDps={dps.total - dps.venomous}
+                        hasVenomous={!!mobResult.venomousProcDamage}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            })
           ) : mageMode ? (
             abilityMobResults.map(({ name, types, abilityDamage, beamDamage }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
@@ -819,30 +1018,6 @@ export default function DamageSources() {
                   applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
                 />
               ))}
-          </Section>
-
-          <Section
-            title="Weapon Damage Bonus"
-            subtitle="The equipped weapon's '+X% damage' ability"
-            empty="None equipped."
-          >
-            {[...result.weaponBonusNonConditional, ...result.weaponBonusConditional].map((e) => (
-              <Row
-                key={e.id}
-                left={e.label}
-                right={
-                  e.condition ? (
-                    <>
-                      +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
-                    </>
-                  ) : (
-                    `+${round1(e.value)}%`
-                  )
-                }
-                source={e.source}
-                applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
-              />
-            ))}
           </Section>
 
           <Section

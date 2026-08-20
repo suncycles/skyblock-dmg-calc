@@ -26,7 +26,8 @@ function stripToPlainText(loreLines) {
     .trim();
 }
 
-// Returns { type: 'all', percent } | { type: 'single', statKey, percent } | null (a pure XP/coin/cosmetic pet item, or unrecognized phrasing).
+// Returns { type: 'all', percent } | { type: 'single', statKey, percent } | { type: 'flat', stats }
+// | null (a pure XP/coin/cosmetic pet item, or unrecognized phrasing).
 export function parsePetItemStatBoost(lore) {
   if (!lore || lore.length === 0) return null;
   const text = stripToPlainText(lore);
@@ -38,6 +39,21 @@ export function parsePetItemStatBoost(lore) {
   if (m) {
     const statKey = PET_STAT_NAME_TO_KEY[m[1].trim().toLowerCase()];
     if (statKey) return { type: 'single', statKey, percent: parseFloat(m[2]) };
+  }
+
+  // Some pet items grant a flat stat bump instead of a %, e.g. "Grants +35 Attack Speed."
+  // (Crochet Tiger Plushie) or "Grants +30 Strength and +20 Speed." (multi-stat) — added to the
+  // pet's own stat rather than scaling it, so it applies even on a pet lacking that base stat.
+  m = /Grants\s+([^.]+)\./i.exec(text);
+  if (m) {
+    const stats = {};
+    const partRe = /\+([\d,.]+)\s+([A-Za-z ]+?)(?=,\s+|\s+and\s+|$)/g;
+    let part;
+    while ((part = partRe.exec(m[1])) !== null) {
+      const statKey = PET_STAT_NAME_TO_KEY[part[2].trim().toLowerCase()];
+      if (statKey) stats[statKey] = (stats[statKey] || 0) + parseFloat(part[1].replace(/,/g, ''));
+    }
+    if (Object.keys(stats).length > 0) return { type: 'flat', stats };
   }
 
   return null;
@@ -68,11 +84,18 @@ export function extractPetItemEffectLines(lore) {
   return paragraph && paragraph.length > 0 ? paragraph : null;
 }
 
-// Applies a parsed boost to a computed stats map — multiplies (a % of the pet's own current stat) rather than adds.
+// Applies a parsed boost to a computed stats map. 'all'/'single' multiply (a % of the pet's own
+// current stat); 'flat' adds a fixed amount regardless of whether the pet already has that stat.
 export function applyPetItemStatBoost(stats, boost) {
   if (!boost) return stats;
-  const factor = 1 + boost.percent / 100;
   const result = { ...stats };
+  if (boost.type === 'flat') {
+    for (const [key, amount] of Object.entries(boost.stats)) {
+      result[key] = Math.round(((result[key] || 0) + amount) * 10) / 10;
+    }
+    return result;
+  }
+  const factor = 1 + boost.percent / 100;
   if (boost.type === 'all') {
     for (const key of Object.keys(result)) {
       result[key] = Math.round(result[key] * factor * 10) / 10;

@@ -14,6 +14,7 @@ const GOD_POTION_KEY = 'hexGodPotion';
 const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
 const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const MAGE_MODE_KEY = 'hexMageMode';
+const DPS_MODE_KEY = 'hexDpsMode';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
@@ -65,6 +66,12 @@ function loadInitialUseMasterMode() {
 // around the Ability Damage formula instead of melee/ranged Final Damage.
 function loadInitialMageMode() {
   return localStorage.getItem(MAGE_MODE_KEY) === 'true';
+}
+
+// Loads the "DPS Mode" on/off switch (see lib/finalDamage.js's computeDpsBreakdown) — reframes
+// Damage Sources' Final Damage panel around per-second damage instead of a single per-hit number.
+function loadInitialDpsMode() {
+  return localStorage.getItem(DPS_MODE_KEY) === 'true';
 }
 
 // Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
@@ -152,10 +159,12 @@ function loadInitialPlayerStats() {
     catacombsLevel: 0,
     tamingLevel: 0,
     wolfSlayerLevel: 0,
+    tarantulaSlayerLevel: 0,
     alchemyLevel: 0,
     enchantingLevel: 0,
     generalsMedallionDigits: 0,
     talismanStrengthBonus: 0,
+    redClawCritDamage: 0,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
@@ -168,10 +177,12 @@ function loadInitialPlayerStats() {
       catacombsLevel: typeof parsed.catacombsLevel === 'number' ? parsed.catacombsLevel : 0,
       tamingLevel: typeof parsed.tamingLevel === 'number' ? parsed.tamingLevel : 0,
       wolfSlayerLevel: typeof parsed.wolfSlayerLevel === 'number' ? parsed.wolfSlayerLevel : 0,
+      tarantulaSlayerLevel: typeof parsed.tarantulaSlayerLevel === 'number' ? parsed.tarantulaSlayerLevel : 0,
       alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
       enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
       talismanStrengthBonus: typeof parsed.talismanStrengthBonus === 'number' ? parsed.talismanStrengthBonus : 0,
+      redClawCritDamage: typeof parsed.redClawCritDamage === 'number' ? parsed.redClawCritDamage : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -289,6 +300,7 @@ export function BuildProvider({ children }) {
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
   const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
   const [mageMode, setMageModeState] = useState(loadInitialMageMode);
+  const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
@@ -401,6 +413,14 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  const toggleDpsMode = useCallback(() => {
+    setDpsModeState((prev) => {
+      const next = !prev;
+      localStorage.setItem(DPS_MODE_KEY, String(next));
+      return next;
+    });
+  }, []);
+
   const setCombatLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, combatLevel: value };
@@ -449,6 +469,14 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  const setTarantulaSlayerLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, tarantulaSlayerLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const setAlchemyLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, alchemyLevel: value };
@@ -479,6 +507,16 @@ export function BuildProvider({ children }) {
   const setTalismanStrengthBonus = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, talismanStrengthBonus: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Red Claw Talisman/Ring/Artifact's Crit Damage (+1/+3/+5, best tier owned counts — see
+  // lib/damageSources.js) — manually entered here, or computed and imported by Hypixel import.
+  const setRedClawCritDamage = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, redClawCritDamage: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -849,10 +887,12 @@ export function BuildProvider({ children }) {
       catacombsLevel: 0,
       tamingLevel: 0,
       wolfSlayerLevel: 0,
+      tarantulaSlayerLevel: 0,
       alchemyLevel: 0,
       enchantingLevel: 0,
       generalsMedallionDigits: 0,
       talismanStrengthBonus: 0,
+      redClawCritDamage: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -869,6 +909,9 @@ export function BuildProvider({ children }) {
 
     setMageModeState(!!state.mageMode);
     localStorage.setItem(MAGE_MODE_KEY, String(!!state.mageMode));
+
+    setDpsModeState(!!state.dpsMode);
+    localStorage.setItem(DPS_MODE_KEY, String(!!state.dpsMode));
 
     const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
     setAttributesState(nextAttributes);
@@ -913,10 +956,12 @@ export function BuildProvider({ children }) {
         setCatacombsLevel,
         setTamingLevel,
         setWolfSlayerLevel,
+        setTarantulaSlayerLevel,
         setAlchemyLevel,
         setEnchantingLevel,
         setGeneralsMedallionDigits,
         setTalismanStrengthBonus,
+        setRedClawCritDamage,
         targetMobs,
         toggleTargetMob,
         clearTargetMobs,
@@ -928,6 +973,8 @@ export function BuildProvider({ children }) {
         toggleUseMasterMode,
         mageMode,
         toggleMageMode,
+        dpsMode,
+        toggleDpsMode,
         attributes,
         setAttributeLevel,
         miscStats,

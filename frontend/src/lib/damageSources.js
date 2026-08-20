@@ -14,7 +14,7 @@ import {
   LOVING_REFORGE_NAME,
   LOVING_ABILITY_DAMAGE_MULTIPLIER,
 } from './abilityDamage';
-import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman } from './enchantEffects';
+import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman, getVenomousDamagePercent } from './enchantEffects';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from './armorSlots';
@@ -74,6 +74,8 @@ import {
   computeAlchemyIntelligenceBonus,
   computeEnchantingIntelligenceBonus,
   computeEnchantingAbilityDamageBonus,
+  computeTarantulaSlayerCritDamageBonus,
+  computeCombatLevelCritChanceBonus,
   BASE_CRIT_CHANCE,
   BASE_CRIT_DAMAGE,
 } from './playerStats';
@@ -120,6 +122,10 @@ export const FABLED_REFORGE_ID = 'fabled-reforge-crit-bonus';
 // (+5, only one counts — see lib/hypixelImport.js) + Gravity Talisman (+5) + Blood God Crest (+5)
 // + Razor-Sharp Shark Tooth Necklace, the best Shark Tooth tier (+10) = 25. User-confirmed values.
 export const MAX_TALISMAN_STRENGTH_BONUS = 25;
+
+// Red Claw Talisman/Ring/Artifact: strict tier progression (only the best tier owned counts, not
+// summed) — +1/+3/+5 Crit Damage respectively. User-confirmed, matches each item's real lore.
+export const MAX_RED_CLAW_CRIT_DAMAGE = 5;
 
 /* Aggregates every damage-relevant stat/bonus across the loadout into: base stats (summed),
    % additive damage split into non-conditional vs conditional, a separate weaponBonus pair
@@ -271,8 +277,9 @@ const DAGGER_MOB_MULTIPLIERS = {
   // Demonslayer Gauntlet (GLOVES, not a dagger — same {itemId: [{multiplier, condition}]} shape
   // reused as-is): "Deal 1.15x damage against Infernal Mobs" is verb-first with an "x" suffix, a
   // phrasing none of the generic scan's regexes match (DEALS_TO_TARGET_RE/DEALS_FLAT_RE expect a
-  // "%" bonus, SUBJECT_MULTIPLIER_RE expects "mobs take Nx damage").
-  DEMONLORD_GAUNTLET: [{ multiplier: 1.15, condition: 'Infernal' }],
+  // "%" bonus, SUBJECT_MULTIPLIER_RE expects "mobs take Nx damage"). User-confirmed ability-eligible
+  // (applies to Mage Mode's Ability Damage too, unlike the Blaze Slayer daggers above).
+  DEMONLORD_GAUNTLET: [{ multiplier: 1.15, condition: 'Infernal', abilityEligible: true }],
 };
 
 // The 4 real "Wither Blade" swords (Hyperion/Astraea/Valkyrie/Scylla — same family
@@ -516,7 +523,7 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
 
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
   // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
-  let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0 };
+  let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
   out.firstPounceFactor = 1;
   if (loadout.pet) {
@@ -531,7 +538,9 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     let boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
     // T-Rex's Tyrant perk: scales the pet item's own Combat-stat boost by (1 + pet level%/100)
     // — e.g. level 100 doubles it, level 50 gives x1.5. Applied before the boost is folded in.
-    const isTyrant = !!(boost && pet.petId === 'TYRANNOSAURUS');
+    // Tyrant only scales %-based boosts — flat grants (e.g. Crochet Tiger Plushie's +35 Attack
+    // Speed) have no `.percent` to scale.
+    const isTyrant = !!(boost && boost.type !== 'flat' && pet.petId === 'TYRANNOSAURUS');
     if (isTyrant) {
       const tyrantFactor = 1 + (modifiers.level || 0) / 100;
       boost = { ...boost, percent: boost.percent * tyrantFactor };
@@ -542,7 +551,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     let petItemDeltas = null;
     if (boost) {
       petItemDeltas = {};
-      for (const key of ['STRENGTH', 'CRIT_CHANCE', 'CRIT_DAMAGE']) {
+      for (const key of ['STRENGTH', 'CRIT_CHANCE', 'CRIT_DAMAGE', 'BONUS_ATTACK_SPEED']) {
         petItemDeltas[key] = (stats[key] || 0) - (statsBeforePetItem[key] || 0);
       }
     }
@@ -604,11 +613,13 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     addBaseStat(out, 'strength', (stats.STRENGTH || 0) - (petItemDeltas?.STRENGTH || 0), 'Pet');
     addBaseStat(out, 'crit_chance', (stats.CRIT_CHANCE || 0) - (petItemDeltas?.CRIT_CHANCE || 0), 'Pet');
     addBaseStat(out, 'crit_damage', (stats.CRIT_DAMAGE || 0) - (petItemDeltas?.CRIT_DAMAGE || 0), 'Pet');
+    addBaseStat(out, 'bonus_attack_speed', (stats.BONUS_ATTACK_SPEED || 0) - (petItemDeltas?.BONUS_ATTACK_SPEED || 0), 'Pet');
     if (petItemDeltas) {
       const petItemLabel = isTyrant ? `Pet Item (${petItem.name}, Tyrant)` : `Pet Item (${petItem.name})`;
       if (petItemDeltas.STRENGTH) addBaseStat(out, 'strength', petItemDeltas.STRENGTH, petItemLabel);
       if (petItemDeltas.CRIT_CHANCE) addBaseStat(out, 'crit_chance', petItemDeltas.CRIT_CHANCE, petItemLabel);
       if (petItemDeltas.CRIT_DAMAGE) addBaseStat(out, 'crit_damage', petItemDeltas.CRIT_DAMAGE, petItemLabel);
+      if (petItemDeltas.BONUS_ATTACK_SPEED) addBaseStat(out, 'bonus_attack_speed', petItemDeltas.BONUS_ATTACK_SPEED, petItemLabel);
     }
   }
 
@@ -784,6 +795,14 @@ const OVERLOAD_DAMAGE_PERCENT_PER_LEVEL = 10;
 // First Strike/Triple Strike only apply on the first hit(s) of a fight — modeled as active only at 100% mob HP.
 const FIRST_HIT_ENCHANT_IDS = new Set(['first_strike', 'triple_strike']);
 
+// Fire Aspect/Thunderlord real per-level lore ("dealing 9% of your damage per second." /
+// "dealing 60% of the hit's damage.") — a phrasing distinct from PERCENT_TO_TARGET_RE's
+// "Increases damage... by X%", so parsed separately rather than shoehorned into that regex.
+const ENCHANT_PROC_PERCENT_RE = {
+  fire_aspect: /dealing\s+([\d.]+)%\s+of\s+your\s+damage/i,
+  thunderlord: /dealing\s+([\d.]+)%\s+of\s+the\s+hit'?s\s+damage/i,
+};
+
 async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta, out, mobHpPercent, swarmMobs, comboKills, legionPlayers, firstPounceFactor = 1) {
   for (const entry of entries) {
     if (entry.id.toLowerCase() === 'ultimate_one_for_all') {
@@ -826,6 +845,25 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
     const name = `${titleCaseEnchantId(entry.id)} ${toRoman(entry.level)}`;
     const source = `${itemLabel} (${slotLabel})`;
     const id = `${slotLabel}-${entry.id}`;
+
+    // Venomous/Fire Aspect/Thunderlord: per-hit(-per-second) procs whose damage is a % of a
+    // separately-computed damage number (not a flat additive/multiplicative bonus themselves —
+    // see lib/finalDamage.js's computeVenomousProcDamage/computeEnchantProcDamage), stashed on
+    // `out` instead of pushed into any bucket here. Not shown in the UI yet.
+    if (key === 'venomous') {
+      const percent = getVenomousDamagePercent(entry.level);
+      if (percent != null) out.venomousProc = { id, label: name, source, level: entry.level, percent };
+      continue;
+    }
+    if (key === 'fire_aspect' || key === 'thunderlord') {
+      const m = ENCHANT_PROC_PERCENT_RE[key].exec(text);
+      if (m) {
+        const proc = { id, label: name, source, level: entry.level, percent: parseFloat(m[1]) };
+        if (key === 'fire_aspect') out.fireAspectProc = proc;
+        else out.thunderlordProc = proc;
+      }
+      continue;
+    }
 
     // Checked first since PER_TARGET_STAT_RE's shape is a superset of PERCENT_TO_TARGET_RE's.
     let m = PER_TARGET_STAT_RE.exec(text);
@@ -1174,6 +1212,11 @@ export async function collectDamageSources(
     abilityMultiplicative: [],
     situational: [],
     overloadBonusPercent: 0,
+    // Venomous/Fire Aspect/Thunderlord proc data ({id, label, source, level, percent}), null when
+    // not equipped — see lib/finalDamage.js's computeVenomousProcDamage/computeEnchantProcDamage.
+    venomousProc: null,
+    fireAspectProc: null,
+    thunderlordProc: null,
   };
 
   await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.generalsMedallionDigits, out);
@@ -1183,6 +1226,9 @@ export async function collectDamageSources(
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');
   addBaseStat(out, 'intelligence', computeEnchantingIntelligenceBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'ability_damage', computeEnchantingAbilityDamageBonus(playerStats?.enchantingLevel), 'Enchanting Level');
+  addBaseStat(out, 'crit_damage', computeTarantulaSlayerCritDamageBonus(playerStats?.tarantulaSlayerLevel), 'Tarantula Slayer Level');
+  addBaseStat(out, 'crit_damage', playerStats?.redClawCritDamage || 0, 'Red Claw Talisman/Ring/Artifact');
+  addBaseStat(out, 'crit_chance', computeCombatLevelCritChanceBonus(playerStats?.combatLevel), 'Combat Level');
   // Real Hypixel base stats before any gear.
   addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');
   addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');
@@ -1379,14 +1425,16 @@ export async function collectDamageSources(
     const daggerMultipliers = DAGGER_MOB_MULTIPLIERS[equipped.item.id];
     if (daggerMultipliers) {
       const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
-      for (const { multiplier, condition } of daggerMultipliers) {
-        out.multiplicative.push({
+      for (const { multiplier, condition, abilityEligible } of daggerMultipliers) {
+        const entry = {
           id: `${idBase}-${condition.toLowerCase()}`,
           label: `${itemLabel} (${condition})`,
           source: slotLabel,
           value: multiplier,
           condition,
-        });
+        };
+        out.multiplicative.push(entry);
+        if (abilityEligible) out.abilityMultiplicative.push(entry);
       }
     }
 

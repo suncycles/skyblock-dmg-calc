@@ -121,10 +121,13 @@ function normalizeReforgeKey(name) {
     .replace(/^_+|_+$/g, '');
 }
 
+// A handful of reforges' real Hypixel `modifier` id doesn't match a naive lowercase-underscore of
+// their display name (e.g. Bloodshot's real id is "blood_shot", Warped's is "aote_stone") — NEU-REPO's
+// own `nbtModifier` field (worker-preserved, see fetchReforgeStones) is authoritative when present.
 function buildReforgeNameLookup(itemData) {
   const map = {};
-  for (const name of Object.keys(itemData.reforges || {})) map[normalizeReforgeKey(name)] = name;
-  for (const name of Object.keys(itemData.reforgeStones || {})) map[normalizeReforgeKey(name)] = name;
+  for (const [name, reforge] of Object.entries(itemData.reforges || {})) map[reforge.nbtModifier || normalizeReforgeKey(name)] = name;
+  for (const [name, reforge] of Object.entries(itemData.reforgeStones || {})) map[reforge.nbtModifier || normalizeReforgeKey(name)] = name;
   return map;
 }
 
@@ -383,6 +386,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
 
   const playerStats = {};
   if (typeof raw.slayers?.wolf === 'number') playerStats.wolfSlayerLevel = raw.slayers.wolf;
+  if (typeof raw.slayers?.spider === 'number') playerStats.tarantulaSlayerLevel = raw.slayers.spider;
   if (typeof raw.skills?.alchemy === 'number') playerStats.alchemyLevel = raw.skills.alchemy;
   if (typeof raw.skills?.enchanting === 'number') playerStats.enchantingLevel = raw.skills.enchanting;
   if (typeof raw.skills?.combat === 'number') playerStats.combatLevel = raw.skills.combat;
@@ -393,6 +397,8 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // Independent of whether an Accessory Power is selected — named talismans (Day/Night Crystal,
   // Gravity Talisman, Blood God Crest, Shark Tooth Necklace) grant this regardless.
   if (typeof raw.accessory?.talismanStrengthBonus === 'number') playerStats.talismanStrengthBonus = raw.accessory.talismanStrengthBonus;
+  // Same "works while in Accessory Bag" independence — Red Claw Talisman/Ring/Artifact.
+  if (typeof raw.accessory?.redClawCritDamage === 'number') playerStats.redClawCritDamage = raw.accessory.redClawCritDamage;
 
   return { loadout, skipped, attributes, playerStats };
 }

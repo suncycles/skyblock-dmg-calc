@@ -45,15 +45,39 @@ export function groupArmorVariants(items, slot) {
     seenFamilies.add(family);
     const basic = items.find((i) => i.id === `${family}_${pieceSuffix}`) || item;
     result.push({
-      id: `VARIANT_FAMILY_${family}_${pieceSuffix}`,
+      // Real Basic-tier id (not a synthetic "VARIANT_FAMILY_..." one) so WeaponIcon's real baked
+      // icon resolves — a synthetic id has no baked file and silently fell back to a generic
+      // material icon (Skull, indistinguishable across every head-based armor family).
+      id: basic.id,
       name: `${titleCase(family)} ${titleCase(pieceSuffix)}`,
       material: basic.material,
+      color: basic.color,
       tier: basic.tier,
       isVariantFamily: true,
       family,
     });
   }
   return result;
+}
+
+// Which VARIANT_TIERS index (if any) `id` is — the equipped tier of `family` in `slot`, or null
+// if `id` isn't a member of that family at all (empty slot, different item, different family).
+export function getEquippedVariantTier(id, slot, family) {
+  const pieceSuffix = PIECE_SUFFIX[slot];
+  if (!id || !pieceSuffix) return null;
+  const idx = VARIANT_TIERS.findIndex(({ prefix }) => id === `${prefix}${family}_${pieceSuffix}`);
+  return idx === -1 ? null : idx;
+}
+
+// Same as getEquippedVariantTier, but without needing to know the family upfront — checks all 5
+// (Aurora/Crimson/Fervor/Hollow/Terror) and returns the first match, or null if `id` isn't any of
+// them. Used for the corner tier badge (T0-T4) shown on these families' icons wherever they render.
+export function getVariantTierIndexForId(id, slot) {
+  for (const family of ARMOR_VARIANT_FAMILIES) {
+    const idx = getEquippedVariantTier(id, slot, family);
+    if (idx != null) return idx;
+  }
+  return null;
 }
 
 // The 5 real armor.json entries for a given family+slot, in ascending power order — null for any missing tier.

@@ -51,6 +51,12 @@ const VENOMOUS_LEVELS = [
   { walkSpeed: 20, damage: 2 },
 ];
 
+// The real "deals +X% of your damage per second per hit" number for a Venomous level — used by
+// damageSources.js's proc-damage calculation, same source of truth as the tooltip lore above.
+export function getVenomousDamagePercent(level) {
+  return VENOMOUS_LEVELS[level - 1]?.damage ?? null;
+}
+
 function buildVenomousLevels() {
   return VENOMOUS_LEVELS.map(({ walkSpeed, damage }, i) => {
     const level = i + 1;

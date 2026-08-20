@@ -102,3 +102,20 @@ export function computeEnchantingAbilityDamageBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_ENCHANTING_LEVEL, level || 0));
   return clamped * ENCHANTING_ABILITY_DAMAGE_PERCENT_PER_LEVEL;
 }
+
+export const MAX_TARANTULA_SLAYER_LEVEL = 9;
+
+// Tarantula Broodfather (Spider) Slayer Crit Damage reward: +1/level for 1-4, +2/level for 5-7,
+// +3/level for 8-9 — cumulative, e.g. level 9 = 4*1 + 3*2 + 2*3 = 16. User-confirmed table.
+const TARANTULA_SLAYER_CRIT_DAMAGE_BY_LEVEL = [0, 1, 2, 3, 4, 6, 8, 10, 13, 16];
+export function computeTarantulaSlayerCritDamageBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_TARANTULA_SLAYER_LEVEL, level || 0));
+  return TARANTULA_SLAYER_CRIT_DAMAGE_BY_LEVEL[clamped];
+}
+
+// Combat Level Crit Chance reward: +0.5/level, capped at +30 (level 60) — user-confirmed.
+const COMBAT_LEVEL_CRIT_CHANCE_PER_LEVEL = 0.5;
+export function computeCombatLevelCritChanceBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_COMBAT_LEVEL, level || 0));
+  return clamped * COMBAT_LEVEL_CRIT_CHANCE_PER_LEVEL;
+}

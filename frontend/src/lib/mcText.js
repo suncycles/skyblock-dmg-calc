@@ -38,6 +38,21 @@ export function formatItemName(name) {
   return name.replace(STARRED_GLYPH, '⚕');
 }
 
+// Compact coin-amount shorthand for corner badges (e.g. Crown of Avarice's Coins Consumed) — one
+// decimal only when the value isn't a whole number, matching common in-game shorthand (67m, 850m, 1b).
+export function formatCoinsShorthand(n) {
+  const value = n || 0;
+  const abs = Math.abs(value);
+  const scaled = (divisor, suffix) => {
+    const rounded = Math.round((value / divisor) * 10) / 10;
+    return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}${suffix}`;
+  };
+  if (abs >= 1_000_000_000) return scaled(1_000_000_000, 'b');
+  if (abs >= 1_000_000) return scaled(1_000_000, 'm');
+  if (abs >= 1_000) return scaled(1_000, 'k');
+  return `${Math.round(value)}`;
+}
+
 // Parses a §-formatted line into {text, color, bold, italic, underline, strikethrough} segments. Framework-agnostic.
 export function parseMinecraftLine(text) {
   const segments = [];
