@@ -6,15 +6,16 @@
 // `_source` field for provenance (transcribed from SkyHelper/SkyCrypt's open "missing talismans"
 // dataset, plus manual wiki research for the parts that dataset didn't have).
 //
+// Magical Power's effect is modeled two ways, matching exactly what the rest of the app already
+// tracks per accessory: the Accessory Power stat multiplier (via the player's chosen Power Stone,
+// scaled by total MP) and each individually-owned accessory's own real stat line (Shark Tooth's
+// Strength, Red Claw's Crit Damage, ... — see worker/src/index.js's computeLiveAccessoryStats,
+// imported into modifiers.individualAccessoryStats). The latter is read-only here (it comes from
+// a real Hypixel import of the CURRENT account, same as `owned` below) — a candidate accessory
+// not yet owned obviously has no known real per-instance lore to parse, so only its Magical Power
+// contribution (and any resulting Tuning Points) are simulated, not a guessed stat line.
+//
 // TEMPORARY IMPLEMENTATION — known scope limits:
-// - Only Magical Power's effect on damage is modeled (the Accessory Power stat multiplier, via
-//   the player's already-chosen Power Stone). An accessory's own individual stat line (e.g.
-//   Artifact of Power's own bonus) is never modeled — this app doesn't track any of the 279 real
-//   accessories individually in its damage pipeline, only the one chosen Power Stone + a total MP
-//   number + Tuning, so this matches that existing simplification rather than introducing a new one.
-// - The extra Stat Tuning points a higher MP total would unlock are NOT auto-re-spent in the
-//   simulated candidate (the player's current tuning allocation carries over unchanged) — this
-//   makes every number here a slight UNDERcount of the real benefit, never an overcount.
 // - Coin cost is a placeholder 0 (ratio null), same convention as lib/optimizer.js — no real-time
 //   price source is wired up.
 // - non_recombobulatable_ids is a curated, non-exhaustive list (4 confirmed real ids) — not every
@@ -23,6 +24,8 @@
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { bumpRarity, canRecombobulate } from './recombobulator';
 import { computeModeDamage, getModeConfig } from './optimizer';
+import { computeTotalTuningPoints } from './accessoryPowers';
+import { computeOptimalTuning } from './tuningOptimizer';
 
 export const MAGICAL_POWER_BY_RARITY = {
   COMMON: 3,
@@ -158,20 +161,41 @@ const CATEGORY_LABELS = {
   'gemstone-upgrade': 'Perfect Gemstones',
 };
 
-// Runs every candidate from buildAccessoryCandidates through the real damage pipeline (varying
-// only Magical Power on top of the player's current loadout/mode/mob), same "one change at a
-// time against baseline" evaluation lib/optimizer.js's other candidates use.
+// Runs every candidate from buildAccessoryCandidates through the real damage pipeline, varying
+// Magical Power on top of the player's current loadout/mode/mob — same "one change at a time
+// against baseline" evaluation lib/optimizer.js's other candidates use. Both the baseline and
+// every candidate auto-spend their Tuning Points optimally (see lib/tuningOptimizer.js) rather
+// than carrying over whatever was manually allocated, so the comparison is apples-to-apples: full
+// optimal tuning is computed once at the current MP for the baseline; each candidate then only
+// needs a cheap top-up search over its own small extra point delta on top of that baseline
+// allocation (a full from-scratch search per candidate would mean tens of thousands of real
+// pipeline evaluations across ~90 candidates — this keeps it to a few hundred).
 export async function evaluateAccessoryCandidates(loadout, itemData, build, mode, mob, candidates) {
   const modeConfig = getModeConfig(mode);
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
   const currentMp = accessorySlot.modifiers.magicalPower || 0;
-  const baselineValue = await computeModeDamage(loadout, itemData, build, modeConfig, mob);
+  // Includes the Tuning Box attribute's own flat point grant (see computeTotalTuningPoints) for
+  // an accurate absolute baseline total — the attribute-derived portion cancels out of `extraPoints`
+  // below either way, since it's added equally to both the current and candidate totals.
+  const currentPoints = computeTotalTuningPoints(currentMp, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
+
+  const baselineTuning = await computeOptimalTuning(loadout, itemData, build, modeConfig, mob, currentPoints);
+  const tunedLoadout = { ...loadout, accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, tuning: baselineTuning } } };
+  const baselineValue = await computeModeDamage(tunedLoadout, itemData, build, modeConfig, mob);
 
   const results = [];
   for (const candidate of candidates) {
+    const newPoints = computeTotalTuningPoints(
+      currentMp + candidate.mpGain,
+      build.attributes?.tuning_box,
+      build.attributes?.echo_of_boxes,
+      build.attributes?.echo_of_echoes,
+    );
+    const extraPoints = newPoints - currentPoints;
+    const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints) : baselineTuning;
     const candidateLoadout = {
       ...loadout,
-      accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, magicalPower: currentMp + candidate.mpGain } },
+      accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, magicalPower: currentMp + candidate.mpGain, tuning: candidateTuning } },
     };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
@@ -183,6 +207,7 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
         category: CATEGORY_LABELS[candidate.kind] || candidate.kind,
         rarity: candidate.rarity,
         mpGain: candidate.mpGain,
+        tuning: candidateTuning,
         value,
         percentIncrease,
       }),
@@ -191,3 +216,25 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
   results.sort((a, b) => b.percentIncrease - a.percentIncrease);
   return { baselineValue, currentMp, results };
 }
+
+// One quick round (not a full multi-round search) — tries adding all `extraPoints` to each
+// damage-relevant Tuning stat on top of an already-optimal `baseTuning`, keeps whichever wins.
+// Accurate for the small deltas (0-2 points is typical) most single-accessory MP gains produce;
+// only a full computeOptimalTuning re-run would be exact for a large jump, which isn't worth the
+// extra evaluations for a ranked list where relative ordering, not exact numbers, is the point.
+async function topUpTuning(loadout, itemData, build, modeConfig, mob, baseTuning, extraPoints) {
+  let bestTuning = baseTuning;
+  let bestValue = -Infinity;
+  for (const stat of TUNING_TOP_UP_STATS) {
+    const candidateTuning = { ...baseTuning, [stat]: (baseTuning[stat] || 0) + extraPoints };
+    const candidateLoadout = { ...loadout, accessory: { ...loadout.accessory, modifiers: { ...loadout.accessory.modifiers, tuning: candidateTuning } } };
+    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    if (value > bestValue) {
+      bestValue = value;
+      bestTuning = candidateTuning;
+    }
+  }
+  return bestTuning;
+}
+
+const TUNING_TOP_UP_STATS = ['strength', 'crit_damage', 'crit_chance', 'bonus_attack_speed', 'intelligence'];

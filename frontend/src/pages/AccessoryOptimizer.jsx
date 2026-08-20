@@ -73,6 +73,7 @@ export default function AccessoryOptimizer() {
   const [error, setError] = useState(null);
   const [owned, setOwned] = useState(null);
   const [result, setResult] = useState(null);
+  const [evaluating, setEvaluating] = useState(false);
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
@@ -101,20 +102,26 @@ export default function AccessoryOptimizer() {
 
   async function handleEvaluate(ownedList) {
     if (itemDataLoading || !mobName || !mobTypes || !itemData.accessoryFamilies) return;
-    const candidates = buildAccessoryCandidates(ownedList, itemData.accessoryFamilies);
-    const evaluated = await evaluateAccessoryCandidates(
-      build.loadout,
-      itemData,
-      build,
-      mode,
-      { name: mobName, types: mobTypes },
-      candidates,
-    );
-    setResult(evaluated);
+    setEvaluating(true);
+    try {
+      const candidates = buildAccessoryCandidates(ownedList, itemData.accessoryFamilies);
+      const evaluated = await evaluateAccessoryCandidates(
+        build.loadout,
+        itemData,
+        build,
+        mode,
+        { name: mobName, types: mobTypes },
+        candidates,
+      );
+      setResult(evaluated);
+    } finally {
+      setEvaluating(false);
+    }
   }
 
   function handleSwapIn(candidate) {
     build.setAccessoryMagicalPower(result.currentMp + candidate.mpGain);
+    build.setAccessoryTuning(candidate.tuning);
   }
 
   return (
@@ -175,11 +182,15 @@ export default function AccessoryOptimizer() {
           <div className={`${panel} p-3 flex flex-col gap-2`}>
             <div className="flex items-center justify-between">
               <div className={sectionTitle}>Missing / Upgradeable Accessories</div>
-              <button type="button" className={`${buttonClass} !py-1 !text-xs`} onClick={() => handleEvaluate(owned)}>
-                Evaluate DPS
+              <button type="button" className={`${buttonClass} !py-1 !text-xs`} onClick={() => handleEvaluate(owned)} disabled={evaluating}>
+                {evaluating ? 'Evaluating...' : 'Evaluate DPS'}
               </button>
             </div>
-            {!result ? (
+            {evaluating ? (
+              <div className="text-xs text-neutral-600 italic">
+                Running the real damage pipeline for every candidate (auto-spending Tuning Points each time) — this can take a few seconds.
+              </div>
+            ) : !result ? (
               <div className="text-xs text-neutral-600 italic">Click "Evaluate DPS" to rank real candidates against your current build.</div>
             ) : result.results.length === 0 ? (
               <div className="text-xs text-neutral-600 italic">No candidate increases Magical Power's real damage effect right now.</div>

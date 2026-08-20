@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
+import { useItemData } from '../context/ItemDataContext';
 import { TUNING_STATS, TUNING_RATE_PER_POINT, computeTotalTuningPoints } from '../lib/accessoryPowers';
+import { computeOptimalTuningForMp } from '../lib/tuningOptimizer';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
+import { MOB_TYPES } from '../lib/mobTypes';
 import { SLOT_TEXTURES } from '../lib/icons';
 import NumberInput from '../components/NumberInput';
 
@@ -14,7 +18,29 @@ const translucentPanel =
 // setAccessoryTuningPoint call is clamped so the running total can never exceed the points granted.
 export default function AccessoryTuning() {
   const navigate = useNavigate();
-  const { loadout, attributes, setAccessoryTuningPoint } = useBuild();
+  const build = useBuild();
+  const { loadout, attributes, setAccessoryTuningPoint, setAccessoryTuning } = build;
+  const { itemData } = useItemData();
+  const [autoSpending, setAutoSpending] = useState(false);
+
+  const mobName = build.targetMobs[0] || null;
+  const mobTypes = mobName ? MOB_TYPES[mobName] : null;
+
+  async function handleAutoSpend() {
+    if (!mobName || !mobTypes) return;
+    setAutoSpending(true);
+    try {
+      const modeConfig = {
+        useDungeonizedStats: build.useDungeonizedStats,
+        useMasterMode: build.useMasterMode,
+        metric: build.mageMode ? 'ability' : 'dps',
+      };
+      const optimal = await computeOptimalTuningForMp(loadout, itemData, build, modeConfig, { name: mobName, types: mobTypes }, loadout.accessory.modifiers.magicalPower);
+      setAccessoryTuning(optimal);
+    } finally {
+      setAutoSpending(false);
+    }
+  }
 
   if (!loadout.accessory) {
     return (
@@ -45,9 +71,21 @@ export default function AccessoryTuning() {
       </header>
 
       <div className={`${translucentPanel} w-full max-w-[500px] p-6 flex flex-col gap-3`}>
-        <div className="text-sm font-bold text-black">
-          Points remaining: {totalPoints - spentPoints} / {totalPoints}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-bold text-black">
+            Points remaining: {totalPoints - spentPoints} / {totalPoints}
+          </div>
+          <button
+            type="button"
+            onClick={handleAutoSpend}
+            disabled={autoSpending || !mobName}
+            title={mobName ? 'Spend every point where it does the most real DPS' : 'Pick a target mob first'}
+            className="px-3 py-1.5 text-xs font-bold text-black bg-[#8fbf3f] border-[3px] border-t-[#c5e88a] border-l-[#c5e88a] border-b-[#4d6b1f] border-r-[#4d6b1f] cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default"
+          >
+            {autoSpending ? 'Spending...' : 'Auto-Spend'}
+          </button>
         </div>
+        {!mobName && <div className="text-[11px] text-neutral-600 italic -mt-1.5">Pick a target mob to auto-spend.</div>}
 
         {TUNING_STATS.map((key) => {
           const meta = STAT_LABELS[key];

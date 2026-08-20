@@ -50,5 +50,13 @@ export function emptyAccessoryModifiers() {
     // calculator doesn't track (e.g. Magic Find): they still count toward the total but add nothing.
     enrichmentCount: 0,
     enrichmentType: 'none',
+    // Sum of every individually-owned accessory's own real stat line (Shark Tooth Necklace's
+    // Strength, Red Claw's Crit Damage, Day/Night Crystal's Strength+Defense, ...) — computed by
+    // the worker from the account's real Accessory Bag lore during Hypixel import (see
+    // worker/src/index.js's computeLiveAccessoryStats), not manually enterable (279 real
+    // accessories isn't a reasonable manual-entry surface). {statKey: value}, empty for a
+    // from-scratch build. Replaces the old flat "Talisman Bonuses"/Red Claw manual inputs, which
+    // only covered a handful of items by name instead of every real accessory generically.
+    individualAccessoryStats: {},
   };
 }

@@ -359,27 +359,28 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
     };
   }
 
-  if (raw.accessory?.selectedPower) {
-    const power = getPowerById(raw.accessory.selectedPower.toUpperCase());
-    if (power) {
-      loadout.accessory = {
-        item: {
-          id: power.id,
-          name: power.name,
-          iconId: power.sourceItemId || null,
-          material: power.sourceItemId ? 'SKULL' : 'BOOK',
-        },
-        modifiers: {
-          ...emptyAccessoryModifiers(),
-          magicalPower: raw.accessory.magicalPower || 0,
-          tuning: mapHypixelTuning(raw.accessory.tuning),
-          enrichmentCount: raw.accessory.enrichmentCount || 0,
-          enrichmentType: raw.accessory.enrichmentType || 'none',
-        },
-      };
-    } else {
-      skipped.push(raw.accessory.selectedPower);
-    }
+  // Magical Power/Tuning/individual-accessory-stats/Enrichments all apply independent of whether
+  // an Accessory Power is actually selected (see lib/damageSources.js) — so this always builds a
+  // loadout.accessory entry once real Hypixel data exists, with `item: null` if no Power was
+  // chosen (same shape BuildContext's own setAccessoryMagicalPower etc. already produce for that state).
+  if (raw.accessory) {
+    const power = raw.accessory.selectedPower ? getPowerById(raw.accessory.selectedPower.toUpperCase()) : null;
+    if (raw.accessory.selectedPower && !power) skipped.push(raw.accessory.selectedPower);
+    loadout.accessory = {
+      item: power
+        ? { id: power.id, name: power.name, iconId: power.sourceItemId || null, material: power.sourceItemId ? 'SKULL' : 'BOOK' }
+        : null,
+      modifiers: {
+        ...emptyAccessoryModifiers(),
+        magicalPower: raw.accessory.magicalPower || 0,
+        tuning: mapHypixelTuning(raw.accessory.tuning),
+        enrichmentCount: raw.accessory.enrichmentCount || 0,
+        enrichmentType: raw.accessory.enrichmentType || 'none',
+        // Every real, individually-owned accessory's own stat line, generically summed by the
+        // worker from real Accessory Bag lore — see worker/src/index.js's computeLiveAccessoryStats.
+        individualAccessoryStats: raw.accessory.itemStats || {},
+      },
+    };
   }
 
   const attributes = mapHypixelAttributeLevels(raw.attributeLevels);
@@ -394,11 +395,6 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
   if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
   if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
-  // Independent of whether an Accessory Power is selected — named talismans (Day/Night Crystal,
-  // Gravity Talisman, Blood God Crest, Shark Tooth Necklace) grant this regardless.
-  if (typeof raw.accessory?.talismanStrengthBonus === 'number') playerStats.talismanStrengthBonus = raw.accessory.talismanStrengthBonus;
-  // Same "works while in Accessory Bag" independence — Red Claw Talisman/Ring/Artifact.
-  if (typeof raw.accessory?.redClawCritDamage === 'number') playerStats.redClawCritDamage = raw.accessory.redClawCritDamage;
 
   return { loadout, skipped, attributes, playerStats };
 }
