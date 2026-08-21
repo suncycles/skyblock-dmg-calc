@@ -14,7 +14,7 @@
 //   exception with more than one tier list per mode (SLAYER_WEAPON_PROGRESSION): each real
 //   Slayer type hands out its own independent chain, all targeting the single 'weapon' slot.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
-//   Power Stones, and Stars all have a small enumerable real catalog this app's damage pipeline
+//   Power Stones, Stars, and Pet Items all have a small enumerable real catalog this app's damage pipeline
 //   already fully understands, so every real option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
@@ -495,6 +495,32 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
   return results;
 }
 
+// Pet Items: brute-forced against the full real catalog (~88 entries, see worker/src/data/
+// petItems.json) rather than curated — small enough to just test everything, and
+// lib/petItemEffects.js's parsePetItemStatBoost already tells real combat-stat boosts (Strength,
+// Crit Chance/Damage, etc.) apart from XP/coin/cosmetic ones from the item's own lore, so a pure
+// XP-boost item naturally computes a ~0% increase and gets filtered out below same as any other
+// non-improvement — no separate "is this combat-relevant" allowlist needed.
+async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob) {
+  const pet = loadout.pet;
+  if (!pet?.item) return [];
+  const currentPetItemId = pet.modifiers?.petItem || null;
+  const results = [];
+  for (const petItem of itemData.petItems || []) {
+    if (petItem.id === currentPetItemId) continue;
+    const candidateLoadout = { ...loadout, pet: { ...pet, modifiers: { ...pet.modifiers, petItem: petItem.id } } };
+    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    results.push({
+      category: 'Pet Item',
+      slot: 'pet',
+      label: `${derivePetDisplayName(pet.item.petId)} — ${formatItemName(petItem.name)}`,
+      value,
+      apply: [{ type: 'setPetItem', slot: 'pet', petItemId: petItem.id }],
+    });
+  }
+  return results;
+}
+
 // Reforges: user-curated worst -> best progression, not brute-forced (the full reforge catalog
 // is ~130 entries, mostly irrelevant to armor/equipment) — confirmed real names + real itemTypes
 // against NEU-REPO's reforges.json (blacksmith)/reforgestones.json (stone): Pure/Fierce and
@@ -630,7 +656,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
 
-  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs] = await Promise.all([
+  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs, petItems] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
     evaluateItemSlotCandidates(
@@ -652,6 +678,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
     evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
   ]);
 
   // Armor/equipment/pet/reforge results already carry their own real percentIncrease
@@ -669,9 +696,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     slots[slot] = forSlot.length > 0 ? forSlot.reduce((best, r) => (r.percentIncrease > best.percentIncrease ? r : best)) : null;
   }
 
-  const otherResults = [...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...recombs]), ...reforges].sort(
-    (a, b) => b.percentIncrease - a.percentIncrease,
-  );
+  const otherResults = [
+    ...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...recombs, ...petItems]),
+    ...reforges,
+  ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
   for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = withCostPlaceholder(slots[slot]);
 
@@ -705,6 +733,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setStarCount':
         build.setStarCount(step.slot, step.count);
+        break;
+      case 'setPetItem':
+        build.setPetItem(step.petItemId);
         break;
       case 'applyReforge':
         build.applyReforge(step.slot, step.name);
