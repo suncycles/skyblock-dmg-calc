@@ -18,15 +18,7 @@
 //   already fully understands, so every real option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
-import {
-  computeFinalDamage,
-  computeAbilityDamage,
-  computeDpsBreakdown,
-  computeVenomousProcDamage,
-  computeEnchantProcDamage,
-  computeCrimsonSwipeDamage,
-} from './finalDamage';
-import { computeCrimsonSwipeInfo } from './armorSetBonuses';
+import { computeAbilityDamage, computeDpsBreakdown } from './finalDamage';
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import { resolveGearSummary } from './hypixelImport';
@@ -246,16 +238,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     return { value: ability ? ability.finalDamage : 0, sources };
   }
 
-  const finalDamage = computeFinalDamage(sources, mob, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
-  const venomousProcDamage = computeVenomousProcDamage(sources, mob, finalDamage.finalDamage);
-  const fireAspectProcDamage = computeEnchantProcDamage(finalDamage.finalDamage, sources.fireAspectProc);
-  const thunderlordProcDamage = computeEnchantProcDamage(finalDamage.finalDamage, sources.thunderlordProc);
-  const crimsonSwipeDamage = computeCrimsonSwipeDamage(finalDamage.finalDamage, computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS));
-  const dps = computeDpsBreakdown(
-    { finalDamage, venomousProcDamage, fireAspectProcDamage, thunderlordProcDamage, crimsonSwipeDamage },
-    sources.baseStats.bonus_attack_speed || 0,
-    loadout,
-  );
+  const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
   return { value: dps.total, sources };
 }
 

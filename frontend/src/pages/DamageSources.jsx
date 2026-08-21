@@ -8,9 +8,6 @@ import {
   computeFinalDamage,
   computeAbilityDamage,
   computeMageStaffBeamDamage,
-  computeCrimsonSwipeDamage,
-  computeVenomousProcDamage,
-  computeEnchantProcDamage,
   computeDpsBreakdown,
   DPS_HITS_PER_SECOND,
   MAX_VENOMOUS_STACKS,
@@ -22,7 +19,6 @@ import {
   INFERNAL_CRIMSON_SET,
   INFERNAL_CRIMSON_MIN_PIECES,
   INFERNAL_CRIMSON_MAX_STACKS,
-  computeCrimsonSwipeInfo,
 } from '../lib/armorSetBonuses';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
@@ -219,8 +215,6 @@ export default function DamageSources({ embedded = false }) {
   }
 
   const hasInfernalCrimsonStacks = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET) >= INFERNAL_CRIMSON_MIN_PIECES;
-  // Not shown in the UI yet — computed and stashed on mobResults for a future DPS/Crimson Swipe feature.
-  const crimsonSwipeInfo = computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS);
   const weaponUltimateId = loadout.weapon?.modifiers?.ultimateEnchantment?.id?.toLowerCase();
   const hasSwarmEnchant = weaponUltimateId === 'ultimate_swarm';
   const hasComboEnchant = weaponUltimateId === 'ultimate_combo';
@@ -295,10 +289,6 @@ export default function DamageSources({ embedded = false }) {
             finalDamage: null,
             finalDamageWithoutVanquished: null,
             finalDamageWithFabledMax: null,
-            crimsonSwipeDamage: null,
-            venomousProcDamage: null,
-            fireAspectProcDamage: null,
-            thunderlordProcDamage: null,
           };
         const mob = { name, types };
         const finalDamage = computeFinalDamage(result, mob, useDungeonizedStats, useMasterMode);
@@ -312,10 +302,6 @@ export default function DamageSources({ embedded = false }) {
           finalDamageWithFabledMax: hasFabledBonus
             ? computeFinalDamage(withFabledMaxResult, mob, useDungeonizedStats, useMasterMode)
             : null,
-          crimsonSwipeDamage: computeCrimsonSwipeDamage(finalDamage.finalDamage, crimsonSwipeInfo),
-          venomousProcDamage: computeVenomousProcDamage(result, mob, finalDamage.finalDamage),
-          fireAspectProcDamage: computeEnchantProcDamage(finalDamage.finalDamage, result.fireAspectProc),
-          thunderlordProcDamage: computeEnchantProcDamage(finalDamage.finalDamage, result.thunderlordProc),
         };
       })
     : [];
@@ -474,7 +460,7 @@ export default function DamageSources({ embedded = false }) {
           ) : dpsMode ? (
             mobResults.map((mobResult) => {
               const { name, types } = mobResult;
-              const dps = computeDpsBreakdown(mobResult, result.baseStats.bonus_attack_speed || 0, loadout);
+              const dps = computeDpsBreakdown(result, { name, types }, loadout, useDungeonizedStats, useMasterMode);
               return (
                 <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                   <div className="flex items-center justify-between flex-wrap gap-1">
@@ -521,9 +507,9 @@ export default function DamageSources({ embedded = false }) {
                         <span className="text-2xl font-mono font-bold text-black">{Math.round(dps.total).toLocaleString()}</span>
                       </div>
                       <VenomousStackGraph
-                        perStackVenomousDamage={mobResult.venomousProcDamage?.finalDamage || 0}
+                        perStackVenomousDamage={dps.venomousProc?.finalDamage || 0}
                         otherDps={dps.total - dps.venomous}
-                        hasVenomous={!!mobResult.venomousProcDamage}
+                        hasVenomous={!!dps.venomousProc}
                       />
                     </>
                   )}
