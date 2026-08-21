@@ -1,5 +1,5 @@
 {
-  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file — 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed.",
+  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file — 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed. Also grouped all 8 Abicase cosmetic skin variants (ABICASE_BLUE_*, ABICASE_REZAR, ABICASE_SUMSUNG_*) as talisman_duplicates of the base ABICASE — user-confirmed mutually exclusive, same rarity, cosmetic-only variants of one accessory slot.",
   "talisman_upgrades": {
     "WOLF_TALISMAN": [
       "WOLF_RING"
@@ -1151,6 +1151,16 @@
       "CAMPFIRE_TALISMAN_27",
       "CAMPFIRE_TALISMAN_28",
       "CAMPFIRE_TALISMAN_29"
+    ],
+    "ABICASE": [
+      "ABICASE_BLUE_AQUA",
+      "ABICASE_BLUE_BLUE",
+      "ABICASE_BLUE_GREEN",
+      "ABICASE_BLUE_RED",
+      "ABICASE_BLUE_YELLOW",
+      "ABICASE_REZAR",
+      "ABICASE_SUMSUNG_1",
+      "ABICASE_SUMSUNG_2"
     ]
   },
   "talismans": {
@@ -3191,38 +3201,6 @@
     "TWO_IQ_POINT": {
       "name": "2 IQ Points",
       "rarity": "UNCOMMON"
-    },
-    "ABICASE_BLUE_AQUA": {
-      "name": "Lighter Blue™ Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_BLUE_BLUE": {
-      "name": "Actually Blue™ Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_BLUE_GREEN": {
-      "name": "Blue™ but Green Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_BLUE_RED": {
-      "name": "Blue™ but Red Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_BLUE_YELLOW": {
-      "name": "Blue™ but Yellow Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_REZAR": {
-      "name": "Rezar® Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_SUMSUNG_1": {
-      "name": "Sumsung© G3 Abicase",
-      "rarity": "RARE"
-    },
-    "ABICASE_SUMSUNG_2": {
-      "name": "Sumsung© GG Abicase",
-      "rarity": "RARE"
     },
     "APPLICANT_STATEMENT": {
       "name": "Applicant's Statement",
