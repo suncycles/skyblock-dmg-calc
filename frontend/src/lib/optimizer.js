@@ -29,7 +29,15 @@ import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import { resolveGearSummary } from './hypixelImport';
 import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
-import { fetchEnchantLevels, isUltimateEnchant, titleCaseEnchantId, toRoman, getCategoryEnchantIds, resolveEnchantCategory } from './enchantEffects';
+import {
+  fetchEnchantLevels,
+  isUltimateEnchant,
+  titleCaseEnchantId,
+  toRoman,
+  getCategoryEnchantIds,
+  resolveEnchantCategory,
+  computeConflictingEntries,
+} from './enchantEffects';
 import { STONE_POWERS } from './accessoryPowers';
 import { getMaxStarsForItem } from './starring';
 import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
@@ -325,7 +333,12 @@ async function evaluateEnchantCandidates(loadout, itemData, build, modeConfig, m
 }
 
 // Brute-forces every real ultimate enchant applicable to the weapon's category (at its own real
-// max level) as a full alternative to whichever ultimate is currently equipped.
+// max level) as a full alternative to whichever ultimate is currently equipped. Removes whatever
+// computeConflictingEntries says the real item would lose — same conflict resolution the Hex
+// enchant picker (pages/EnchantList.jsx) already applies, most importantly One For All's "removes
+// every other enchant" rule: both the resulting damage number (candidateLoadout below) and the
+// swap-in action's removeIds need this, or a One For All suggestion would silently keep double-
+// counting Sharpness/etc.'s damage instead of actually replacing them.
 async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
   const weapon = loadout.weapon;
   if (!weapon) return [];
@@ -338,9 +351,17 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
     const levels = await fetchEnchantLevels(id, itemData.enchants);
     if (levels.length === 0) continue;
     const maxLevel = Math.max(...levels.map((l) => l.level));
+    const removeIds = computeConflictingEntries(id, weapon.item.lore, weapon.modifiers).map((e) => e.id);
     const candidateLoadout = {
       ...loadout,
-      weapon: { ...weapon, modifiers: { ...weapon.modifiers, ultimateEnchantment: { id, level: maxLevel, maxLevel } } },
+      weapon: {
+        ...weapon,
+        modifiers: {
+          ...weapon.modifiers,
+          ultimateEnchantment: { id, level: maxLevel, maxLevel },
+          hexEnchantments: (weapon.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
+        },
+      },
     };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
@@ -348,7 +369,7 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
       slot: 'weapon',
       label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
       value,
-      apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds: [] }],
+      apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
     });
   }
   return results;
@@ -487,9 +508,20 @@ async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, 
       for (const levelData of levels) {
         const level = levelData.level;
         if (current && current.id.toLowerCase() === id.toLowerCase() && level <= current.level) continue;
+        // Same conflict resolution as the weapon evaluator above — a no-op today (armor's only
+        // real ultimate is Habanero Tactics, so there's nothing else to conflict with), but
+        // correct if that ever changes instead of silently keeping a removed enchant's damage.
+        const removeIds = computeConflictingEntries(id, equipped.item.lore, equipped.modifiers).map((e) => e.id);
         const candidateLoadout = {
           ...loadout,
-          [slot]: { ...equipped, modifiers: { ...equipped.modifiers, ultimateEnchantment: { id, level, maxLevel } } },
+          [slot]: {
+            ...equipped,
+            modifiers: {
+              ...equipped.modifiers,
+              ultimateEnchantment: { id, level, maxLevel },
+              hexEnchantments: (equipped.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
+            },
+          },
         };
         const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
         results.push({
@@ -497,7 +529,7 @@ async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, 
           slot,
           label: `${formatItemName(equipped.item.name)} — ${titleCaseEnchantId(id)} ${toRoman(level)}`,
           value,
-          apply: [{ type: 'applyEnchant', slot, id, level, maxLevel, removeIds: [] }],
+          apply: [{ type: 'applyEnchant', slot, id, level, maxLevel, removeIds }],
         });
       }
     }
