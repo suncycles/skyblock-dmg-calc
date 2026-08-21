@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { runOptimizer, applyOptimizerResult, OPTIMIZER_MODES, OPTIMIZER_GEAR_SLOTS, hasCuratedData } from '../lib/optimizer';
+import { useAccessoryOptimizerState } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1 } from '../lib/damageFormat';
+import { round1, round3Sig } from '../lib/damageFormat';
 import PageHeader from '../components/PageHeader';
 import WeaponIcon from '../components/WeaponIcon';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
@@ -24,6 +25,10 @@ const CATEGORY_COLORS = {
   Stars: '#fb923c',
   Reforge: '#60a5fa',
   Recombobulator: '#818cf8',
+  'Pet Item': '#f472b6',
+  'New Accessory': '#4ade80',
+  Recombobulate: '#818cf8',
+  'Perfect Gemstones': '#a78bfa',
 };
 
 // User-specified: reaching 82% Bonus Attack Speed is Slayer's single highest priority — shown as
@@ -60,7 +65,7 @@ function UpgradeRow({ result, onSwapIn }) {
           Cost: {result.cost.toLocaleString()} coins · Ratio: {result.ratio != null ? round1(result.ratio) : '—'}
         </span>
       </div>
-      <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
+      <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
     </button>
   );
 }
@@ -81,6 +86,8 @@ export default function Optimizer() {
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
+
+  const mp = useAccessoryOptimizerState(build, itemData, itemDataLoading, mode, mobName, mobTypes);
 
   useEffect(() => {
     if (itemDataLoading || !mobName || !mobTypes) {
@@ -111,13 +118,17 @@ export default function Optimizer() {
     mobName,
   ]);
 
+  // Magical Power candidates (own fetch/evaluate cycle, see useAccessoryOptimizerState) merge
+  // into the same "Other Upgrades" ranked list as every brute-forced category from runOptimizer,
+  // rather than a separate section — one consistent ranked list, per user direction.
+  const combinedOtherResults = [...state.otherResults, ...(mp.result?.results || [])].sort(
+    (a, b) => b.percentIncrease - a.percentIncrease,
+  );
+
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
       <PageHeader title="Damage Optimizer" />
       <div className="w-full max-w-[700px] flex flex-col gap-3">
-        <Link to="/accessory-optimizer" className="text-xs text-white/80 underline self-end">
-          💎 Magical Power Optimizer →
-        </Link>
         <div className={`${panel} p-3 flex flex-col gap-2`}>
           <div className={sectionTitle}>Optimize For</div>
           <div className="grid grid-cols-2 gap-2">
@@ -140,6 +151,38 @@ export default function Optimizer() {
               suggestions show below.
             </div>
           )}
+        </div>
+
+        <div className={`${panel} p-3 flex flex-col gap-2`}>
+          <div className={sectionTitle}>Magical Power</div>
+          <form onSubmit={mp.handleFetch} className="flex gap-2">
+            <input
+              className="flex-1 min-w-0 px-2.5 py-2 bg-white/90 border-[3px] border-black/60 text-sm text-black outline-none"
+              placeholder="Minecraft username"
+              value={mp.username}
+              onChange={(e) => mp.setUsername(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 text-sm font-bold text-black bg-[#8fbf3f] border-[3px] border-t-[#c5e88a] border-l-[#c5e88a] border-b-[#4d6b1f] border-r-[#4d6b1f] cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default"
+              disabled={mp.status === 'loading' || !mp.username.trim()}
+            >
+              {mp.status === 'loading' ? 'Loading...' : 'Fetch'}
+            </button>
+          </form>
+          {mp.status === 'error' && <div className="text-xs text-red-700">{mp.error}</div>}
+          {mp.owned && !mobName && <div className="text-[11px] text-neutral-700 italic">Pick a target mob to evaluate real accessory upgrades.</div>}
+          {mp.owned && mobName && (
+            <button
+              type="button"
+              className="px-3 py-2 text-sm font-bold text-black bg-[#8fbf3f] border-[3px] border-t-[#c5e88a] border-l-[#c5e88a] border-b-[#4d6b1f] border-r-[#4d6b1f] cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default self-start"
+              onClick={() => mp.handleEvaluate(mp.owned)}
+              disabled={mp.evaluating}
+            >
+              {mp.evaluating ? 'Evaluating...' : mp.result ? 'Re-evaluate' : 'Evaluate Accessories'}
+            </button>
+          )}
+          {mp.result && <div className="text-[11px] text-neutral-700">Current Magical Power: {mp.result.currentMp}</div>}
         </div>
 
         {mode === 'slayer' && state.status === 'ok' && (
@@ -186,10 +229,10 @@ export default function Optimizer() {
               )}
             </div>
 
-            {state.otherResults.length > 0 && (
+            {combinedOtherResults.length > 0 && (
               <div className={`${panel} p-3 flex flex-col gap-1.5`}>
                 <div className={sectionTitle}>Other Upgrades</div>
-                {state.otherResults.map((r, i) => (
+                {combinedOtherResults.map((r, i) => (
                   <button
                     key={i}
                     type="button"
@@ -206,7 +249,7 @@ export default function Optimizer() {
                         Cost: {r.cost.toLocaleString()} coins · Ratio: {r.ratio != null ? round1(r.ratio) : '—'}
                       </span>
                     </div>
-                    <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round1(r.percentIncrease)}%</span>
+                    <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(r.percentIncrease)}%</span>
                   </button>
                 ))}
               </div>

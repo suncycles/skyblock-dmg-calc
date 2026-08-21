@@ -737,6 +737,12 @@ export function applyOptimizerResult(build, result) {
       case 'setPetItem':
         build.setPetItem(step.petItemId);
         break;
+      case 'setAccessoryMagicalPower':
+        build.setAccessoryMagicalPower(step.mp);
+        break;
+      case 'setAccessoryTuning':
+        build.setAccessoryTuning(step.tuning);
+        break;
       case 'applyReforge':
         build.applyReforge(step.slot, step.name);
         break;
