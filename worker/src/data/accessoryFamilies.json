@@ -1,5 +1,5 @@
 {
-  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file — 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed. Also grouped all 8 Abicase cosmetic skin variants (ABICASE_BLUE_*, ABICASE_REZAR, ABICASE_SUMSUNG_*) as talisman_duplicates of the base ABICASE — user-confirmed mutually exclusive, same rarity, cosmetic-only variants of one accessory slot.",
+  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file — 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed. Also grouped all 8 Abicase cosmetic skin variants (ABICASE_BLUE_*, ABICASE_REZAR, ABICASE_SUMSUNG_*) as talisman_duplicates of the base ABICASE — user-confirmed mutually exclusive, same rarity, cosmetic-only variants of one accessory slot. Also added the 3 real hat accessories confirmed via a live account (PARTY_HAT_CRAB/CAKE_HAT_2026/PARTY_HAT_SLOTH — none are in accessories.json, hats generally aren't ingested there) as talisman_duplicates of PARTY_HAT_CRAB, same mutual-exclusivity mechanic as Abicase — user-confirmed real names, part of the real 4-member Hat of Celebration family (the 4th, Anniversary Balloon Hat, has no confirmed real id yet so was not guessed/added).",
   "talisman_upgrades": {
     "WOLF_TALISMAN": [
       "WOLF_RING"
@@ -1161,6 +1161,10 @@
       "ABICASE_REZAR",
       "ABICASE_SUMSUNG_1",
       "ABICASE_SUMSUNG_2"
+    ],
+    "PARTY_HAT_CRAB": [
+      "CAKE_HAT_2026",
+      "PARTY_HAT_SLOTH"
     ]
   },
   "talismans": {
@@ -1461,8 +1465,8 @@
       "rarity": "EPIC"
     },
     "PARTY_HAT_CRAB": {
-      "name": "Crab Hat of Celebration - 2020",
-      "rarity": "SPECIAL"
+      "name": "Crab Hat of Celebration",
+      "rarity": "VERY_SPECIAL"
     },
     "PARTY_HAT_CRAB_ANIMATED": {
       "name": "Crab Hat of Celebration - 2022",
@@ -2699,6 +2703,14 @@
     "WHITE_GIFT_TALISMAN": {
       "name": "White Gift Talisman",
       "rarity": "COMMON"
+    },
+    "CAKE_HAT_2026": {
+      "name": "Anniversary Cake Hat",
+      "rarity": "SPECIAL"
+    },
+    "PARTY_HAT_SLOTH": {
+      "name": "Sloth Hat of Celebration",
+      "rarity": "SPECIAL"
     }
   },
   "max_upgrade_talismans": {
@@ -2843,8 +2855,8 @@
       "rarity": "EPIC"
     },
     "PARTY_HAT_CRAB": {
-      "name": "Crab Hat of Celebration - 2020",
-      "rarity": "SPECIAL"
+      "name": "Crab Hat of Celebration",
+      "rarity": "VERY_SPECIAL"
     },
     "PARTY_HAT_CRAB_ANIMATED": {
       "name": "Crab Hat of Celebration - 2022",
