@@ -32,7 +32,7 @@ import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
 import { fetchEnchantLevels, isUltimateEnchant, titleCaseEnchantId, toRoman, getCategoryEnchantIds, resolveEnchantCategory } from './enchantEffects';
 import { STONE_POWERS } from './accessoryPowers';
 import { getMaxStarsForItem } from './starring';
-import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
+import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
 
@@ -255,11 +255,9 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
 
 // Pet candidates default to max effectiveness — highest real rarity tier, max level, and (for
 // Golden Dragon specifically, harmless no-op for every other pet) maxed Legendary Treasure/
-// Shining Scales inputs (1b bank balance, 100m Gold Ingot collection — the real cap, see
-// petData.js's SHINING_SCALES_MAX_GOLD_COLLECTION) — user-specified, so a candidate pet's real
-// ceiling is what's compared, not its stats at 0/0.
-const OPTIMIZER_PET_BANK_COINS = 1_000_000_000;
-
+// Shining Scales inputs (see petData.js's MAX_GOLDEN_DRAGON_BANK_COINS/
+// SHINING_SCALES_MAX_GOLD_COLLECTION) — user-specified, so a candidate pet's real ceiling is what's
+// compared, not its stats at 0/0.
 async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
   const progression = PET_PROGRESSION_BY_MODE[mode];
   if (!progression) return [];
@@ -279,7 +277,7 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
           ...emptyPetModifiers(),
           level: getMaxPetLevel(candidate.petId),
           petItem: loadout.pet?.modifiers?.petItem || null,
-          bankCoins: OPTIMIZER_PET_BANK_COINS,
+          bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS,
           goldCollection: SHINING_SCALES_MAX_GOLD_COLLECTION,
         },
       },

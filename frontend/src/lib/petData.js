@@ -25,6 +25,13 @@ export const SHINING_SCALES_STRENGTH_PER_DIGIT = 11.1;
 export const SHINING_SCALES_MAGIC_FIND_PER_DIGIT = 2.2; // not tracked — reference only
 export const SHINING_SCALES_MAX_GOLD_COLLECTION = 100_000_000;
 
+// Legendary Treasure's %damage-per-million-bank-coins bonus caps out per the item's own real lore
+// (a "(Max +X%)" clause — see lib/damageSources.js's GOLDEN_DRAGON_TREASURE_RE), not at a fixed
+// coin amount — 1b is just comfortably past that cap for any real rarity, so "assume max
+// effectiveness" defaults (a fresh pet pick, or an optimizer candidate) can use one flat number
+// without checking which cap applies.
+export const MAX_GOLDEN_DRAGON_BANK_COINS = 1_000_000_000;
+
 function goldCollectionDigits(goldCollection) {
   const capped = Math.max(0, Math.min(goldCollection || 0, SHINING_SCALES_MAX_GOLD_COLLECTION));
   return capped === 0 ? 0 : Math.floor(Math.log10(capped)) + 1;
