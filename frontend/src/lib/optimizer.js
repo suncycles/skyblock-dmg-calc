@@ -264,16 +264,21 @@ export async function computeModeDamage(loadout, itemData, build, modeConfig, mo
 }
 
 // Shared by armor and equipment slots (both are "pick a real catalog item for this slot" —
-// identical shape, only the slot list/progression map/result category differ). Candidates swap in
-// a bare (unenchanted/unreforged/no stars) copy of the item — compares base-item potential, not a
-// fully min-maxed version of it, so a real upgrade's true ceiling may read a little higher than
-// shown here. `rarityOverride` (David's Cloak) mirrors the same "compare at real best-case" treatment.
+// identical shape, only the slot list/progression map/result category differ). Candidates carry
+// over the CURRENTLY equipped item's reforge and ultimate enchant (a real player immediately
+// re-applies their reforge stone/book on a fresh upgrade, not left bare) — compares "same
+// persistent upgrades, different base item" rather than a fully bare candidate against a
+// decked-out current item, which used to understate a real upgrade's true value. Gemstones/normal
+// enchants/stars are NOT carried (item-specific slot counts/categories, handled by their own
+// dedicated evaluators). `rarityOverride` (David's Cloak) mirrors the same "compare at real
+// best-case" treatment.
 async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category) {
   if (!progressionBySlot) return [];
   const results = [];
   for (const slot of slots) {
     const progression = progressionBySlot[slot];
     if (!progression) continue;
+    const currentModifiers = loadout[slot]?.modifiers;
     const currentId = loadout[slot]?.item?.id || null;
     const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
     const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
@@ -282,11 +287,24 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
       const modifiers = emptyModifiers();
       if (candidate.special != null) modifiers.special = candidate.special;
       if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
+      if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
+      if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
       const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
       const apply = [{ type: 'selectItem', slot, item: resolved }];
       if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
       if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
+      if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+      if (currentModifiers?.ultimateEnchantment) {
+        apply.push({
+          type: 'applyEnchant',
+          slot,
+          id: currentModifiers.ultimateEnchantment.id,
+          level: currentModifiers.ultimateEnchantment.level,
+          maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+          removeIds: [],
+        });
+      }
       return {
         category,
         slot,
@@ -311,6 +329,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
 async function evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
   const chains = WEAPON_PROGRESSION_BY_MODE[mode];
   if (!chains) return [];
+  const currentModifiers = loadout.weapon?.modifiers;
   const currentId = loadout.weapon?.item?.id || null;
   const results = [];
   for (const progression of Object.values(chains)) {
@@ -318,8 +337,26 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
     const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
       const resolved = resolveGearSummary({ id: candidate.id }, itemData);
       if (!resolved) return null; // catalog lookup failed — skip rather than guess
-      const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers: emptyModifiers() } };
+      // Same "carry over the current item's persistent upgrades" treatment as
+      // evaluateItemSlotCandidates above — a real player re-applies their reforge/ultimate
+      // enchant on a fresh weapon rather than leaving it bare.
+      const modifiers = emptyModifiers();
+      if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
+      if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
+      if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot: 'weapon', name: currentModifiers.reforge });
+      if (currentModifiers?.ultimateEnchantment) {
+        apply.push({
+          type: 'applyEnchant',
+          slot: 'weapon',
+          id: currentModifiers.ultimateEnchantment.id,
+          level: currentModifiers.ultimateEnchantment.level,
+          maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+          removeIds: [],
+        });
+      }
       return {
         category: 'Weapon',
         slot: 'weapon',
@@ -327,7 +364,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
         itemId: resolved.id,
         material: resolved.material,
         value,
-        apply: [{ type: 'selectItem', slot: 'weapon', item: resolved }],
+        apply,
       };
     });
     results.push(...evaluated);
