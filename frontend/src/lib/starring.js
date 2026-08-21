@@ -25,10 +25,27 @@ const HIGH_STAR_ITEM_IDS = new Set(['MAGMA_LORD_HELMET', 'MAGMA_LORD_CHESTPLATE'
 const INFERNAL_TIER_ARMOR_RE = /^INFERNAL_(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 const LOWER_TIER_VARIANT_ARMOR_RE = /^(?:HOT_|BURNING_|FIERY_)?(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 
+// Whether an item can be Starred at all in real Skyblock: the catalog's own `category` field
+// carries a real "DUNGEON " prefix for genuine Dungeon-tagged gear (ingested straight from
+// NotEnoughUpdates-REPO, e.g. "DUNGEON SWORD" vs plain "SWORD") — verified against
+// worker/src/data/{weapons,armor,equipment}.json, 293/1119 items match. Kuudra's armor families
+// and Magma Lord/Tormentor are real exceptions: also Starrable in-game but their category is
+// plain (not Dungeon-tagged), so they're carried forward via the same id sets/regexes the cap
+// logic below already trusted. Everything else defaults to non-Starrable.
+export function isStarrableItem(item) {
+  if (!item?.id) return false;
+  if (item.category?.startsWith('DUNGEON')) return true;
+  if (INFERNAL_TIER_ARMOR_RE.test(item.id)) return true;
+  if (LOWER_TIER_VARIANT_ARMOR_RE.test(item.id)) return true;
+  if (HIGH_STAR_ITEM_IDS.has(item.id)) return true;
+  return false;
+}
+
 // The max star count a given item can hold, out of a dungeon (Catacombs Stars in-dungeon use the
-// same count, uncapped by this per real-game data — see lib/dungeonize.js).
+// same count, uncapped by this per real-game data — see lib/dungeonize.js). 0 for anything not
+// Starrable at all (see isStarrableItem above).
 export function getMaxStarsForItem(item) {
-  if (!item?.id) return BASE_MAX_STARS;
+  if (!isStarrableItem(item)) return 0;
   if (INFERNAL_TIER_ARMOR_RE.test(item.id)) return INFERNAL_TIER_MAX_STARS;
   if (LOWER_TIER_VARIANT_ARMOR_RE.test(item.id)) return HIGH_STAR_MAX_STARS;
   if (HIGH_STAR_ITEM_IDS.has(item.id)) return HIGH_STAR_MAX_STARS;
