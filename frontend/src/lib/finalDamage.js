@@ -316,10 +316,14 @@ const VENOMOUS_EXCLUDED_MULTIPLICATIVE_ID = 'skyblock-level';
 // single-stack (N=1) value; DamageSources.jsx's stack graph multiplies it out to this cap.
 export const MAX_VENOMOUS_STACKS = 40;
 
+// User-confirmed: Venomous' poison DoT doesn't apply to these bosses in-game (real mechanic, not
+// a joke-mob/token-damage case — every other damage source still works normally against them).
+const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror', 'Inferno Demonlord']);
+
 export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
   const proc = sources.venomousProc;
   if (!proc) return null;
-  if (isJokeMob(mob)) return { ...proc, finalDamage: 0 };
+  if (isJokeMob(mob) || VENOMOUS_IMMUNE_MOBS.has(mob?.name)) return { ...proc, finalDamage: 0 };
 
   const { additiveNonConditional, additiveConditional, abilityMultiplicative } = sources;
 
