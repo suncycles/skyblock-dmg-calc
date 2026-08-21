@@ -528,8 +528,13 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
     const maxStars = getMaxStarsForItem(equipped.item);
     const currentStars = equipped.modifiers.stars || 0;
     if (currentStars >= maxStars) continue;
+    // Crimson: the FULL 1..max range every time (1..10 for the lower 4 tiers, 1..15 for
+    // Infernal), not just from the current count onward — user-specified. Anything at or below
+    // the current count computes a non-positive percentIncrease and is filtered out downstream
+    // (runOptimizer's withPercent), so this is safe/inert for already-passed levels, not a
+    // regression risk.
     const starLevels = CRIMSON_ARMOR_RE.test(equipped.item.id)
-      ? Array.from({ length: maxStars - currentStars }, (_, i) => currentStars + i + 1)
+      ? Array.from({ length: maxStars }, (_, i) => i + 1)
       : [maxStars];
     for (const stars of starLevels) {
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, stars } } };
