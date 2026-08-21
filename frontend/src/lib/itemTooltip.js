@@ -64,6 +64,21 @@ async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
   return totals;
 }
 
+// A handful of real items label their own innate attack-speed stat line "Attack Speed:" instead
+// of "Bonus Attack Speed:" (e.g. Deathripper Dagger) — same real player stat, just an
+// inconsistent Hypixel tooltip label. Normalized to the canonical "Bonus Attack Speed:" label
+// before any other lore transform runs, so mergeStatIntoBase/annotateStatLines and
+// damageSources.js's sumStatFromTooltipLines all treat it as the SAME line instead of the
+// item's own value getting silently dropped (nothing merges into an unrecognized label) while a
+// separate "Bonus Attack Speed: +Y" line gets appended alongside it for every other source.
+function normalizeAttackSpeedLabel(lore) {
+  return (lore || []).map((line) => {
+    const plain = line.replace(/§./g, '');
+    if (!/^\s*Attack Speed:/.test(plain)) return line;
+    return line.replace(/^(\s*(?:§.)*)(Attack Speed:)/, '$1Bonus $2');
+  });
+}
+
 // Builds the exact real-item tooltip (title + lore) with every applied modifier baked in —
 // gemstones, reforge, books/Art of War, special-weapon numbers, enchant stat bonuses and
 // name lines, and recombobulation — resolved off the item's current rarity. Shared by every
@@ -87,7 +102,7 @@ export async function buildFullItemTooltipLines(
   const displayTier = modifiers.recombobulated ? bumpRarity(baseTier) : baseTier;
   const gearType = getGearType(item.category);
 
-  let lore = applyGemstonesToLore(item.lore || [], modifiers.gemstones, displayTier);
+  let lore = applyGemstonesToLore(normalizeAttackSpeedLabel(item.lore), modifiers.gemstones, displayTier);
   // Reforge could be a free blacksmith one or a stone-exclusive one — check both maps.
   const reforge = modifiers.reforge
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
