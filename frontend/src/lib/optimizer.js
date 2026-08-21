@@ -4,13 +4,15 @@
 // have) — see pages/Optimizer.jsx; this only ever sorts by damage, per user direction.
 //
 // Two kinds of candidates:
-// - Curated progression lists (armor pieces, pets) — most of the armor/pet catalog is either
-//   irrelevant or has no modeled damage effect in this calculator, so these are hand-authored
-//   worst-to-best tier lists, confirmed with the user. Only Slayer mode has one so far; Mage/
-//   Dungeon-Archer/Dungeon-Mage only surface the brute-forced categories below until provided.
-//   Tiers are ordered worst -> best; multiple entries in one tier are sidegrades — every
-//   sidegrade is always evaluated (even the ones matching the player's current tier), since one
-//   may numerically beat another despite being nominally "equal".
+// - Curated progression lists (weapons, armor pieces, equipment, pets) — most of the catalog is
+//   either irrelevant or has no modeled damage effect in this calculator, so these are
+//   hand-authored worst-to-best tier lists, confirmed with the user. Only Slayer mode has one so
+//   far; Mage/Dungeon-Archer/Dungeon-Mage only surface the brute-forced categories below until
+//   provided. Tiers are ordered worst -> best; multiple entries in one tier are sidegrades —
+//   every sidegrade is always evaluated (even the ones matching the player's current tier),
+//   since one may numerically beat another despite being nominally "equal". Weapons are the one
+//   exception with more than one tier list per mode (SLAYER_WEAPON_PROGRESSION): each real
+//   Slayer type hands out its own independent chain, all targeting the single 'weapon' slot.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
 //   Power Stones, and Stars all have a small enumerable real catalog this app's damage pipeline
 //   already fully understands, so every real option is tested directly; no hand-authored list needed.
@@ -123,21 +125,61 @@ const SLAYER_EQUIPMENT_PROGRESSION = {
   ],
 };
 
-// "eman/tiger/other -> ankylosaurus/lion -> edrag/gdrag" — "tiger" has no real Skyblock pet by
-// that name, read as T-Rex (Tyrannosaurus); "other"/"eman" (Enderman) cover any unmodeled pet
-// generically (no special perk in this calculator, so they rank about the same as no pet at all).
+// User-specified: no clear universal "best" pet (situational — Golden Dragon is the general
+// pick, but not strictly dominant), so all 10 real ids (confirmed against NEU-REPO's
+// petnums.json) sit in one flat tier — every pet is always compared against every other,
+// unlike the strict worst->best chains below. "Tiger" is a real, separate pet from T-Rex
+// (Tyrannosaurus), not an alias for it.
 const SLAYER_PET_PROGRESSION = [
-  [{ petId: 'ENDERMAN' }, { petId: 'TYRANNOSAURUS' }],
-  [{ petId: 'ANKYLOSAURUS' }, { petId: 'LION' }],
-  [{ petId: 'ENDER_DRAGON' }, { petId: 'GOLDEN_DRAGON' }],
+  [
+    { petId: 'GRIFFIN' },
+    { petId: 'TYRANNOSAURUS' },
+    { petId: 'TIGER' },
+    { petId: 'ANKYLOSAURUS' },
+    { petId: 'LION' },
+    { petId: 'BLAZE' },
+    { petId: 'ZOMBIE' },
+    { petId: 'WITHER_SKELETON' },
+    { petId: 'ENDER_DRAGON' },
+    { petId: 'GOLDEN_DRAGON' },
+  ],
 ];
+
+// Slayer weapon reward lines — each Slayer type hands out its own fixed worst->best weapon
+// chain, independent of every other chain (a Reaper Falchion isn't "better or worse" than a
+// Scorpion Foil, they're for different Slayers). User-specified endpoints for all 4; ids
+// confirmed real against worker/src/data/weapons.json. Zombie/Spider lines are fully
+// user-specified. Enderman (katana) and the two Blaze (dagger) lines only had their endpoint
+// given ("ends at Atomsplit Katana" / "ending at Pyrochaos/Deathripper") — the middle links
+// below are inferred from real rarity progression (UNCOMMON->RARE->EPIC->LEGENDARY) and shared
+// id roots (VOID*_KATANA; FIRE*_DAGGER vs MAW*_DAGGER, matching the existing Firedust/Twilight
+// sibling-pair note above) — flag if this ordering is wrong.
+const SLAYER_WEAPON_PROGRESSION = {
+  zombie: [[{ id: 'UNDEAD_SWORD' }], [{ id: 'REVENANT_SWORD' }], [{ id: 'REAPER_SWORD' }], [{ id: 'AXE_OF_THE_SHREDDED' }]],
+  spider: [
+    [{ id: 'SPIDER_SWORD' }],
+    [{ id: 'RECLUSE_FANG' }],
+    [{ id: 'TARANTULA_FANG' }],
+    [{ id: 'SCORPION_FOIL' }],
+    [{ id: 'STING' }],
+  ],
+  enderman: [[{ id: 'VOIDWALKER_KATANA' }], [{ id: 'VOIDEDGE_KATANA' }], [{ id: 'VORPAL_KATANA' }], [{ id: 'ATOMSPLIT_KATANA' }]],
+  blaze_fire: [[{ id: 'FIREDUST_DAGGER' }], [{ id: 'BURSTFIRE_DAGGER' }], [{ id: 'HEARTFIRE_DAGGER' }]],
+  blaze_maw: [[{ id: 'MAWDUST_DAGGER' }], [{ id: 'BURSTMAW_DAGGER' }], [{ id: 'HEARTMAW_DAGGER' }]],
+};
 
 const ARMOR_PROGRESSION_BY_MODE = { slayer: SLAYER_ARMOR_PROGRESSION };
 const EQUIPMENT_PROGRESSION_BY_MODE = { slayer: SLAYER_EQUIPMENT_PROGRESSION };
 const PET_PROGRESSION_BY_MODE = { slayer: SLAYER_PET_PROGRESSION };
+const WEAPON_PROGRESSION_BY_MODE = { slayer: SLAYER_WEAPON_PROGRESSION };
 
 export function hasCuratedData(mode) {
-  return !!ARMOR_PROGRESSION_BY_MODE[mode] || !!EQUIPMENT_PROGRESSION_BY_MODE[mode] || !!PET_PROGRESSION_BY_MODE[mode];
+  return (
+    !!WEAPON_PROGRESSION_BY_MODE[mode] ||
+    !!ARMOR_PROGRESSION_BY_MODE[mode] ||
+    !!EQUIPMENT_PROGRESSION_BY_MODE[mode] ||
+    !!PET_PROGRESSION_BY_MODE[mode]
+  );
 }
 
 // No real-time Bazaar/AH price source wired up yet — every candidate's coin cost is this
@@ -254,6 +296,38 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         special: candidate.special,
         value,
         apply,
+      };
+    });
+    results.push(...evaluated);
+  }
+  return results;
+}
+
+// Weapon item choice: unlike armor/equipment/pet, several independent chains (see
+// SLAYER_WEAPON_PROGRESSION) all target the same single 'weapon' slot, so each chain is walked
+// separately (current weapon matched within THAT chain only, or from tier 0 if it's not part of
+// it) and every chain's results are merged — same bare-item comparison and apply shape as
+// evaluateItemSlotCandidates above, just without a slot-keyed progression map.
+async function evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
+  const chains = WEAPON_PROGRESSION_BY_MODE[mode];
+  if (!chains) return [];
+  const currentId = loadout.weapon?.item?.id || null;
+  const results = [];
+  for (const progression of Object.values(chains)) {
+    const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
+    const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
+      const resolved = resolveGearSummary({ id: candidate.id }, itemData);
+      if (!resolved) return null; // catalog lookup failed — skip rather than guess
+      const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers: emptyModifiers() } };
+      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      return {
+        category: 'Weapon',
+        slot: 'weapon',
+        label: formatItemName(resolved.name),
+        itemId: resolved.id,
+        material: resolved.material,
+        value,
+        apply: [{ type: 'selectItem', slot: 'weapon', item: resolved }],
       };
     });
     results.push(...evaluated);
@@ -538,7 +612,7 @@ async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, 
 }
 
 // Dedicated-slot order for the sidebar's fixed layout — one slot each, user-specified.
-export const OPTIMIZER_GEAR_SLOTS = [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS, 'pet'];
+export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS, 'pet'];
 
 // Runs every evaluator, computes % increase against the current loadout's real baseline, keeps
 // only genuine upgrades (positive delta). Coin cost isn't factored in anywhere here — see the
@@ -556,7 +630,8 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
 
-  const [armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs] = await Promise.all([
+  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs] = await Promise.all([
+    evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
     evaluateItemSlotCandidates(
       loadout,
@@ -587,7 +662,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       .map((r) => ({ ...r, percentIncrease: baselineValue > 0 ? ((r.value - baselineValue) / baselineValue) * 100 : 0 }))
       .filter((r) => r.percentIncrease > 0.001);
 
-  const slotCandidates = [...armor, ...equipment, ...pets];
+  const slotCandidates = [...weapons, ...armor, ...equipment, ...pets];
   const slots = {};
   for (const slot of OPTIMIZER_GEAR_SLOTS) {
     const forSlot = slotCandidates.filter((r) => r.slot === slot);
