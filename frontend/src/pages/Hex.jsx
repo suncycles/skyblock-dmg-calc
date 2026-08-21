@@ -12,7 +12,7 @@ import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
-import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
+import { computeBasePetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import WeaponIcon from '../components/WeaponIcon';
 
 // 6 rows x 9 columns, matching the reference screenshot.
@@ -55,9 +55,9 @@ export default function Hex() {
     if (!item) return;
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const petStats = computeEquippedPetStats(loadout, itemData);
-    const chimeraBonus = computeItemChimeraBonus(loadout[slot], petStats);
-    const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], petStats);
+    const basePetStats = computeBasePetStats(loadout, itemData);
+    const chimeraBonus = computeItemChimeraBonus(loadout[slot], basePetStats);
+    const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], basePetStats);
     const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
     const lines = await buildFullItemTooltipLines(
       item,

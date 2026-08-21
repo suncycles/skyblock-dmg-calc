@@ -5,7 +5,7 @@ import { useItemData } from '../context/ItemDataContext';
 import { formatItemName, parseMinecraftLine } from '../lib/mcText';
 import { getMaxStarsForItem, MASTER_STAR_MIN_BASE_STARS, MAX_MASTER_STARS } from '../lib/starring';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
-import { computeEquippedPetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
+import { computeBasePetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import { SLOT_TEXTURES } from '../lib/icons';
 import McTooltipLines from '../components/McTooltipLines';
 
@@ -36,9 +36,9 @@ export default function StarringPicker() {
       return;
     }
     let cancelled = false;
-    const petStats = computeEquippedPetStats(loadout, itemData);
-    const chimeraBonus = computeItemChimeraBonus(loadout[slot], petStats);
-    const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], petStats);
+    const basePetStats = computeBasePetStats(loadout, itemData);
+    const chimeraBonus = computeItemChimeraBonus(loadout[slot], basePetStats);
+    const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], basePetStats);
     const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
     buildFullItemTooltipLines(
       item,

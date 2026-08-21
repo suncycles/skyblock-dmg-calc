@@ -10,7 +10,7 @@ import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import {
   petLoreItemId,
   buildPetTooltipLines,
-  computeEquippedPetStats,
+  computeBasePetStats,
   computeItemChimeraBonus,
   computeManticoreClawBonus,
 } from '../lib/petData';
@@ -255,7 +255,7 @@ export default function Landing() {
     }
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const petStats = computeEquippedPetStats(loadout, itemData);
+    const petStats = computeBasePetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
     const manticoreClawBonus = computeManticoreClawBonus(equipped, petStats);
     const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
@@ -291,7 +291,7 @@ export default function Landing() {
     }
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
-    const petStats = computeEquippedPetStats(loadout, itemData);
+    const petStats = computeBasePetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout.weapon, petStats);
     const manticoreClawBonus = computeManticoreClawBonus(loadout.weapon, petStats);
     const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';

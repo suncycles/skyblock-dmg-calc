@@ -514,8 +514,12 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
 }
 
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
-  // Computed first so Chimera (found while scanning enchants below) can copy the pet's final stats.
-  let petStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
+  // Chimera/Manticore Claw copy only the pet's real BASE stat line (petnums.json's own
+  // level-interpolated numbers, captured below right after computeAllPetStats) — species perks
+  // (Ankylosaurus's +500 Strength, Lion's Primal Force, Golden Dragon's Shining Scales) and the
+  // equipped Pet Item's boost are pet ABILITIES, not base stats, so they're deliberately excluded
+  // here even though the player's own "Pet" stat lines further below correctly include all of them.
+  let basePetStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
   out.firstPounceFactor = 1;
   if (loadout.pet) {
@@ -523,6 +527,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const maxLevel = getMaxPetLevel(pet.petId);
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
     let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+    basePetStats = stats;
     stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
     const statsBeforePetItem = stats;
     const petItemId = modifiers.petItem;
@@ -598,7 +603,6 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       }
     }
 
-    petStats = stats;
     // `stats` here already includes every species perk applied above (Ankylosaurus, Lion's
     // Primal Force, ...) plus the pet item boost — subtract just the isolated pet-item delta
     // (not the stale pre-species-perk snapshot) so those flat additions aren't dropped.
@@ -682,7 +686,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // Each bonus gets its own isolated call rather than combining both into one, so an item with
     // both applied at once (unusual, but not prevented by the data model) still attributes each
     // to its own separate breakdown line instead of a lumped, ambiguous delta.
-    const chimeraBonus = computeItemChimeraBonus(equipped, petStats);
+    const chimeraBonus = computeItemChimeraBonus(equipped, basePetStats);
     if (chimeraBonus) {
       const chimeraLines = await buildFullItemTooltipLines(
         equipped.item,
@@ -711,7 +715,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       }
     }
 
-    const manticoreBonus = computeManticoreClawBonus(equipped, petStats);
+    const manticoreBonus = computeManticoreClawBonus(equipped, basePetStats);
     if (manticoreBonus) {
       const manticoreLines = await buildFullItemTooltipLines(
         equipped.item,
