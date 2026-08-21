@@ -291,18 +291,15 @@ function isHatAccessory(item) {
   return lore[lore.length - 1].replace(/§./g, "").includes("HATCESSORY");
 }
 
-// Real Hypixel tooltip label text for every stat this app tracks on gear (see frontend's
-// lib/reforgeData.js's STAT_LABELS — duplicated here since the worker can't import frontend
-// code; both are small/stable, kept in sync manually) — used to read each owned accessory's own
-// real "Stat: +X" lore line directly, instead of a hand-picked allowlist of named items.
+// Real Hypixel tooltip label text for the 3 stats individually-owned accessories are parsed for
+// (Strength/Crit Chance/Crit Damage only — user-scoped; no real accessory has Crit Chance as a
+// base stat, confirmed by checking every one's real lore, so that key is here for completeness
+// but never actually matches anything today) — used to read the real "Stat: +X" lore line
+// directly, only for the fixed id list in PARSABLE_ACCESSORY_STAT_IDS below.
 const ACCESSORY_STAT_LABELS = {
   strength: "Strength",
   crit_chance: "Crit Chance",
   crit_damage: "Crit Damage",
-  intelligence: "Intelligence",
-  ability_damage: "Ability Damage",
-  bonus_attack_speed: "Bonus Attack Speed",
-  ferocity: "Ferocity",
 };
 
 // Real accessory stat NAME (as written in flavor-text phrasing, lowercased) -> our tracked key —
@@ -311,15 +308,11 @@ const ACCESSORY_STAT_LABELS = {
 // Crystal's "Increases your Strength and Defense by +5 during the Day/Night" — the "+5" is fixed
 // literal text in the item's own real lore, not account-variable, so it resolves the same way a
 // leading stat line would). Superset of ACCESSORY_STAT_LABELS since a couple of real items
-// narratively grant Health/Defense/Speed too — filtered to tracked keys when summed below.
+// narratively grant Defense too — filtered to tracked keys when summed below.
 const ACCESSORY_STAT_NAME_TO_KEY = {
   strength: "strength",
   "crit chance": "crit_chance",
   "crit damage": "crit_damage",
-  intelligence: "intelligence",
-  "ability damage": "ability_damage",
-  "attack speed": "bonus_attack_speed",
-  ferocity: "ferocity",
 };
 
 function stripLoreLine(line) {
@@ -374,11 +367,54 @@ function parseNarrativeStatGrants(lore) {
   return stats;
 }
 
+// Fixed list of every real accessory confirmed (by checking its real lore directly, against the
+// bundled catalog — see worker/src/data/accessories.json, Aug 2026) to carry Strength or Crit
+// Damage as a base stat, either a leading "Stat: +X" line or the "Grants/Increases" narrative
+// phrasing above — user-scoped to just these two (Crit Chance is never a real accessory base
+// stat, see ACCESSORY_STAT_LABELS' comment). Parsing is restricted to just this fixed list rather
+// than every item in the bag, both for precision (no chance of a coincidental match in some
+// future/unusual item's flavor text) and because a few real accessories mention Strength without
+// it being a stable, always-on bag bonus — Bat Person Talisman/Ring/Artifact and Reaper Orb scale
+// with a momentary combat state (bats currently summoned / a 5s kill-stack, essentially always 0
+// outside active combat) and Master Skull tiers are a Dungeon-Master-Mode-only percentage bonus —
+// none of those are included here.
+//
+// Blood God Crest and Blood God Sigil both scale with a persistent lifetime kill counter (not a
+// momentary one) — the bundled catalog's snapshot has 0 kills for Crest (no leading line renders
+// at 0, confirmed real behavior) but a real counter for Sigil (whose leading "Strength: +4" line
+// exactly equals its own separately-shown "Bonus: +4 Strength" line) — strong evidence Hypixel
+// bakes the CURRENT resolved counter value into the leading line for a real account, so both are
+// included and rely on parseLeadingStatLines picking up whatever a real account's counter resolves
+// to (0 if genuinely no kills yet, same as today).
+//
+// Magic 8 Ball rerolls its bonus category (Farming/Foraging/Mining/Fishing/Combat) once per
+// SkyBlock Season — included because whichever category is currently active resolves into a real
+// leading stat line same as anything else; the other 4 categories aren't stats this app tracks, so
+// it contributes 0 except in Season(s) where the account's roll landed on the Combat (Strength) option.
+const PARSABLE_ACCESSORY_STAT_IDS = new Set([
+  "BLOOD_GOD_CREST", "BLOOD_GOD_SIGIL",
+  "BURSTSTOPPER_TALISMAN", "BURSTSTOPPER_ARTIFACT",
+  "DAY_CRYSTAL", "NIGHT_CRYSTAL", "MOONLIGHT_CRYSTAL", "SUNSHINE_CRYSTAL",
+  "RAGGEDY_SHARK_TOOTH_NECKLACE", "DULL_SHARK_TOOTH_NECKLACE", "HONED_SHARK_TOOTH_NECKLACE",
+  "SHARP_SHARK_TOOTH_NECKLACE", "RAZOR_SHARP_SHARK_TOOTH_NECKLACE",
+  "MAGIC_8_BALL",
+  "RED_CLAW_TALISMAN", "RED_CLAW_RING", "RED_CLAW_ARTIFACT",
+  "TINY_DANCER",
+]);
+
+// Gravity Talisman's real bonus is "+1 to +10 Strength and Defense, scaling with distance to the
+// island's spawn point" — a live positional value, not something derivable from a static lore
+// string, and not a stable "build" characteristic a damage calculator can represent (it changes as
+// the player walks around). User-confirmed: average it out to a flat +5 rather than parsing 0 or
+// guessing which end of the range to assume.
+const GRAVITY_TALISMAN_AVERAGE_STRENGTH = 5;
+
 // Computes live Magical Power (summed real Accessory Bag rarities), every individually-owned
-// accessory's own real stat line (generic — see parseLeadingStatLines/parseNarrativeStatGrants
-// above, replaces a previous hand-picked allowlist of ~5 named items), and a total Enrichments
-// count from a decoded talisman_bag item list — see the Promise.all above for where `items` comes
-// from. Dedup rules, both confirmed by the account owner:
+// accessory's own real stat line (parsed generically — see parseLeadingStatLines/
+// parseNarrativeStatGrants above — but only for the ~40 real ids in PARSABLE_ACCESSORY_STAT_IDS,
+// confirmed by checking each one's actual lore; replaces a previous hand-picked allowlist of just
+// 5 named items), and a total Enrichments count from a decoded talisman_bag item list — see the
+// Promise.all above for where `items` comes from. Dedup rules, both confirmed by the account owner:
 // - Owning multiple physical copies of the same accessory id only counts the best copy once for
 //   both Magical Power AND its own stat line (e.g. 4x Personal Compactor 7000 counts only its
 //   single highest tier, not all 4 summed).
@@ -416,12 +452,19 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     if (ea.talisman_enrichment) enrichmentCount++;
     if (id === "ABICASE") hasAbicase = true;
 
-    const lore = raw?.tag?.display?.Lore;
-    const itemStats = { ...parseNarrativeStatGrants(lore), ...parseLeadingStatLines(lore) };
-    for (const [statKey, value] of Object.entries(itemStats)) {
-      if (!value) continue;
-      if (!bestStatById[statKey]) bestStatById[statKey] = new Map();
-      bestStatById[statKey].set(id, Math.max(bestStatById[statKey].get(id) || 0, value));
+    let itemStats = null;
+    if (id === "GRAVITY_TALISMAN") {
+      itemStats = { strength: GRAVITY_TALISMAN_AVERAGE_STRENGTH };
+    } else if (PARSABLE_ACCESSORY_STAT_IDS.has(id)) {
+      const lore = raw?.tag?.display?.Lore;
+      itemStats = { ...parseNarrativeStatGrants(lore), ...parseLeadingStatLines(lore) };
+    }
+    if (itemStats) {
+      for (const [statKey, value] of Object.entries(itemStats)) {
+        if (!value) continue;
+        if (!bestStatById[statKey]) bestStatById[statKey] = new Map();
+        bestStatById[statKey].set(id, Math.max(bestStatById[statKey].get(id) || 0, value));
+      }
     }
   }
 
