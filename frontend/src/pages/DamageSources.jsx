@@ -71,7 +71,7 @@ function DpsStackTooltip({ active, payload, label }) {
   return (
     <div className="bg-neutral-900/95 border border-white/15 rounded px-2.5 py-1.5 text-[11px] text-white shadow-lg">
       <div className="font-bold mb-0.5">
-        {label} stack{label === 1 ? '' : 's'}
+        Hit {label}
       </div>
       {payload.map((p) => (
         <div key={p.dataKey} className="flex justify-between gap-3">
@@ -83,35 +83,37 @@ function DpsStackTooltip({ active, payload, label }) {
   );
 }
 
-// Real Venomous mechanic: every landed hit adds its own independent DoT stack, up to
-// MAX_VENOMOUS_STACKS (40) active at once — each stack ticks the same per-hit proc damage
-// independently, so N stacks deal N * perStackVenomousDamage. `otherDps` (Melee/Thunderlord/Fire
-// Aspect/Crimson Swipe — everything except Venomous) stays constant regardless of stack count, so
-// Total DPS at N stacks is just otherDps + N * perStackVenomousDamage — plotted alongside the
-// isolated Venomous contribution so the ramp's real impact on the whole build is visible, not just
-// Venomous in isolation. Always rendered (not gated on Venomous being equipped) — with no Venomous,
-// perStackVenomousDamage is 0 so both lines are just flat at otherDps/0, a "relatively linear"
-// placeholder until this graph grows a real non-Venomous axis to plot against.
-function VenomousStackGraph({ perStackVenomousDamage, otherDps, hasVenomous }) {
+// X-axis is "hits landed so far" — Venomous's real mechanic is that every landed hit adds its own
+// independent DoT stack (up to MAX_VENOMOUS_STACKS), so hit count and active-stack count are the
+// same number; `perStackVenomousDamage` scales linearly with it exactly as before. The same hit
+// count also now gates First Strike/Triple Strike: `steadyOtherDps` (Melee/Thunderlord/Fire
+// Aspect/Crimson Swipe at the steady, no-opening-bonus rate — see finalDamage.js's
+// computeDpsBreakdown) gets `meleeBoostDelta` added back on for hits within `firstHitBoostCount`
+// (1 for First Strike, 3 for Triple Strike, 0 for neither), so the line visibly steps down once
+// those hits stop applying instead of staying flat. Always rendered (not gated on Venomous/either
+// enchant being equipped) — with neither, `perStackVenomousDamage` and `meleeBoostDelta` are both
+// 0 so the line is just flat at steadyOtherDps, same placeholder behavior as before.
+function DpsByHitGraph({ perStackVenomousDamage, steadyOtherDps, meleeBoostDelta, firstHitBoostCount, hasVenomous }) {
   const data = Array.from({ length: MAX_VENOMOUS_STACKS }, (_, i) => {
-    const stack = i + 1;
-    const venomousDps = Math.round(perStackVenomousDamage * stack * DPS_HITS_PER_SECOND.venomous);
-    return { stack, venomousDps, totalDps: Math.round(otherDps) + venomousDps };
+    const hit = i + 1;
+    const venomousDps = Math.round(perStackVenomousDamage * hit * DPS_HITS_PER_SECOND.venomous);
+    const otherDps = steadyOtherDps + (hit <= firstHitBoostCount ? meleeBoostDelta : 0);
+    return { hit, venomousDps, totalDps: Math.round(otherDps) + venomousDps };
   });
 
   return (
     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
       <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
-        {hasVenomous ? `Total DPS by Active Venomous Stacks (1-${MAX_VENOMOUS_STACKS})` : 'Total DPS (no Venomous equipped)'}
+        {hasVenomous ? `Total DPS by Hit (1-${MAX_VENOMOUS_STACKS})` : 'Total DPS by Hit (no Venomous equipped)'}
       </span>
       <ResponsiveContainer width="100%" height={180}>
         <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid stroke={GRAPH_GRID_COLOR} vertical={false} />
           <XAxis
-            dataKey="stack"
+            dataKey="hit"
             tick={{ fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
             stroke={GRAPH_AXIS_COLOR}
-            label={{ value: 'Active Stacks', position: 'insideBottom', offset: -4, fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
+            label={{ value: 'Hits', position: 'insideBottom', offset: -4, fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
           />
           <YAxis tick={{ fill: GRAPH_AXIS_COLOR, fontSize: 11 }} stroke={GRAPH_AXIS_COLOR} width={56} tickFormatter={(v) => v.toLocaleString()} />
           <Tooltip content={<DpsStackTooltip />} cursor={{ stroke: GRAPH_GRID_COLOR, strokeWidth: 1 }} />
@@ -506,11 +508,25 @@ export default function DamageSources({ embedded = false }) {
                         <span className="text-sm font-bold text-black">Total DPS</span>
                         <span className="text-2xl font-mono font-bold text-black">{Math.round(dps.total).toLocaleString()}</span>
                       </div>
-                      <VenomousStackGraph
-                        perStackVenomousDamage={dps.venomousProc?.finalDamage || 0}
-                        otherDps={dps.total - dps.venomous}
-                        hasVenomous={!!dps.venomousProc}
-                      />
+                      {(() => {
+                        const appliedIds = [...(mobResult.finalDamage?.appliedIds || [])];
+                        const hasFirstStrike = appliedIds.some((id) => id.toLowerCase().endsWith('-first_strike'));
+                        const hasTripleStrike = appliedIds.some((id) => id.toLowerCase().endsWith('-triple_strike'));
+                        // Real weapons can't carry both (different enchant categories) — if data
+                        // somehow has both, Triple Strike's longer 3-hit window wins.
+                        const firstHitBoostCount = hasTripleStrike ? 3 : hasFirstStrike ? 1 : 0;
+                        const boostedMeleeFinalDamage = mobResult.finalDamage?.finalDamage || 0;
+                        const meleeBoostDelta = (boostedMeleeFinalDamage - dps.meleeFinalDamage) * dps.meleeHitsPerSecond;
+                        return (
+                          <DpsByHitGraph
+                            perStackVenomousDamage={dps.venomousProc?.finalDamage || 0}
+                            steadyOtherDps={dps.total - dps.venomous}
+                            meleeBoostDelta={meleeBoostDelta}
+                            firstHitBoostCount={firstHitBoostCount}
+                            hasVenomous={!!dps.venomousProc}
+                          />
+                        );
+                      })()}
                     </>
                   )}
                 </div>
