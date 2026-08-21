@@ -181,8 +181,10 @@ export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
   return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level, maxLevel));
 }
 
-// Full pet-stat pipeline (interpolate -> Shining Scales -> pet item -> Ender Dragon Superior) —
-// shared by the damage-calc aggregator and any item tooltip that needs the active pet's stats (Chimera).
+// Full pet-stat pipeline (interpolate -> Shining Scales -> pet item -> species perks) — the
+// pet's own real total, i.e. what it actually contributes to the player. NOT what Chimera/
+// Manticore Claw copy onto an item (see computeBasePetStats below) — species perks and the held
+// Pet Item's boost are pet abilities/equipment, not the pet's own base stat line.
 export function computeEquippedPetStats(loadout, itemData) {
   if (!loadout.pet) return null;
   const { item: pet, modifiers } = loadout.pet;
@@ -197,6 +199,19 @@ export function computeEquippedPetStats(loadout, itemData) {
   const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
   stats = applyLionPrimalForce(pet.petId, stats, otherNums);
   return applyAnkylosaurusMax(pet.petId, stats);
+}
+
+// The pet's real BASE stat line only — petnums.json's own level-interpolated numbers, before
+// Shining Scales/pet item/species perks (Ankylosaurus's +500 Strength, Lion's Primal Force, ...)
+// are layered on. Chimera and Manticore Claw copy THIS, not computeEquippedPetStats' full total —
+// those extra bonuses are pet abilities/equipment, not part of the pet's own base stats (bug case:
+// Ankylosaurus's ability-granted +500 Strength was incorrectly being copied onto the weapon too).
+export function computeBasePetStats(loadout, itemData) {
+  if (!loadout.pet) return null;
+  const { item: pet, modifiers } = loadout.pet;
+  const maxLevel = getMaxPetLevel(pet.petId);
+  const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+  return computeAllPetStats(levels, modifiers.level, maxLevel);
 }
 
 // The Chimera bonus for one equipped item slot ({item, modifiers}), or null if it doesn't have Chimera applied.
