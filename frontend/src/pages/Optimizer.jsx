@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { runOptimizer, applyOptimizerResult, OPTIMIZER_MODES, OPTIMIZER_GEAR_SLOTS, hasCuratedData } from '../lib/optimizer';
-import { useAccessoryOptimizerState } from '../lib/accessoryOptimizer';
+import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
@@ -29,6 +29,7 @@ const CATEGORY_COLORS = {
   'New Accessory': '#4ade80',
   Recombobulate: '#818cf8',
   'Perfect Gemstones': '#a78bfa',
+  'Magical Power (generic)': '#facc15',
 };
 
 // User-specified: reaching 82% Bonus Attack Speed is Slayer's single highest priority — shown as
@@ -86,8 +87,10 @@ export default function Optimizer() {
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
-
-  const mp = useAccessoryOptimizerState(build, itemData, itemDataLoading, mode, mobName, mobTypes);
+  // Real accessory bag list, persisted from whichever Hypixel import last ran (see
+  // lib/hypixelImport.js) — null means no import has ever happened, distinct from an import that
+  // found zero accessories. No separate fetch here: reuses whatever's already on the loadout.
+  const ownedAccessories = build.loadout.accessory?.modifiers?.ownedAccessories ?? null;
 
   useEffect(() => {
     if (itemDataLoading || !mobName || !mobTypes) {
@@ -118,12 +121,45 @@ export default function Optimizer() {
     mobName,
   ]);
 
-  // Magical Power candidates (own fetch/evaluate cycle, see useAccessoryOptimizerState) merge
-  // into the same "Other Upgrades" ranked list as every brute-forced category from runOptimizer,
-  // rather than a separate section — one consistent ranked list, per user direction.
-  const combinedOtherResults = [...state.otherResults, ...(mp.result?.results || [])].sort(
-    (a, b) => b.percentIncrease - a.percentIncrease,
-  );
+  const [mpResult, setMpResult] = useState(null);
+  const mpTokenRef = useRef(0);
+  useEffect(() => {
+    if (itemDataLoading || !mobName || !mobTypes) {
+      setMpResult(null);
+      return;
+    }
+    // No real account on file — still show Magical Power's real DPS effect, just as generic
+    // "+10/+20/... MP" steps (unknown cost, not tied to any specific real accessory) instead of
+    // real missing/upgradeable ones.
+    const candidates = ownedAccessories
+      ? itemData.accessoryFamilies && buildAccessoryCandidates(ownedAccessories, itemData.accessoryFamilies)
+      : buildGenericMpCandidates();
+    if (!candidates) {
+      setMpResult(null);
+      return;
+    }
+    const token = ++mpTokenRef.current;
+    evaluateAccessoryCandidates(build.loadout, itemData, build, mode, { name: mobName, types: mobTypes }, candidates).then((result) => {
+      if (mpTokenRef.current === token) setMpResult(result);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
+
+  // Magical Power candidates merge into the same "Other Upgrades" ranked list as every
+  // brute-forced category from runOptimizer, rather than a separate section — one consistent
+  // ranked list, per user direction. Sort toggle: "increase" is straightforward %DPS; "ratio" is
+  // damage-per-coin (null for every placeholder/unknown-cost result today, so it reads identically
+  // to "increase" until a real price source exists — see lib/optimizer.js's file header).
+  const [sortBy, setSortBy] = useState('increase');
+  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => {
+    if (sortBy === 'ratio') {
+      if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
+      if (a.ratio == null) return 1;
+      if (b.ratio == null) return -1;
+      return b.ratio - a.ratio;
+    }
+    return b.percentIncrease - a.percentIncrease;
+  });
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -153,37 +189,24 @@ export default function Optimizer() {
           )}
         </div>
 
-        <div className={`${panel} p-3 flex flex-col gap-2`}>
-          <div className={sectionTitle}>Magical Power</div>
-          <form onSubmit={mp.handleFetch} className="flex gap-2">
-            <input
-              className="flex-1 min-w-0 px-2.5 py-2 bg-white/90 border-[3px] border-black/60 text-sm text-black outline-none"
-              placeholder="Minecraft username"
-              value={mp.username}
-              onChange={(e) => mp.setUsername(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="px-3 py-2 text-sm font-bold text-black bg-[#8fbf3f] border-[3px] border-t-[#c5e88a] border-l-[#c5e88a] border-b-[#4d6b1f] border-r-[#4d6b1f] cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default"
-              disabled={mp.status === 'loading' || !mp.username.trim()}
-            >
-              {mp.status === 'loading' ? 'Loading...' : 'Fetch'}
-            </button>
-          </form>
-          {mp.status === 'error' && <div className="text-xs text-red-700">{mp.error}</div>}
-          {mp.owned && !mobName && <div className="text-[11px] text-neutral-700 italic">Pick a target mob to evaluate real accessory upgrades.</div>}
-          {mp.owned && mobName && (
-            <button
-              type="button"
-              className="px-3 py-2 text-sm font-bold text-black bg-[#8fbf3f] border-[3px] border-t-[#c5e88a] border-l-[#c5e88a] border-b-[#4d6b1f] border-r-[#4d6b1f] cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default self-start"
-              onClick={() => mp.handleEvaluate(mp.owned)}
-              disabled={mp.evaluating}
-            >
-              {mp.evaluating ? 'Evaluating...' : mp.result ? 'Re-evaluate' : 'Evaluate Accessories'}
-            </button>
-          )}
-          {mp.result && <div className="text-[11px] text-neutral-700">Current Magical Power: {mp.result.currentMp}</div>}
-        </div>
+        {!ownedAccessories ? (
+          mobName &&
+          mobTypes && (
+            <div className={`${panel} p-3 text-[11px] text-neutral-700 italic`}>
+              No Hypixel import on file — Magical Power suggestions below are generic +10 steps (unknown cost), not real
+              accessories. Import from Hypixel to see actual missing/upgradeable ones instead.
+            </div>
+          )
+        ) : (
+          mobName &&
+          mobTypes && (
+            <div className={`${panel} p-3 text-[11px] text-neutral-700`}>
+              {mpResult
+                ? `Magical Power: ${mpResult.currentMp} (${ownedAccessories.length} accessories on file)`
+                : `Evaluating ${ownedAccessories.length} real accessories for Magical Power upgrades...`}
+            </div>
+          )
+        )}
 
         {mode === 'slayer' && state.status === 'ok' && (
           <div className={`${panel} p-3 flex items-center justify-between`}>
@@ -231,7 +254,30 @@ export default function Optimizer() {
 
             {combinedOtherResults.length > 0 && (
               <div className={`${panel} p-3 flex flex-col gap-1.5`}>
-                <div className={sectionTitle}>Other Upgrades</div>
+                <div className="flex items-center justify-between pb-1 mb-0.5 border-b border-neutral-500/40">
+                  <span className="text-[13px] font-bold text-black uppercase tracking-wide">Other Upgrades</span>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSortBy('increase')}
+                      className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
+                        sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                      }`}
+                    >
+                      Highest Increase
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSortBy('ratio')}
+                      title="Damage increase per coin — same order as Highest Increase until real prices are wired up"
+                      className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
+                        sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                      }`}
+                    >
+                      Best Value
+                    </button>
+                  </div>
+                </div>
                 {combinedOtherResults.map((r, i) => (
                   <button
                     key={i}

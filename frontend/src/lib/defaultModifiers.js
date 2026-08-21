@@ -58,5 +58,11 @@ export function emptyAccessoryModifiers() {
     // from-scratch build. Replaces the old flat "Talisman Bonuses"/Red Claw manual inputs, which
     // only covered a handful of items by name instead of every real accessory generically.
     individualAccessoryStats: {},
+    // Real accessory id/tier/recombobulated list from the account's Accessory Bag + Inventory
+    // (see worker/src/index.js's `owned`), persisted from whatever Hypixel import last ran so the
+    // Damage Optimizer's Magical Power section can rank real missing/upgradeable accessories
+    // without a separate account fetch. null (not []) when no import has ever populated this —
+    // distinguishes "never imported" from "imported, account owns zero accessories".
+    ownedAccessories: null,
   };
 }
