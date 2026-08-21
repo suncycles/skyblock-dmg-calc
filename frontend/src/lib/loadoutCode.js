@@ -2,6 +2,7 @@ import { derivePetDisplayName } from './petData';
 import { getPowerById } from './accessoryPowers';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
 import { WORKER_BASE_URL } from './apiConfig';
+import { INFERNAL_CRIMSON_MAX_STACKS } from './armorSetBonuses';
 
 /* Encodes the entire build into one compact, URL-safe string and decodes it back — powers
    the "Loadouts" Export/Import buttons and the /loadout/:code share-link route. Only
@@ -146,7 +147,7 @@ function buildEncodableState({
     mageMode: !!mageMode,
     miscStats: trimZeros(miscStats),
     mobHpPercent: mobHpPercent ?? 100,
-    infernalCrimsonStacks: infernalCrimsonStacks ?? 1,
+    infernalCrimsonStacks: infernalCrimsonStacks ?? INFERNAL_CRIMSON_MAX_STACKS,
     swarmMobs: swarmMobs ?? 1,
     comboKills: comboKills ?? 1,
     legionPlayers: legionPlayers ?? 0,
@@ -217,7 +218,7 @@ function expandState(compact, itemData) {
     mageMode: !!compact.mageMode,
     miscStats: compact.miscStats || {},
     mobHpPercent: compact.mobHpPercent ?? 100,
-    infernalCrimsonStacks: compact.infernalCrimsonStacks ?? 1,
+    infernalCrimsonStacks: compact.infernalCrimsonStacks ?? INFERNAL_CRIMSON_MAX_STACKS,
     swarmMobs: compact.swarmMobs ?? 1,
     comboKills: compact.comboKills ?? 1,
     legionPlayers: compact.legionPlayers ?? 0,

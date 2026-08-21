@@ -82,12 +82,13 @@ function loadInitialMobHpPercent() {
   return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 100;
 }
 
-// Loads the Infernal Crimson combo-stack count (1-10, default 1) — only shown/applied once 2+
-// Infernal Crimson pieces are equipped, see lib/armorSetBonuses.js.
+// Loads the Infernal Crimson combo-stack count (1-10, default 10 — assume max stacks maintained,
+// same "compare at real ceiling" treatment as everything else defaulted to max) — only
+// shown/applied once 2+ Infernal Crimson pieces are equipped, see lib/armorSetBonuses.js.
 function loadInitialInfernalCrimsonStacks() {
   const stored = localStorage.getItem(INFERNAL_CRIMSON_STACKS_KEY);
-  const parsed = stored != null ? Number(stored) : 1;
-  return Number.isFinite(parsed) ? Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, parsed)) : 1;
+  const parsed = stored != null ? Number(stored) : INFERNAL_CRIMSON_MAX_STACKS;
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, parsed)) : INFERNAL_CRIMSON_MAX_STACKS;
 }
 
 // Loads the Ultimate Swarm "Swarm Mobs" count (1-10, default 1) — see lib/damageSources.js.
@@ -314,7 +315,7 @@ export function BuildProvider({ children }) {
   }, []);
 
   const setInfernalCrimsonStacks = useCallback((value) => {
-    const clamped = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(value) || 1)));
+    const clamped = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(value) || INFERNAL_CRIMSON_MAX_STACKS)));
     setInfernalCrimsonStacksState(clamped);
     localStorage.setItem(INFERNAL_CRIMSON_STACKS_KEY, String(clamped));
   }, []);
@@ -924,7 +925,10 @@ export function BuildProvider({ children }) {
     setMobHpPercentState(clampedMobHp);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(clampedMobHp));
 
-    const clampedStacks = Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(state.infernalCrimsonStacks) || 1)));
+    const clampedStacks = Math.max(
+      1,
+      Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(state.infernalCrimsonStacks) || INFERNAL_CRIMSON_MAX_STACKS)),
+    );
     setInfernalCrimsonStacksState(clampedStacks);
     localStorage.setItem(INFERNAL_CRIMSON_STACKS_KEY, String(clampedStacks));
 
