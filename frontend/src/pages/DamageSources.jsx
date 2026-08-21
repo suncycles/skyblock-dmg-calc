@@ -600,15 +600,11 @@ export default function DamageSources({ embedded = false }) {
                       <div
                         className={`flex items-baseline justify-between ${hasAbilityWeapon ? '' : 'border-t-2 border-neutral-500 pt-2 mt-1'}`}
                       >
-                        <span className="text-sm font-bold text-black">Final Damage (Beam)</span>
-                        <span className="text-2xl font-mono font-bold text-black">{beamDamage.finalDamage.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {beamDamageWithFabledMax && (
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs text-neutral-700">Final Damage (Beam, Fabled up to +{FABLED_CRIT_BONUS_MAX_PERCENT}%)</span>
-                        <span className="text-base font-mono text-neutral-700">
-                          {beamDamage.finalDamage.toLocaleString()} ~ {beamDamageWithFabledMax.finalDamage.toLocaleString()}
+                        <span className="text-sm font-bold text-black">Final Damage (Beam{beamDamageWithFabledMax ? ', Fabled' : ''})</span>
+                        <span className="text-2xl font-mono font-bold text-black">
+                          {beamDamageWithFabledMax
+                            ? `${beamDamage.finalDamage.toLocaleString()} ~ ${beamDamageWithFabledMax.finalDamage.toLocaleString()}`
+                            : beamDamage.finalDamage.toLocaleString()}
                         </span>
                       </div>
                     )}
@@ -678,10 +674,13 @@ export default function DamageSources({ embedded = false }) {
                     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
                       <div className="flex items-baseline justify-between">
                         <span className="text-sm font-bold text-black">
-                          Final Damage{finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}
+                          Final Damage{finalDamageWithFabledMax ? ' (Fabled)' : ''}
+                          {finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}
                         </span>
                         <span className="text-2xl font-mono font-bold text-black">
-                          {finalDamage.finalDamage.toLocaleString()}
+                          {finalDamageWithFabledMax
+                            ? `${finalDamage.finalDamage.toLocaleString()} ~ ${finalDamageWithFabledMax.finalDamage.toLocaleString()}`
+                            : finalDamage.finalDamage.toLocaleString()}
                         </span>
                       </div>
                       {finalDamageWithoutVanquished && (
@@ -689,16 +688,6 @@ export default function DamageSources({ embedded = false }) {
                           <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
                           <span className="text-base font-mono text-neutral-700">
                             {finalDamageWithoutVanquished.finalDamage.toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      {finalDamageWithFabledMax && (
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-xs text-neutral-700">
-                            Final Damage (Fabled, up to +{FABLED_CRIT_BONUS_MAX_PERCENT}%)
-                          </span>
-                          <span className="text-base font-mono text-neutral-700">
-                            {finalDamage.finalDamage.toLocaleString()} ~ {finalDamageWithFabledMax.finalDamage.toLocaleString()}
                           </span>
                         </div>
                       )}

@@ -261,17 +261,13 @@ function MobResultCard({ label, r }) {
             <span className="text-right font-mono">{round4(r.finalDamage.multiplicativeMultiplier)}x</span>
           </div>
           <div className="flex items-baseline justify-between border-t border-neutral-400 pt-1 mt-1">
-            <span className="text-xs font-bold text-black">Final Damage</span>
-            <span className="text-xl font-mono font-bold text-black">{r.finalDamage.finalDamage.toLocaleString()}</span>
+            <span className="text-xs font-bold text-black">Final Damage{r.finalDamageWithFabledMax ? ' (Fabled)' : ''}</span>
+            <span className="text-xl font-mono font-bold text-black">
+              {r.finalDamageWithFabledMax
+                ? `${r.finalDamage.finalDamage.toLocaleString()} ~ ${r.finalDamageWithFabledMax.finalDamage.toLocaleString()}`
+                : r.finalDamage.finalDamage.toLocaleString()}
+            </span>
           </div>
-          {r.finalDamageWithFabledMax && (
-            <div className="flex items-baseline justify-between">
-              <span className="text-[10px] text-neutral-600">Fabled, up to +{FABLED_CRIT_BONUS_MAX_PERCENT}%</span>
-              <span className="text-xs font-mono text-neutral-600">
-                {r.finalDamage.finalDamage.toLocaleString()} ~ {r.finalDamageWithFabledMax.finalDamage.toLocaleString()}
-              </span>
-            </div>
-          )}
         </>
       )}
     </div>
