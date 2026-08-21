@@ -28,7 +28,7 @@ import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
 import { getMobLocations } from './mobLocations';
-import { CRIMSON_SWIPE_BASE_PERCENT, hasFullSet } from './armorSetBonuses';
+import { CRIMSON_SWIPE_BASE_PERCENT, hasFullSet, computeCrimsonSwipeInfo } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
@@ -85,7 +85,10 @@ function selectBaseStats(sources, useDungeonizedStats, useMasterMode) {
 // `useDungeonizedStats` swaps in each dungeonized gear item's own Catacombs-scaled stat total
 // (sources.dungeonizedBaseStats) in place of its normal one; `useMasterMode` (only meaningful
 // alongside useDungeonizedStats) additionally folds in each item's Master Star delta — see lib/dungeonize.js.
-export function computeFinalDamage(sources, mob, useDungeonizedStats = false, useMasterMode = false) {
+// `excludeFirstHitOnly` drops First Strike/Triple Strike (damageSources.js's firstHitOnly-tagged
+// entries) — used by computeDpsBreakdown below for its steady-state hit, since those enchants only
+// fire on a fight's opening hit(s), not every hit.
+export function computeFinalDamage(sources, mob, useDungeonizedStats = false, useMasterMode = false, excludeFirstHitOnly = false) {
   if (isJokeMob(mob)) {
     return {
       initialDamage: 0,
@@ -106,6 +109,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 
   let additivePercent = 0;
   for (const e of additiveNonConditional) {
+    if (excludeFirstHitOnly && e.firstHitOnly) continue;
     additivePercent += e.value;
     appliedIds.add(e.id);
   }
@@ -396,13 +400,25 @@ export const DPS_HITS_PER_SECOND = {
   crimsonSwipe: 1,
 };
 
-export function computeDpsBreakdown(mobResult, bonusAttackSpeed, loadout) {
+// `sources`/`mob` mirror computeFinalDamage's params (`useDungeonizedStats`/`useMasterMode` too);
+// everything DPS-mode needs — steady-state melee hit plus every proc — is derived here from
+// scratch rather than reusing a caller's already-computed melee-mode finalDamage/procs, since
+// those bake in First Strike/Triple Strike's opening-hit-only bonus (see computeFinalDamage's
+// excludeFirstHitOnly) which must NOT be multiplied into every hit/second below.
+export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats = false, useMasterMode = false) {
+  const bonusAttackSpeed = sources.baseStats.bonus_attack_speed || 0;
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
-  const melee = (mobResult.finalDamage?.finalDamage || 0) * meleeHitsPerSecond;
-  const venomous = (mobResult.venomousProcDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.venomous;
-  const thunderlord = (mobResult.thunderlordProcDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.thunderlord;
-  const fireAspect = (mobResult.fireAspectProcDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.fireAspect;
-  const crimsonSwipe = (mobResult.crimsonSwipeDamage?.finalDamage || 0) * DPS_HITS_PER_SECOND.crimsonSwipe;
+  const steadyFinalDamage = computeFinalDamage(sources, mob, useDungeonizedStats, useMasterMode, true);
+  const meleeFinalDamage = steadyFinalDamage.finalDamage;
+  const melee = meleeFinalDamage * meleeHitsPerSecond;
+  const venomousProc = computeVenomousProcDamage(sources, mob, meleeFinalDamage);
+  const thunderlordProc = computeEnchantProcDamage(meleeFinalDamage, sources.thunderlordProc);
+  const fireAspectProc = computeEnchantProcDamage(meleeFinalDamage, sources.fireAspectProc);
+  const crimsonSwipeProc = computeCrimsonSwipeDamage(meleeFinalDamage, computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS));
+  const venomous = (venomousProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.venomous;
+  const thunderlord = (thunderlordProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.thunderlord;
+  const fireAspect = (fireAspectProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.fireAspect;
+  const crimsonSwipe = (crimsonSwipeProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.crimsonSwipe;
   return {
     melee,
     venomous,
@@ -411,5 +427,6 @@ export function computeDpsBreakdown(mobResult, bonusAttackSpeed, loadout) {
     crimsonSwipe,
     meleeHitsPerSecond,
     total: melee + venomous + thunderlord + fireAspect + crimsonSwipe,
+    venomousProc,
   };
 }

@@ -3,16 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources, FABLED_REFORGE_ID } from '../lib/damageSources';
-import {
-  computeFinalDamage,
-  computeVenomousProcDamage,
-  computeEnchantProcDamage,
-  computeCrimsonSwipeDamage,
-  computeDpsBreakdown,
-  DPS_HITS_PER_SECOND,
-} from '../lib/finalDamage';
-import { computeCrimsonSwipeInfo } from '../lib/armorSetBonuses';
-import { ARMOR_SLOTS } from '../lib/armorSlots';
+import { computeFinalDamage, computeDpsBreakdown, DPS_HITS_PER_SECOND } from '../lib/finalDamage';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
@@ -179,20 +170,9 @@ function computeSideMobResult(side, mobName) {
       )
     : null;
 
-  // DPS Mode (see DamageSources.jsx's computeDpsBreakdown) — same per-proc pipeline, computed
-  // unconditionally alongside Final Damage since it's cheap and the toggle only decides which one renders.
-  const venomousProcDamage = computeVenomousProcDamage(side.result, mob, finalDamage.finalDamage);
-  const fireAspectProcDamage = computeEnchantProcDamage(finalDamage.finalDamage, side.result.fireAspectProc);
-  const thunderlordProcDamage = computeEnchantProcDamage(finalDamage.finalDamage, side.result.thunderlordProc);
-  const crimsonSwipeDamage = computeCrimsonSwipeDamage(
-    finalDamage.finalDamage,
-    computeCrimsonSwipeInfo(side.state.loadout, ARMOR_SLOTS),
-  );
-  const dps = computeDpsBreakdown(
-    { finalDamage, venomousProcDamage, fireAspectProcDamage, thunderlordProcDamage, crimsonSwipeDamage },
-    side.result.baseStats.bonus_attack_speed || 0,
-    side.state.loadout,
-  );
+  // DPS Mode (see finalDamage.js's computeDpsBreakdown) — computed unconditionally alongside
+  // Final Damage since it's cheap and the toggle only decides which one renders.
+  const dps = computeDpsBreakdown(side.result, mob, side.state.loadout, side.state.useDungeonizedStats, side.state.useMasterMode);
 
   return { status: 'ok', finalDamage, finalDamageWithFabledMax, dps };
 }

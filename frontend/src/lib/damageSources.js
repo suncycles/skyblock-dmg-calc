@@ -907,10 +907,13 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         out.additiveConditional.push({ id, label: name, source, value, condition, abilityEligible: !!mobTypes });
       } else if (FIRST_HIT_ENCHANT_IDS.has(entry.id.toLowerCase())) {
         // Only counted at 100% mob HP. Lion's First Pounce scales this up (see collectBaseStats).
+        // firstHitOnly marks these for exclusion from DPS's steady-state hit (finalDamage.js's
+        // computeDpsBreakdown) — First Strike only fires on the fight's opening hit, Triple Strike
+        // only its first 3, so neither belongs in a number that's multiplied by every hit/second.
         if (mobHpPercent === 100) {
           const boosted = value * firstPounceFactor;
           const label = firstPounceFactor > 1 ? `${name} (first hit, 100% HP, Lion First Pounce)` : `${name} (first hit, 100% HP)`;
-          out.additiveNonConditional.push({ id, label, source, value: boosted });
+          out.additiveNonConditional.push({ id, label, source, value: boosted, firstHitOnly: true });
         }
       } else {
         out.additiveNonConditional.push({ id, label: name, source, value });
