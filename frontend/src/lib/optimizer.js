@@ -509,8 +509,17 @@ async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig
   return results;
 }
 
+// Every real Crimson armor power tier (Basic/Hot/Burning/Fiery/Infernal) — user-specified: each
+// individual star level counts as its own separate upgrade suggestion for these, not just a
+// single jump-to-max entry, since Crimson's 10/15-star range is a real, expensive-per-star grind
+// (unlike a normal 5-star item) worth seeing broken down. Verified real ids against
+// worker/src/data/armor.json (exactly 20: 5 tiers x 4 pieces).
+const CRIMSON_ARMOR_RE = /^(?:INFERNAL_|HOT_|BURNING_|FIERY_)?CRIMSON_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
+
 // Brute-forces starring the weapon and every equipped armor piece up to its real max (see
-// lib/starring.js's getMaxStarsForItem) — covers the "infernal stars" step in the user's spec generically.
+// lib/starring.js's getMaxStarsForItem) — covers the "infernal stars" step in the user's spec
+// generically. Every non-Crimson item still gets one "jump straight to max" suggestion; Crimson
+// armor (see CRIMSON_ARMOR_RE above) gets one candidate per individual star level instead.
 async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
   for (const slot of ['weapon', ...ARMOR_SLOTS]) {
@@ -519,15 +528,20 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
     const maxStars = getMaxStarsForItem(equipped.item);
     const currentStars = equipped.modifiers.stars || 0;
     if (currentStars >= maxStars) continue;
-    const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, stars: maxStars } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-    results.push({
-      category: 'Stars',
-      slot,
-      label: `${formatItemName(equipped.item.name)} — ${maxStars}✩`,
-      value,
-      apply: [{ type: 'setStarCount', slot, count: maxStars }],
-    });
+    const starLevels = CRIMSON_ARMOR_RE.test(equipped.item.id)
+      ? Array.from({ length: maxStars - currentStars }, (_, i) => currentStars + i + 1)
+      : [maxStars];
+    for (const stars of starLevels) {
+      const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, stars } } };
+      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      results.push({
+        category: 'Stars',
+        slot,
+        label: `${formatItemName(equipped.item.name)} — ${stars}✩`,
+        value,
+        apply: [{ type: 'setStarCount', slot, count: stars }],
+      });
+    }
   }
   return results;
 }
