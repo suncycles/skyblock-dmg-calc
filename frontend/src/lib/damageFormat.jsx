@@ -31,6 +31,16 @@ export function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
+// 3 significant figures (not a fixed decimal count) — for "+X% DPS" optimizer text, where a
+// small candidate's real increase (e.g. 0.512%) needs more decimal precision to stay meaningful
+// than a large one (373%) does.
+export function round3Sig(n) {
+  if (!n) return 0;
+  const magnitude = Math.floor(Math.log10(Math.abs(n)));
+  const factor = Math.pow(10, 2 - magnitude);
+  return Math.round(n * factor) / factor;
+}
+
 // Multiplicative sources can be much finer-grained than 1-decimal % entries (Skyblock Level is +0.0001x/level).
 export function round4(n) {
   return Math.round(n * 10000) / 10000;

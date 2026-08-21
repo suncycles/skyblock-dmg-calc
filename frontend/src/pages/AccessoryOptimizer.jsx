@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
-import { fetchHypixelImport, HypixelImportError } from '../lib/hypixelImport';
-import { buildAccessoryCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
+import { useAccessoryOptimizerState } from '../lib/accessoryOptimizer';
 import { OPTIMIZER_MODES } from '../lib/optimizer';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1 } from '../lib/damageFormat';
+import { round1, round3Sig } from '../lib/damageFormat';
 import PageHeader from '../components/PageHeader';
 
 const panel =
@@ -52,7 +51,7 @@ function CandidateRow({ result, onSwapIn }) {
           Cost: {result.cost.toLocaleString()} coins · Ratio: {result.ratio != null ? round1(result.ratio) : '—'}
         </span>
       </div>
-      <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
+      <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
     </button>
   );
 }
@@ -68,56 +67,18 @@ export default function AccessoryOptimizer() {
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
   const [mode, setMode] = useState('slayer');
-  const [username, setUsername] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | ok | error
-  const [error, setError] = useState(null);
-  const [owned, setOwned] = useState(null);
-  const [result, setResult] = useState(null);
-  const [evaluating, setEvaluating] = useState(false);
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
 
-  async function handleFetch(e) {
-    e.preventDefault();
-    if (!username.trim()) return;
-    setStatus('loading');
-    setError(null);
-    try {
-      let raw = await fetchHypixelImport(username.trim());
-      // Multiple SkyBlock profiles: this "temporary" implementation just uses whichever profile
-      // Hypixel lists first rather than offering a picker (the main Hypixel Import page already
-      // has that picker — reused here would be scope creep for a prototype).
-      if (raw.needsProfileSelection) {
-        const profileId = raw.profiles.find((p) => p.selected)?.profile_id || raw.profiles[0].profile_id;
-        raw = await fetchHypixelImport(username.trim(), { profile: profileId });
-      }
-      setOwned(raw.accessory?.owned || []);
-      setStatus('ok');
-    } catch (err) {
-      setError(err instanceof HypixelImportError ? err.message : 'Import failed, try again.');
-      setStatus('error');
-    }
-  }
-
-  async function handleEvaluate(ownedList) {
-    if (itemDataLoading || !mobName || !mobTypes || !itemData.accessoryFamilies) return;
-    setEvaluating(true);
-    try {
-      const candidates = buildAccessoryCandidates(ownedList, itemData.accessoryFamilies);
-      const evaluated = await evaluateAccessoryCandidates(
-        build.loadout,
-        itemData,
-        build,
-        mode,
-        { name: mobName, types: mobTypes },
-        candidates,
-      );
-      setResult(evaluated);
-    } finally {
-      setEvaluating(false);
-    }
-  }
+  const { username, setUsername, status, error, owned, result, evaluating, handleFetch, handleEvaluate } = useAccessoryOptimizerState(
+    build,
+    itemData,
+    itemDataLoading,
+    mode,
+    mobName,
+    mobTypes,
+  );
 
   function handleSwapIn(candidate) {
     build.setAccessoryMagicalPower(result.currentMp + candidate.mpGain);
