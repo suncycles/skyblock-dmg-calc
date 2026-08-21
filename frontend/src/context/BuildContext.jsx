@@ -5,6 +5,7 @@ import { ATTRIBUTE_IDS, getAttributeMaxLevel } from '../lib/attributes';
 import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from '../lib/starring';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
+import { getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from '../lib/petData';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
@@ -542,7 +543,22 @@ export function BuildProvider({ children }) {
                     color: item.color,
                   },
           modifiers:
-            slot === 'pet' ? emptyPetModifiers() : slot === 'accessory' ? prev.accessory?.modifiers || emptyAccessoryModifiers() : gearModifiers,
+            slot === 'pet'
+              ? {
+                  ...emptyPetModifiers(),
+                  // Freshly-picked pets default to max effectiveness (max level, and for Golden
+                  // Dragon specifically, maxed Legendary Treasure/Shining Scales inputs) rather
+                  // than level 1/0 — a real Hypixel import overwrites these with the account's
+                  // actual values afterward (see lib/hypixelImport.js), so this only matters for
+                  // a from-scratch pick.
+                  level: getMaxPetLevel(item.petId),
+                  ...(item.petId === 'GOLDEN_DRAGON'
+                    ? { bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS, goldCollection: SHINING_SCALES_MAX_GOLD_COLLECTION }
+                    : null),
+                }
+              : slot === 'accessory'
+                ? prev.accessory?.modifiers || emptyAccessoryModifiers()
+                : gearModifiers,
         },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
