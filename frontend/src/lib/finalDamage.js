@@ -269,20 +269,20 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
 // alongside (not instead of) the weapon's own Ability Damage. All melee weapon attacks also fire
 // as a ranged beam dealing a multiple of the character's full melee Final Damage
 // (computeFinalDamage's output for the same mob), scaled up by Intelligence. User-provided formula:
-//   BeamDamage = MeleeFinalDamage * (1.3 + 0.09% * Intelligence)
+//   BeamDamage = MeleeFinalDamage * (0.3 + 0.0009 * Intelligence / 1000)
 // Independent of whether the equipped weapon has an ABILITY_DAMAGE_TABLE entry — unlike
 // computeAbilityDamage, this never returns null for that reason. Uses the same dungeon/master-
 // respective Intelligence as the rest of Mage Mode, via the shared selectBaseStats. Purely
 // multiplicative on meleeFinalDamage, so a joke-mob's already-zeroed melee damage (see
 // isJokeMob in computeFinalDamage) naturally zeroes the Beam too — no separate gate needed here.
-const MAGE_STAFF_BEAM_BASE_MULTIPLIER = 1.3;
-const MAGE_STAFF_BEAM_INTELLIGENCE_PERCENT_PER_POINT = 0.0009;
+const MAGE_STAFF_BEAM_BASE_MULTIPLIER = 0.3;
+const MAGE_STAFF_BEAM_INTELLIGENCE_RATE = 0.0009;
 
 export function computeMageStaffBeamDamage(sources, meleeFinalDamage, useDungeonizedStats = false, useMasterMode = false) {
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
   const intelligence = baseStats.intelligence || 0;
   const finalDamage = Math.floor(
-    meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + MAGE_STAFF_BEAM_INTELLIGENCE_PERCENT_PER_POINT * intelligence),
+    meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + (MAGE_STAFF_BEAM_INTELLIGENCE_RATE * intelligence) / 1000),
   );
   return { meleeFinalDamage, intelligence, finalDamage };
 }
