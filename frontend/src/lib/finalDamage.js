@@ -428,5 +428,9 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     meleeHitsPerSecond,
     total: melee + venomous + thunderlord + fireAspect + crimsonSwipe,
     venomousProc,
+    // Steady-state per-hit melee damage (excludes First Strike/Triple Strike) — exposed so
+    // DamageSources.jsx's by-hit graph can compare it against the opening-hit(s)' real (boosted)
+    // per-hit value to plot the DPS dip once those enchants stop applying.
+    meleeFinalDamage,
   };
 }
