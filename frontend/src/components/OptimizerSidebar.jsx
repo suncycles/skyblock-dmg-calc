@@ -62,12 +62,19 @@ function UpgradeRow({ result, onSwapIn }) {
   );
 }
 
-// Right-side "Recommended Upgrades" sidebar on the main Loadout screen (Landing.jsx) — a live
-// view of lib/optimizer.js's engine with a click-to-equip "swap-in" row per result. Clicking a
-// row calls applyOptimizerResult, which mutates the real loadout via the same BuildContext
-// functions the item pickers use; the effect below is keyed on build.loadout, so it re-runs
-// automatically afterward and the just-applied upgrade naturally drops out of the list (it's now
-// the baseline) — no separate "remove from list" bookkeeping needed.
+// "Recommended Upgrades" panel on the main Loadout screen (Landing.jsx) — a live view of
+// lib/optimizer.js's engine with a click-to-equip "swap-in" row per result. Clicking a row calls
+// applyOptimizerResult, which mutates the real loadout via the same BuildContext functions the
+// item pickers use; the effect below is keyed on build.loadout, so it re-runs automatically
+// afterward and the just-applied upgrade naturally drops out of the list (it's now the baseline)
+// — no separate "remove from list" bookkeeping needed.
+//
+// Always rendered (shown by default, not hidden behind a toggle) — a fixed right-side sidebar at
+// the `lg` breakpoint and up (verified live against this page's actual centered content at 1024px
+// — a 280px fixed sidebar plus its own margins comfortably clears the centered max-w-[700px] grid
+// at that width), and an ordinary in-flow block below it on narrower/mobile layouts — Landing.jsx
+// places this component right after the gear grid specifically so that in-flow position lands
+// directly below it.
 //
 // One dedicated row per gear slot (Helmet/Chestplate/Leggings/Boots/Necklace/Cloak/Belt/Gloves/
 // Pet) showing only the immediate next tier's best candidate, or "No upgrades available" — plus a
@@ -113,7 +120,7 @@ export default function OptimizerSidebar() {
   ]);
 
   return (
-    <div className="hidden 2xl:flex flex-col gap-2 fixed right-4 top-20 w-[280px] max-h-[calc(100vh-6rem)] overflow-y-auto">
+    <div className="flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 lg:fixed lg:right-4 lg:top-20 lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
       <div className={`${panel} p-2 flex flex-col gap-1.5`}>
         <div className={sectionTitle}>Recommended Upgrades</div>
         <div className="grid grid-cols-2 gap-1">

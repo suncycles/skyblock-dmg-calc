@@ -687,9 +687,7 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 relative">
-      <OptimizerSidebar />
-
+    <div className="min-h-screen flex flex-col items-center p-4 lg:pr-[320px] relative">
       {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow
           above the grid (not fixed/pinned over content), so it can never overlap the central GUI
           regardless of viewport size: flow-stacked elements simply can't occupy the same space.
@@ -800,6 +798,11 @@ export default function Landing() {
           {cells}
         </div>
       </div>
+
+      {/* Placed here (not at the top of the page) so its own in-flow position on narrower/mobile
+          layouts — where OptimizerSidebar renders as an ordinary block instead of a fixed sidebar
+          — lands directly below the gear grid, per its own responsive behavior. */}
+      <OptimizerSidebar />
 
       <button
         className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer flex items-center gap-2"
