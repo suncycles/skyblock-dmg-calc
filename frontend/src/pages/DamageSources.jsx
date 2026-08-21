@@ -341,9 +341,10 @@ export default function DamageSources({ embedded = false }) {
     mageMode && result
       ? targetMobs.map((name, idx) => {
           const types = MOB_TYPES[name] || null;
-          if (!types) return { name, types: null, abilityDamage: null, beamDamage: null };
+          if (!types) return { name, types: null, abilityDamage: null, beamDamage: null, beamDamageWithFabledMax: null };
           const mob = { name, types };
           const meleeFinalDamage = mobResults[idx]?.finalDamage?.finalDamage;
+          const meleeFinalDamageWithFabledMax = mobResults[idx]?.finalDamageWithFabledMax?.finalDamage;
           return {
             name,
             types,
@@ -351,6 +352,13 @@ export default function DamageSources({ embedded = false }) {
             beamDamage:
               meleeFinalDamage != null
                 ? computeMageStaffBeamDamage(result, meleeFinalDamage, useDungeonizedStats, useMasterMode)
+                : null,
+            // Beam is a cut of melee Final Damage, so Fabled's randomized crit bonus (see
+            // finalDamageWithFabledMax above) carries through the same way — a second "up to"
+            // figure, not folded into the baseline Beam number.
+            beamDamageWithFabledMax:
+              meleeFinalDamageWithFabledMax != null
+                ? computeMageStaffBeamDamage(result, meleeFinalDamageWithFabledMax, useDungeonizedStats, useMasterMode)
                 : null,
           };
         })
@@ -523,7 +531,7 @@ export default function DamageSources({ embedded = false }) {
               );
             })
           ) : mageMode ? (
-            abilityMobResults.map(({ name, types, abilityDamage, beamDamage }) => (
+            abilityMobResults.map(({ name, types, abilityDamage, beamDamage, beamDamageWithFabledMax }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
                   <span className="text-[13px] font-bold text-black tracking-wide">{name}</span>
@@ -594,6 +602,14 @@ export default function DamageSources({ embedded = false }) {
                       >
                         <span className="text-sm font-bold text-black">Final Damage (Beam)</span>
                         <span className="text-2xl font-mono font-bold text-black">{beamDamage.finalDamage.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {beamDamageWithFabledMax && (
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs text-neutral-700">Final Damage (Beam, Fabled up to +{FABLED_CRIT_BONUS_MAX_PERCENT}%)</span>
+                        <span className="text-base font-mono text-neutral-700">
+                          {beamDamage.finalDamage.toLocaleString()} ~ {beamDamageWithFabledMax.finalDamage.toLocaleString()}
+                        </span>
                       </div>
                     )}
                     {useDungeonizedStats && (
