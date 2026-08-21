@@ -276,6 +276,11 @@ function realAccessoryTier(item) {
     .replace(/§./g, "")
     .replace(/[^A-Za-z ]/g, "")
     .trim();
+  // Real accessories' own tag always says "...ACCESSORY" (hats say "HATCESSORY" instead, see
+  // isHatAccessory below) — without this check, any non-accessory item sharing a tier word
+  // (a weapon, block, dungeon material, ...) sitting in the scanned inventory would be
+  // miscounted as an owned accessory too, since every item's tier line has ONE of TIER_WORDS.
+  if (!lastLine.includes("ACCESSORY") && !lastLine.includes("HATCESSORY")) return null;
   for (const word of TIER_WORDS) {
     if (lastLine.includes(word)) return word.replace(" ", "_");
   }
