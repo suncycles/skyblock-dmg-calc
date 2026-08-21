@@ -379,6 +379,9 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
         // Every real, individually-owned accessory's own stat line, generically summed by the
         // worker from real Accessory Bag lore — see worker/src/index.js's computeLiveAccessoryStats.
         individualAccessoryStats: raw.accessory.itemStats || {},
+        // Persisted so the Damage Optimizer's Magical Power section can rank real missing/
+        // upgradeable accessories later without a separate account fetch (see lib/accessoryOptimizer.js).
+        ownedAccessories: raw.accessory.owned || [],
       },
     };
   }

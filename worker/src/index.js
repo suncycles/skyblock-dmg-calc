@@ -845,10 +845,17 @@ async function handleHypixelImport(url, env) {
           if (!id) continue;
           const tier = realAccessoryTier(raw);
           if (!tier) continue;
+          // Real Recombobulator usage — a one-time-per-item flag independent of tier (an item's
+          // CURRENT tier, read above, already reflects any past recomb bump, so tier alone can't
+          // tell a never-recombed EPIC from a recombed RARE-into-EPIC). Used by the frontend to
+          // skip suggesting a recomb on an item that's already used its one real upgrade.
+          const recombobulated = raw?.tag?.ExtraAttributes?.rarity_upgrades === 1;
           const existing = bestTierById.get(id);
-          if (!existing || (RARITY_MAGICAL_POWER[tier] || 0) > (RARITY_MAGICAL_POWER[existing] || 0)) bestTierById.set(id, tier);
+          if (!existing || (RARITY_MAGICAL_POWER[tier] || 0) > (RARITY_MAGICAL_POWER[existing.tier] || 0)) {
+            bestTierById.set(id, { tier, recombobulated });
+          }
         }
-        return Array.from(bestTierById, ([id, tier]) => ({ id, tier }));
+        return Array.from(bestTierById, ([id, { tier, recombobulated }]) => ({ id, tier, recombobulated }));
       })(),
     };
 

@@ -360,6 +360,9 @@
     ],
     "POWER_ARTIFACT": [
       "POWER_RELIC"
+    ],
+    "FROZEN_CHICKEN": [
+      "FRIED_FROZEN_CHICKEN"
     ]
   },
   "talisman_duplicates": {
@@ -1155,6 +1158,10 @@
     "POWER_RELIC": {
       "name": "Relic of Power",
       "rarity": "EPIC"
+    },
+    "FRIED_FROZEN_CHICKEN": {
+      "name": "Fried Frozen Chicken",
+      "rarity": "EPIC"
     }
   },
   "max_upgrade_talismans": {
@@ -1221,10 +1228,6 @@
     "WOLF_PAW": {
       "name": "Wolf Paw",
       "rarity": "UNCOMMON"
-    },
-    "FROZEN_CHICKEN": {
-      "name": "Frozen Chicken",
-      "rarity": "RARE"
     },
     "FISH_AFFINITY_TALISMAN": {
       "name": "Fish Affinity Talisman",
@@ -1532,6 +1535,10 @@
     },
     "POWER_RELIC": {
       "name": "Relic of Power",
+      "rarity": "EPIC"
+    },
+    "FRIED_FROZEN_CHICKEN": {
+      "name": "Fried Frozen Chicken",
       "rarity": "EPIC"
     }
   },

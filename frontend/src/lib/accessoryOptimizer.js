@@ -46,6 +46,27 @@ function withCostPlaceholder(result) {
   return { ...result, cost: PLACEHOLDER_COST, ratio: PLACEHOLDER_COST > 0 ? result.percentIncrease / PLACEHOLDER_COST : null };
 }
 
+// A generic MP-sweep candidate isn't a real, priceable item — no real cost source could ever
+// apply to it (unlike the real-item placeholder 0 above, which just means "not wired up yet") —
+// so cost shows as unknown ('?') rather than a misleading 0.
+function withUnknownCost(result) {
+  return { ...result, cost: '?', ratio: null };
+}
+
+// Fallback candidates when no real account is on file (see buildAccessoryCandidates below):
+// hypothetical flat MP increases in +10 steps, so the optimizer can still show Magical Power's
+// real DPS effect in the abstract ("if MP went up by N") without knowing which real accessories
+// would supply it.
+const GENERIC_MP_STEPS = [10, 20, 30, 40, 50];
+export function buildGenericMpCandidates() {
+  return GENERIC_MP_STEPS.map((mpGain) => ({
+    id: `GENERIC_MP_${mpGain}`,
+    name: `+${mpGain} Magical Power`,
+    mpGain,
+    kind: 'generic',
+  }));
+}
+
 // Union-find over talisman_upgrades (each lower tier redundantly lists every tier above it, so a
 // plain "is this id a key/value" check isn't enough) — returns Map<id, Set<everyIdInItsFamily>>,
 // including the target id itself. An id absent from talisman_upgrades entirely is its own
@@ -91,18 +112,18 @@ function familyMembers(id, groups) {
 }
 
 // Normalizes the worker's raw owned-accessory list (talisman_duplicates alt ids folded back to
-// their canonical id, best tier per canonical id kept) into Map<canonicalId, tier>.
+// their canonical id, best tier per canonical id kept) into Map<canonicalId, {tier, recombobulated}>.
 function canonicalizeOwned(owned, families) {
   const altToCanonical = new Map();
   for (const [canonical, alts] of Object.entries(families.talisman_duplicates || {})) {
     for (const alt of alts) altToCanonical.set(alt, canonical);
   }
   const bestTierById = new Map();
-  for (const { id, tier } of owned || []) {
+  for (const { id, tier, recombobulated } of owned || []) {
     const canonical = altToCanonical.get(id) || id;
     const existing = bestTierById.get(canonical);
-    if (!existing || (MAGICAL_POWER_BY_RARITY[tier] || 0) > (MAGICAL_POWER_BY_RARITY[existing] || 0)) {
-      bestTierById.set(canonical, tier);
+    if (!existing || (MAGICAL_POWER_BY_RARITY[tier] || 0) > (MAGICAL_POWER_BY_RARITY[existing.tier] || 0)) {
+      bestTierById.set(canonical, { tier, recombobulated: !!recombobulated });
     }
   }
   return bestTierById;
@@ -112,7 +133,7 @@ function canonicalizeOwned(owned, families) {
 // (`kind: 'missing'`), recombobulating an owned-but-not-maxed one (`kind: 'recombobulate'`), and
 // the "of Power" family's own Perfect Gemstone rarity upgrade (`kind: 'gemstone-upgrade'`) — no
 // DPS number yet, just the real id/name/target rarity/mpGain. `owned` is the worker's
-// `accessory.owned` array (`[{id, tier}]`) from a Hypixel import.
+// `accessory.owned` array (`[{id, tier, recombobulated}]`) from a Hypixel import.
 export function buildAccessoryCandidates(owned, families) {
   const ownedByCanonical = canonicalizeOwned(owned, families);
   const groups = buildFamilyGroups(families.talisman_upgrades);
@@ -124,7 +145,11 @@ export function buildAccessoryCandidates(owned, families) {
     if (ownedByCanonical.has(maxId)) continue;
     const members = familyMembers(maxId, groups);
     let currentTierMp = 0;
-    for (const [ownedId, tier] of ownedByCanonical.entries()) {
+    for (const [ownedId, { tier }] of ownedByCanonical.entries()) {
+      // A lower tier of the SAME real upgrade family the player already owns a higher tier of
+      // (e.g. Frozen Chicken when Fried Frozen Chicken is owned) must never itself surface as a
+      // separate "missing" candidate — only relevant here for currentTierMp's baseline, which
+      // already covers it via familyMembers' union-find over talisman_upgrades.
       if (members.has(ownedId)) currentTierMp = Math.max(currentTierMp, MAGICAL_POWER_BY_RARITY[tier] || 0);
     }
     const mpGain = (MAGICAL_POWER_BY_RARITY[meta.rarity] || 0) - currentTierMp;
@@ -133,7 +158,7 @@ export function buildAccessoryCandidates(owned, families) {
 
   const recombobulate = [];
   const gemstoneUpgrade = [];
-  for (const [id, tier] of ownedByCanonical.entries()) {
+  for (const [id, { tier, recombobulated }] of ownedByCanonical.entries()) {
     const gem = gemUpgrades[id];
     if (gem && gem.from === tier) {
       const mpGain = (MAGICAL_POWER_BY_RARITY[gem.to] || 0) - (MAGICAL_POWER_BY_RARITY[tier] || 0);
@@ -148,7 +173,11 @@ export function buildAccessoryCandidates(owned, families) {
       }
       continue; // Recombobulator doesn't apply to these two rarity jumps — real mechanic is gemstones only.
     }
-    if (nonRecomb.has(id) || !canRecombobulate(tier)) continue;
+    // Real Recombobulator use is a one-time-per-item flag, independent of tier — an item's
+    // CURRENT tier already reflects any past recomb bump, so `canRecombobulate(tier)` alone
+    // can't tell a never-recombed EPIC from an already-recombed RARE-into-EPIC. Skip anything
+    // the account's real copy has already used its recomb on.
+    if (recombobulated || nonRecomb.has(id) || !canRecombobulate(tier)) continue;
     const nextTier = bumpRarity(tier);
     const mpGain = (MAGICAL_POWER_BY_RARITY[nextTier] || 0) - (MAGICAL_POWER_BY_RARITY[tier] || 0);
     if (mpGain > 0) recombobulate.push({ id, name: families.talismans[id]?.name || id, rarity: nextTier, mpGain, kind: 'recombobulate' });
@@ -161,6 +190,7 @@ const CATEGORY_LABELS = {
   missing: 'New Accessory',
   recombobulate: 'Recombobulate',
   'gemstone-upgrade': 'Perfect Gemstones',
+  generic: 'Magical Power (generic)',
 };
 
 // Runs every candidate from buildAccessoryCandidates through the real damage pipeline, varying
@@ -202,10 +232,11 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
     if (percentIncrease <= 0.001) continue;
+    const withCost = candidate.kind === 'generic' ? withUnknownCost : withCostPlaceholder;
     results.push(
-      withCostPlaceholder({
+      withCost({
         id: candidate.id,
-        label: `${candidate.name} (+${candidate.mpGain} MP)`,
+        label: candidate.kind === 'generic' ? candidate.name : `${candidate.name} (+${candidate.mpGain} MP)`,
         category: CATEGORY_LABELS[candidate.kind] || candidate.kind,
         slot: 'accessory',
         rarity: candidate.rarity,
