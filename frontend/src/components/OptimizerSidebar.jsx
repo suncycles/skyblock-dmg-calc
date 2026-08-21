@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { runOptimizer, applyOptimizerResult, OPTIMIZER_MODES, OPTIMIZER_GEAR_SLOTS, hasCuratedData } from '../lib/optimizer';
+import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
@@ -24,6 +25,10 @@ const CATEGORY_COLORS = {
   Stars: '#fb923c',
   Reforge: '#60a5fa',
   Recombobulator: '#818cf8',
+  'New Accessory': '#4ade80',
+  Recombobulate: '#818cf8',
+  'Perfect Gemstones': '#a78bfa',
+  'Magical Power (generic)': '#facc15',
 };
 
 const SLAYER_ATTACK_SPEED_TARGET = 82;
@@ -79,7 +84,8 @@ function UpgradeRow({ result, onSwapIn }) {
 // One dedicated row per gear slot (Helmet/Chestplate/Leggings/Boots/Necklace/Cloak/Belt/Gloves/
 // Pet) showing only the immediate next tier's best candidate, or "No upgrades available" — plus a
 // secondary "Other Upgrades" list for the non-slot-tiered categories (Enchant/Ultimate Enchant/
-// Power Stone/Stars), which aren't tiered so every real option found still shows.
+// Power Stone/Stars/Magical Power/accessories), which aren't tiered so every real option found
+// still shows, all ranked together by % increase (mirrors Optimizer.jsx's combined ranked list).
 export default function OptimizerSidebar() {
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
@@ -89,6 +95,10 @@ export default function OptimizerSidebar() {
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
+  // Real accessory bag list, persisted from whichever Hypixel import last ran — null means no
+  // import has ever happened, distinct from an import that found zero accessories. Same source
+  // Optimizer.jsx reads; no separate fetch here.
+  const ownedAccessories = build.loadout.accessory?.modifiers?.ownedAccessories ?? null;
 
   useEffect(() => {
     if (itemDataLoading || !mobName || !mobTypes) {
@@ -118,6 +128,34 @@ export default function OptimizerSidebar() {
     mode,
     mobName,
   ]);
+
+  // Magical Power/accessory candidates merge into the same "Other Upgrades" ranked list as every
+  // brute-forced category from runOptimizer (same treatment as Optimizer.jsx) — one consistent
+  // list sorted by % increase, not a separate section.
+  const [mpResult, setMpResult] = useState(null);
+  const mpTokenRef = useRef(0);
+  useEffect(() => {
+    if (itemDataLoading || !mobName || !mobTypes) {
+      setMpResult(null);
+      return;
+    }
+    const candidates = ownedAccessories
+      ? itemData.accessoryFamilies && buildAccessoryCandidates(ownedAccessories, itemData.accessoryFamilies)
+      : buildGenericMpCandidates();
+    if (!candidates) {
+      setMpResult(null);
+      return;
+    }
+    const token = ++mpTokenRef.current;
+    evaluateAccessoryCandidates(build.loadout, itemData, build, mode, { name: mobName, types: mobTypes }, candidates).then((result) => {
+      if (mpTokenRef.current === token) setMpResult(result);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
+
+  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort(
+    (a, b) => b.percentIncrease - a.percentIncrease,
+  );
 
   return (
     <div className="flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 lg:fixed lg:right-4 lg:top-20 lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
@@ -171,10 +209,10 @@ export default function OptimizerSidebar() {
         </div>
       )}
 
-      {state.status === 'ok' && state.otherResults.length > 0 && (
+      {state.status === 'ok' && combinedOtherResults.length > 0 && (
         <div className={`${panel} p-1.5 flex flex-col gap-1`}>
           <div className={sectionTitle}>Other Upgrades</div>
-          {state.otherResults.map((r, i) => (
+          {combinedOtherResults.map((r, i) => (
             <button
               key={i}
               type="button"
