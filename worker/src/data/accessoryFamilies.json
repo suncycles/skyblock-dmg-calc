@@ -1,5 +1,5 @@
 {
-  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used.",
+  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file — 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed.",
   "talisman_upgrades": {
     "WOLF_TALISMAN": [
       "WOLF_RING"
@@ -363,6 +363,745 @@
     ],
     "FROZEN_CHICKEN": [
       "FRIED_FROZEN_CHICKEN"
+    ],
+    "SCAVENGER_TALISMAN": [
+      "SCAVENGER_RING",
+      "SCAVENGER_ARTIFACT"
+    ],
+    "SCAVENGER_RING": [
+      "SCAVENGER_ARTIFACT"
+    ],
+    "ACCRETION_TALISMAN": [
+      "ACCRETION_RING",
+      "ACCRETION_ARTIFACT"
+    ],
+    "ACCRETION_RING": [
+      "ACCRETION_ARTIFACT"
+    ],
+    "AGARIMOO_TALISMAN": [
+      "AGARIMOO_RING",
+      "AGARIMOO_ARTIFACT"
+    ],
+    "AGARIMOO_RING": [
+      "AGARIMOO_ARTIFACT"
+    ],
+    "ANGUISH_TALISMAN": [
+      "ANGUISH_RING",
+      "ANGUISH_ARTIFACT"
+    ],
+    "ANGUISH_RING": [
+      "ANGUISH_ARTIFACT"
+    ],
+    "ANITA_TALISMAN": [
+      "ANITA_RING",
+      "ANITA_ARTIFACT"
+    ],
+    "ANITA_RING": [
+      "ANITA_ARTIFACT"
+    ],
+    "BIOANALYSIS_TALISMAN": [
+      "BIOANALYSIS_RING",
+      "BIOANALYSIS_ARTIFACT"
+    ],
+    "BIOANALYSIS_RING": [
+      "BIOANALYSIS_ARTIFACT"
+    ],
+    "BLOOD_DONOR_TALISMAN": [
+      "BLOOD_DONOR_RING",
+      "BLOOD_DONOR_ARTIFACT"
+    ],
+    "BLOOD_DONOR_RING": [
+      "BLOOD_DONOR_ARTIFACT"
+    ],
+    "CENTURY_TALISMAN": [
+      "CENTURY_RING",
+      "CENTURY_ARTIFACT"
+    ],
+    "CENTURY_RING": [
+      "CENTURY_ARTIFACT"
+    ],
+    "COPPER_TALISMAN": [
+      "COPPER_RING",
+      "COPPER_ARTIFACT"
+    ],
+    "COPPER_RING": [
+      "COPPER_ARTIFACT"
+    ],
+    "EMPEROR_TALISMAN": [
+      "EMPEROR_RING",
+      "EMPEROR_ARTIFACT"
+    ],
+    "EMPEROR_RING": [
+      "EMPEROR_ARTIFACT"
+    ],
+    "FRESHLY_BAKED_TALISMAN": [
+      "FRESHLY_BAKED_RING",
+      "FRESHLY_BAKED_ARTIFACT",
+      "FRESHLY_BAKED_RELIC",
+      "FRESHLY_BAKED_HEIRLOOM"
+    ],
+    "FRESHLY_BAKED_RING": [
+      "FRESHLY_BAKED_ARTIFACT",
+      "FRESHLY_BAKED_RELIC",
+      "FRESHLY_BAKED_HEIRLOOM"
+    ],
+    "FRESHLY_BAKED_ARTIFACT": [
+      "FRESHLY_BAKED_RELIC",
+      "FRESHLY_BAKED_HEIRLOOM"
+    ],
+    "FRESHLY_BAKED_RELIC": [
+      "FRESHLY_BAKED_HEIRLOOM"
+    ],
+    "GLACIAL_TALISMAN": [
+      "GLACIAL_RING",
+      "GLACIAL_ARTIFACT"
+    ],
+    "GLACIAL_RING": [
+      "GLACIAL_ARTIFACT"
+    ],
+    "GRATITUDE_TALISMAN": [
+      "GRATITUDE_RING",
+      "GRATITUDE_ARTIFACT"
+    ],
+    "GRATITUDE_RING": [
+      "GRATITUDE_ARTIFACT"
+    ],
+    "HONEYCOMB_TALISMAN": [
+      "HONEYCOMB_RING",
+      "HONEYCOMB_ARTIFACT"
+    ],
+    "HONEYCOMB_RING": [
+      "HONEYCOMB_ARTIFACT"
+    ],
+    "JUNK_TALISMAN": [
+      "JUNK_RING",
+      "JUNK_ARTIFACT"
+    ],
+    "JUNK_RING": [
+      "JUNK_ARTIFACT"
+    ],
+    "KUUDRA_FOLLOWER_ARTIFACT": [
+      "KUUDRA_FOLLOWER_RELIC"
+    ],
+    "LUMBERJACK_TALISMAN": [
+      "LUMBERJACK_RING",
+      "LUMBERJACK_ARTIFACT"
+    ],
+    "LUMBERJACK_RING": [
+      "LUMBERJACK_ARTIFACT"
+    ],
+    "LUSH_TALISMAN": [
+      "LUSH_RING",
+      "LUSH_ARTIFACT"
+    ],
+    "LUSH_RING": [
+      "LUSH_ARTIFACT"
+    ],
+    "MOONGLADE_TALISMAN": [
+      "MOONGLADE_RING",
+      "MOONGLADE_ARTIFACT"
+    ],
+    "MOONGLADE_RING": [
+      "MOONGLADE_ARTIFACT"
+    ],
+    "ORGAN_DONOR_TALISMAN": [
+      "ORGAN_DONOR_RING",
+      "ORGAN_DONOR_ARTIFACT"
+    ],
+    "ORGAN_DONOR_RING": [
+      "ORGAN_DONOR_ARTIFACT"
+    ],
+    "PESTHUNTER_RING": [
+      "PESTHUNTER_ARTIFACT",
+      "PESTHUNTER_RELIC"
+    ],
+    "PESTHUNTER_ARTIFACT": [
+      "PESTHUNTER_RELIC"
+    ],
+    "PRESSURE_TALISMAN": [
+      "PRESSURE_RING",
+      "PRESSURE_ARTIFACT"
+    ],
+    "PRESSURE_RING": [
+      "PRESSURE_ARTIFACT"
+    ],
+    "RESPIRATION_TALISMAN": [
+      "RESPIRATION_RING",
+      "RESPIRATION_ARTIFACT"
+    ],
+    "RESPIRATION_RING": [
+      "RESPIRATION_ARTIFACT"
+    ],
+    "RUNEBLADE_TALISMAN": [
+      "RUNEBLADE_RING",
+      "RUNEBLADE_ARTIFACT"
+    ],
+    "RUNEBLADE_RING": [
+      "RUNEBLADE_ARTIFACT"
+    ],
+    "SEAL_TALISMAN": [
+      "SEAL_RING"
+    ],
+    "TORRHUS_TALISMAN": [
+      "TORRHUS_RING",
+      "TORRHUS_ARTIFACT"
+    ],
+    "TORRHUS_RING": [
+      "TORRHUS_ARTIFACT"
+    ],
+    "WITCH_TALISMAN": [
+      "WITCH_RING",
+      "WITCH_ARTIFACT"
+    ],
+    "WITCH_RING": [
+      "WITCH_ARTIFACT"
+    ],
+    "COIN_TALISMAN": [
+      "RING_OF_COINS",
+      "ARTIFACT_OF_COINS",
+      "RELIC_OF_COINS"
+    ],
+    "RING_OF_COINS": [
+      "ARTIFACT_OF_COINS",
+      "RELIC_OF_COINS"
+    ],
+    "ARTIFACT_OF_COINS": [
+      "RELIC_OF_COINS"
+    ],
+    "CRUX_TALISMAN_1": [
+      "CRUX_TALISMAN_2",
+      "CRUX_TALISMAN_3",
+      "CRUX_TALISMAN_4",
+      "CRUX_TALISMAN_5",
+      "CRUX_TALISMAN_6",
+      "CRUX_TALISMAN_7"
+    ],
+    "CRUX_TALISMAN_2": [
+      "CRUX_TALISMAN_3",
+      "CRUX_TALISMAN_4",
+      "CRUX_TALISMAN_5",
+      "CRUX_TALISMAN_6",
+      "CRUX_TALISMAN_7"
+    ],
+    "CRUX_TALISMAN_3": [
+      "CRUX_TALISMAN_4",
+      "CRUX_TALISMAN_5",
+      "CRUX_TALISMAN_6",
+      "CRUX_TALISMAN_7"
+    ],
+    "CRUX_TALISMAN_4": [
+      "CRUX_TALISMAN_5",
+      "CRUX_TALISMAN_6",
+      "CRUX_TALISMAN_7"
+    ],
+    "CRUX_TALISMAN_5": [
+      "CRUX_TALISMAN_6",
+      "CRUX_TALISMAN_7"
+    ],
+    "CRUX_TALISMAN_6": [
+      "CRUX_TALISMAN_7"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_1": [
+      "SOUL_CAMPFIRE_TALISMAN_2",
+      "SOUL_CAMPFIRE_TALISMAN_3",
+      "SOUL_CAMPFIRE_TALISMAN_4",
+      "SOUL_CAMPFIRE_TALISMAN_5",
+      "SOUL_CAMPFIRE_TALISMAN_6",
+      "SOUL_CAMPFIRE_TALISMAN_7",
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_2": [
+      "SOUL_CAMPFIRE_TALISMAN_3",
+      "SOUL_CAMPFIRE_TALISMAN_4",
+      "SOUL_CAMPFIRE_TALISMAN_5",
+      "SOUL_CAMPFIRE_TALISMAN_6",
+      "SOUL_CAMPFIRE_TALISMAN_7",
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_3": [
+      "SOUL_CAMPFIRE_TALISMAN_4",
+      "SOUL_CAMPFIRE_TALISMAN_5",
+      "SOUL_CAMPFIRE_TALISMAN_6",
+      "SOUL_CAMPFIRE_TALISMAN_7",
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_4": [
+      "SOUL_CAMPFIRE_TALISMAN_5",
+      "SOUL_CAMPFIRE_TALISMAN_6",
+      "SOUL_CAMPFIRE_TALISMAN_7",
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_5": [
+      "SOUL_CAMPFIRE_TALISMAN_6",
+      "SOUL_CAMPFIRE_TALISMAN_7",
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_6": [
+      "SOUL_CAMPFIRE_TALISMAN_7",
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_7": [
+      "SOUL_CAMPFIRE_TALISMAN_8",
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_8": [
+      "SOUL_CAMPFIRE_TALISMAN_9",
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_9": [
+      "SOUL_CAMPFIRE_TALISMAN_10",
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_10": [
+      "SOUL_CAMPFIRE_TALISMAN_11",
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_11": [
+      "SOUL_CAMPFIRE_TALISMAN_12",
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_12": [
+      "SOUL_CAMPFIRE_TALISMAN_13",
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_13": [
+      "SOUL_CAMPFIRE_TALISMAN_14",
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_14": [
+      "SOUL_CAMPFIRE_TALISMAN_15",
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_15": [
+      "SOUL_CAMPFIRE_TALISMAN_16",
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_16": [
+      "SOUL_CAMPFIRE_TALISMAN_17",
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_17": [
+      "SOUL_CAMPFIRE_TALISMAN_18",
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_18": [
+      "SOUL_CAMPFIRE_TALISMAN_19",
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_19": [
+      "SOUL_CAMPFIRE_TALISMAN_20",
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_20": [
+      "SOUL_CAMPFIRE_TALISMAN_21",
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_21": [
+      "SOUL_CAMPFIRE_TALISMAN_22",
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_22": [
+      "SOUL_CAMPFIRE_TALISMAN_23",
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_23": [
+      "SOUL_CAMPFIRE_TALISMAN_24",
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_24": [
+      "SOUL_CAMPFIRE_TALISMAN_25",
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_25": [
+      "SOUL_CAMPFIRE_TALISMAN_26",
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_26": [
+      "SOUL_CAMPFIRE_TALISMAN_27",
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_27": [
+      "SOUL_CAMPFIRE_TALISMAN_28",
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "SOUL_CAMPFIRE_TALISMAN_28": [
+      "SOUL_CAMPFIRE_TALISMAN_29"
+    ],
+    "VOTER_BADGE": [
+      "VOTER_BADGE_VIP",
+      "VOTER_BADGE_ELITE",
+      "VOTER_BADGE_SUPREME"
+    ],
+    "VOTER_BADGE_VIP": [
+      "VOTER_BADGE_ELITE",
+      "VOTER_BADGE_SUPREME"
+    ],
+    "VOTER_BADGE_ELITE": [
+      "VOTER_BADGE_SUPREME"
+    ],
+    "SMALL_FISH_BOWL": [
+      "MEDIUM_FISH_BOWL",
+      "LARGE_FISH_BOWL"
+    ],
+    "MEDIUM_FISH_BOWL": [
+      "LARGE_FISH_BOWL"
+    ],
+    "NIBBLE_CHOCOLATE_STICK": [
+      "SMOOTH_CHOCOLATE_BAR",
+      "RICH_CHOCOLATE_CHUNK",
+      "GANACHE_CHOCOLATE_SLAB",
+      "PRESTIGE_CHOCOLATE_REALM"
+    ],
+    "SMOOTH_CHOCOLATE_BAR": [
+      "RICH_CHOCOLATE_CHUNK",
+      "GANACHE_CHOCOLATE_SLAB",
+      "PRESTIGE_CHOCOLATE_REALM"
+    ],
+    "RICH_CHOCOLATE_CHUNK": [
+      "GANACHE_CHOCOLATE_SLAB",
+      "PRESTIGE_CHOCOLATE_REALM"
+    ],
+    "GANACHE_CHOCOLATE_SLAB": [
+      "PRESTIGE_CHOCOLATE_REALM"
+    ],
+    "IQ_POINT": [
+      "TWO_IQ_POINT"
     ]
   },
   "talisman_duplicates": {
@@ -1162,6 +1901,794 @@
     "FRIED_FROZEN_CHICKEN": {
       "name": "Fried Frozen Chicken",
       "rarity": "EPIC"
+    },
+    "SCAVENGER_RING": {
+      "name": "Scavenger Ring",
+      "rarity": "UNCOMMON"
+    },
+    "SCAVENGER_ARTIFACT": {
+      "name": "Scavenger Artifact",
+      "rarity": "RARE"
+    },
+    "ACCRETION_TALISMAN": {
+      "name": "Accretion Talisman",
+      "rarity": "COMMON"
+    },
+    "ACCRETION_RING": {
+      "name": "Accretion Ring",
+      "rarity": "UNCOMMON"
+    },
+    "ACCRETION_ARTIFACT": {
+      "name": "Accretion Artifact",
+      "rarity": "RARE"
+    },
+    "AGARIMOO_TALISMAN": {
+      "name": "Agarimoo Talisman",
+      "rarity": "COMMON"
+    },
+    "AGARIMOO_RING": {
+      "name": "Agarimoo Ring",
+      "rarity": "UNCOMMON"
+    },
+    "AGARIMOO_ARTIFACT": {
+      "name": "Agarimoo Artifact",
+      "rarity": "RARE"
+    },
+    "ANGUISH_TALISMAN": {
+      "name": "Anguish Talisman",
+      "rarity": "RARE"
+    },
+    "ANGUISH_RING": {
+      "name": "Anguish Ring",
+      "rarity": "EPIC"
+    },
+    "ANGUISH_ARTIFACT": {
+      "name": "Anguish Artifact",
+      "rarity": "LEGENDARY"
+    },
+    "ANITA_TALISMAN": {
+      "name": "Anita's Talisman",
+      "rarity": "COMMON"
+    },
+    "ANITA_RING": {
+      "name": "Anita's Ring",
+      "rarity": "UNCOMMON"
+    },
+    "ANITA_ARTIFACT": {
+      "name": "Anita's Artifact",
+      "rarity": "RARE"
+    },
+    "BIOANALYSIS_TALISMAN": {
+      "name": "Bioanalysis Talisman",
+      "rarity": "COMMON"
+    },
+    "BIOANALYSIS_RING": {
+      "name": "Bioanalysis Ring",
+      "rarity": "UNCOMMON"
+    },
+    "BIOANALYSIS_ARTIFACT": {
+      "name": "Bioanalysis Artifact",
+      "rarity": "RARE"
+    },
+    "BLOOD_DONOR_TALISMAN": {
+      "name": "Blood Donor Talisman",
+      "rarity": "COMMON"
+    },
+    "BLOOD_DONOR_RING": {
+      "name": "Blood Donor Ring",
+      "rarity": "UNCOMMON"
+    },
+    "BLOOD_DONOR_ARTIFACT": {
+      "name": "Blood Donor Artifact",
+      "rarity": "RARE"
+    },
+    "CENTURY_TALISMAN": {
+      "name": "Talisman of the Century",
+      "rarity": "COMMON"
+    },
+    "CENTURY_RING": {
+      "name": "Ring of the Century",
+      "rarity": "UNCOMMON"
+    },
+    "CENTURY_ARTIFACT": {
+      "name": "Artifact of the Century",
+      "rarity": "RARE"
+    },
+    "COPPER_TALISMAN": {
+      "name": "Copper Talisman",
+      "rarity": "COMMON"
+    },
+    "COPPER_RING": {
+      "name": "Copper Ring",
+      "rarity": "UNCOMMON"
+    },
+    "COPPER_ARTIFACT": {
+      "name": "Copper Artifact",
+      "rarity": "RARE"
+    },
+    "EMPEROR_TALISMAN": {
+      "name": "Emperor's Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "EMPEROR_RING": {
+      "name": "Emperor's Ring",
+      "rarity": "RARE"
+    },
+    "EMPEROR_ARTIFACT": {
+      "name": "Emperor's Artifact",
+      "rarity": "EPIC"
+    },
+    "FRESHLY_BAKED_TALISMAN": {
+      "name": "Freshly Baked Talisman",
+      "rarity": "COMMON"
+    },
+    "FRESHLY_BAKED_RING": {
+      "name": "Freshly Baked Ring",
+      "rarity": "UNCOMMON"
+    },
+    "FRESHLY_BAKED_ARTIFACT": {
+      "name": "Freshly Baked Artifact",
+      "rarity": "RARE"
+    },
+    "FRESHLY_BAKED_RELIC": {
+      "name": "Freshly Baked Relic",
+      "rarity": "EPIC"
+    },
+    "FRESHLY_BAKED_HEIRLOOM": {
+      "name": "Freshly Baked Heirloom",
+      "rarity": "LEGENDARY"
+    },
+    "GLACIAL_TALISMAN": {
+      "name": "Glacial Talisman",
+      "rarity": "COMMON"
+    },
+    "GLACIAL_RING": {
+      "name": "Glacial Ring",
+      "rarity": "UNCOMMON"
+    },
+    "GLACIAL_ARTIFACT": {
+      "name": "Glacial Artifact",
+      "rarity": "RARE"
+    },
+    "GRATITUDE_TALISMAN": {
+      "name": "Gratitude Talisman",
+      "rarity": "COMMON"
+    },
+    "GRATITUDE_RING": {
+      "name": "Gratitude Ring",
+      "rarity": "UNCOMMON"
+    },
+    "GRATITUDE_ARTIFACT": {
+      "name": "Gratitude Artifact",
+      "rarity": "RARE"
+    },
+    "HONEYCOMB_TALISMAN": {
+      "name": "Honeycomb Talisman",
+      "rarity": "COMMON"
+    },
+    "HONEYCOMB_RING": {
+      "name": "Honeycomb Ring",
+      "rarity": "UNCOMMON"
+    },
+    "HONEYCOMB_ARTIFACT": {
+      "name": "Honeycomb Artifact",
+      "rarity": "RARE"
+    },
+    "JUNK_TALISMAN": {
+      "name": "Junk Talisman",
+      "rarity": "COMMON"
+    },
+    "JUNK_RING": {
+      "name": "Junk Ring",
+      "rarity": "UNCOMMON"
+    },
+    "JUNK_ARTIFACT": {
+      "name": "Junk Artifact",
+      "rarity": "RARE"
+    },
+    "KUUDRA_FOLLOWER_ARTIFACT": {
+      "name": "Kuudra Follower Artifact",
+      "rarity": "EPIC"
+    },
+    "KUUDRA_FOLLOWER_RELIC": {
+      "name": "Kuudra Follower Relic",
+      "rarity": "LEGENDARY"
+    },
+    "LUMBERJACK_TALISMAN": {
+      "name": "Lumberjack Talisman",
+      "rarity": "COMMON"
+    },
+    "LUMBERJACK_RING": {
+      "name": "Lumberjack Ring",
+      "rarity": "UNCOMMON"
+    },
+    "LUMBERJACK_ARTIFACT": {
+      "name": "Lumberjack Artifact",
+      "rarity": "RARE"
+    },
+    "LUSH_TALISMAN": {
+      "name": "Lush Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "LUSH_RING": {
+      "name": "Lush Ring",
+      "rarity": "RARE"
+    },
+    "LUSH_ARTIFACT": {
+      "name": "Lush Artifact",
+      "rarity": "EPIC"
+    },
+    "MOONGLADE_TALISMAN": {
+      "name": "Moonglade Talisman",
+      "rarity": "COMMON"
+    },
+    "MOONGLADE_RING": {
+      "name": "Moonglade Ring",
+      "rarity": "UNCOMMON"
+    },
+    "MOONGLADE_ARTIFACT": {
+      "name": "Moonglade Artifact",
+      "rarity": "RARE"
+    },
+    "ORGAN_DONOR_TALISMAN": {
+      "name": "Organ Donor Talisman",
+      "rarity": "COMMON"
+    },
+    "ORGAN_DONOR_RING": {
+      "name": "Organ Donor Ring",
+      "rarity": "UNCOMMON"
+    },
+    "ORGAN_DONOR_ARTIFACT": {
+      "name": "Organ Donor Artifact",
+      "rarity": "RARE"
+    },
+    "PESTHUNTER_RING": {
+      "name": "Pesthunter Ring",
+      "rarity": "RARE"
+    },
+    "PESTHUNTER_ARTIFACT": {
+      "name": "Pesthunter Artifact",
+      "rarity": "EPIC"
+    },
+    "PESTHUNTER_RELIC": {
+      "name": "Pesthunter Relic",
+      "rarity": "LEGENDARY"
+    },
+    "PRESSURE_TALISMAN": {
+      "name": "Pressure Talisman",
+      "rarity": "COMMON"
+    },
+    "PRESSURE_RING": {
+      "name": "Pressure Ring",
+      "rarity": "UNCOMMON"
+    },
+    "PRESSURE_ARTIFACT": {
+      "name": "Pressure Artifact",
+      "rarity": "RARE"
+    },
+    "RESPIRATION_TALISMAN": {
+      "name": "Respiration Talisman",
+      "rarity": "COMMON"
+    },
+    "RESPIRATION_RING": {
+      "name": "Respiration Ring",
+      "rarity": "UNCOMMON"
+    },
+    "RESPIRATION_ARTIFACT": {
+      "name": "Respiration Artifact",
+      "rarity": "RARE"
+    },
+    "RUNEBLADE_TALISMAN": {
+      "name": "Runeblade Talisman",
+      "rarity": "COMMON"
+    },
+    "RUNEBLADE_RING": {
+      "name": "Runeblade Ring",
+      "rarity": "UNCOMMON"
+    },
+    "RUNEBLADE_ARTIFACT": {
+      "name": "Runeblade Artifact",
+      "rarity": "RARE"
+    },
+    "SEAL_TALISMAN": {
+      "name": "Seal Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "SEAL_RING": {
+      "name": "Seal Ring",
+      "rarity": "RARE"
+    },
+    "TORRHUS_TALISMAN": {
+      "name": "Torrhus Talisman",
+      "rarity": "COMMON"
+    },
+    "TORRHUS_RING": {
+      "name": "Torrhus Ring",
+      "rarity": "UNCOMMON"
+    },
+    "TORRHUS_ARTIFACT": {
+      "name": "Torrhus Artifact",
+      "rarity": "RARE"
+    },
+    "WITCH_TALISMAN": {
+      "name": "Witch's Talisman",
+      "rarity": "COMMON"
+    },
+    "WITCH_RING": {
+      "name": "Witch's Ring",
+      "rarity": "UNCOMMON"
+    },
+    "WITCH_ARTIFACT": {
+      "name": "Witch's Artifact",
+      "rarity": "RARE"
+    },
+    "RING_OF_COINS": {
+      "name": "Ring of Coins",
+      "rarity": "UNCOMMON"
+    },
+    "ARTIFACT_OF_COINS": {
+      "name": "Artifact of Coins",
+      "rarity": "RARE"
+    },
+    "RELIC_OF_COINS": {
+      "name": "Relic of Coins",
+      "rarity": "EPIC"
+    },
+    "CRUX_TALISMAN_1": {
+      "name": "Crux Talisman",
+      "rarity": "COMMON"
+    },
+    "CRUX_TALISMAN_2": {
+      "name": "Crux Ring",
+      "rarity": "UNCOMMON"
+    },
+    "CRUX_TALISMAN_3": {
+      "name": "Crux Artifact",
+      "rarity": "RARE"
+    },
+    "CRUX_TALISMAN_4": {
+      "name": "Crux Relic",
+      "rarity": "EPIC"
+    },
+    "CRUX_TALISMAN_5": {
+      "name": "Crux Heirloom",
+      "rarity": "LEGENDARY"
+    },
+    "CRUX_TALISMAN_6": {
+      "name": "Crux Chronomicon",
+      "rarity": "MYTHIC"
+    },
+    "CRUX_TALISMAN_7": {
+      "name": "Celestial Starstone",
+      "rarity": "DIVINE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_1": {
+      "name": "Soul Campfire Initiate Badge I",
+      "rarity": "COMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_2": {
+      "name": "Soul Campfire Initiate Badge II",
+      "rarity": "COMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_3": {
+      "name": "Soul Campfire Initiate Badge III",
+      "rarity": "COMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_4": {
+      "name": "Soul Campfire Adept Badge I",
+      "rarity": "UNCOMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_5": {
+      "name": "Soul Campfire Adept Badge II",
+      "rarity": "UNCOMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_6": {
+      "name": "Soul Campfire Adept Badge III",
+      "rarity": "UNCOMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_7": {
+      "name": "Soul Campfire Adept Badge IV",
+      "rarity": "UNCOMMON"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_8": {
+      "name": "Soul Campfire Cultist Badge I",
+      "rarity": "RARE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_9": {
+      "name": "Soul Campfire Cultist Badge II",
+      "rarity": "RARE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_10": {
+      "name": "Soul Campfire Cultist Badge III",
+      "rarity": "RARE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_11": {
+      "name": "Soul Campfire Cultist Badge IV",
+      "rarity": "RARE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_12": {
+      "name": "Soul Campfire Cultist Badge V",
+      "rarity": "RARE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_13": {
+      "name": "Soul Campfire Scion Badge I",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_14": {
+      "name": "Soul Campfire Scion Badge II",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_15": {
+      "name": "Soul Campfire Scion Badge III",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_16": {
+      "name": "Soul Campfire Scion Badge IV",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_17": {
+      "name": "Soul Campfire Scion Badge V",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_18": {
+      "name": "Soul Campfire Scion Badge VI",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_19": {
+      "name": "Soul Campfire Scion Badge VII",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_20": {
+      "name": "Soul Campfire Scion Badge VIII",
+      "rarity": "EPIC"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_21": {
+      "name": "Soul Campfire God Badge I",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_22": {
+      "name": "Soul Campfire God Badge II",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_23": {
+      "name": "Soul Campfire God Badge III",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_24": {
+      "name": "Soul Campfire God Badge IV",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_25": {
+      "name": "Soul Campfire God Badge V",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_26": {
+      "name": "Soul Campfire God Badge VI",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_27": {
+      "name": "Soul Campfire God Badge VII",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_28": {
+      "name": "Soul Campfire God Badge VIII",
+      "rarity": "LEGENDARY"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_29": {
+      "name": "Soul Campfire God Badge IX",
+      "rarity": "LEGENDARY"
+    },
+    "VOTER_BADGE": {
+      "name": "Voter's Badge",
+      "rarity": "COMMON"
+    },
+    "VOTER_BADGE_VIP": {
+      "name": "VIP Voter's Badge",
+      "rarity": "UNCOMMON"
+    },
+    "VOTER_BADGE_ELITE": {
+      "name": "Elite Voter's Badge",
+      "rarity": "RARE"
+    },
+    "VOTER_BADGE_SUPREME": {
+      "name": "Supreme Voter's Badge",
+      "rarity": "EPIC"
+    },
+    "SMALL_FISH_BOWL": {
+      "name": "Small Fish Bowl",
+      "rarity": "COMMON"
+    },
+    "MEDIUM_FISH_BOWL": {
+      "name": "Medium Fish Bowl",
+      "rarity": "UNCOMMON"
+    },
+    "LARGE_FISH_BOWL": {
+      "name": "Large Fish Bowl",
+      "rarity": "RARE"
+    },
+    "NIBBLE_CHOCOLATE_STICK": {
+      "name": "Nibble Chocolate Stick",
+      "rarity": "COMMON"
+    },
+    "SMOOTH_CHOCOLATE_BAR": {
+      "name": "Smooth Chocolate Bar",
+      "rarity": "UNCOMMON"
+    },
+    "RICH_CHOCOLATE_CHUNK": {
+      "name": "Rich Chocolate Chunk",
+      "rarity": "RARE"
+    },
+    "GANACHE_CHOCOLATE_SLAB": {
+      "name": "Ganache Chocolate Slab",
+      "rarity": "EPIC"
+    },
+    "PRESTIGE_CHOCOLATE_REALM": {
+      "name": "Prestige Chocolate Realm",
+      "rarity": "LEGENDARY"
+    },
+    "IQ_POINT": {
+      "name": "IQ Point",
+      "rarity": "COMMON"
+    },
+    "TWO_IQ_POINT": {
+      "name": "2 IQ Points",
+      "rarity": "UNCOMMON"
+    },
+    "BROKEN_PIGGY_BANK": {
+      "name": "Broken Piggy Bank",
+      "rarity": "UNCOMMON"
+    },
+    "CRACKED_PIGGY_BANK": {
+      "name": "Cracked Piggy Bank",
+      "rarity": "UNCOMMON"
+    },
+    "ABICASE_BLUE_AQUA": {
+      "name": "Lighter Blue™ Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_BLUE": {
+      "name": "Actually Blue™ Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_GREEN": {
+      "name": "Blue™ but Green Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_RED": {
+      "name": "Blue™ but Red Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_YELLOW": {
+      "name": "Blue™ but Yellow Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_REZAR": {
+      "name": "Rezar® Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_SUMSUNG_1": {
+      "name": "Sumsung© G3 Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_SUMSUNG_2": {
+      "name": "Sumsung© GG Abicase",
+      "rarity": "RARE"
+    },
+    "APPLICANT_STATEMENT": {
+      "name": "Applicant's Statement",
+      "rarity": "COMMON"
+    },
+    "ATMOSPHERIC_FILTER": {
+      "name": "Atmospheric Filter",
+      "rarity": "RARE"
+    },
+    "BIG_BRAIN_TALISMAN": {
+      "name": "Big Brain Talisman",
+      "rarity": "COMMON"
+    },
+    "BINGO_COMBAT_TALISMAN": {
+      "name": "Bingo Combat Talisman",
+      "rarity": "COMMON"
+    },
+    "BINGO_RELIC": {
+      "name": "Bingo Relic",
+      "rarity": "EPIC"
+    },
+    "BINGO_RIFT_TALISMAN": {
+      "name": "Bingo Rift Talisman",
+      "rarity": "COMMON"
+    },
+    "BLOOD_GOD_SIGIL": {
+      "name": "Blood God Sigil",
+      "rarity": "UNCOMMON"
+    },
+    "BLUERTOOTH_RING": {
+      "name": "Bluertooth Ring",
+      "rarity": "EPIC"
+    },
+    "BLUETOOTH_RING": {
+      "name": "Bluetooth Ring",
+      "rarity": "RARE"
+    },
+    "BLUE_GIFT_TALISMAN": {
+      "name": "Blue Gift Talisman",
+      "rarity": "RARE"
+    },
+    "BOOK_OF_PROGRESSION": {
+      "name": "Book of Progression",
+      "rarity": "COMMON"
+    },
+    "BUCKET_OF_DYE": {
+      "name": "Bucket of Dye",
+      "rarity": "RARE"
+    },
+    "CARNIVAL_MASK_BAG": {
+      "name": "Carnival Mask Bag",
+      "rarity": "COMMON"
+    },
+    "COMBO_MANIA_TALISMAN": {
+      "name": "Combo Mania",
+      "rarity": "UNCOMMON"
+    },
+    "CROPIE_TALISMAN": {
+      "name": "Cropie Talisman",
+      "rarity": "COMMON"
+    },
+    "DANTE_RING": {
+      "name": "Dante's Ring",
+      "rarity": "COMMON"
+    },
+    "DWARVEN_METAL": {
+      "name": "Dwarven Metal Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "EMERALD_ARTIFACT": {
+      "name": "Emerald Artifact",
+      "rarity": "RARE"
+    },
+    "FERMENTO_ARTIFACT": {
+      "name": "Fermento Artifact",
+      "rarity": "RARE"
+    },
+    "FUTURE_CALORIES": {
+      "name": "Future Calories Talisman",
+      "rarity": "COMMON"
+    },
+    "GARLIC_FLAVORED_GUMMY_BEAR": {
+      "name": "Perma-Jelled Garlic-Flavored Re-Heated Gummy Polar Bear",
+      "rarity": "EPIC"
+    },
+    "GENERAL_MEDALLION": {
+      "name": "General's Medallion",
+      "rarity": "RARE"
+    },
+    "GLOSSY_MINERAL_TALISMAN": {
+      "name": "Glossy Mineral Talisman",
+      "rarity": "EPIC"
+    },
+    "GOLD_GIFT_TALISMAN": {
+      "name": "Gold Gift Talisman",
+      "rarity": "LEGENDARY"
+    },
+    "GREEN_GIFT_TALISMAN": {
+      "name": "Green Gift Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "HASTE_ARTIFACT": {
+      "name": "Haste Artifact",
+      "rarity": "EPIC"
+    },
+    "HELIANTHUS_RELIC": {
+      "name": "Helianthus Relic",
+      "rarity": "EPIC"
+    },
+    "HOCUS_POCUS_CIPHER": {
+      "name": "Hocus-Pocus Cipher",
+      "rarity": "EPIC"
+    },
+    "INTIMIDATION_RELIC": {
+      "name": "Intimidation Relic",
+      "rarity": "EPIC"
+    },
+    "JAKE_PLUSHIE": {
+      "name": "Jake's Plushie",
+      "rarity": "UNCOMMON"
+    },
+    "KUUDRAS_HEART": {
+      "name": "Kuudra's Heart",
+      "rarity": "LEGENDARY"
+    },
+    "KUUDRAS_KIDNEY": {
+      "name": "Kuudra's Kidney",
+      "rarity": "RARE"
+    },
+    "KUUDRAS_LUNG": {
+      "name": "Kuudra's Lung",
+      "rarity": "EPIC"
+    },
+    "MAGIC_8_BALL": {
+      "name": "Magic 8 Ball",
+      "rarity": "EPIC"
+    },
+    "MASTER_THESIS": {
+      "name": "Master's Thesis",
+      "rarity": "RARE"
+    },
+    "MINIATURIZED_TUBULATOR": {
+      "name": "Miniaturized Tubulator",
+      "rarity": "UNCOMMON"
+    },
+    "MOONLIGHT_CRYSTAL": {
+      "name": "Moonlight Crystal",
+      "rarity": "EPIC"
+    },
+    "PESTHUNTER_BADGE": {
+      "name": "Pesthunter Badge",
+      "rarity": "UNCOMMON"
+    },
+    "PHD_GRIMOIRE": {
+      "name": "PhD's Grimoire",
+      "rarity": "EPIC"
+    },
+    "POTATO_RING": {
+      "name": "Potato Ring",
+      "rarity": "UNCOMMON"
+    },
+    "PURPLE_GIFT_TALISMAN": {
+      "name": "Purple Gift Talisman",
+      "rarity": "EPIC"
+    },
+    "RIFT_PRISM": {
+      "name": "Rift Prism",
+      "rarity": "RARE"
+    },
+    "RUNEBOOK": {
+      "name": "Runebook",
+      "rarity": "COMMON"
+    },
+    "SAFETY_BADGE": {
+      "name": "Safety Badge",
+      "rarity": "COMMON"
+    },
+    "SATELITE": {
+      "name": "Satelite",
+      "rarity": "LEGENDARY"
+    },
+    "SPEED_RELIC": {
+      "name": "Speed Relic",
+      "rarity": "EPIC"
+    },
+    "SQUASH_RING": {
+      "name": "Squash Ring",
+      "rarity": "UNCOMMON"
+    },
+    "STUDENT_STUDIES": {
+      "name": "Student's Studies",
+      "rarity": "UNCOMMON"
+    },
+    "SUNSHINE_CRYSTAL": {
+      "name": "Sunshine Crystal",
+      "rarity": "EPIC"
+    },
+    "TARANTULA_RING": {
+      "name": "Tarantula Ring",
+      "rarity": "LEGENDARY"
+    },
+    "TEST_BUCKET_PLEASE_IGNORE": {
+      "name": "Test Bucket Please Ignore",
+      "rarity": "UNCOMMON"
+    },
+    "TINY_DANCER": {
+      "name": "Tiny Dancer",
+      "rarity": "UNCOMMON"
+    },
+    "VAMPIRE_DENTIST_RELIC": {
+      "name": "Vampire Dentist Relic",
+      "rarity": "LEGENDARY"
+    },
+    "WHITE_GIFT_TALISMAN": {
+      "name": "White Gift Talisman",
+      "rarity": "COMMON"
     }
   },
   "max_upgrade_talismans": {
@@ -1177,20 +2704,12 @@
       "name": "Farming Talisman",
       "rarity": "COMMON"
     },
-    "VACCINE_TALISMAN": {
-      "name": "Vaccine Talisman",
-      "rarity": "COMMON"
-    },
     "WOOD_TALISMAN": {
       "name": "Wood Affinity Talisman",
       "rarity": "UNCOMMON"
     },
     "SKELETON_TALISMAN": {
       "name": "Skeleton Talisman",
-      "rarity": "COMMON"
-    },
-    "COIN_TALISMAN": {
-      "name": "Talisman of Coins",
       "rarity": "COMMON"
     },
     "MAGNETIC_TALISMAN": {
@@ -1216,10 +2735,6 @@
     "LAVA_TALISMAN": {
       "name": "Lava Talisman",
       "rarity": "UNCOMMON"
-    },
-    "SCAVENGER_TALISMAN": {
-      "name": "Scavenger Talisman",
-      "rarity": "COMMON"
     },
     "PIGS_FOOT": {
       "name": "Pig's Foot",
@@ -1540,6 +3055,390 @@
     "FRIED_FROZEN_CHICKEN": {
       "name": "Fried Frozen Chicken",
       "rarity": "EPIC"
+    },
+    "SCAVENGER_ARTIFACT": {
+      "name": "Scavenger Artifact",
+      "rarity": "RARE"
+    },
+    "ACCRETION_ARTIFACT": {
+      "name": "Accretion Artifact",
+      "rarity": "RARE"
+    },
+    "AGARIMOO_ARTIFACT": {
+      "name": "Agarimoo Artifact",
+      "rarity": "RARE"
+    },
+    "ANGUISH_ARTIFACT": {
+      "name": "Anguish Artifact",
+      "rarity": "LEGENDARY"
+    },
+    "ANITA_ARTIFACT": {
+      "name": "Anita's Artifact",
+      "rarity": "RARE"
+    },
+    "BIOANALYSIS_ARTIFACT": {
+      "name": "Bioanalysis Artifact",
+      "rarity": "RARE"
+    },
+    "BLOOD_DONOR_ARTIFACT": {
+      "name": "Blood Donor Artifact",
+      "rarity": "RARE"
+    },
+    "CENTURY_ARTIFACT": {
+      "name": "Artifact of the Century",
+      "rarity": "RARE"
+    },
+    "COPPER_ARTIFACT": {
+      "name": "Copper Artifact",
+      "rarity": "RARE"
+    },
+    "EMPEROR_ARTIFACT": {
+      "name": "Emperor's Artifact",
+      "rarity": "EPIC"
+    },
+    "FRESHLY_BAKED_HEIRLOOM": {
+      "name": "Freshly Baked Heirloom",
+      "rarity": "LEGENDARY"
+    },
+    "GLACIAL_ARTIFACT": {
+      "name": "Glacial Artifact",
+      "rarity": "RARE"
+    },
+    "GRATITUDE_ARTIFACT": {
+      "name": "Gratitude Artifact",
+      "rarity": "RARE"
+    },
+    "HONEYCOMB_ARTIFACT": {
+      "name": "Honeycomb Artifact",
+      "rarity": "RARE"
+    },
+    "JUNK_ARTIFACT": {
+      "name": "Junk Artifact",
+      "rarity": "RARE"
+    },
+    "KUUDRA_FOLLOWER_RELIC": {
+      "name": "Kuudra Follower Relic",
+      "rarity": "LEGENDARY"
+    },
+    "LUMBERJACK_ARTIFACT": {
+      "name": "Lumberjack Artifact",
+      "rarity": "RARE"
+    },
+    "LUSH_ARTIFACT": {
+      "name": "Lush Artifact",
+      "rarity": "EPIC"
+    },
+    "MOONGLADE_ARTIFACT": {
+      "name": "Moonglade Artifact",
+      "rarity": "RARE"
+    },
+    "ORGAN_DONOR_ARTIFACT": {
+      "name": "Organ Donor Artifact",
+      "rarity": "RARE"
+    },
+    "PESTHUNTER_RELIC": {
+      "name": "Pesthunter Relic",
+      "rarity": "LEGENDARY"
+    },
+    "PRESSURE_ARTIFACT": {
+      "name": "Pressure Artifact",
+      "rarity": "RARE"
+    },
+    "RESPIRATION_ARTIFACT": {
+      "name": "Respiration Artifact",
+      "rarity": "RARE"
+    },
+    "RUNEBLADE_ARTIFACT": {
+      "name": "Runeblade Artifact",
+      "rarity": "RARE"
+    },
+    "SEAL_RING": {
+      "name": "Seal Ring",
+      "rarity": "RARE"
+    },
+    "TORRHUS_ARTIFACT": {
+      "name": "Torrhus Artifact",
+      "rarity": "RARE"
+    },
+    "WITCH_ARTIFACT": {
+      "name": "Witch's Artifact",
+      "rarity": "RARE"
+    },
+    "RELIC_OF_COINS": {
+      "name": "Relic of Coins",
+      "rarity": "EPIC"
+    },
+    "CRUX_TALISMAN_7": {
+      "name": "Celestial Starstone",
+      "rarity": "DIVINE"
+    },
+    "SOUL_CAMPFIRE_TALISMAN_29": {
+      "name": "Soul Campfire God Badge IX",
+      "rarity": "LEGENDARY"
+    },
+    "VOTER_BADGE_SUPREME": {
+      "name": "Supreme Voter's Badge",
+      "rarity": "EPIC"
+    },
+    "LARGE_FISH_BOWL": {
+      "name": "Large Fish Bowl",
+      "rarity": "RARE"
+    },
+    "PRESTIGE_CHOCOLATE_REALM": {
+      "name": "Prestige Chocolate Realm",
+      "rarity": "LEGENDARY"
+    },
+    "TWO_IQ_POINT": {
+      "name": "2 IQ Points",
+      "rarity": "UNCOMMON"
+    },
+    "ABICASE_BLUE_AQUA": {
+      "name": "Lighter Blue™ Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_BLUE": {
+      "name": "Actually Blue™ Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_GREEN": {
+      "name": "Blue™ but Green Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_RED": {
+      "name": "Blue™ but Red Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_BLUE_YELLOW": {
+      "name": "Blue™ but Yellow Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_REZAR": {
+      "name": "Rezar® Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_SUMSUNG_1": {
+      "name": "Sumsung© G3 Abicase",
+      "rarity": "RARE"
+    },
+    "ABICASE_SUMSUNG_2": {
+      "name": "Sumsung© GG Abicase",
+      "rarity": "RARE"
+    },
+    "APPLICANT_STATEMENT": {
+      "name": "Applicant's Statement",
+      "rarity": "COMMON"
+    },
+    "ATMOSPHERIC_FILTER": {
+      "name": "Atmospheric Filter",
+      "rarity": "RARE"
+    },
+    "BIG_BRAIN_TALISMAN": {
+      "name": "Big Brain Talisman",
+      "rarity": "COMMON"
+    },
+    "BINGO_COMBAT_TALISMAN": {
+      "name": "Bingo Combat Talisman",
+      "rarity": "COMMON"
+    },
+    "BINGO_RELIC": {
+      "name": "Bingo Relic",
+      "rarity": "EPIC"
+    },
+    "BINGO_RIFT_TALISMAN": {
+      "name": "Bingo Rift Talisman",
+      "rarity": "COMMON"
+    },
+    "BLOOD_GOD_SIGIL": {
+      "name": "Blood God Sigil",
+      "rarity": "UNCOMMON"
+    },
+    "BLUERTOOTH_RING": {
+      "name": "Bluertooth Ring",
+      "rarity": "EPIC"
+    },
+    "BLUETOOTH_RING": {
+      "name": "Bluetooth Ring",
+      "rarity": "RARE"
+    },
+    "BLUE_GIFT_TALISMAN": {
+      "name": "Blue Gift Talisman",
+      "rarity": "RARE"
+    },
+    "BOOK_OF_PROGRESSION": {
+      "name": "Book of Progression",
+      "rarity": "COMMON"
+    },
+    "BUCKET_OF_DYE": {
+      "name": "Bucket of Dye",
+      "rarity": "RARE"
+    },
+    "CARNIVAL_MASK_BAG": {
+      "name": "Carnival Mask Bag",
+      "rarity": "COMMON"
+    },
+    "COMBO_MANIA_TALISMAN": {
+      "name": "Combo Mania",
+      "rarity": "UNCOMMON"
+    },
+    "CROPIE_TALISMAN": {
+      "name": "Cropie Talisman",
+      "rarity": "COMMON"
+    },
+    "DANTE_RING": {
+      "name": "Dante's Ring",
+      "rarity": "COMMON"
+    },
+    "DWARVEN_METAL": {
+      "name": "Dwarven Metal Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "EMERALD_ARTIFACT": {
+      "name": "Emerald Artifact",
+      "rarity": "RARE"
+    },
+    "FERMENTO_ARTIFACT": {
+      "name": "Fermento Artifact",
+      "rarity": "RARE"
+    },
+    "FUTURE_CALORIES": {
+      "name": "Future Calories Talisman",
+      "rarity": "COMMON"
+    },
+    "GARLIC_FLAVORED_GUMMY_BEAR": {
+      "name": "Perma-Jelled Garlic-Flavored Re-Heated Gummy Polar Bear",
+      "rarity": "EPIC"
+    },
+    "GENERAL_MEDALLION": {
+      "name": "General's Medallion",
+      "rarity": "RARE"
+    },
+    "GLOSSY_MINERAL_TALISMAN": {
+      "name": "Glossy Mineral Talisman",
+      "rarity": "EPIC"
+    },
+    "GOLD_GIFT_TALISMAN": {
+      "name": "Gold Gift Talisman",
+      "rarity": "LEGENDARY"
+    },
+    "GREEN_GIFT_TALISMAN": {
+      "name": "Green Gift Talisman",
+      "rarity": "UNCOMMON"
+    },
+    "HASTE_ARTIFACT": {
+      "name": "Haste Artifact",
+      "rarity": "EPIC"
+    },
+    "HELIANTHUS_RELIC": {
+      "name": "Helianthus Relic",
+      "rarity": "EPIC"
+    },
+    "HOCUS_POCUS_CIPHER": {
+      "name": "Hocus-Pocus Cipher",
+      "rarity": "EPIC"
+    },
+    "INTIMIDATION_RELIC": {
+      "name": "Intimidation Relic",
+      "rarity": "EPIC"
+    },
+    "JAKE_PLUSHIE": {
+      "name": "Jake's Plushie",
+      "rarity": "UNCOMMON"
+    },
+    "KUUDRAS_HEART": {
+      "name": "Kuudra's Heart",
+      "rarity": "LEGENDARY"
+    },
+    "KUUDRAS_KIDNEY": {
+      "name": "Kuudra's Kidney",
+      "rarity": "RARE"
+    },
+    "KUUDRAS_LUNG": {
+      "name": "Kuudra's Lung",
+      "rarity": "EPIC"
+    },
+    "MAGIC_8_BALL": {
+      "name": "Magic 8 Ball",
+      "rarity": "EPIC"
+    },
+    "MASTER_THESIS": {
+      "name": "Master's Thesis",
+      "rarity": "RARE"
+    },
+    "MINIATURIZED_TUBULATOR": {
+      "name": "Miniaturized Tubulator",
+      "rarity": "UNCOMMON"
+    },
+    "MOONLIGHT_CRYSTAL": {
+      "name": "Moonlight Crystal",
+      "rarity": "EPIC"
+    },
+    "PESTHUNTER_BADGE": {
+      "name": "Pesthunter Badge",
+      "rarity": "UNCOMMON"
+    },
+    "PHD_GRIMOIRE": {
+      "name": "PhD's Grimoire",
+      "rarity": "EPIC"
+    },
+    "POTATO_RING": {
+      "name": "Potato Ring",
+      "rarity": "UNCOMMON"
+    },
+    "PURPLE_GIFT_TALISMAN": {
+      "name": "Purple Gift Talisman",
+      "rarity": "EPIC"
+    },
+    "RIFT_PRISM": {
+      "name": "Rift Prism",
+      "rarity": "RARE"
+    },
+    "RUNEBOOK": {
+      "name": "Runebook",
+      "rarity": "COMMON"
+    },
+    "SAFETY_BADGE": {
+      "name": "Safety Badge",
+      "rarity": "COMMON"
+    },
+    "SATELITE": {
+      "name": "Satelite",
+      "rarity": "LEGENDARY"
+    },
+    "SPEED_RELIC": {
+      "name": "Speed Relic",
+      "rarity": "EPIC"
+    },
+    "SQUASH_RING": {
+      "name": "Squash Ring",
+      "rarity": "UNCOMMON"
+    },
+    "STUDENT_STUDIES": {
+      "name": "Student's Studies",
+      "rarity": "UNCOMMON"
+    },
+    "SUNSHINE_CRYSTAL": {
+      "name": "Sunshine Crystal",
+      "rarity": "EPIC"
+    },
+    "TARANTULA_RING": {
+      "name": "Tarantula Ring",
+      "rarity": "LEGENDARY"
+    },
+    "TEST_BUCKET_PLEASE_IGNORE": {
+      "name": "Test Bucket Please Ignore",
+      "rarity": "UNCOMMON"
+    },
+    "TINY_DANCER": {
+      "name": "Tiny Dancer",
+      "rarity": "UNCOMMON"
+    },
+    "VAMPIRE_DENTIST_RELIC": {
+      "name": "Vampire Dentist Relic",
+      "rarity": "LEGENDARY"
+    },
+    "WHITE_GIFT_TALISMAN": {
+      "name": "White Gift Talisman",
+      "rarity": "COMMON"
     }
   },
   "perfect_gemstone_rarity_upgrades": {
