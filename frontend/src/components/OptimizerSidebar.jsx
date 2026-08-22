@@ -6,7 +6,7 @@ import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCa
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1 } from '../lib/damageFormat';
+import { round1, formatCoinsPerPercent, formatCoinsShort } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import NumberInput from './NumberInput';
 import WeaponIcon from './WeaponIcon';
@@ -61,6 +61,7 @@ function compareResults(a, b) {
 // one list instead of two separate sections.
 function UpgradeRow({ result, onSwapIn }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
+  const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
     <button
       type="button"
@@ -83,7 +84,10 @@ function UpgradeRow({ result, onSwapIn }) {
           {result.category} — {SLOT_LABELS[result.slot] || result.slot}
         </span>
         <span className="text-[11px] text-black truncate">{result.label}</span>
-        <span className="text-[9px] text-neutral-700">Cost: {result.cost.toLocaleString()}</span>
+        <span className="text-[9px] text-neutral-700">
+          Cost: {formatCoinsShort(result.cost)}
+          {coinsPerPercent && ` · ${coinsPerPercent}/%`}
+        </span>
       </div>
       <span className="text-[11px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
     </button>

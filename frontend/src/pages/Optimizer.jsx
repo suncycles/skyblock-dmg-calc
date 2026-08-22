@@ -7,7 +7,7 @@ import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCa
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1, round3Sig } from '../lib/damageFormat';
+import { round1, round3Sig, formatCoinsPerPercent, formatCoinsShort } from '../lib/damageFormat';
 import PageHeader from '../components/PageHeader';
 import WeaponIcon from '../components/WeaponIcon';
 import NumberInput from '../components/NumberInput';
@@ -63,6 +63,7 @@ function compareResults(a, b, sortBy) {
 // item (`itemId` set); brute-forced categories without one just show the category/slot label.
 function UpgradeRow({ result, onSwapIn }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
+  const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
     <button
       type="button"
@@ -85,7 +86,9 @@ function UpgradeRow({ result, onSwapIn }) {
           {result.category} — {SLOT_LABELS[result.slot] || result.slot}
         </span>
         <span className="text-[13px] text-black truncate">{result.label}</span>
-        <span className="text-[10px] text-neutral-700">Cost: {result.cost.toLocaleString()} coins</span>
+        <span className="text-[10px] text-neutral-700">
+          Cost: {formatCoinsShort(result.cost)} coins{coinsPerPercent && ` · ${coinsPerPercent} coins/%`}
+        </span>
       </div>
       <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
     </button>
