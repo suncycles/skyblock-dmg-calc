@@ -1034,9 +1034,36 @@ const GOLDEN_DRAGON_TREASURE_RE =
 // this shape, so this is an explicit allowlist rather than a blanket "all pets" flag.
 const ABILITY_ELIGIBLE_PET_IDS = new Set(['ENDER_DRAGON', 'ZOMBIE', 'WITHER_SKELETON']);
 
+// collectPetEntries' real output depends only on (petId, tier, name, level, bankCoins) — every
+// other input (itemData's pet level tables, NEU lore) is stable for the whole app session. The
+// optimizer evaluates hundreds of candidate loadouts per run that all share the SAME pet (only one
+// other slot/enchant differs per candidate), so recomputing this from scratch — NEU lore
+// substitution plus a paragraph-by-paragraph regex scan — on every single call was measured at
+// ~35% of collectDamageSources' total per-call time for no benefit, since the result is identical
+// across that whole run. Memoized by that key instead, replayed into the real `out` on a hit.
+const petEntriesCache = new Map();
+
 async function collectPetEntries(loadout, itemData, out) {
   if (!loadout.pet) return;
   const { item: pet, modifiers } = loadout.pet;
+  const cacheKey = `${pet.petId}:${pet.tier}:${pet.name}:${modifiers.level}:${modifiers.bankCoins || 0}`;
+  let cached = petEntriesCache.get(cacheKey);
+  if (!cached) {
+    cached = (async () => {
+      const localOut = { additiveNonConditional: [], additiveConditional: [], multiplicative: [], situational: [] };
+      await collectPetEntriesInto(pet, modifiers, itemData, localOut);
+      return localOut;
+    })();
+    petEntriesCache.set(cacheKey, cached);
+  }
+  const entries = await cached;
+  out.additiveNonConditional.push(...entries.additiveNonConditional);
+  out.additiveConditional.push(...entries.additiveConditional);
+  out.multiplicative.push(...entries.multiplicative);
+  out.situational.push(...entries.situational);
+}
+
+async function collectPetEntriesInto(pet, modifiers, itemData, out) {
   const loreId = petLoreItemId(pet.petId, pet.tier);
   const rawLoreData = await fetchNeuItem(loreId);
   if (!rawLoreData || !rawLoreData.lore || rawLoreData.lore.length === 0) return;
