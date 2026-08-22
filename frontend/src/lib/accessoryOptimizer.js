@@ -16,8 +16,6 @@
 // contribution (and any resulting Tuning Points) are simulated, not a guessed stat line.
 //
 // TEMPORARY IMPLEMENTATION — known scope limits:
-// - Coin cost is a placeholder 0 (ratio null), same convention as lib/optimizer.js — no real-time
-//   price source is wired up.
 // - non_recombobulatable_ids is a curated, non-exhaustive list (4 confirmed real ids) — not every
 //   one of the ~280 real accessories has been individually checked.
 
@@ -28,6 +26,7 @@ import { computeModeDamage, getModeConfig } from './optimizer';
 import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
 import { fetchHypixelImport, HypixelImportError } from './hypixelImport';
+import { cheapestPerfectGemstonePrice } from './pricing';
 
 export const MAGICAL_POWER_BY_RARITY = {
   COMMON: 3,
@@ -40,17 +39,30 @@ export const MAGICAL_POWER_BY_RARITY = {
   VERY_SPECIAL: 5,
 };
 
-const PLACEHOLDER_COST = 0;
-
-function withCostPlaceholder(result) {
-  return { ...result, cost: PLACEHOLDER_COST, ratio: PLACEHOLDER_COST > 0 ? result.percentIncrease / PLACEHOLDER_COST : null };
+// Real coin cost per accessory candidate, mirroring lib/optimizer.js's withCost/lookupCandidateCost
+// for gear. A generic MP-sweep candidate isn't a real, priceable item, so it always falls through
+// to null/'?' below.
+function lookupAccessoryCost(candidate, itemData) {
+  const itemPrices = itemData?.costs?.itemPrices || {};
+  if (candidate.kind === 'missing') {
+    const price = itemPrices[candidate.id];
+    return typeof price === 'number' && price > 0 ? price : null;
+  }
+  if (candidate.kind === 'recombobulate') {
+    return itemData?.costs?.recombobulatorCost || null;
+  }
+  if (candidate.kind === 'gemstone-upgrade') {
+    // The specific Perfect Gemstone type needed isn't tracked in our data — priced at the
+    // cheapest real type as a floor/lower-bound (a real market price, not a guessed number).
+    const perGem = cheapestPerfectGemstonePrice(itemData);
+    return perGem != null && candidate.gemstonesNeeded ? perGem * candidate.gemstonesNeeded : null;
+  }
+  return null;
 }
 
-// A generic MP-sweep candidate isn't a real, priceable item — no real cost source could ever
-// apply to it (unlike the real-item placeholder 0 above, which just means "not wired up yet") —
-// so cost shows as unknown ('?') rather than a misleading 0.
-function withUnknownCost(result) {
-  return { ...result, cost: '?', ratio: null };
+function withCost(result, cost) {
+  const hasRealCost = typeof cost === 'number' && cost > 0;
+  return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost ? result.percentIncrease / cost : null };
 }
 
 // Fallback candidates when no real account is on file (see buildAccessoryCandidates below):
@@ -169,6 +181,7 @@ export function buildAccessoryCandidates(owned, families) {
           rarity: gem.to,
           mpGain,
           kind: 'gemstone-upgrade',
+          gemstonesNeeded: gem.gemstonesNeeded,
         });
       }
       continue; // Recombobulator doesn't apply to these two rarity jumps — real mechanic is gemstones only.
@@ -232,7 +245,7 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
     if (percentIncrease <= 0.001) continue;
-    const withCost = candidate.kind === 'generic' ? withUnknownCost : withCostPlaceholder;
+    const cost = lookupAccessoryCost(candidate, itemData);
     results.push(
       withCost({
         id: candidate.id,
@@ -248,7 +261,7 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
           { type: 'setAccessoryMagicalPower', mp: currentMp + candidate.mpGain },
           { type: 'setAccessoryTuning', tuning: candidateTuning },
         ],
-      }),
+      }, cost),
     );
   }
   results.sort((a, b) => b.percentIncrease - a.percentIncrease);
