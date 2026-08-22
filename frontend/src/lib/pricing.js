@@ -46,12 +46,16 @@ export function lookupCandidateCost(result, itemData) {
   if (!costs) return null;
   const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {} } = costs;
 
-  // Crown of Avarice's "Coins Consumed" candidates: the threshold itself IS the coin cost (1
-  // coin consumed = 1 coin spent), user-confirmed — no catalog lookup, and must be checked before
-  // the general Armor-category branch below since Crown candidates carry category: 'Armor' too.
-  // David's Cloak's `special` is a real Strength bonus value, not a coin amount — deliberately
-  // excluded (stays unpriced) rather than misread as coins.
-  if (result.itemId === 'CROWN_OF_AVARICE' && result.special != null) return result.special;
+  // Crown of Avarice's "Coins Consumed" candidates: cost is the item's own real market price
+  // (buying a bare Crown) PLUS the Coins Consumed threshold (1 coin consumed = 1 coin spent,
+  // user-confirmed) — a player has to acquire the crown itself before feeding coins into it. Must
+  // be checked before the general Armor-category branch below since Crown candidates carry
+  // category: 'Armor' too. David's Cloak's `special` is a real Strength bonus value, not a coin
+  // amount — deliberately excluded (stays unpriced) rather than misread as coins.
+  if (result.itemId === 'CROWN_OF_AVARICE' && result.special != null) {
+    const basePrice = priceOf(itemPrices, 'CROWN_OF_AVARICE');
+    return (basePrice || 0) + result.special;
+  }
 
   switch (result.category) {
     case 'Weapon':
