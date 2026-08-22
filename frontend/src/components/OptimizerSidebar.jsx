@@ -21,6 +21,82 @@ const sectionTitle = 'text-[12px] font-bold text-black uppercase tracking-wide p
 const DESKTOP_BREAKPOINT_PX = 1024;
 const POSITION_KEY = 'hexOptimizerSidebarPos';
 const SIZE_KEY = 'hexOptimizerSidebarSize';
+// How much of the panel must stay on-screen at minimum — keeps a corner always reachable to drag
+// back even if a saved position/viewport combination would otherwise push it fully off-screen.
+const MIN_VISIBLE_PX = 40;
+// Matches the lg:min-w-[220px]/lg:min-h-[200px] classes on the container — kept as JS constants
+// too since the resize handles below need to clamp against them mid-gesture, not just via CSS.
+const MIN_WIDTH_PX = 220;
+const MIN_HEIGHT_PX = 200;
+// Gap kept between the panel and the exact viewport edge when dragging/resizing against it.
+const EDGE_MARGIN_PX = 8;
+
+// Keeps the panel's full box (given its real current width/height) on-screen within `viewport` —
+// used both live during a drag and to re-clamp a stored/previous position after the window itself
+// shrinks (e.g. the user resizes their browser, or a position saved on a bigger monitor loads on a
+// smaller one).
+function clampPosition(left, top, width, height, viewport) {
+  const maxLeft = Math.max(0, viewport.width - Math.max(MIN_VISIBLE_PX, width));
+  const maxTop = Math.max(0, viewport.height - Math.max(MIN_VISIBLE_PX, height));
+  return { left: Math.min(Math.max(0, left), maxLeft), top: Math.min(Math.max(0, top), maxTop) };
+}
+
+// index.css applies a site-wide `zoom: 1.15` to <html> — mouse coordinates (clientX/clientY),
+// getBoundingClientRect(), and window.innerWidth/innerHeight all report the POST-zoom rendered
+// pixel space, while el.offsetLeft/offsetWidth and anything written to el.style.left/width are
+// interpreted in the PRE-zoom CSS px space. Every drag/resize handler below does its math in the
+// pre-zoom space (matching offsetLeft/offsetWidth/style writes), so any zoomed-space input has to
+// be divided by this factor first — otherwise the panel visibly jumps by ~15% the moment a drag or
+// resize starts.
+function getPageZoom() {
+  const z = parseFloat(getComputedStyle(document.documentElement).zoom);
+  return z > 0 ? z : 1;
+}
+
+// Resize handles, one per edge + corner (8 total) — each drags one or two of the box's 4 edges,
+// with the OPPOSITE edge staying anchored in place (the standard "resize from any side" behavior:
+// e.g. dragging the left edge rightward shrinks the box by moving its left edge in, while its
+// right edge doesn't move). Horizontal and vertical are independent, so a corner handle's effect
+// is just its two edges' effects combined — see the `dir.includes(...)` checks below.
+const RESIZE_HANDLES = [
+  { dir: 'n', className: 'lg:absolute lg:top-0 lg:left-2 lg:right-2 lg:h-1.5 lg:cursor-ns-resize' },
+  { dir: 's', className: 'lg:absolute lg:bottom-0 lg:left-2 lg:right-2 lg:h-1.5 lg:cursor-ns-resize' },
+  { dir: 'w', className: 'lg:absolute lg:left-0 lg:top-2 lg:bottom-2 lg:w-1.5 lg:cursor-ew-resize' },
+  { dir: 'e', className: 'lg:absolute lg:right-0 lg:top-2 lg:bottom-2 lg:w-1.5 lg:cursor-ew-resize' },
+  { dir: 'nw', className: 'lg:absolute lg:top-0 lg:left-0 lg:w-3 lg:h-3 lg:cursor-nwse-resize' },
+  { dir: 'ne', className: 'lg:absolute lg:top-0 lg:right-0 lg:w-3 lg:h-3 lg:cursor-nesw-resize' },
+  { dir: 'sw', className: 'lg:absolute lg:bottom-0 lg:left-0 lg:w-3 lg:h-3 lg:cursor-nesw-resize' },
+  { dir: 'se', className: 'lg:absolute lg:bottom-0 lg:right-0 lg:w-3 lg:h-3 lg:cursor-nwse-resize' },
+];
+
+// Horizontal half of a resize: 'e' grows/shrinks the right edge (left stays put, capped so the
+// right edge never crosses the viewport edge); 'w' grows/shrinks the left edge by keeping the
+// RIGHT edge anchored — the box's right edge = start.left + start.width never moves, so left is
+// solved from however much width is left over once it's clamped to the minimum.
+function resizeHorizontal(dir, start, dx, viewportWidth) {
+  if (dir.includes('e')) {
+    const width = Math.min(Math.max(MIN_WIDTH_PX, start.width + dx), viewportWidth - start.left - EDGE_MARGIN_PX);
+    return { left: start.left, width };
+  }
+  if (dir.includes('w')) {
+    const left = Math.min(Math.max(0, start.left + dx), start.left + start.width - MIN_WIDTH_PX);
+    return { left, width: start.left + start.width - left };
+  }
+  return { left: start.left, width: start.width };
+}
+
+// Vertical mirror of resizeHorizontal — 's' anchors the top edge, 'n' anchors the bottom edge.
+function resizeVertical(dir, start, dy, viewportHeight) {
+  if (dir.includes('s')) {
+    const height = Math.min(Math.max(MIN_HEIGHT_PX, start.height + dy), viewportHeight - start.top - EDGE_MARGIN_PX);
+    return { top: start.top, height };
+  }
+  if (dir.includes('n')) {
+    const top = Math.min(Math.max(0, start.top + dy), start.top + start.height - MIN_HEIGHT_PX);
+    return { top, height: start.top + start.height - top };
+  }
+  return { top: start.top, height: start.height };
+}
 
 const SLOT_LABELS = { ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS, pet: 'Pet' };
 
@@ -102,21 +178,21 @@ function UpgradeRow({ result, onSwapIn }) {
 // — no separate "remove from list" bookkeeping needed.
 //
 // Always rendered (shown by default, not hidden behind a toggle) — a fixed right-side sidebar at
-// the `lg` breakpoint and up (verified live against this page's actual centered content at 1024px
-// — a 280px fixed sidebar plus its own margins comfortably clears the centered max-w-[700px] grid
-// at that width, so the loadout/damage grid stays centered regardless of where this floats), and
-// an ordinary in-flow block below it on narrower/mobile layouts — Landing.jsx places this
+// the `lg` breakpoint and up, and an ordinary in-flow block below it on narrower/mobile layouts.
+// Being position: fixed means it never pushes the loadout/damage grid via normal document flow —
+// but Landing.jsx's own wrapper used to ALSO reserve a static lg:pr-[320px] for it, which kept the
+// grid centered only while the panel stayed docked at its default spot. Now that it's a real
+// floating window the user can drag anywhere, that reservation just left permanent dead space on
+// the right regardless of where the panel actually was — removed, so the grid centers on the full
+// page width like everything else. Landing.jsx places this
 // component right after the gear grid specifically so that in-flow position lands directly below
 // it. Desktop-only (see DESKTOP_BREAKPOINT_PX), the panel is also a real floating window: drag the
-// title bar to reposition it (mousedown/mousemove tracking, no library — see handleDragStart) and
-// drag its bottom-right corner to resize it (native CSS `resize: both`, no JS needed for the
-// interaction itself). Both write straight to the DOM during the actual gesture rather than
-// through React state on every event — with 40+ candidate rows, re-rendering all of them on every
-// mousemove/resize tick was the real source of past jankiness — and only commit to React
-// state/localStorage once the gesture settles (drag: on mouseup; resize: continuously, but
-// write-only into localStorage, never fed back into a controlled style — see the size-restore
-// effect for why). Defaults to a 66vh-tall box at the default right-4/top-20 spot until dragged
-// or resized for the first time.
+// title bar to reposition it, or any of its 8 edge/corner handles (see RESIZE_HANDLES) to resize
+// it from any side — mousedown/mousemove tracking, no library. Both write straight to the DOM
+// during the actual gesture rather than through React state on every event — with 40+ candidate
+// rows, re-rendering all of them on every mousemove tick was the real source of past jankiness —
+// and only commit one final setFloatPos/setFloatSize on mouseup. Defaults to a 66vh-tall box at
+// the default right-4/top-20 spot until dragged or resized for the first time.
 //
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
@@ -137,11 +213,22 @@ export default function OptimizerSidebar() {
   const [floatSize, setFloatSize] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= DESKTOP_BREAKPOINT_PX);
+  // Tracked separately from isDesktop (which only flips at the lg breakpoint) so the panel
+  // re-clamps back on-screen on any real window resize, not just one that crosses 1024px.
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  }));
   const dragOffsetRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     function handleResize() {
+      // isDesktop compares against the raw (zoomed) width — that's what the CSS `lg:` breakpoint's
+      // own min-width media query checks too. viewportSize feeds clampPosition/desktopStyle, which
+      // work in pre-zoom space (see getPageZoom above), so it needs the conversion.
+      const zoom = getPageZoom();
       setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT_PX);
+      setViewportSize({ width: window.innerWidth / zoom, height: window.innerHeight / zoom });
     }
     // Re-checks once on mount (not just on future resize events) — the lazy useState initializer
     // above can catch window.innerWidth at a moment before the viewport's real size is settled,
@@ -151,6 +238,25 @@ export default function OptimizerSidebar() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Re-clamps a floated position back on-screen whenever the viewport shrinks (browser window
+  // resized smaller, or a position saved on a bigger screen loading on a smaller one) — otherwise
+  // the panel could end up partly or fully unreachable with no on-screen handle left to drag it
+  // back by. Uses the panel's real current box (post any resize), not just its stored size.
+  useEffect(() => {
+    if (!floatPos || !containerRef.current || !isDesktop) return;
+    const el = containerRef.current;
+    const clamped = clampPosition(floatPos.left, floatPos.top, el.offsetWidth, el.offsetHeight, viewportSize);
+    if (clamped.left !== floatPos.left || clamped.top !== floatPos.top) {
+      el.style.left = `${clamped.left}px`;
+      el.style.top = `${clamped.top}px`;
+      setFloatPos(clamped);
+    }
+    // Only depends on the primitives that should actually trigger a re-clamp (viewport changing,
+    // or floatPos itself changing — e.g. first loading from storage). Safe from looping: this only
+    // calls setFloatPos when the position genuinely needs correcting, and re-running against an
+    // already-clamped position is then a no-op.
+  }, [viewportSize, isDesktop, floatPos]);
 
   useEffect(() => {
     try {
@@ -163,10 +269,16 @@ export default function OptimizerSidebar() {
     }
   }, []);
 
+  const dragSizeRef = useRef({ width: 0, height: 0 });
+
   function handleDragStart(e) {
     if (!isDesktop || !containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const el = containerRef.current;
+    const zoom = getPageZoom();
+    // offsetLeft/offsetWidth, not getBoundingClientRect — both are pre-zoom CSS px, the same space
+    // el.style.left/width writes use, unlike getBoundingClientRect/clientX (see getPageZoom above).
+    dragOffsetRef.current = { x: e.clientX / zoom - el.offsetLeft, y: e.clientY / zoom - el.offsetTop };
+    dragSizeRef.current = { width: el.offsetWidth, height: el.offsetHeight };
     setIsDragging(true);
     e.preventDefault();
   }
@@ -175,15 +287,19 @@ export default function OptimizerSidebar() {
   // React state on every mousemove — this list can be 40+ rows long, and re-rendering all of them
   // on every single pixel of mouse movement is what actually made dragging feel glitchy/laggy.
   // React only gets a single, final setFloatPos on mouseup, to persist and for the next render.
+  // Clamped against the panel's own real width/height (captured once at drag-start) so the whole
+  // box — not just its top-left corner — stays forced within the page, not just partially on it.
   useEffect(() => {
     if (!isDragging || !containerRef.current) return;
     const el = containerRef.current;
+    const zoom = getPageZoom();
     let latest = null;
     function handleMove(e) {
-      const next = {
-        left: Math.max(0, Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - 40)),
-        top: Math.max(0, Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - 40)),
-      };
+      const { width, height } = dragSizeRef.current;
+      const next = clampPosition(e.clientX / zoom - dragOffsetRef.current.x, e.clientY / zoom - dragOffsetRef.current.y, width, height, {
+        width: window.innerWidth / zoom,
+        height: window.innerHeight / zoom,
+      });
       latest = next;
       el.style.left = `${next.left}px`;
       el.style.top = `${next.top}px`;
@@ -191,11 +307,20 @@ export default function OptimizerSidebar() {
     }
     function handleUp() {
       setIsDragging(false);
-      if (latest) setFloatPos(latest);
+      if (!latest) return;
+      // Re-clamps once more against the panel's actual settled box before committing/persisting —
+      // a safety net in case its real size ever drifted from what was captured at drag-start (a
+      // row's content changing mid-drag, etc.), so what gets saved is always genuinely on-screen.
+      const settled = clampPosition(latest.left, latest.top, el.offsetWidth, el.offsetHeight, {
+        width: window.innerWidth / zoom,
+        height: window.innerHeight / zoom,
+      });
+      el.style.left = `${settled.left}px`;
+      el.style.top = `${settled.top}px`;
+      setFloatPos(settled);
     }
     // Dragging over ordinary page content (item labels, etc.) would otherwise highlight text as
-    // the cursor sweeps past it — same class the resize handle already implicitly gets from the
-    // browser's own native resize cursor handling.
+    // the cursor sweeps past it — same reasoning the resize effect below applies to itself.
     document.body.style.userSelect = 'none';
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
@@ -210,30 +335,75 @@ export default function OptimizerSidebar() {
     if (floatPos) localStorage.setItem(POSITION_KEY, JSON.stringify(floatPos));
   }, [floatPos]);
 
-  // Resizing itself is native CSS (`resize: both` on the container, desktop-only) — restores a
-  // persisted size once (direct DOM write, guarded so it only ever fires the first time floatSize
-  // loads from storage) and otherwise leaves the box alone. Deliberately does NOT feed the
-  // observed size back into a React-controlled style — doing that on every resize tick fought the
-  // browser's own in-progress native resize gesture (React re-asserting a rounded, one-tick-stale
-  // width/height while the user was still mid-drag), which is what made resizing feel glitchy.
-  const sizeRestoredRef = useRef(false);
   useEffect(() => {
-    if (!containerRef.current || !isDesktop || !floatSize || sizeRestoredRef.current) return;
-    containerRef.current.style.width = `${floatSize.width}px`;
-    containerRef.current.style.height = `${floatSize.height}px`;
-    sizeRestoredRef.current = true;
-  }, [floatSize, isDesktop]);
+    if (floatSize) localStorage.setItem(SIZE_KEY, JSON.stringify(floatSize));
+  }, [floatSize]);
+
+  // Resizing from any of the 8 handles (see RESIZE_HANDLES) — same "direct DOM write during the
+  // gesture, one real commit on mouseup" pattern as dragging, and for the same reason: this list
+  // can be 40+ rows, and re-rendering all of them on every mousemove is what made this feel
+  // glitchy before. Unlike the earlier native `resize: both` attempt, this is fully our own JS on
+  // both ends of the gesture, so floatSize/floatPos can go straight into the controlled style (see
+  // desktopStyle below) without anything else concurrently fighting over the same DOM properties.
+  const resizeDirRef = useRef(null);
+  const resizeStartRef = useRef({ left: 0, top: 0, width: 0, height: 0, mouseX: 0, mouseY: 0 });
+  const [isResizing, setIsResizing] = useState(false);
+
+  function handleResizeStart(dir) {
+    return function (e) {
+      if (!isDesktop || !containerRef.current) return;
+      const el = containerRef.current;
+      // offsetLeft/offsetTop, not getBoundingClientRect — pre-zoom CSS px, same space as the
+      // style.left/top/width/height writes below (see getPageZoom above).
+      resizeDirRef.current = dir;
+      resizeStartRef.current = {
+        left: el.offsetLeft,
+        top: el.offsetTop,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+      };
+      setIsResizing(true);
+      e.preventDefault();
+    };
+  }
 
   useEffect(() => {
-    if (!containerRef.current || !isDesktop) return;
+    if (!isResizing || !containerRef.current) return;
     const el = containerRef.current;
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      localStorage.setItem(SIZE_KEY, JSON.stringify({ width: Math.round(width), height: Math.round(height) }));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isDesktop]);
+    const dir = resizeDirRef.current;
+    const zoom = getPageZoom();
+    let latest = null;
+    function handleMove(e) {
+      const start = resizeStartRef.current;
+      const dx = (e.clientX - start.mouseX) / zoom;
+      const dy = (e.clientY - start.mouseY) / zoom;
+      const h = resizeHorizontal(dir, start, dx, window.innerWidth / zoom);
+      const v = resizeVertical(dir, start, dy, window.innerHeight / zoom);
+      const next = { left: h.left, top: v.top, width: h.width, height: v.height };
+      latest = next;
+      el.style.left = `${next.left}px`;
+      el.style.top = `${next.top}px`;
+      el.style.right = 'auto';
+      el.style.width = `${next.width}px`;
+      el.style.height = `${next.height}px`;
+    }
+    function handleUp() {
+      setIsResizing(false);
+      if (!latest) return;
+      setFloatPos({ left: latest.left, top: latest.top });
+      setFloatSize({ width: Math.round(latest.width), height: Math.round(latest.height) });
+    }
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isResizing]);
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
@@ -298,23 +468,40 @@ export default function OptimizerSidebar() {
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
   const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])].filter(withinBudget).sort(compareResults);
 
-  // Once the user drags the panel, its own left/top/width/height override the default fixed
-  // spot (right-4/top-20/w-280) via inline style — CSS classes alone can't express "wherever the
-  // user last put it". Both only ever apply at the `lg` breakpoint (isDesktop); below that this
-  // stays the ordinary in-flow mobile block it always was, untouched by any stored position/size.
-  const floatingPositionClasses = floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20';
-  // width/height are deliberately NOT set here — see the size-restore effect above for why
-  // feeding them through a React-controlled style fought the browser's native resize gesture.
-  // The lg:h-[66vh] class below is the only thing establishing a default height, and only applies
-  // until either a native resize or the one-time restore-from-storage effect overrides it inline.
-  const desktopStyle = isDesktop && floatPos ? { left: floatPos.left, top: floatPos.top, right: 'auto' } : undefined;
+  // Once the user drags/resizes the panel, its own left/top/width/height override the default
+  // fixed spot (right-4/top-20/w-280/h-66vh) via inline style — CSS classes alone can't express
+  // "wherever the user last put it". Both only ever apply at the `lg` breakpoint (isDesktop);
+  // below that this stays the ordinary in-flow mobile block it always was, untouched by any
+  // stored position/size. Safe to drive width/height straight from state here (unlike the earlier
+  // native `resize: both` version) since nothing outside our own drag/resize handlers ever touches
+  // those DOM properties concurrently — see the resize effect above.
+  //
+  // maxWidth/maxHeight are a backstop for the "forced within the page" guarantee — the resize
+  // handles' own math already clamps against the viewport live, but this also covers a restored
+  // size from a bigger screen no longer fitting a smaller one. A small margin keeps the panel from
+  // ever touching the exact edge.
+  const desktopStyle =
+    isDesktop && floatPos
+      ? {
+          left: floatPos.left,
+          top: floatPos.top,
+          right: 'auto',
+          ...(floatSize ? { width: floatSize.width, height: floatSize.height } : {}),
+          maxWidth: `${Math.max(MIN_VISIBLE_PX, viewportSize.width - floatPos.left - EDGE_MARGIN_PX)}px`,
+          maxHeight: `${Math.max(MIN_VISIBLE_PX, viewportSize.height - floatPos.top - EDGE_MARGIN_PX)}px`,
+        }
+      : undefined;
 
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 ${floatingPositionClasses} lg:w-[280px] lg:h-[66vh] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:resize lg:overflow-auto`}
+      className={`relative flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20'} lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-auto`}
       style={desktopStyle}
     >
+      {isDesktop &&
+        RESIZE_HANDLES.map(({ dir, className }) => (
+          <div key={dir} className={className} style={{ zIndex: dir.length === 2 ? 2 : 1 }} onMouseDown={handleResizeStart(dir)} />
+        ))}
       <div className={`${panel} p-2 flex flex-col gap-1.5`}>
         <div className={`${sectionTitle} lg:cursor-move select-none`} onMouseDown={handleDragStart} title="Drag to reposition">
           Recommended Upgrades

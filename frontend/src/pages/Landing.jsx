@@ -687,7 +687,7 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 lg:pr-[320px] relative">
+    <div className="min-h-screen flex flex-col items-center p-4 relative">
       {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow
           above the grid (not fixed/pinned over content), so it can never overlap the central GUI
           regardless of viewport size: flow-stacked elements simply can't occupy the same space.
