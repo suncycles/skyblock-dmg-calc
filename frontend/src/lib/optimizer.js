@@ -700,18 +700,28 @@ async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeCo
   return results;
 }
 
-// Armor's only real hex option besides reforge/recomb is the Habanero Tactics ultimate
-// (lib/enchantEffects.js's MISSING_CATEGORY_ENCHANTS — the sole ultimate NEU-REPO's per-category
-// enchant lists carry for HELMET/CHESTPLATE/LEGGINGS/BOOTS). Brute-forces every real level found
-// in the catalog (not just next/max, unlike the weapon evaluator below) since the enchant's own
-// real level floor is above 1 (levels IV/V) — catalog-driven rather than hardcoding "4 and 5".
-async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
+// NEU-REPO's per-category enchant lists carry 8 real ultimates for HELMET/CHESTPLATE/LEGGINGS/
+// BOOTS (Bank, Last Stand, Legion, No Pain No Gain, Wisdom, Habanero Tactics, Bobbin Time,
+// Refrigerate — Habanero itself needs lib/enchantEffects.js's MISSING_CATEGORY_ENCHANTS patch
+// since NEU-REPO's own list omits it). User-verified from each one's real lore: only Habanero
+// Tactics has a damage effect this calculator's formula can ever produce — the other 7 (coins on
+// death, Defense/Vitality on a live low-HP trigger this static calculator has no equivalent of, XP
+// orbs, banked-XP Intelligence, fishing, Mana-to-Defense) don't map to any tracked stat, and Legion's
+// per-nearby-player bonus isn't a reliable value for solo/small-group Slayer grinding the way it
+// would be for a full Dungeon party — so Slayer mode prunes straight to Habanero instead of paying
+// for a full real-pipeline evaluation of all 8 (measured: this was the single most expensive
+// evaluator in the whole optimizer, since it's brute-forced across all 4 armor slots × every real
+// level found, not just next/max like the weapon evaluator below).
+const SLAYER_ARMOR_ULTIMATE_IDS = new Set(['ultimate_habanero_tactics']);
+
+async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const results = [];
   for (const slot of ARMOR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped?.item) continue;
     const category = resolveEnchantCategory(equipped.item.category);
-    const ids = getCategoryEnchantIds(itemData.enchants, category).filter(isUltimateEnchant);
+    let ids = getCategoryEnchantIds(itemData.enchants, category).filter(isUltimateEnchant);
+    if (mode === 'slayer') ids = ids.filter((id) => SLAYER_ARMOR_ULTIMATE_IDS.has(id.toLowerCase()));
     const current = equipped.modifiers.ultimateEnchantment;
     for (const id of ids) {
       const levels = await fetchEnchantLevels(id, itemData.enchants);
@@ -786,7 +796,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
       evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
       evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
       evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
       evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
       evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
