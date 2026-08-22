@@ -533,10 +533,12 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
     let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
     stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
-    // Chimera/Manticore's own copy of `stats` stops here (see computeBasePetStats above for what
-    // "base" means) — Primal Force still needs to apply to the real `stats` pipeline below too, but
-    // AFTER the pet item's boost (its original position), not before, since a %-based pet item
-    // boost must not also multiply Primal Force's flat add for the player's own full Pet total.
+    // computeBasePetStats does its own independent pet-item lookup and Primal Force application
+    // internally (see petData.js) — it doesn't derive from this file's own `stats` variable at all.
+    // `stats` here keeps computing the player's own full Pet total for the rest of this function
+    // (petItemDeltas, Ankylosaurus, Lion's Damage-only Primal Force add, etc.), with Primal Force
+    // staying in its original position below (after the pet item's boost), not moved up here, since
+    // a %-based pet item boost must not also multiply Primal Force's flat add for that total.
     basePetStats = computeBasePetStats(loadout, itemData);
     const statsBeforePetItem = stats;
     const petItemId = modifiers.petItem;

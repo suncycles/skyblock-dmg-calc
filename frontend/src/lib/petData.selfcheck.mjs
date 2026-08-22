@@ -1,19 +1,21 @@
 // Guards computeBasePetStats — the single definition of what Chimera/Manticore Claw copy (see the
 // comment above it in petData.js, and [[project_chimera_base_stats]] in project memory). This
-// exact behavior has regressed twice: once by copying ability-granted stats that aren't real base
-// stats (Ankylosaurus), once by stripping a species perk that genuinely IS part of the pet's real
-// base-stat bracket (Golden Dragon's Shining Scales) after over-correcting the first bug. No test
-// runner in this project (see CLAUDE.md) — run directly: `node src/lib/petData.selfcheck.mjs`.
-// Fixture stat numbers are real, fetched live from NEU-REPO's petnums.json, not guessed.
+// exact behavior has regressed three times: copying ability-granted stats that aren't real base
+// stats (Ankylosaurus); stripping a species perk that genuinely is part of the pet's real total
+// (Golden Dragon's Shining Scales); and stopping before the held Pet Item's boost, when real
+// Chimera copies that too (Golden Dragon + Hephaestus Remedies, confirmed by the user 2026-08-22).
+// No test runner in this project (see CLAUDE.md) — run directly:
+// `node src/lib/petData.selfcheck.mjs`. Fixture stat numbers are real, fetched live from
+// NEU-REPO's petnums.json, not guessed.
 import assert from 'node:assert/strict';
 import { computeBasePetStats } from './petData.js';
 
-function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollection = 0, otherNums1 = [], otherNums100 = [] } = {}) {
+function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollection = 0, otherNums1 = [], otherNums100 = [], petItem = null } = {}) {
   return {
     loadout: {
       pet: {
         item: { id: `${petId}_${tier}`, petId, name: petId, tier, material: 'BONE' },
-        modifiers: { level, petItem: null, bankCoins: 0, goldCollection },
+        modifiers: { level, petItem: petItem?.id ?? null, bankCoins: 0, goldCollection },
       },
     },
     itemData: {
@@ -22,6 +24,7 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
           [tier]: { 1: { statNums: level1Stats, otherNums: otherNums1 }, 100: { statNums: level100Stats, otherNums: otherNums100 } },
         },
       },
+      petItems: petItem ? [petItem] : [],
     },
   };
 }
@@ -83,6 +86,27 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
   const stats = computeBasePetStats(loadout, itemData);
   assert.ok(stats.STRENGTH > 50, `Lion base Strength should include Primal Force (>50), got ${stats.STRENGTH}`);
   assert.equal(stats.STRENGTH, 70, `Lion base Strength should be curve(50) + Primal Force(20), got ${stats.STRENGTH}`);
+}
+
+// Golden Dragon, Legendary, level 200, max Gold Collection, holding Hephaestus Remedies
+// ("Increases this pet's Strength by 100%") — the real regression case. Base copy must include
+// the pet item's boost: (curve 50 + Shining Scales ~99.9) * 2 = ~299.8, matching the live-verified
+// value shown on the pet's own tooltip with this exact loadout.
+{
+  const { loadout, itemData } = petFixture(
+    'GOLDEN_DRAGON',
+    'LEGENDARY',
+    200,
+    { BONUS_ATTACK_SPEED: 25, STRENGTH: 25, MAGIC_FIND: 5 },
+    { BONUS_ATTACK_SPEED: 50, STRENGTH: 50, MAGIC_FIND: 10 },
+    {
+      goldCollection: 100_000_000,
+      petItem: { id: 'HEPHAESTUS_REMEDIES', lore: ["Increases this pet's Strength by 100%."] },
+    },
+  );
+  const stats = computeBasePetStats(loadout, itemData);
+  assert.ok(stats.STRENGTH > 250, `Golden Dragon base Strength with Hephaestus Remedies should include the item's +100% (>250), got ${stats.STRENGTH}`);
+  assert.ok(Math.abs(stats.STRENGTH - 299.8) < 1, `Golden Dragon base Strength with Hephaestus Remedies should be ~299.8, got ${stats.STRENGTH}`);
 }
 
 console.log('petData.selfcheck: all Chimera/Manticore base-stat scope checks passed.');

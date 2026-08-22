@@ -181,11 +181,27 @@ export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
   return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level, maxLevel));
 }
 
-// Full pet-stat pipeline (interpolate -> Shining Scales -> pet item -> species perks) — the
-// pet's own real total, i.e. what it actually contributes to the player. NOT what Chimera/
-// Manticore Claw copy onto an item (see computeBasePetStats below) — species perks and the held
-// Pet Item's boost are pet abilities/equipment, not the pet's own base stat line.
+// Full pet-stat pipeline: computeBasePetStats (see below) plus Ankylosaurus's Unyielding, the one
+// thing Chimera/Manticore still don't copy — it invents a Strength stat on a pet whose curve has
+// none at all, unlike everything else in the pipeline (see the comment below for why that's the
+// one real exception).
 export function computeEquippedPetStats(loadout, itemData) {
+  if (!loadout.pet) return null;
+  return applyAnkylosaurusMax(loadout.pet.item.petId, computeBasePetStats(loadout, itemData));
+}
+
+// What Chimera and Manticore Claw copy onto an item: the pet's real stat total — curve, Golden
+// Dragon's Shining Scales, the held Pet Item's boost, Lion's Primal Force — with exactly one
+// exception. Confirmed with the user (2026-08-22) against real Chimera behavior: a Golden Dragon
+// holding Hephaestus Remedies (+100% Strength) copies that boosted total onto the weapon, not the
+// pre-item number an earlier version of this function stopped at.
+// The one thing still excluded: Ankylosaurus's Unyielding, which invents a Strength stat on a pet
+// whose own curve has none at all (applyAnkylosaurusMax, only in computeEquippedPetStats above) —
+// that's not "this pet's stats boosted", it's a stat that doesn't exist being added from nowhere.
+// Every other perk here (Shining Scales, Primal Force, the pet item) boosts a stat already on the
+// pet's own line, which is the real, verified distinction — not "abilities vs. base stats" in
+// general (that was the wrong generalization the previous version of this comment made).
+export function computeBasePetStats(loadout, itemData) {
   if (!loadout.pet) return null;
   const { item: pet, modifiers } = loadout.pet;
   const maxLevel = getMaxPetLevel(pet.petId);
@@ -196,32 +212,6 @@ export function computeEquippedPetStats(loadout, itemData) {
   const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
   const boost = petItem ? parsePetItemStatBoost(petItem.lore) : null;
   stats = applyPetItemStatBoost(stats, boost);
-  const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
-  stats = applyLionPrimalForce(pet.petId, stats, otherNums);
-  return applyAnkylosaurusMax(pet.petId, stats);
-}
-
-// The pet's real BASE stat line — what actually shows in the "[Lvl X] Pet Name / Combat Pet /
-// [...]" bracket in its real lore. Chimera and Manticore Claw copy exactly this, not
-// computeEquippedPetStats' full total. Two different things get lumped together as "extra
-// bonuses" and need telling apart here:
-// - Perks that boost a stat the pet's own statNums curve already has (Golden Dragon's Shining
-//   Scales adding onto its native Strength; Lion's Primal Force, same) ARE part of that bracket
-//   number in real lore, so they're included here.
-// - Perks that grant a stat the pet's curve doesn't have at all (Ankylosaurus's Unyielding, which
-//   invents +500 Strength on a pet with no Strength stat) are a separate ability paragraph below
-//   the bracket, not part of it — excluded. Same for the held Pet Item's boost (its own "Held
-//   Item: ..." paragraph, always separate).
-// (bug case this was originally written for: Ankylosaurus's ability-granted +500 Strength was
-// incorrectly being copied onto the weapon; regression case: Golden Dragon's real Strength
-// *includes* Shining Scales in its bracket, which an earlier fix over-corrected into excluding.)
-export function computeBasePetStats(loadout, itemData) {
-  if (!loadout.pet) return null;
-  const { item: pet, modifiers } = loadout.pet;
-  const maxLevel = getMaxPetLevel(pet.petId);
-  const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-  let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
-  stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
   const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
   return applyLionPrimalForce(pet.petId, stats, otherNums);
 }
