@@ -272,8 +272,9 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
 // Mage Staff "Beam": not a real item — a Mage Mode calculation feature that's always active,
 // alongside (not instead of) the weapon's own Ability Damage. All melee weapon attacks also fire
 // as a ranged beam dealing a multiple of the character's full melee Final Damage
-// (computeFinalDamage's output for the same mob), scaled up by Intelligence. User-provided formula:
-//   BeamDamage = MeleeFinalDamage * (0.3 + 0.0009 * Intelligence / 1000)
+// (computeFinalDamage's output for the same mob), scaled up by Intelligence. User-confirmed
+// formula (a flat -1 off the previous base multiplier, Intelligence rate unchanged):
+//   BeamDamage = MeleeFinalDamage * (0.3 + 0.0009 * Intelligence)
 // Independent of whether the equipped weapon has an ABILITY_DAMAGE_TABLE entry — unlike
 // computeAbilityDamage, this never returns null for that reason. Uses the same dungeon/master-
 // respective Intelligence as the rest of Mage Mode, via the shared selectBaseStats. Purely
@@ -285,9 +286,7 @@ const MAGE_STAFF_BEAM_INTELLIGENCE_RATE = 0.0009;
 export function computeMageStaffBeamDamage(sources, meleeFinalDamage, useDungeonizedStats = false, useMasterMode = false) {
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
   const intelligence = baseStats.intelligence || 0;
-  const finalDamage = Math.floor(
-    meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + (MAGE_STAFF_BEAM_INTELLIGENCE_RATE * intelligence) / 1000),
-  );
+  const finalDamage = Math.floor(meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + MAGE_STAFF_BEAM_INTELLIGENCE_RATE * intelligence));
   return { meleeFinalDamage, intelligence, finalDamage };
 }
 
@@ -361,8 +360,11 @@ export function computeEnchantProcDamage(meleeFinalDamage, proc) {
 }
 
 // Melee hit rate isn't continuous in Bonus Attack Speed — real per-hit time only changes at these
-// exact breakpoints, holding steady in between. User-provided real thresholds.
-const MELEE_HIT_RATE_BREAKPOINTS = [
+// exact breakpoints, holding steady in between. User-provided real thresholds. Exported so
+// lib/tuningOptimizer.js's auto-spend can target "just enough points to reach the next breakpoint"
+// as a single lumpy move, instead of a naive per-point search that never sees a breakpoint's payoff
+// (every individual point below the threshold shows zero gain on its own).
+export const MELEE_HIT_RATE_BREAKPOINTS = [
   { threshold: 0, secondsPerHit: 0.5 },
   { threshold: 6, secondsPerHit: 0.45 },
   { threshold: 18, secondsPerHit: 0.4 },
