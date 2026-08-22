@@ -19,13 +19,11 @@
 // - non_recombobulatable_ids is a curated, non-exhaustive list (4 confirmed real ids) — not every
 //   one of the ~280 real accessories has been individually checked.
 
-import { useState } from 'react';
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { bumpRarity, canRecombobulate } from './recombobulator';
 import { computeModeDamage, getModeConfig } from './optimizer';
 import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
-import { fetchHypixelImport, HypixelImportError } from './hypixelImport';
 import { cheapestPerfectGemstonePrice } from './pricing';
 
 export const MAGICAL_POWER_BY_RARITY = {
@@ -289,58 +287,3 @@ async function topUpTuning(loadout, itemData, build, modeConfig, mob, baseTuning
 }
 
 const TUNING_TOP_UP_STATS = ['strength', 'crit_damage', 'crit_chance', 'bonus_attack_speed', 'intelligence'];
-
-// Shared fetch-account + evaluate-candidates state/handlers — used by both the standalone
-// Magical Power Optimizer page and the main Damage Optimizer's "Magical Power" section, so the
-// two don't drift (same fetch error handling, same multi-profile resolution).
-export function useAccessoryOptimizerState(build, itemData, itemDataLoading, mode, mobName, mobTypes) {
-  const [username, setUsername] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | ok | error
-  const [error, setError] = useState(null);
-  const [owned, setOwned] = useState(null);
-  const [result, setResult] = useState(null);
-  const [evaluating, setEvaluating] = useState(false);
-
-  async function handleFetch(e) {
-    e.preventDefault();
-    if (!username.trim()) return;
-    setStatus('loading');
-    setError(null);
-    try {
-      let raw = await fetchHypixelImport(username.trim());
-      // Multiple SkyBlock profiles: just uses whichever profile Hypixel lists first rather than
-      // offering a picker (the main Hypixel Import page already has that picker — reused here
-      // would be scope creep for this "temporary" implementation, see accessoryOptimizer.js header).
-      if (raw.needsProfileSelection) {
-        const profileId = raw.profiles.find((p) => p.selected)?.profile_id || raw.profiles[0].profile_id;
-        raw = await fetchHypixelImport(username.trim(), { profile: profileId });
-      }
-      setOwned(raw.accessory?.owned || []);
-      setStatus('ok');
-    } catch (err) {
-      setError(err instanceof HypixelImportError ? err.message : 'Import failed, try again.');
-      setStatus('error');
-    }
-  }
-
-  async function handleEvaluate(ownedList) {
-    if (itemDataLoading || !mobName || !mobTypes || !itemData.accessoryFamilies) return;
-    setEvaluating(true);
-    try {
-      const candidates = buildAccessoryCandidates(ownedList, itemData.accessoryFamilies);
-      const evaluated = await evaluateAccessoryCandidates(
-        build.loadout,
-        itemData,
-        build,
-        mode,
-        { name: mobName, types: mobTypes },
-        candidates,
-      );
-      setResult(evaluated);
-    } finally {
-      setEvaluating(false);
-    }
-  }
-
-  return { username, setUsername, status, error, owned, result, evaluating, handleFetch, handleEvaluate };
-}
