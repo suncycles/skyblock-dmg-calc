@@ -8,6 +8,7 @@ import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { round1, formatCoinsPerPercent, formatCoinsShort } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
+import { ENCHANTED_BOOK_ICON } from '../lib/icons';
 import NumberInput from './NumberInput';
 import WeaponIcon from './WeaponIcon';
 
@@ -137,6 +138,7 @@ function compareResults(a, b) {
 // one list instead of two separate sections.
 function UpgradeRow({ result, onSwapIn }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
+  const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
   const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
     <button
@@ -145,7 +147,7 @@ function UpgradeRow({ result, onSwapIn }) {
       title="Click to equip this upgrade"
       className="w-full flex items-center gap-2 px-2 py-1.5 bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 cursor-pointer text-left transition-colors"
     >
-      {result.itemId && (
+      {result.itemId ? (
         <div className="relative shrink-0 w-5 h-5">
           <WeaponIcon id={result.itemId} material={result.material} alt="" className="w-5 h-5 pixelated" />
           {badge && (
@@ -154,6 +156,12 @@ function UpgradeRow({ result, onSwapIn }) {
             </span>
           )}
         </div>
+      ) : (
+        isEnchant && (
+          <div className="relative shrink-0 w-5 h-5">
+            <img src={ENCHANTED_BOOK_ICON} alt="" className="w-5 h-5 pixelated" />
+          </div>
+        )
       )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[8px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
@@ -533,6 +541,7 @@ export default function OptimizerSidebar() {
             onChange={build.setMaxBudget}
             min={0}
             step={1000000}
+            allowSuffix
             placeholder="No limit"
             className={`${panel} px-1.5 py-0.5 text-[11px] text-black w-28 text-right`}
           />
