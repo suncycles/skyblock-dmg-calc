@@ -80,7 +80,7 @@ export default function AccessoryTuning() {
             onClick={handleAutoSpend}
             disabled={autoSpending || !mobName}
             title={mobName ? 'Spend every point where it does the most real DPS' : 'Pick a target mob first'}
-            className="px-3 py-1.5 text-xs font-bold text-black bg-[#8fbf3f] border-[3px] border-t-[#c5e88a] border-l-[#c5e88a] border-b-[#4d6b1f] border-r-[#4d6b1f] cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default"
+            className="px-3 py-1.5 text-xs font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black cursor-pointer hover:brightness-110 disabled:opacity-50 disabled:cursor-default"
           >
             {autoSpending ? 'Spending...' : 'Auto-Spend'}
           </button>
