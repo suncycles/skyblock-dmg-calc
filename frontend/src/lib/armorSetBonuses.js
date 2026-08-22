@@ -16,7 +16,8 @@ export const FINAL_DESTINATION_STRENGTH = 30;
 export const FINAL_DESTINATION_ENDER_DAMAGE_PERCENT = 100;
 
 // Vanquished's 1.1x is an undocumented hidden bonus (not stated in-game) — Damage Sources
-// shows Final Damage both with and without it rather than silently folding it in.
+// shows Final Damage both with and without it rather than silently folding it in. User-confirmed:
+// the bonus only actually procs against Inferno Demonlord, not universally.
 export const VANQUISHED_SET = [
   'VANQUISHED_MAGMA_NECKLACE',
   'VANQUISHED_GHAST_CLOAK',
@@ -25,6 +26,7 @@ export const VANQUISHED_SET = [
 ];
 export const VANQUISHED_SET_MULTIPLIER = 1.1;
 export const VANQUISHED_SET_ID = 'vanquished-set-hidden-bonus';
+export const VANQUISHED_SET_CONDITION = 'Inferno Demonlord';
 
 // Monster Hunter/Monster Raider: undocumented hidden set bonuses. The two sets share their
 // first 3 pieces and differ only in boots, so they're mutually exclusive by construction.

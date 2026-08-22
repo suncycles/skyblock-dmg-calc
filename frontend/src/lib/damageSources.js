@@ -26,6 +26,7 @@ import {
   VANQUISHED_SET,
   VANQUISHED_SET_MULTIPLIER,
   VANQUISHED_SET_ID,
+  VANQUISHED_SET_CONDITION,
   MONSTER_HUNTER_SET,
   MONSTER_HUNTER_MULTIPLIER,
   MONSTER_RAIDER_SET,
@@ -1540,6 +1541,7 @@ export async function collectDamageSources(
       label: 'Vanquished (Full Set, Hidden Bonus)',
       source: 'Equipment',
       value: VANQUISHED_SET_MULTIPLIER,
+      condition: VANQUISHED_SET_CONDITION,
     });
   }
 
