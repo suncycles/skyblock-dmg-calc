@@ -6,7 +6,7 @@ import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCa
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1, round3Sig } from '../lib/damageFormat';
+import { round1 } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import WeaponIcon from './WeaponIcon';
 
@@ -35,6 +35,16 @@ const CATEGORY_COLORS = {
 const SLAYER_ATTACK_SPEED_TARGET = 82;
 const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slots: {}, otherResults: [] };
 
+// Ranks by real DPS-per-coin (see lib/pricing.js) so the most coin-efficient upgrades lead;
+// unpriceable ('?') results sink to the bottom rather than being treated as worthless. No toggle
+// here (unlike Optimizer.jsx) — this compact sidebar always shows best value first.
+function compareResults(a, b) {
+  if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
+  if (a.ratio == null) return 1;
+  if (b.ratio == null) return -1;
+  return b.ratio - a.ratio;
+}
+
 function UpgradeRow({ result, onSwapIn }) {
   if (!result) {
     return <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">No upgrades available.</div>;
@@ -59,9 +69,7 @@ function UpgradeRow({ result, onSwapIn }) {
       )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[11px] text-black truncate">{result.label}</span>
-        <span className="text-[9px] text-neutral-700">
-          Cost: {result.cost.toLocaleString()} · Ratio: {result.ratio != null ? round3Sig(result.ratio) : '—'}
-        </span>
+        <span className="text-[9px] text-neutral-700">Cost: {result.cost.toLocaleString()}</span>
       </div>
       <span className="text-[11px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
     </button>
@@ -86,7 +94,8 @@ function UpgradeRow({ result, onSwapIn }) {
 // Pet) showing only the immediate next tier's best candidate, or "No upgrades available" — plus a
 // secondary "Other Upgrades" list for the non-slot-tiered categories (Enchant/Ultimate Enchant/
 // Power Stone/Stars/Magical Power/accessories), which aren't tiered so every real option found
-// still shows, all ranked together by % increase (mirrors Optimizer.jsx's combined ranked list).
+// still shows, all ranked together by real DPS-per-coin ratio (mirrors Optimizer.jsx's "Best
+// Value" ranking).
 export default function OptimizerSidebar() {
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
@@ -155,12 +164,7 @@ export default function OptimizerSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
 
-  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => {
-    if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
-    if (a.ratio == null) return 1;
-    if (b.ratio == null) return -1;
-    return b.ratio - a.ratio;
-  });
+  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort(compareResults);
 
   return (
     <div className="flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 lg:fixed lg:right-4 lg:top-20 lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
@@ -201,7 +205,7 @@ export default function OptimizerSidebar() {
       {state.status === 'ok' && (
         <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
           {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot])
-            .sort((a, b) => state.slots[b].percentIncrease - state.slots[a].percentIncrease)
+            .sort((a, b) => compareResults(state.slots[a], state.slots[b]))
             .map((slot) => (
               <div key={slot} className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wide text-neutral-700">{SLOT_LABELS[slot]}</span>
@@ -230,9 +234,7 @@ export default function OptimizerSidebar() {
                   {r.category}
                 </span>
                 <span className="text-[11px] text-black truncate">{r.label}</span>
-                <span className="text-[9px] text-neutral-700">
-                  Cost: {r.cost.toLocaleString()} · Ratio: {r.ratio != null ? round3Sig(r.ratio) : '—'}
-                </span>
+                <span className="text-[9px] text-neutral-700">Cost: {r.cost.toLocaleString()}</span>
               </div>
               <span className="text-[12px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(r.percentIncrease)}%</span>
             </button>

@@ -39,6 +39,19 @@ const SLAYER_ATTACK_SPEED_TARGET = 82;
 
 const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slots: {}, otherResults: [] };
 
+// Shared ranking for both "Upgrades by Slot" and "Other Upgrades" — "ratio" (real DPS-per-coin,
+// see lib/pricing.js) ranks unpriceable ('?') results last rather than treating them as worthless;
+// "increase" ignores cost entirely.
+function compareResults(a, b, sortBy) {
+  if (sortBy === 'ratio') {
+    if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
+    if (a.ratio == null) return 1;
+    if (b.ratio == null) return -1;
+    return b.ratio - a.ratio;
+  }
+  return b.percentIncrease - a.percentIncrease;
+}
+
 function UpgradeRow({ result, onSwapIn }) {
   if (!result) {
     return <div className="px-3 py-2 text-xs text-neutral-600 italic">No upgrades available.</div>;
@@ -63,9 +76,7 @@ function UpgradeRow({ result, onSwapIn }) {
       )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[13px] text-black truncate">{result.label}</span>
-        <span className="text-[10px] text-neutral-700">
-          Cost: {result.cost.toLocaleString()} coins · Ratio: {result.ratio != null ? round3Sig(result.ratio) : '—'}
-        </span>
+        <span className="text-[10px] text-neutral-700">Cost: {result.cost.toLocaleString()} coins</span>
       </div>
       <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
     </button>
@@ -148,19 +159,11 @@ export default function Optimizer() {
 
   // Magical Power candidates merge into the same "Other Upgrades" ranked list as every
   // brute-forced category from runOptimizer, rather than a separate section — one consistent
-  // ranked list, per user direction. Sort toggle: "increase" is straightforward %DPS; "ratio" is
-  // real damage-per-coin (see lib/pricing.js) — null only for genuinely unpriced results (free
-  // reforges, generic MP sweeps), which sink to the bottom under "ratio".
-  const [sortBy, setSortBy] = useState('increase');
-  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => {
-    if (sortBy === 'ratio') {
-      if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
-      if (a.ratio == null) return 1;
-      if (b.ratio == null) return -1;
-      return b.ratio - a.ratio;
-    }
-    return b.percentIncrease - a.percentIncrease;
-  });
+  // ranked list, per user direction. Defaults to "ratio" (best coin-efficiency first) so the
+  // player's most coin-efficient sources of damage lead by default; "increase" is available via
+  // the toggle for raw %DPS ranking.
+  const [sortBy, setSortBy] = useState('ratio');
+  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => compareResults(a, b, sortBy));
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -241,7 +244,7 @@ export default function Optimizer() {
             <div className={`${panel} p-3 flex flex-col gap-2`}>
               <div className={sectionTitle}>Upgrades by Slot</div>
               {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot])
-                .sort((a, b) => state.slots[b].percentIncrease - state.slots[a].percentIncrease)
+                .sort((a, b) => compareResults(state.slots[a], state.slots[b], sortBy))
                 .map((slot) => (
                   <div key={slot} className="flex flex-col gap-1">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-neutral-700">{SLOT_LABELS[slot]}</span>
@@ -292,9 +295,7 @@ export default function Optimizer() {
                         {r.category} — {r.slot}
                       </span>
                       <span className="text-[13px] text-black truncate">{r.label}</span>
-                      <span className="text-[10px] text-neutral-700">
-                        Cost: {r.cost.toLocaleString()} coins · Ratio: {r.ratio != null ? round3Sig(r.ratio) : '—'}
-                      </span>
+                      <span className="text-[10px] text-neutral-700">Cost: {r.cost.toLocaleString()} coins</span>
                     </div>
                     <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(r.percentIncrease)}%</span>
                   </button>
