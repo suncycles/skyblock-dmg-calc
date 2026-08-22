@@ -147,7 +147,7 @@ function UpgradeRow({ result, onSwapIn }) {
       title="Click to equip this upgrade"
       className="w-full flex items-center gap-2 px-2 py-1.5 bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 cursor-pointer text-left transition-colors"
     >
-      {result.itemId ? (
+      {result.itemId || result.material ? (
         <div className="relative shrink-0 w-5 h-5">
           <WeaponIcon id={result.itemId} material={result.material} alt="" className="w-5 h-5 pixelated" />
           {badge && (
