@@ -3,7 +3,8 @@
  * Build-time ingest: parses a local checkout of NotEnoughUpdates-REPO
  * (https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO, MIT) into
  * the weapons/armor JSON bundles the worker ships with, replacing the
- * old Hypixel /resources/skyblock/items dependency.
+ * old Hypixel /resources/skyblock/items dependency for everything except
+ * one field (see upgrade_costs below, which NEU-REPO doesn't carry at all).
  *
  * NEU-REPO's item files have no structured rarity/category field. The
  * `nbttag` field isn't even valid JSON (it's stringified SNBT). The only
@@ -160,6 +161,27 @@ function materialFromItemId(itemid) {
   return itemid.replace(/^[a-z0-9_]+:/, '').toUpperCase();
 }
 
+// Star-upgrade material costs (Essence + crafting items, e.g. Kuudra armor's Heavy Pearl/Kuudra
+// Teeth requirements at higher stars) live NOWHERE in NEU-REPO — confirmed by inspecting a real
+// item file directly, no `upgrade_costs` key at all — but Hypixel's own public resources endpoint
+// has it per-item, keyed by the same internalname. This is the one field this script still pulls
+// live rather than from the NEU-REPO checkout; every other field comes from the offline parse
+// above. One request, done once up front, id-indexed for O(1) lookup during the main item loop.
+console.log('Fetching upgrade_costs from Hypixel resources API...');
+const upgradeCostsById = new Map();
+try {
+  const res = await fetch('https://api.hypixel.net/v2/resources/skyblock/items');
+  const data = await res.json();
+  for (const it of data.items || []) {
+    if (Array.isArray(it.upgrade_costs) && it.upgrade_costs.length > 0) {
+      upgradeCostsById.set(it.id, it.upgrade_costs);
+    }
+  }
+  console.log(`Fetched upgrade_costs for ${upgradeCostsById.size} items.`);
+} catch (err) {
+  console.error('Failed to fetch upgrade_costs (continuing without star-cost data):', err);
+}
+
 const weapons = [];
 const armor = [];
 const equipment = [];
@@ -270,6 +292,11 @@ for (const file of files) {
     tier,
     lore: raw.lore,
   };
+  // Only weapon/armor slots ever take real stars (see optimizer.js's evaluateStarsCandidates) —
+  // omitted on equipment items to avoid bloating equipment.json with a field nothing reads there.
+  if ((isWeapon || isArmor) && upgradeCostsById.has(raw.internalname)) {
+    item.upgrade_costs = upgradeCostsById.get(raw.internalname);
+  }
 
   if (isWeapon) weapons.push(item);
   else if (isArmor) armor.push(item);
