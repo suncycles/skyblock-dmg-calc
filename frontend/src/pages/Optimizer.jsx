@@ -10,6 +10,7 @@ import { MOB_TYPES } from '../lib/mobTypes';
 import { round1, round3Sig } from '../lib/damageFormat';
 import PageHeader from '../components/PageHeader';
 import WeaponIcon from '../components/WeaponIcon';
+import NumberInput from '../components/NumberInput';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 
 const panel =
@@ -19,6 +20,10 @@ const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide p
 const SLOT_LABELS = { ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS, pet: 'Pet' };
 
 const CATEGORY_COLORS = {
+  Weapon: '#f87171',
+  Armor: '#38bdf8',
+  Equipment: '#fbbf24',
+  Pet: '#2dd4bf',
   Enchant: '#4ade80',
   'Ultimate Enchant': '#22d3ee',
   'Power Stone': '#a78bfa',
@@ -52,10 +57,11 @@ function compareResults(a, b, sortBy) {
   return b.percentIncrease - a.percentIncrease;
 }
 
+// One shared row style for every candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the
+// brute-forced categories (Enchant/Reforge/Stars/...) alike — now that they all rank together in
+// one list instead of two separate sections. Shows an icon when the candidate is a real catalog
+// item (`itemId` set); brute-forced categories without one just show the category/slot label.
 function UpgradeRow({ result, onSwapIn }) {
-  if (!result) {
-    return <div className="px-3 py-2 text-xs text-neutral-600 italic">No upgrades available.</div>;
-  }
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   return (
     <button
@@ -75,6 +81,9 @@ function UpgradeRow({ result, onSwapIn }) {
         </div>
       )}
       <div className="flex flex-col min-w-0 flex-1">
+        <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
+          {result.category} — {SLOT_LABELS[result.slot] || result.slot}
+        </span>
         <span className="text-[13px] text-black truncate">{result.label}</span>
         <span className="text-[10px] text-neutral-700">Cost: {result.cost.toLocaleString()} coins</span>
       </div>
@@ -86,9 +95,9 @@ function UpgradeRow({ result, onSwapIn }) {
 // Damage Increase Optimizer — brute-forces/curated-list-evaluates real gear/enchant/pet/power
 // alternatives against the current loadout. See lib/optimizer.js for the full evaluation engine
 // and its documented assumptions, and lib/pricing.js for how real coin costs are looked up.
-// One dedicated slot per gear piece, showing only the immediate next tier's best candidate (click
-// to equip); non-slot-tiered categories (Enchant/Ultimate Enchant/Power Stone/Stars) list
-// separately below since every real option there still shows.
+// Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
+// categories (Enchant/Ultimate Enchant/Power Stone/Stars/...) alike — ranks together in one list,
+// per user direction, rather than a separate "by slot" section capped to one pick per slot.
 export default function Optimizer() {
   const navigate = useNavigate();
   const build = useBuild();
@@ -157,13 +166,19 @@ export default function Optimizer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
 
-  // Magical Power candidates merge into the same "Other Upgrades" ranked list as every
-  // brute-forced category from runOptimizer, rather than a separate section — one consistent
-  // ranked list, per user direction. Defaults to "ratio" (best coin-efficiency first) so the
-  // player's most coin-efficient sources of damage lead by default; "increase" is available via
-  // the toggle for raw %DPS ranking.
+  // Every real candidate — gear-slot picks, Magical Power, and every brute-forced category from
+  // runOptimizer — merges into one ranked list, per user direction. Defaults to "ratio" (best
+  // coin-efficiency first) so the player's most coin-efficient sources of damage lead by default;
+  // "increase" is available via the toggle for raw %DPS ranking.
   const [sortBy, setSortBy] = useState('ratio');
-  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => compareResults(a, b, sortBy));
+  const slotResults = OPTIMIZER_GEAR_SLOTS.flatMap((slot) => state.slots[slot] || []);
+  // maxBudget of 0 means "no limit" (default, unset). A real-priced candidate over budget is
+  // dropped; unpriced ('?') candidates always stay — their real cost might be free (a
+  // blacksmith-rolled reforge) or just unverified, so hiding them would be a false negative.
+  const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
+  const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
+    .filter(withinBudget)
+    .sort((a, b) => compareResults(a, b, sortBy));
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -191,6 +206,20 @@ export default function Optimizer() {
               suggestions show below.
             </div>
           )}
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="optimizer-max-budget" className="text-[11px] font-bold text-black uppercase tracking-wide">
+              Max Budget
+            </label>
+            <NumberInput
+              id="optimizer-max-budget"
+              value={build.maxBudget}
+              onChange={build.setMaxBudget}
+              min={0}
+              step={1000000}
+              placeholder="No limit"
+              className={`${panel} px-2 py-1 text-sm text-black w-40 text-right`}
+            />
+          </div>
         </div>
 
         {!ownedAccessories ? (
@@ -240,72 +269,39 @@ export default function Optimizer() {
         ) : state.status === 'loading' ? (
           <div className={`${panel} p-4 text-xs text-neutral-600 italic`}>Evaluating candidates...</div>
         ) : (
-          <>
-            <div className={`${panel} p-3 flex flex-col gap-2`}>
-              <div className={sectionTitle}>Upgrades by Slot</div>
-              {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot]?.length > 0)
-                .map((slot) => ({ slot, options: [...state.slots[slot]].sort((a, b) => compareResults(a, b, sortBy)) }))
-                .sort((a, b) => compareResults(a.options[0], b.options[0], sortBy))
-                .map(({ slot, options }) => (
-                  <div key={slot} className="flex flex-col gap-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-neutral-700">{SLOT_LABELS[slot]}</span>
-                    {options.map((result, i) => (
-                      <UpgradeRow key={i} result={result} onSwapIn={(r) => applyOptimizerResult(build, r)} />
-                    ))}
-                  </div>
-                ))}
-              {OPTIMIZER_GEAR_SLOTS.every((slot) => !(state.slots[slot]?.length > 0)) && (
-                <div className="px-3 py-2 text-xs text-neutral-600 italic">No upgrades available in any slot.</div>
-              )}
+          <div className={`${panel} p-3 flex flex-col gap-1.5`}>
+            <div className="flex items-center justify-between pb-1 mb-0.5 border-b border-neutral-500/40">
+              <span className="text-[13px] font-bold text-black uppercase tracking-wide">Recommended Upgrades</span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSortBy('increase')}
+                  className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
+                    sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                  }`}
+                >
+                  Highest Increase
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy('ratio')}
+                  title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
+                  className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
+                    sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                  }`}
+                >
+                  Best Value
+                </button>
+              </div>
             </div>
-
-            {combinedOtherResults.length > 0 && (
-              <div className={`${panel} p-3 flex flex-col gap-1.5`}>
-                <div className="flex items-center justify-between pb-1 mb-0.5 border-b border-neutral-500/40">
-                  <span className="text-[13px] font-bold text-black uppercase tracking-wide">Other Upgrades</span>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setSortBy('increase')}
-                      className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
-                        sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
-                      }`}
-                    >
-                      Highest Increase
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSortBy('ratio')}
-                      title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
-                      className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
-                        sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
-                      }`}
-                    >
-                      Best Value
-                    </button>
-                  </div>
-                </div>
-                {combinedOtherResults.map((r, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => applyOptimizerResult(build, r)}
-                    title="Click to equip this upgrade"
-                    className="flex items-center justify-between gap-2 py-1.5 px-2 hover:bg-[#8b8b8b]/40 border-b border-neutral-500/20 last:border-0 cursor-pointer text-left transition-colors"
-                  >
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[r.category] || '#999999' }}>
-                        {r.category} — {r.slot}
-                      </span>
-                      <span className="text-[13px] text-black truncate">{r.label}</span>
-                      <span className="text-[10px] text-neutral-700">Cost: {r.cost.toLocaleString()} coins</span>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(r.percentIncrease)}%</span>
-                  </button>
-                ))}
+            {combinedResults.length > 0 ? (
+              combinedResults.map((r, i) => <UpgradeRow key={i} result={r} onSwapIn={(res) => applyOptimizerResult(build, res)} />)
+            ) : (
+              <div className="px-3 py-2 text-xs text-neutral-600 italic">
+                {build.maxBudget ? 'No upgrades available within budget.' : 'No upgrades available.'}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
