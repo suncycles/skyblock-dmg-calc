@@ -24,6 +24,7 @@ const SWARM_MOBS_KEY = 'hexSwarmMobs';
 const COMBO_KILLS_KEY = 'hexComboKills';
 const LEGION_PLAYERS_KEY = 'hexLegionPlayers';
 const BLAZE_CRIMSON_ISLE_KEY = 'hexBlazeCrimsonIsle';
+const MAX_BUDGET_KEY = 'hexMaxBudget';
 const LAST_GEAR_MODIFIERS_KEY = 'hexLastGearModifiers';
 
 export const MAX_SWARM_MOBS = 10;
@@ -115,6 +116,15 @@ function loadInitialLegionPlayers() {
 // Loads the Blaze pet's "In Crimson Isle" toggle.
 function loadInitialBlazeCrimsonIsle() {
   return localStorage.getItem(BLAZE_CRIMSON_ISLE_KEY) === 'true';
+}
+
+// Loads the Optimizer's max coin budget (0 = unlimited, default) — real-priced candidates costing
+// more than this are filtered out of the ranked list; unpriced ('?') candidates always stay
+// shown, since a genuinely free reforge shouldn't get hidden just because its cost is unverified.
+function loadInitialMaxBudget() {
+  const stored = localStorage.getItem(MAX_BUDGET_KEY);
+  const parsed = stored != null ? Number(stored) : 0;
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
 // Loads the manually-entered "everything else" Strength/Crit Damage/Intelligence total (Fairy Souls, skill rewards, etc.).
@@ -307,6 +317,7 @@ export function BuildProvider({ children }) {
   const [comboKills, setComboKillsState] = useState(loadInitialComboKills);
   const [legionPlayers, setLegionPlayersState] = useState(loadInitialLegionPlayers);
   const [blazeCrimsonIsle, setBlazeCrimsonIsleState] = useState(loadInitialBlazeCrimsonIsle);
+  const [maxBudget, setMaxBudgetState] = useState(loadInitialMaxBudget);
 
   const setMobHpPercent = useCallback((value) => {
     const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
@@ -344,6 +355,12 @@ export function BuildProvider({ children }) {
       localStorage.setItem(BLAZE_CRIMSON_ISLE_KEY, String(next));
       return next;
     });
+  }, []);
+
+  const setMaxBudget = useCallback((value) => {
+    const clamped = Math.max(0, Math.floor(Number(value) || 0));
+    setMaxBudgetState(clamped);
+    localStorage.setItem(MAX_BUDGET_KEY, String(clamped));
   }, []);
 
   const setAttributeLevel = useCallback((id, level) => {
@@ -992,6 +1009,8 @@ export function BuildProvider({ children }) {
         setLegionPlayers,
         blazeCrimsonIsle,
         toggleBlazeCrimsonIsle,
+        maxBudget,
+        setMaxBudget,
         selectItem,
         importHypixelLoadout,
         importHypixelAttributes,

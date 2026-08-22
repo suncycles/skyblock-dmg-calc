@@ -8,6 +8,7 @@ import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { round1 } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
+import NumberInput from './NumberInput';
 import WeaponIcon from './WeaponIcon';
 
 const panel =
@@ -17,14 +18,17 @@ const sectionTitle = 'text-[12px] font-bold text-black uppercase tracking-wide p
 const SLOT_LABELS = { ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS, pet: 'Pet' };
 
 const CATEGORY_COLORS = {
-  Armor: '#facc15',
-  Pet: '#f472b6',
+  Weapon: '#f87171',
+  Armor: '#38bdf8',
+  Equipment: '#fbbf24',
+  Pet: '#2dd4bf',
   Enchant: '#4ade80',
   'Ultimate Enchant': '#22d3ee',
   'Power Stone': '#a78bfa',
   Stars: '#fb923c',
   Reforge: '#60a5fa',
   Recombobulator: '#818cf8',
+  'Pet Item': '#f472b6',
   'New Accessory': '#4ade80',
   Recombobulate: '#818cf8',
   'Perfect Gemstones': '#a78bfa',
@@ -45,10 +49,10 @@ function compareResults(a, b) {
   return b.ratio - a.ratio;
 }
 
+// One shared row style for every candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the
+// brute-forced categories (Enchant/Reforge/Stars/...) alike — now that they all rank together in
+// one list instead of two separate sections.
 function UpgradeRow({ result, onSwapIn }) {
-  if (!result) {
-    return <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">No upgrades available.</div>;
-  }
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   return (
     <button
@@ -68,6 +72,9 @@ function UpgradeRow({ result, onSwapIn }) {
         </div>
       )}
       <div className="flex flex-col min-w-0 flex-1">
+        <span className="text-[8px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
+          {result.category} — {SLOT_LABELS[result.slot] || result.slot}
+        </span>
         <span className="text-[11px] text-black truncate">{result.label}</span>
         <span className="text-[9px] text-neutral-700">Cost: {result.cost.toLocaleString()}</span>
       </div>
@@ -90,12 +97,11 @@ function UpgradeRow({ result, onSwapIn }) {
 // places this component right after the gear grid specifically so that in-flow position lands
 // directly below it.
 //
-// One dedicated row per gear slot (Helmet/Chestplate/Leggings/Boots/Necklace/Cloak/Belt/Gloves/
-// Pet) showing only the immediate next tier's best candidate, or "No upgrades available" — plus a
-// secondary "Other Upgrades" list for the non-slot-tiered categories (Enchant/Ultimate Enchant/
-// Power Stone/Stars/Magical Power/accessories), which aren't tiered so every real option found
-// still shows, all ranked together by real DPS-per-coin ratio (mirrors Optimizer.jsx's "Best
-// Value" ranking).
+// Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
+// categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
+// together in one list by real DPS-per-coin ratio (mirrors Optimizer.jsx's "Best Value" ranking),
+// rather than a separate "by slot" section capped to one pick per slot. No sort toggle here
+// (unlike Optimizer.jsx) — this compact sidebar just always shows best value first.
 export default function OptimizerSidebar() {
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
@@ -139,10 +145,6 @@ export default function OptimizerSidebar() {
     mobName,
   ]);
 
-  // Magical Power/accessory candidates merge into the same "Other Upgrades" ranked list as every
-  // brute-forced category from runOptimizer (same treatment as Optimizer.jsx) — one consistent
-  // list sorted by DPS-per-coin ratio, not a separate section. No sort toggle here (unlike
-  // Optimizer.jsx) — this compact sidebar just always shows best value first.
   const [mpResult, setMpResult] = useState(null);
   const mpTokenRef = useRef(0);
   useEffect(() => {
@@ -164,7 +166,11 @@ export default function OptimizerSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
 
-  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort(compareResults);
+  const slotResults = OPTIMIZER_GEAR_SLOTS.flatMap((slot) => state.slots[slot] || []);
+  // maxBudget of 0 means "no limit" (default, unset) — see BuildContext.jsx. Unpriced ('?')
+  // candidates always stay shown; only a confirmed over-budget real cost gets filtered out.
+  const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
+  const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])].filter(withinBudget).sort(compareResults);
 
   return (
     <div className="flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 lg:fixed lg:right-4 lg:top-20 lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
@@ -187,6 +193,20 @@ export default function OptimizerSidebar() {
         {!hasCuratedData(mode) && (
           <div className="text-[10px] text-neutral-700 italic">Armor/Pet progression not configured for this mode yet.</div>
         )}
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="sidebar-max-budget" className="text-[10px] font-bold text-black uppercase tracking-wide">
+            Max Budget
+          </label>
+          <NumberInput
+            id="sidebar-max-budget"
+            value={build.maxBudget}
+            onChange={build.setMaxBudget}
+            min={0}
+            step={1000000}
+            placeholder="No limit"
+            className={`${panel} px-1.5 py-0.5 text-[11px] text-black w-28 text-right`}
+          />
+        </div>
         {mode === 'slayer' && state.status === 'ok' && (
           <div className="flex items-center justify-between text-[11px]">
             <span className="font-bold text-black uppercase tracking-wide">Atk Speed</span>
@@ -204,44 +224,13 @@ export default function OptimizerSidebar() {
 
       {state.status === 'ok' && (
         <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
-          {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot]?.length > 0)
-            .map((slot) => ({ slot, options: [...state.slots[slot]].sort(compareResults) }))
-            .sort((a, b) => compareResults(a.options[0], b.options[0]))
-            .map(({ slot, options }) => (
-              <div key={slot} className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-bold uppercase tracking-wide text-neutral-700">{SLOT_LABELS[slot]}</span>
-                {options.map((result, i) => (
-                  <UpgradeRow key={i} result={result} onSwapIn={(r) => applyOptimizerResult(build, r)} />
-                ))}
-              </div>
-            ))}
-          {OPTIMIZER_GEAR_SLOTS.every((slot) => !(state.slots[slot]?.length > 0)) && (
-            <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">No upgrades available.</div>
+          {combinedResults.length > 0 ? (
+            combinedResults.map((r, i) => <UpgradeRow key={i} result={r} onSwapIn={(res) => applyOptimizerResult(build, res)} />)
+          ) : (
+            <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">
+              {build.maxBudget ? 'No upgrades available within budget.' : 'No upgrades available.'}
+            </div>
           )}
-        </div>
-      )}
-
-      {state.status === 'ok' && combinedOtherResults.length > 0 && (
-        <div className={`${panel} p-1.5 flex flex-col gap-1`}>
-          <div className={sectionTitle}>Other Upgrades</div>
-          {combinedOtherResults.map((r, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => applyOptimizerResult(build, r)}
-              title="Click to equip this upgrade"
-              className="flex items-center justify-between gap-2 px-2 py-1.5 bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 cursor-pointer text-left transition-colors"
-            >
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[r.category] || '#999999' }}>
-                  {r.category}
-                </span>
-                <span className="text-[11px] text-black truncate">{r.label}</span>
-                <span className="text-[9px] text-neutral-700">Cost: {r.cost.toLocaleString()}</span>
-              </div>
-              <span className="text-[12px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(r.percentIncrease)}%</span>
-            </button>
-          ))}
         </div>
       )}
     </div>
