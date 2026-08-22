@@ -15,6 +15,13 @@ const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const sectionTitle = 'text-[12px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
 
+// Desktop-only floating panel: matches the `lg` breakpoint this component already switches to
+// `position: fixed` at (see the outer div's className) — dragging/resizing below that width would
+// fight the in-flow mobile layout, so both are no-ops there.
+const DESKTOP_BREAKPOINT_PX = 1024;
+const POSITION_KEY = 'hexOptimizerSidebarPos';
+const SIZE_KEY = 'hexOptimizerSidebarSize';
+
 const SLOT_LABELS = { ...ARMOR_SLOT_LABELS, ...EQUIPMENT_SLOT_LABELS, pet: 'Pet' };
 
 const CATEGORY_COLORS = {
@@ -93,9 +100,14 @@ function UpgradeRow({ result, onSwapIn }) {
 // Always rendered (shown by default, not hidden behind a toggle) — a fixed right-side sidebar at
 // the `lg` breakpoint and up (verified live against this page's actual centered content at 1024px
 // — a 280px fixed sidebar plus its own margins comfortably clears the centered max-w-[700px] grid
-// at that width), and an ordinary in-flow block below it on narrower/mobile layouts — Landing.jsx
-// places this component right after the gear grid specifically so that in-flow position lands
-// directly below it.
+// at that width, so the loadout/damage grid stays centered regardless of where this floats), and
+// an ordinary in-flow block below it on narrower/mobile layouts — Landing.jsx places this
+// component right after the gear grid specifically so that in-flow position lands directly below
+// it. Desktop-only (see DESKTOP_BREAKPOINT_PX), the panel is also a real floating window: drag the
+// title bar to reposition it (mousedown/mousemove tracking, no library — see handleDragStart) and
+// drag its bottom-right corner to resize it (native CSS `resize: both`, no JS needed for the
+// interaction itself). Both position and size persist to localStorage via a ResizeObserver plus a
+// plain state write, same "remember it for next time" treatment other build preferences get.
 //
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
@@ -108,6 +120,81 @@ export default function OptimizerSidebar() {
   const [mode, setMode] = useState('slayer');
   const [state, setState] = useState(EMPTY_STATE);
   const tokenRef = useRef(0);
+
+  // Floating position/size (desktop only) — null position means "use the default fixed spot"
+  // (right-4/top-20, via the outer div's own classes) until the user actually drags it once.
+  const containerRef = useRef(null);
+  const [floatPos, setFloatPos] = useState(null);
+  const [floatSize, setFloatSize] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= DESKTOP_BREAKPOINT_PX);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    function handleResize() {
+      setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT_PX);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const storedPos = localStorage.getItem(POSITION_KEY);
+      if (storedPos) setFloatPos(JSON.parse(storedPos));
+      const storedSize = localStorage.getItem(SIZE_KEY);
+      if (storedSize) setFloatSize(JSON.parse(storedSize));
+    } catch {
+      // Corrupt/stale localStorage value — fall back to the default position/size.
+    }
+  }, []);
+
+  function handleDragStart(e) {
+    if (!isDesktop || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setIsDragging(true);
+    e.preventDefault();
+  }
+
+  useEffect(() => {
+    if (!isDragging) return;
+    function handleMove(e) {
+      const next = {
+        left: Math.max(0, Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - 40)),
+        top: Math.max(0, Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - 40)),
+      };
+      setFloatPos(next);
+    }
+    function handleUp() {
+      setIsDragging(false);
+    }
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (floatPos) localStorage.setItem(POSITION_KEY, JSON.stringify(floatPos));
+  }, [floatPos]);
+
+  // Resizing itself is native CSS (`resize: both` on the container, desktop-only) — this just
+  // observes the resulting size so it persists across reloads the same way position does.
+  useEffect(() => {
+    if (!containerRef.current || !isDesktop) return;
+    const el = containerRef.current;
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      const next = { width: Math.round(width), height: Math.round(height) };
+      setFloatSize(next);
+      localStorage.setItem(SIZE_KEY, JSON.stringify(next));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isDesktop]);
 
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
@@ -172,10 +259,28 @@ export default function OptimizerSidebar() {
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
   const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])].filter(withinBudget).sort(compareResults);
 
+  // Once the user drags the panel, its own left/top/width/height override the default fixed
+  // spot (right-4/top-20/w-280) via inline style — CSS classes alone can't express "wherever the
+  // user last put it". Both only ever apply at the `lg` breakpoint (isDesktop); below that this
+  // stays the ordinary in-flow mobile block it always was, untouched by any stored position/size.
+  const floatingPositionClasses = floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20';
+  const desktopStyle = isDesktop
+    ? {
+        ...(floatPos ? { left: floatPos.left, top: floatPos.top, right: 'auto' } : {}),
+        ...(floatSize ? { width: floatSize.width, height: floatSize.height } : {}),
+      }
+    : undefined;
+
   return (
-    <div className="flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 lg:fixed lg:right-4 lg:top-20 lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+    <div
+      ref={containerRef}
+      className={`flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 ${floatingPositionClasses} lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:resize lg:overflow-auto`}
+      style={desktopStyle}
+    >
       <div className={`${panel} p-2 flex flex-col gap-1.5`}>
-        <div className={sectionTitle}>Recommended Upgrades</div>
+        <div className={`${sectionTitle} lg:cursor-move select-none`} onMouseDown={handleDragStart} title="Drag to reposition">
+          Recommended Upgrades
+        </div>
         <div className="grid grid-cols-2 gap-1">
           {OPTIMIZER_MODES.map((m) => (
             <button
