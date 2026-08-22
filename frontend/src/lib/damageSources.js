@@ -57,6 +57,7 @@ import {
   petLoreItemId,
   computeAllPetStats,
   computeOtherNums,
+  computeBasePetStats,
   substitutePetLore,
   getMaxPetLevel,
   applyGoldenDragonShiningScales,
@@ -514,12 +515,14 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
   );
 }
 
+// The ONLY definition of what Chimera/Manticore Claw copy — petData.js's computeBasePetStats,
+// which this delegates to rather than re-deriving. This used to be a second, inline copy of that
+// same "curve + Shining Scales + Primal Force" logic living here, and the two drifted out of sync
+// (see [[project_chimera_base_stats]] memory) — a real regression that looked fixed after editing
+// computeBasePetStats alone, because this file's own copy still had the bug. Do not reintroduce a
+// local reimplementation here; if the scope of "base stats" ever needs to change again, change it
+// in computeBasePetStats and this call picks it up for free.
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
-  // Chimera/Manticore Claw copy only the pet's real BASE stat line (petnums.json's own
-  // level-interpolated numbers, captured below right after computeAllPetStats) — species perks
-  // (Ankylosaurus's +500 Strength, Lion's Primal Force, Golden Dragon's Shining Scales) and the
-  // equipped Pet Item's boost are pet ABILITIES, not base stats, so they're deliberately excluded
-  // here even though the player's own "Pet" stat lines further below correctly include all of them.
   let basePetStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
   out.firstPounceFactor = 1;
@@ -527,9 +530,14 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const { item: pet, modifiers } = loadout.pet;
     const maxLevel = getMaxPetLevel(pet.petId);
     const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+    const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
     let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
-    basePetStats = stats;
     stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
+    // Chimera/Manticore's own copy of `stats` stops here (see computeBasePetStats above for what
+    // "base" means) — Primal Force still needs to apply to the real `stats` pipeline below too, but
+    // AFTER the pet item's boost (its original position), not before, since a %-based pet item
+    // boost must not also multiply Primal Force's flat add for the player's own full Pet total.
+    basePetStats = computeBasePetStats(loadout, itemData);
     const statsBeforePetItem = stats;
     const petItemId = modifiers.petItem;
     const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
@@ -553,8 +561,6 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
         petItemDeltas[key] = (stats[key] || 0) - (statsBeforePetItem[key] || 0);
       }
     }
-    const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
-
     // Ender Dragon's Legendary Superior perk — stashed for collectFinalStatBoosts to apply as a
     // final multiplier on the fully-summed (Base) Stats, not the pet's own stat block.
     if (pet.petId === 'ENDER_DRAGON' && pet.tier === 'LEGENDARY') {
@@ -571,8 +577,9 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       else if (pet.tier === 'EPIC' || pet.tier === 'LEGENDARY') out.firstPounceFactor = 2;
     }
 
-    // Lion's Primal Force: flat Strength (shown on the pet's own stats too, see petData.js) +
-    // Damage add (Damage isn't a real pet stat, so it's only added here), scaled via otherNums[0].
+    // Lion's Primal Force: flat Strength (already folded into basePetStats above, on its own
+    // isolated snapshot — see the comment there) + Damage add (Damage isn't a real pet stat, so
+    // it's only added here), scaled via otherNums[0].
     if (pet.petId === 'LION') {
       const primalForce = otherNums?.[0] || 0;
       stats = applyLionPrimalForce(pet.petId, stats, otherNums);
