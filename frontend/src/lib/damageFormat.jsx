@@ -86,3 +86,17 @@ export function formatCoinsPerPercent(cost, percentIncrease) {
   if (typeof cost !== 'number' || !(percentIncrease > 0)) return null;
   return formatCoinsShort(Math.round(cost / percentIncrease));
 }
+
+// Inverse of formatCoinsShort — parses what a user typed into a coins field, accepting a plain
+// number or one with a K/M/B/T suffix (case-insensitive, optional space, e.g. "2.5m" -> 2500000).
+// Returns null when the text isn't a valid number, so callers can tell "empty/invalid" apart from 0.
+export function parseCoinsShort(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(-?[\d.]+)\s*([kmbt])?$/i);
+  if (!match) return null;
+  const num = Number(match[1]);
+  if (!Number.isFinite(num)) return null;
+  const tier = COIN_SCALE_TIERS.find((t) => t.suffix === match[2]?.toUpperCase());
+  return tier ? num * tier.scale : num;
+}

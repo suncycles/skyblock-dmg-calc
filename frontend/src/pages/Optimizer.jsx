@@ -12,6 +12,7 @@ import PageHeader from '../components/PageHeader';
 import WeaponIcon from '../components/WeaponIcon';
 import NumberInput from '../components/NumberInput';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
+import { ENCHANTED_BOOK_ICON } from '../lib/icons';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -63,6 +64,7 @@ function compareResults(a, b, sortBy) {
 // item (`itemId` set); brute-forced categories without one just show the category/slot label.
 function UpgradeRow({ result, onSwapIn }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
+  const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
   const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
     <button
@@ -71,7 +73,7 @@ function UpgradeRow({ result, onSwapIn }) {
       title="Click to equip this upgrade"
       className="w-full flex items-center gap-2 px-3 py-2 bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 cursor-pointer text-left transition-colors"
     >
-      {result.itemId && (
+      {result.itemId ? (
         <div className="relative shrink-0 w-6 h-6">
           <WeaponIcon id={result.itemId} material={result.material} alt="" className="w-6 h-6 pixelated" />
           {badge && (
@@ -80,6 +82,12 @@ function UpgradeRow({ result, onSwapIn }) {
             </span>
           )}
         </div>
+      ) : (
+        isEnchant && (
+          <div className="relative shrink-0 w-6 h-6">
+            <img src={ENCHANTED_BOOK_ICON} alt="" className="w-6 h-6 pixelated" />
+          </div>
+        )
       )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
@@ -219,6 +227,7 @@ export default function Optimizer() {
               onChange={build.setMaxBudget}
               min={0}
               step={1000000}
+              allowSuffix
               placeholder="No limit"
               className={`${panel} px-2 py-1 text-sm text-black w-40 text-right`}
             />
