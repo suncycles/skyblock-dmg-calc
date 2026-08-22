@@ -46,17 +46,33 @@ export function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
 
-// Abbreviates a coin amount at the million/billion/trillion scale (3 significant figures via
-// round3Sig, e.g. 1,599,994.7 -> "1.6M", 210,263,467 -> "210M") — below a million it's just the
-// plain comma-formatted number, since "0.05M" reads worse than "50,000". Non-numeric input (the
-// '?' unpriced sentinel) passes through unchanged rather than throwing.
+const COIN_SCALE_TIERS = [
+  { scale: 1e12, suffix: 'T' },
+  { scale: 1e9, suffix: 'B' },
+  { scale: 1e6, suffix: 'M' },
+  { scale: 1e3, suffix: 'K' },
+];
+
+// Abbreviates a coin amount at the thousand/million/billion/trillion scale (3 significant figures
+// via round3Sig, e.g. 70,000 -> "70K", 1,599,994.7 -> "1.6M", 210,263,467 -> "210M") — below a
+// thousand it's just the plain comma-formatted number (there's nothing to abbreviate). Non-numeric
+// input (the '?' unpriced sentinel) passes through unchanged rather than throwing.
 export function formatCoinsShort(n) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return String(n);
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
-  if (abs >= 1e12) return `${sign}${round3Sig(abs / 1e12)}T`;
-  if (abs >= 1e9) return `${sign}${round3Sig(abs / 1e9)}B`;
-  if (abs >= 1e6) return `${sign}${round3Sig(abs / 1e6)}M`;
+  for (let i = 0; i < COIN_SCALE_TIERS.length; i++) {
+    const { scale, suffix } = COIN_SCALE_TIERS[i];
+    if (abs < scale) continue;
+    const scaled = round3Sig(abs / scale);
+    // round3Sig can round a value just under a tier boundary (e.g. 999,998) up to 1000 — bump to
+    // the next tier up rather than ever displaying "1000K".
+    if (scaled >= 1000 && i > 0) {
+      const up = COIN_SCALE_TIERS[i - 1];
+      return `${sign}${round3Sig(abs / up.scale)}${up.suffix}`;
+    }
+    return `${sign}${scaled}${suffix}`;
+  }
   return n.toLocaleString();
 }
 
