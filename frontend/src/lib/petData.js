@@ -1,5 +1,5 @@
-import { formatItemName, rarityColorCode } from './mcText';
-import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from './petItemEffects';
+import { formatItemName, rarityColorCode } from './mcText.js';
+import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from './petItemEffects.js';
 
 /* Pet stats, sourced from NEU-REPO's constants/petnums.json (worker forwards it live under
    itemData.pets) — shaped { [petId]: { [rarity]: { "1": {statNums, otherNums}, "100": {...} } } }.
@@ -201,17 +201,29 @@ export function computeEquippedPetStats(loadout, itemData) {
   return applyAnkylosaurusMax(pet.petId, stats);
 }
 
-// The pet's real BASE stat line only — petnums.json's own level-interpolated numbers, before
-// Shining Scales/pet item/species perks (Ankylosaurus's +500 Strength, Lion's Primal Force, ...)
-// are layered on. Chimera and Manticore Claw copy THIS, not computeEquippedPetStats' full total —
-// those extra bonuses are pet abilities/equipment, not part of the pet's own base stats (bug case:
-// Ankylosaurus's ability-granted +500 Strength was incorrectly being copied onto the weapon too).
+// The pet's real BASE stat line — what actually shows in the "[Lvl X] Pet Name / Combat Pet /
+// [...]" bracket in its real lore. Chimera and Manticore Claw copy exactly this, not
+// computeEquippedPetStats' full total. Two different things get lumped together as "extra
+// bonuses" and need telling apart here:
+// - Perks that boost a stat the pet's own statNums curve already has (Golden Dragon's Shining
+//   Scales adding onto its native Strength; Lion's Primal Force, same) ARE part of that bracket
+//   number in real lore, so they're included here.
+// - Perks that grant a stat the pet's curve doesn't have at all (Ankylosaurus's Unyielding, which
+//   invents +500 Strength on a pet with no Strength stat) are a separate ability paragraph below
+//   the bracket, not part of it — excluded. Same for the held Pet Item's boost (its own "Held
+//   Item: ..." paragraph, always separate).
+// (bug case this was originally written for: Ankylosaurus's ability-granted +500 Strength was
+// incorrectly being copied onto the weapon; regression case: Golden Dragon's real Strength
+// *includes* Shining Scales in its bracket, which an earlier fix over-corrected into excluding.)
 export function computeBasePetStats(loadout, itemData) {
   if (!loadout.pet) return null;
   const { item: pet, modifiers } = loadout.pet;
   const maxLevel = getMaxPetLevel(pet.petId);
   const levels = itemData.pets?.[pet.petId]?.[pet.tier];
-  return computeAllPetStats(levels, modifiers.level, maxLevel);
+  let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+  stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
+  const otherNums = computeOtherNums(levels, modifiers.level, maxLevel);
+  return applyLionPrimalForce(pet.petId, stats, otherNums);
 }
 
 // The Chimera bonus for one equipped item slot ({item, modifiers}), or null if it doesn't have Chimera applied.
