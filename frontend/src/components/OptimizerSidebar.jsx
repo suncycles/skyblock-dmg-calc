@@ -29,6 +29,7 @@ const CATEGORY_COLORS = {
   Recombobulate: '#818cf8',
   'Perfect Gemstones': '#a78bfa',
   'Magical Power (generic)': '#facc15',
+  'Full Set': '#fb7185',
 };
 
 const SLAYER_ATTACK_SPEED_TARGET = 82;
