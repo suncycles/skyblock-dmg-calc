@@ -30,6 +30,7 @@ const CATEGORY_COLORS = {
   Recombobulate: '#818cf8',
   'Perfect Gemstones': '#a78bfa',
   'Magical Power (generic)': '#facc15',
+  'Full Set': '#fb7185',
 };
 
 // User-specified: reaching 82% Bonus Attack Speed is Slayer's single highest priority — shown as

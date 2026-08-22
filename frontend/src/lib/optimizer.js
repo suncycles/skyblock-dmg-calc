@@ -21,6 +21,7 @@ import { collectDamageSources } from './damageSources';
 import { computeAbilityDamage, computeDpsBreakdown } from './finalDamage';
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
+import { VANQUISHED_SET, FINAL_DESTINATION_SET, hasFullSet } from './armorSetBonuses';
 import { resolveGearSummary } from './hypixelImport';
 import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
 import {
@@ -304,18 +305,90 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
   return results;
 }
 
+// Vanquished (Equipment) and Final Destination (Armor) only pay off once EVERY piece is worn (see
+// armorSetBonuses.js's hasFullSet) — evaluating one slot at a time like evaluateItemSlotCandidates
+// does could never show a mid-swap piece's true value, since the set bonus doesn't activate until
+// the last piece lands (the same "coarse per-point search can't see a lumpy payoff" problem
+// lib/tuningOptimizer.js solves for Bonus Attack Speed's breakpoints). So each is its own single
+// candidate that swaps every slot in the set at once, carrying over each existing slot's own
+// reforge/ultimate enchant the same way evaluateItemSlotCandidates does. Runs unconditionally
+// (not gated on a mode's curated progression) since neither set is mode-specific content.
+const FULL_SET_CANDIDATES = [
+  {
+    category: 'Full Set',
+    label: 'Vanquished Equipment (Full Set)',
+    slots: EQUIPMENT_SLOTS,
+    idsBySlot: { necklace: 'VANQUISHED_MAGMA_NECKLACE', cloak: 'VANQUISHED_GHAST_CLOAK', belt: 'VANQUISHED_BLAZE_BELT', gloves: 'VANQUISHED_GLOWSTONE_GAUNTLET' },
+    setIds: VANQUISHED_SET,
+  },
+  {
+    category: 'Full Set',
+    label: 'Final Destination Armor (Full Set)',
+    slots: ARMOR_SLOTS,
+    idsBySlot: { helmet: 'FINAL_DESTINATION_HELMET', chestplate: 'FINAL_DESTINATION_CHESTPLATE', leggings: 'FINAL_DESTINATION_LEGGINGS', boots: 'FINAL_DESTINATION_BOOTS' },
+    setIds: FINAL_DESTINATION_SET,
+  },
+];
+
+async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob) {
+  const results = [];
+  for (const set of FULL_SET_CANDIDATES) {
+    if (hasFullSet(loadout, set.slots, set.setIds)) continue; // already wearing it — nothing to suggest
+    const candidateLoadout = { ...loadout };
+    const apply = [];
+    let allResolved = true;
+    for (const slot of set.slots) {
+      const resolved = resolveGearSummary({ id: set.idsBySlot[slot] }, itemData);
+      if (!resolved) {
+        allResolved = false;
+        break;
+      }
+      const currentModifiers = loadout[slot]?.modifiers;
+      const modifiers = emptyModifiers();
+      if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
+      if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      candidateLoadout[slot] = { item: resolved, modifiers };
+      apply.push({ type: 'selectItem', slot, item: resolved });
+      if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+      if (currentModifiers?.ultimateEnchantment) {
+        apply.push({
+          type: 'applyEnchant',
+          slot,
+          id: currentModifiers.ultimateEnchantment.id,
+          level: currentModifiers.ultimateEnchantment.level,
+          maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+          removeIds: [],
+        });
+      }
+    }
+    if (!allResolved) continue; // catalog lookup failed — skip rather than guess
+    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    results.push({ category: set.category, slot: set.slots.join('/'), label: set.label, value, apply });
+  }
+  return results;
+}
+
 // Weapon item choice: unlike armor/equipment/pet, several independent chains (see
-// SLAYER_WEAPON_PROGRESSION) all target the same single 'weapon' slot, so each chain is walked
-// separately (current weapon matched within THAT chain only, or from tier 0 if it's not part of
-// it) and every chain's results are merged — same bare-item comparison and apply shape as
+// SLAYER_WEAPON_PROGRESSION) all target the same single 'weapon' slot. Each real Slayer type's
+// chain is its own reward track, not a tier of some universal "best weapon" ladder — a Reaper
+// Falchion isn't "worse" than a Scorpion Foil, and (user-confirmed) a Pyrochaos Dagger isn't
+// "worse" than a Deathripper Dagger despite Deathripper's higher raw damage; they're earned
+// independently and are meaningfully different weapons. So once the player's current weapon is
+// recognized as belonging to ONE of these chains, only that chain gets walked/suggested — the
+// others never cross-suggest into it just because they happen to deal more damage. Only when the
+// current weapon matches NONE of the mode's chains (no weapon yet, or one outside this curated
+// list) do all chains get walked from tier 0, same bare-item comparison and apply shape as
 // evaluateItemSlotCandidates above, just without a slot-keyed progression map.
 async function evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
   const chains = WEAPON_PROGRESSION_BY_MODE[mode];
   if (!chains) return [];
   const currentModifiers = loadout.weapon?.modifiers;
   const currentId = loadout.weapon?.item?.id || null;
+  const allProgressions = Object.values(chains);
+  const ownedProgressions = allProgressions.filter((progression) => findTierIndex(progression, (c) => c.id === currentId) !== -1);
+  const progressionsToWalk = ownedProgressions.length > 0 ? ownedProgressions : allProgressions;
   const results = [];
-  for (const progression of Object.values(chains)) {
+  for (const progression of progressionsToWalk) {
     const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
     const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
       const resolved = resolveGearSummary({ id: candidate.id }, itemData);
@@ -695,30 +768,32 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
 
-  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs, petItems] = await Promise.all([
-    evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
-    evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
-    evaluateItemSlotCandidates(
-      loadout,
-      itemData,
-      build,
-      modeConfig,
-      mob,
-      baselineValue,
-      EQUIPMENT_SLOTS,
-      EQUIPMENT_PROGRESSION_BY_MODE[mode],
-      'Equipment',
-    ),
-    evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
-    evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
-    evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
-  ]);
+  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs, petItems, fullSets] =
+    await Promise.all([
+      evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+      evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
+      evaluateItemSlotCandidates(
+        loadout,
+        itemData,
+        build,
+        modeConfig,
+        mob,
+        baselineValue,
+        EQUIPMENT_SLOTS,
+        EQUIPMENT_PROGRESSION_BY_MODE[mode],
+        'Equipment',
+      ),
+      evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+      evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
+      evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
+    ]);
 
   // Armor/equipment/pet/reforge results already carry their own real percentIncrease
   // (evaluateTieredProgression computes it while walking tiers, since it needs the value to decide
@@ -736,7 +811,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   }
 
   const otherResults = [
-    ...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...recombs, ...petItems]),
+    ...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...recombs, ...petItems, ...fullSets]),
     ...reforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
