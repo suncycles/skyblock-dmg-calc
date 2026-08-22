@@ -204,15 +204,18 @@ export default function OptimizerSidebar() {
 
       {state.status === 'ok' && (
         <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
-          {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot])
-            .sort((a, b) => compareResults(state.slots[a], state.slots[b]))
-            .map((slot) => (
+          {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot]?.length > 0)
+            .map((slot) => ({ slot, options: [...state.slots[slot]].sort(compareResults) }))
+            .sort((a, b) => compareResults(a.options[0], b.options[0]))
+            .map(({ slot, options }) => (
               <div key={slot} className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wide text-neutral-700">{SLOT_LABELS[slot]}</span>
-                <UpgradeRow result={state.slots[slot]} onSwapIn={(r) => applyOptimizerResult(build, r)} />
+                {options.map((result, i) => (
+                  <UpgradeRow key={i} result={result} onSwapIn={(r) => applyOptimizerResult(build, r)} />
+                ))}
               </div>
             ))}
-          {OPTIMIZER_GEAR_SLOTS.every((slot) => !state.slots[slot]) && (
+          {OPTIMIZER_GEAR_SLOTS.every((slot) => !(state.slots[slot]?.length > 0)) && (
             <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">No upgrades available.</div>
           )}
         </div>
