@@ -45,3 +45,28 @@ export function round3Sig(n) {
 export function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
+
+// Abbreviates a coin amount at the million/billion/trillion scale (3 significant figures via
+// round3Sig, e.g. 1,599,994.7 -> "1.6M", 210,263,467 -> "210M") — below a million it's just the
+// plain comma-formatted number, since "0.05M" reads worse than "50,000". Non-numeric input (the
+// '?' unpriced sentinel) passes through unchanged rather than throwing.
+export function formatCoinsShort(n) {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return String(n);
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${sign}${round3Sig(abs / 1e12)}T`;
+  if (abs >= 1e9) return `${sign}${round3Sig(abs / 1e9)}B`;
+  if (abs >= 1e6) return `${sign}${round3Sig(abs / 1e6)}M`;
+  return n.toLocaleString();
+}
+
+// Coins spent per 1% real damage increase — the inverse of the Optimizer's internal sort ratio
+// (percentIncrease/cost), shown instead since that raw ratio reads as an unreadable tiny decimal
+// (e.g. 4.48e-8) across a cost range spanning single coins to billions. Coins-per-percent stays a
+// plain, familiar coin amount at any scale, same as every other price already on screen — and the
+// sort itself is untouched, this is display-only. Returns null when cost isn't a real number
+// (the '?' unpriced sentinel) or percentIncrease isn't positive.
+export function formatCoinsPerPercent(cost, percentIncrease) {
+  if (typeof cost !== 'number' || !(percentIncrease > 0)) return null;
+  return formatCoinsShort(Math.round(cost / percentIncrease));
+}
