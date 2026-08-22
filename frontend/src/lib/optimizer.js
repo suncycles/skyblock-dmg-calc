@@ -11,7 +11,11 @@
 //   far; Mage/Dungeon-Archer/Dungeon-Mage only surface the brute-forced categories below until
 //   provided. Tiers are ordered worst -> best; multiple entries in one tier are sidegrades —
 //   every sidegrade is always evaluated (even the ones matching the player's current tier),
-//   since one may numerically beat another despite being nominally "equal". Weapons are the one
+//   since one may numerically beat another despite being nominally "equal". Only the player's
+//   current tier and the single immediate next tier are ever offered (see
+//   evaluateTieredProgression) — a real progression has to be earned one rung at a time, so a
+//   later tier scoring a bigger % increase never gets suggested as a shortcut past the one right
+//   in front of the player. Weapons are the one
 //   exception with more than one tier list per mode (SLAYER_WEAPON_PROGRESSION): each real
 //   Slayer type hands out its own independent chain, all targeting the single 'weapon' slot.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
@@ -65,7 +69,13 @@ export function getModeConfig(mode) {
 }
 
 // Real ids, confirmed against worker/src/data/armor.json. "10m/100m/1b coin COA" = Crown of
-// Avarice's Coins Consumed special value at that tier — see lib/specialWeapons.js.
+// Avarice's Coins Consumed special value at that tier — see lib/specialWeapons.js. The Crimson
+// line's Hot/Burning/Fiery power tiers sit between the Basic-equivalent checkpoint (bare Crimson/
+// Primordial/10m COA) and the Warden/100m-COA checkpoint, each its own tier (not a sidegrade
+// group) so a real player is only ever offered one power tier at a time — Hot before Burning
+// before Fiery before Infernal — matching lib/armorVariants.js's VARIANT_TIERS stat-confirmed
+// ascending order. Flag if Hot/Burning/Fiery should rank differently against Warden/Crown of
+// Avarice specifically; the within-family Hot<Burning<Fiery<Infernal order itself is confirmed.
 const SLAYER_HELMET_PROGRESSION = [
   [{ id: 'TARANTULA_HELMET' }],
   [
@@ -73,6 +83,9 @@ const SLAYER_HELMET_PROGRESSION = [
     { id: 'PRIMORDIAL_HELMET' },
     { id: 'CROWN_OF_AVARICE', special: 10_000_000, label: 'Crown of Avarice (10m Coins Consumed)' },
   ],
+  [{ id: 'HOT_CRIMSON_HELMET' }],
+  [{ id: 'BURNING_CRIMSON_HELMET' }],
+  [{ id: 'FIERY_CRIMSON_HELMET' }],
   [{ id: 'CROWN_OF_AVARICE', special: 100_000_000, label: 'Crown of Avarice (100m Coins Consumed)' }, { id: 'WARDEN_HELMET' }],
   [
     { id: 'CROWN_OF_AVARICE', special: 1_000_000_000, label: 'Crown of Avarice (1b Coins Consumed)' },
@@ -81,14 +94,18 @@ const SLAYER_HELMET_PROGRESSION = [
 ];
 
 // Chestplate/Leggings/Boots share the same chain shape ("other armor" in the user's spec):
-// Shadow Assassin -> Necron's Armor (POWER_WITHER_*, confirmed with the user) -> mid-tier Crimson
-// (Hot/Burning/Fiery, sidegrades) -> Infernal Crimson.
+// Shadow Assassin -> Necron's Armor (POWER_WITHER_*, confirmed with the user) -> Crimson's own
+// Basic/Hot/Burning/Fiery power tiers (see the helmet chain's note above for why these are split
+// into individual tiers) -> Infernal Crimson.
 function otherArmorProgression(slot) {
   const suffix = slot.toUpperCase();
   return [
     [{ id: `SHADOW_ASSASSIN_${suffix}` }],
     [{ id: `POWER_WITHER_${suffix}` }],
-    [{ id: `HOT_CRIMSON_${suffix}` }, { id: `BURNING_CRIMSON_${suffix}` }, { id: `FIERY_CRIMSON_${suffix}` }],
+    [{ id: `CRIMSON_${suffix}` }],
+    [{ id: `HOT_CRIMSON_${suffix}` }],
+    [{ id: `BURNING_CRIMSON_${suffix}` }],
+    [{ id: `FIERY_CRIMSON_${suffix}` }],
     [{ id: `INFERNAL_CRIMSON_${suffix}` }],
   ];
 }
@@ -196,17 +213,22 @@ function findTierIndex(progression, matches) {
   return -1;
 }
 
-// Walks every tier from the player's current position onward (tier 0 if unrecognized) — not just
-// the nearest one — evaluating every real candidate via `evaluate` (resolves a candidate to
-// `{value, ...}` or null on a catalog miss — skipped rather than guessed) and keeping every
-// genuine improvement over `baselineValue` found anywhere in the remaining ladder. The caller
-// (runOptimizer) picks the single highest % increase per slot from this full set — "show the
-// highest damage increase", not just the closest tier's. Sidegrades within the player's current
-// tier are still evaluated too (per the "/" rule), everything else is a straightforward superset.
+// Only ever evaluates the player's current tier (to catch a same-tier sidegrade, per the "/"
+// rule) and the single immediate next tier up — never further ahead, even if a later tier would
+// score a bigger % increase. A real player has to earn each rung of a progression in order (e.g.
+// Voidedge Katana's only offer is Vorpal, never Atomsplit; Crimson armor's only offer is Hot, not
+// Infernal), so skipping straight to the best-scoring tier down the line isn't a real "upgrade
+// path" and was misleading. An unrecognized current item (currentIndex === -1) has no known tier
+// to step from, so only the chain's very first tier is offered rather than guessing how far along
+// an unrecognized item might be. `evaluate` resolves a candidate to `{value, ...}` or null on a
+// catalog miss (skipped rather than guessed); every genuine improvement over `baselineValue`
+// within this one-or-two-tier window is kept, and the caller (runOptimizer) picks the single
+// highest % increase among those.
 async function evaluateTieredProgression(progression, currentIndex, isCurrent, baselineValue, evaluate) {
   const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
+  const maxIndex = currentIndex === -1 ? effectiveIndex : effectiveIndex + 1;
   const evaluated = [];
-  for (let i = effectiveIndex; i < progression.length; i++) {
+  for (let i = effectiveIndex; i <= maxIndex && i < progression.length; i++) {
     const tierCandidates = progression[i].filter((c) => !(i === effectiveIndex && currentIndex !== -1 && isCurrent(c)));
     for (const candidate of tierCandidates) {
       const outcome = await evaluate(candidate);
