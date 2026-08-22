@@ -1,7 +1,8 @@
 // Damage Increase Optimizer — evaluates real gear/enchant/pet/power alternatives against the
 // player's CURRENT loadout, one change at a time, and ranks every real improvement by % damage
-// increase. Coin cost isn't modeled yet (needs a real-time Bazaar/AH price API this app doesn't
-// have) — see pages/Optimizer.jsx; this only ever sorts by damage, per user direction.
+// increase. Real coin cost (lib/pricing.js, Worker-precomputed from SkyHelperBot/Prices — see
+// worker/src/index.js's resolveCosts) is attached to every result below, giving `ratio`
+// (% DPS increase per coin) a real value for the "Best Value" sort — see pages/Optimizer.jsx.
 //
 // Two kinds of candidates:
 // - Curated progression lists (weapons, armor pieces, equipment, pets) — most of the catalog is
@@ -23,6 +24,7 @@ import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import { VANQUISHED_SET, FINAL_DESTINATION_SET, hasFullSet } from './armorSetBonuses';
 import { resolveGearSummary } from './hypixelImport';
+import { lookupCandidateCost } from './pricing';
 import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
 import {
   fetchEnchantLevels,
@@ -175,14 +177,16 @@ export function hasCuratedData(mode) {
   );
 }
 
-// No real-time Bazaar/AH price source wired up yet — every candidate's coin cost is this
-// placeholder until one is. `ratio` (damage % per coin) stays null rather than dividing by a fake
-// 0, since a fabricated number would be more misleading than an honest "not available yet".
-const PLACEHOLDER_COST = 0;
-
-function withCostPlaceholder(result) {
+// Real coin cost (lib/pricing.js) per candidate — `'?'` (not `0`) when no real cost source exists
+// for this specific candidate (Stars without upgrade_costs data, a free/blacksmith-rolled reforge,
+// etc.), since a literal 0 would misleadingly read as "this is free" now that sibling rows show
+// real numbers. `'?'.toLocaleString()` doesn't throw (strings have that method), so the existing
+// render code needs no changes for this case.
+function withCost(result, itemData) {
   if (!result) return result;
-  return { ...result, cost: PLACEHOLDER_COST, ratio: PLACEHOLDER_COST > 0 ? result.percentIncrease / PLACEHOLDER_COST : null };
+  const cost = lookupCandidateCost(result, itemData);
+  const hasRealCost = typeof cost === 'number' && cost > 0;
+  return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost ? result.percentIncrease / cost : null };
 }
 
 function findTierIndex(progression, matches) {
@@ -599,6 +603,9 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
         category: 'Stars',
         slot,
         label: `${formatItemName(equipped.item.name)} — ${stars}✩`,
+        // Real per-item id, so lib/pricing.js can look up the cumulative star cost (Worker-
+        // precomputed from Hypixel's real upgrade_costs data) without needing the whole loadout.
+        itemId: equipped.item.id,
         value,
         apply: [{ type: 'setStarCount', slot, count: stars }],
       });
@@ -763,17 +770,16 @@ async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, 
 export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS, 'pet'];
 
 // Runs every evaluator, computes % increase against the current loadout's real baseline, keeps
-// only genuine upgrades (positive delta). Coin cost isn't factored in anywhere here — see the
-// file header. Two result shapes:
+// only genuine upgrades (positive delta). Two result shapes:
 // - `slots`: one dedicated entry per OPTIMIZER_GEAR_SLOTS slot — the single candidate across the
 //   whole remaining curated ladder (every tier from the player's current position onward, not
 //   just the nearest one) with the highest real % damage increase, or null ("no upgrades
 //   available") when the slot has nothing configured or nothing left beats the current item.
 // - `otherResults`: the brute-forced, non-slot-tiered categories (Enchant/Ultimate Enchant/Power
 //   Stone/Stars) — these aren't "tiered", so every real option found still shows, sorted by %.
-// Every result also carries `cost`/`ratio` (damage-increase-per-coin) — coin cost isn't wired to a
-// real price source yet (see file header), so `cost` is a placeholder 0 and `ratio` is null until
-// it is; the fields exist now so a future price API only has to fill them in, not add them.
+// Every result also carries `cost`/`ratio` (damage-increase-per-coin) via withCost/lib/pricing.js
+// — a real number when a coin cost source exists for that specific candidate, `'?'`/`null` when
+// it doesn't (see lib/pricing.js for exactly which categories are/aren't priceable today).
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
@@ -825,13 +831,13 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ...reforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
-  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = withCostPlaceholder(slots[slot]);
+  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = withCost(slots[slot], itemData);
 
   return {
     baselineValue,
     bonusAttackSpeed: baselineSources.baseStats.bonus_attack_speed || 0,
     slots,
-    otherResults: otherResults.map(withCostPlaceholder),
+    otherResults: otherResults.map((r) => withCost(r, itemData)),
   };
 }
 

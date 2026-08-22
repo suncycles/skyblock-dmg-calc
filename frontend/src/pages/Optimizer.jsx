@@ -74,10 +74,10 @@ function UpgradeRow({ result, onSwapIn }) {
 
 // Damage Increase Optimizer — brute-forces/curated-list-evaluates real gear/enchant/pet/power
 // alternatives against the current loadout. See lib/optimizer.js for the full evaluation engine
-// and its documented assumptions. Coin cost isn't modeled yet (needs a real-time price API) —
-// sorted purely by damage increase for now. One dedicated slot per gear piece, showing only the
-// immediate next tier's best candidate (click to equip); non-slot-tiered categories (Enchant/
-// Ultimate Enchant/Power Stone/Stars) list separately below since every real option there still shows.
+// and its documented assumptions, and lib/pricing.js for how real coin costs are looked up.
+// One dedicated slot per gear piece, showing only the immediate next tier's best candidate (click
+// to equip); non-slot-tiered categories (Enchant/Ultimate Enchant/Power Stone/Stars) list
+// separately below since every real option there still shows.
 export default function Optimizer() {
   const navigate = useNavigate();
   const build = useBuild();
@@ -149,8 +149,8 @@ export default function Optimizer() {
   // Magical Power candidates merge into the same "Other Upgrades" ranked list as every
   // brute-forced category from runOptimizer, rather than a separate section — one consistent
   // ranked list, per user direction. Sort toggle: "increase" is straightforward %DPS; "ratio" is
-  // damage-per-coin (null for every placeholder/unknown-cost result today, so it reads identically
-  // to "increase" until a real price source exists — see lib/optimizer.js's file header).
+  // real damage-per-coin (see lib/pricing.js) — null only for genuinely unpriced results (free
+  // reforges, generic MP sweeps), which sink to the bottom under "ratio".
   const [sortBy, setSortBy] = useState('increase');
   const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => {
     if (sortBy === 'ratio') {
@@ -270,7 +270,7 @@ export default function Optimizer() {
                     <button
                       type="button"
                       onClick={() => setSortBy('ratio')}
-                      title="Damage increase per coin — same order as Highest Increase until real prices are wired up"
+                      title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
                       className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
                         sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
                       }`}

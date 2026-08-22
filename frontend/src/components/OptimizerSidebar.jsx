@@ -132,7 +132,8 @@ export default function OptimizerSidebar() {
 
   // Magical Power/accessory candidates merge into the same "Other Upgrades" ranked list as every
   // brute-forced category from runOptimizer (same treatment as Optimizer.jsx) — one consistent
-  // list sorted by % increase, not a separate section.
+  // list sorted by DPS-per-coin ratio, not a separate section. No sort toggle here (unlike
+  // Optimizer.jsx) — this compact sidebar just always shows best value first.
   const [mpResult, setMpResult] = useState(null);
   const mpTokenRef = useRef(0);
   useEffect(() => {
@@ -154,9 +155,12 @@ export default function OptimizerSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
 
-  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort(
-    (a, b) => b.percentIncrease - a.percentIncrease,
-  );
+  const combinedOtherResults = [...state.otherResults, ...(mpResult?.results || [])].sort((a, b) => {
+    if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
+    if (a.ratio == null) return 1;
+    if (b.ratio == null) return -1;
+    return b.ratio - a.ratio;
+  });
 
   return (
     <div className="flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 lg:fixed lg:right-4 lg:top-20 lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
