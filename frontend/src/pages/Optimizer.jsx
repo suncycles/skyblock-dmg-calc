@@ -64,7 +64,7 @@ function UpgradeRow({ result, onSwapIn }) {
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[13px] text-black truncate">{result.label}</span>
         <span className="text-[10px] text-neutral-700">
-          Cost: {result.cost.toLocaleString()} coins · Ratio: {result.ratio != null ? round1(result.ratio) : '—'}
+          Cost: {result.cost.toLocaleString()} coins · Ratio: {result.ratio != null ? round3Sig(result.ratio) : '—'}
         </span>
       </div>
       <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
@@ -293,7 +293,7 @@ export default function Optimizer() {
                       </span>
                       <span className="text-[13px] text-black truncate">{r.label}</span>
                       <span className="text-[10px] text-neutral-700">
-                        Cost: {r.cost.toLocaleString()} coins · Ratio: {r.ratio != null ? round1(r.ratio) : '—'}
+                        Cost: {r.cost.toLocaleString()} coins · Ratio: {r.ratio != null ? round3Sig(r.ratio) : '—'}
                       </span>
                     </div>
                     <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(r.percentIncrease)}%</span>

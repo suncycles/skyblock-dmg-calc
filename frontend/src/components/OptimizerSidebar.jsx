@@ -6,7 +6,7 @@ import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCa
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1 } from '../lib/damageFormat';
+import { round1, round3Sig } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import WeaponIcon from './WeaponIcon';
 
@@ -60,7 +60,7 @@ function UpgradeRow({ result, onSwapIn }) {
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[11px] text-black truncate">{result.label}</span>
         <span className="text-[9px] text-neutral-700">
-          Cost: {result.cost.toLocaleString()} · Ratio: {result.ratio != null ? round1(result.ratio) : '—'}
+          Cost: {result.cost.toLocaleString()} · Ratio: {result.ratio != null ? round3Sig(result.ratio) : '—'}
         </span>
       </div>
       <span className="text-[11px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
@@ -231,7 +231,7 @@ export default function OptimizerSidebar() {
                 </span>
                 <span className="text-[11px] text-black truncate">{r.label}</span>
                 <span className="text-[9px] text-neutral-700">
-                  Cost: {r.cost.toLocaleString()} · Ratio: {r.ratio != null ? round1(r.ratio) : '—'}
+                  Cost: {r.cost.toLocaleString()} · Ratio: {r.ratio != null ? round3Sig(r.ratio) : '—'}
                 </span>
               </div>
               <span className="text-[12px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(r.percentIncrease)}%</span>
