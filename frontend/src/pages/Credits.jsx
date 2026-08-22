@@ -46,6 +46,31 @@ export default function Credits() {
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
+          <h2 className="font-semibold text-white mb-1">Coin Prices — SkyHelperBot/Prices &amp; Hypixel API</h2>
+          <p>
+            The Optimizer's real coin costs come from{' '}
+            <a
+              className="underline text-blue-300 hover:text-blue-200"
+              href="https://github.com/SkyHelperBot/Prices"
+              target="_blank"
+              rel="noreferrer"
+            >
+              SkyHelperBot/Prices
+            </a>
+            , a community-maintained, auto-updating item price feed, plus Hypixel's own public{' '}
+            <a
+              className="underline text-blue-300 hover:text-blue-200"
+              href="https://api.hypixel.net/v2/resources/skyblock/items"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Resources API
+            </a>{' '}
+            for star-upgrade material costs.
+          </p>
+        </section>
+
+        <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
           <h2 className="font-semibold text-white mb-1">Mob Model Renders — Hypixel SkyBlock Wiki</h2>
           <p>
             Mob render images used in the Target Mob picker are from the{' '}
