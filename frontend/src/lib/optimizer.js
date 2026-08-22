@@ -11,11 +11,13 @@
 //   far; Mage/Dungeon-Archer/Dungeon-Mage only surface the brute-forced categories below until
 //   provided. Tiers are ordered worst -> best; multiple entries in one tier are sidegrades —
 //   every sidegrade is always evaluated (even the ones matching the player's current tier),
-//   since one may numerically beat another despite being nominally "equal". Only the player's
-//   current tier and the single immediate next tier are ever offered (see
-//   evaluateTieredProgression) — a real progression has to be earned one rung at a time, so a
-//   later tier scoring a bigger % increase never gets suggested as a shortcut past the one right
-//   in front of the player. Weapons are the one
+//   since one may numerically beat another despite being nominally "equal". Every tier from the
+//   player's current position onward is walked and every genuine improvement offered — except
+//   real Crimson-family armor (base/Hot/Burning/Fiery/Infernal), which is user-specified to never
+//   skip a power tier: only the current tier and the single immediate next tier are offered there
+//   (see evaluateTieredProgression's `restrictToNextTier`), so a real player earns Hot before
+//   Burning before Fiery before Infernal instead of jumping straight to whichever tier scores
+//   highest. Weapons are the one
 //   exception with more than one tier list per mode (SLAYER_WEAPON_PROGRESSION): each real
 //   Slayer type hands out its own independent chain, all targeting the single 'weapon' slot.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
@@ -213,20 +215,24 @@ function findTierIndex(progression, matches) {
   return -1;
 }
 
-// Only ever evaluates the player's current tier (to catch a same-tier sidegrade, per the "/"
-// rule) and the single immediate next tier up — never further ahead, even if a later tier would
-// score a bigger % increase. A real player has to earn each rung of a progression in order (e.g.
-// Voidedge Katana's only offer is Vorpal, never Atomsplit; Crimson armor's only offer is Hot, not
-// Infernal), so skipping straight to the best-scoring tier down the line isn't a real "upgrade
-// path" and was misleading. An unrecognized current item (currentIndex === -1) has no known tier
-// to step from, so only the chain's very first tier is offered rather than guessing how far along
-// an unrecognized item might be. `evaluate` resolves a candidate to `{value, ...}` or null on a
-// catalog miss (skipped rather than guessed); every genuine improvement over `baselineValue`
-// within this one-or-two-tier window is kept, and the caller (runOptimizer) picks the single
-// highest % increase among those.
-async function evaluateTieredProgression(progression, currentIndex, isCurrent, baselineValue, evaluate) {
+// Walks every tier from the player's current position onward (tier 0 if unrecognized) — not just
+// the nearest one — evaluating every real candidate via `evaluate` (resolves a candidate to
+// `{value, ...}` or null on a catalog miss — skipped rather than guessed) and keeping every
+// genuine improvement over `baselineValue` found anywhere in the remaining ladder. Sidegrades
+// within the player's current tier are still evaluated too (per the "/" rule), everything else is
+// a straightforward superset.
+//
+// `restrictToNextTier` (user-specified, Crimson-armor-only exception) narrows that window to just
+// the current tier and the single immediate next tier — never further ahead, even if a later tier
+// scores a bigger % increase — so a real player earns each Crimson power tier in order (Hot before
+// Burning before Fiery before Infernal) instead of the app suggesting a shortcut past the rung
+// right in front of them. Every other progression (weapons, non-Crimson armor, equipment, pets)
+// stays unrestricted. An unrecognized current item (currentIndex === -1) has no known tier to step
+// from; under the restricted mode that means only the chain's very first tier is offered rather
+// than guessing how far along an unrecognized item might be.
+async function evaluateTieredProgression(progression, currentIndex, isCurrent, baselineValue, evaluate, restrictToNextTier) {
   const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
-  const maxIndex = currentIndex === -1 ? effectiveIndex : effectiveIndex + 1;
+  const maxIndex = restrictToNextTier ? (currentIndex === -1 ? effectiveIndex : effectiveIndex + 1) : progression.length - 1;
   const evaluated = [];
   for (let i = effectiveIndex; i <= maxIndex && i < progression.length; i++) {
     const tierCandidates = progression[i].filter((c) => !(i === effectiveIndex && currentIndex !== -1 && isCurrent(c)));
@@ -291,41 +297,52 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
     const currentModifiers = loadout[slot]?.modifiers;
     const currentId = loadout[slot]?.item?.id || null;
     const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
-    const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
-      const resolved = resolveGearSummary({ id: candidate.id }, itemData);
-      if (!resolved) return null; // catalog lookup failed — skip rather than guess
-      const modifiers = emptyModifiers();
-      if (candidate.special != null) modifiers.special = candidate.special;
-      if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
-      if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
-      if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
-      const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
-      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-      const apply = [{ type: 'selectItem', slot, item: resolved }];
-      if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
-      if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
-      if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
-      if (currentModifiers?.ultimateEnchantment) {
-        apply.push({
-          type: 'applyEnchant',
+    // User-specified exception: only while currently wearing a real Crimson-family piece (base/
+    // Hot/Burning/Fiery/Infernal all contain "CRIMSON" in their id) does this slot's progression
+    // refuse to skip a tier — every other armor line stays unrestricted like weapons/equipment/pets.
+    const restrictToNextTier = category === 'Armor' && !!currentId?.includes('CRIMSON');
+    const evaluated = await evaluateTieredProgression(
+      progression,
+      currentIndex,
+      (c) => c.id === currentId,
+      baselineValue,
+      async (candidate) => {
+        const resolved = resolveGearSummary({ id: candidate.id }, itemData);
+        if (!resolved) return null; // catalog lookup failed — skip rather than guess
+        const modifiers = emptyModifiers();
+        if (candidate.special != null) modifiers.special = candidate.special;
+        if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
+        if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
+        if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+        const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
+        const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+        const apply = [{ type: 'selectItem', slot, item: resolved }];
+        if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
+        if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
+        if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+        if (currentModifiers?.ultimateEnchantment) {
+          apply.push({
+            type: 'applyEnchant',
+            slot,
+            id: currentModifiers.ultimateEnchantment.id,
+            level: currentModifiers.ultimateEnchantment.level,
+            maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+            removeIds: [],
+          });
+        }
+        return {
+          category,
           slot,
-          id: currentModifiers.ultimateEnchantment.id,
-          level: currentModifiers.ultimateEnchantment.level,
-          maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
-          removeIds: [],
-        });
-      }
-      return {
-        category,
-        slot,
-        label: candidate.label || formatItemName(resolved.name),
-        itemId: resolved.id,
-        material: resolved.material,
-        special: candidate.special,
-        value,
-        apply,
-      };
-    });
+          label: candidate.label || formatItemName(resolved.name),
+          itemId: resolved.id,
+          material: resolved.material,
+          special: candidate.special,
+          value,
+          apply,
+        };
+      },
+      restrictToNextTier,
+    );
     results.push(...evaluated);
   }
   return results;
