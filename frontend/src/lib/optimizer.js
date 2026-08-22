@@ -610,6 +610,8 @@ async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig
       category: 'Power Stone',
       slot: 'accessory',
       label: power.name,
+      itemId: power.sourceItemId || null,
+      material: power.sourceItemId ? 'SKULL' : 'BOOK',
       value,
       apply: [{ type: 'selectItem', slot: 'accessory', item: powerItem }],
     });
@@ -675,6 +677,8 @@ async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, m
       category: 'Pet Item',
       slot: 'pet',
       label: `${derivePetDisplayName(pet.item.petId)} — ${formatItemName(petItem.name)}`,
+      itemId: petItem.id,
+      material: petItem.material,
       value,
       apply: [{ type: 'setPetItem', slot: 'pet', petItemId: petItem.id }],
     });
