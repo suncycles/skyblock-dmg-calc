@@ -110,8 +110,13 @@ function UpgradeRow({ result, onSwapIn }) {
 // it. Desktop-only (see DESKTOP_BREAKPOINT_PX), the panel is also a real floating window: drag the
 // title bar to reposition it (mousedown/mousemove tracking, no library — see handleDragStart) and
 // drag its bottom-right corner to resize it (native CSS `resize: both`, no JS needed for the
-// interaction itself). Both position and size persist to localStorage via a ResizeObserver plus a
-// plain state write, same "remember it for next time" treatment other build preferences get.
+// interaction itself). Both write straight to the DOM during the actual gesture rather than
+// through React state on every event — with 40+ candidate rows, re-rendering all of them on every
+// mousemove/resize tick was the real source of past jankiness — and only commit to React
+// state/localStorage once the gesture settles (drag: on mouseup; resize: continuously, but
+// write-only into localStorage, never fed back into a controlled style — see the size-restore
+// effect for why). Defaults to a 66vh-tall box at the default right-4/top-20 spot until dragged
+// or resized for the first time.
 //
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
@@ -138,6 +143,11 @@ export default function OptimizerSidebar() {
     function handleResize() {
       setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT_PX);
     }
+    // Re-checks once on mount (not just on future resize events) — the lazy useState initializer
+    // above can catch window.innerWidth at a moment before the viewport's real size is settled,
+    // and with no window resize afterward (the common case — most users never resize mid-session)
+    // nothing would ever correct a bad initial read, silently disabling floating/dragging entirely.
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -161,21 +171,36 @@ export default function OptimizerSidebar() {
     e.preventDefault();
   }
 
+  // Mutates the panel's position directly on the DOM during the drag instead of going through
+  // React state on every mousemove — this list can be 40+ rows long, and re-rendering all of them
+  // on every single pixel of mouse movement is what actually made dragging feel glitchy/laggy.
+  // React only gets a single, final setFloatPos on mouseup, to persist and for the next render.
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging || !containerRef.current) return;
+    const el = containerRef.current;
+    let latest = null;
     function handleMove(e) {
       const next = {
         left: Math.max(0, Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - 40)),
         top: Math.max(0, Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - 40)),
       };
-      setFloatPos(next);
+      latest = next;
+      el.style.left = `${next.left}px`;
+      el.style.top = `${next.top}px`;
+      el.style.right = 'auto';
     }
     function handleUp() {
       setIsDragging(false);
+      if (latest) setFloatPos(latest);
     }
+    // Dragging over ordinary page content (item labels, etc.) would otherwise highlight text as
+    // the cursor sweeps past it — same class the resize handle already implicitly gets from the
+    // browser's own native resize cursor handling.
+    document.body.style.userSelect = 'none';
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
     return () => {
+      document.body.style.userSelect = '';
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
@@ -185,16 +210,26 @@ export default function OptimizerSidebar() {
     if (floatPos) localStorage.setItem(POSITION_KEY, JSON.stringify(floatPos));
   }, [floatPos]);
 
-  // Resizing itself is native CSS (`resize: both` on the container, desktop-only) — this just
-  // observes the resulting size so it persists across reloads the same way position does.
+  // Resizing itself is native CSS (`resize: both` on the container, desktop-only) — restores a
+  // persisted size once (direct DOM write, guarded so it only ever fires the first time floatSize
+  // loads from storage) and otherwise leaves the box alone. Deliberately does NOT feed the
+  // observed size back into a React-controlled style — doing that on every resize tick fought the
+  // browser's own in-progress native resize gesture (React re-asserting a rounded, one-tick-stale
+  // width/height while the user was still mid-drag), which is what made resizing feel glitchy.
+  const sizeRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!containerRef.current || !isDesktop || !floatSize || sizeRestoredRef.current) return;
+    containerRef.current.style.width = `${floatSize.width}px`;
+    containerRef.current.style.height = `${floatSize.height}px`;
+    sizeRestoredRef.current = true;
+  }, [floatSize, isDesktop]);
+
   useEffect(() => {
     if (!containerRef.current || !isDesktop) return;
     const el = containerRef.current;
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
-      const next = { width: Math.round(width), height: Math.round(height) };
-      setFloatSize(next);
-      localStorage.setItem(SIZE_KEY, JSON.stringify(next));
+      localStorage.setItem(SIZE_KEY, JSON.stringify({ width: Math.round(width), height: Math.round(height) }));
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -268,17 +303,16 @@ export default function OptimizerSidebar() {
   // user last put it". Both only ever apply at the `lg` breakpoint (isDesktop); below that this
   // stays the ordinary in-flow mobile block it always was, untouched by any stored position/size.
   const floatingPositionClasses = floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20';
-  const desktopStyle = isDesktop
-    ? {
-        ...(floatPos ? { left: floatPos.left, top: floatPos.top, right: 'auto' } : {}),
-        ...(floatSize ? { width: floatSize.width, height: floatSize.height } : {}),
-      }
-    : undefined;
+  // width/height are deliberately NOT set here — see the size-restore effect above for why
+  // feeding them through a React-controlled style fought the browser's native resize gesture.
+  // The lg:h-[66vh] class below is the only thing establishing a default height, and only applies
+  // until either a native resize or the one-time restore-from-storage effect overrides it inline.
+  const desktopStyle = isDesktop && floatPos ? { left: floatPos.left, top: floatPos.top, right: 'auto' } : undefined;
 
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 ${floatingPositionClasses} lg:w-[280px] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:resize lg:overflow-auto`}
+      className={`flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 ${floatingPositionClasses} lg:w-[280px] lg:h-[66vh] lg:max-w-none lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:resize lg:overflow-auto`}
       style={desktopStyle}
     >
       <div className={`${panel} p-2 flex flex-col gap-1.5`}>
