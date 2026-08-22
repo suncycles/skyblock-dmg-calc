@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { WORKER_BASE_URL } from '../lib/apiConfig';
 
-const EMPTY = { weapons: [], armor: [], equipment: [], enchants: {}, lastFetched: null };
+const EMPTY = { weapons: [], armor: [], equipment: [], enchants: {}, costs: {}, lastFetched: null };
 
 const ItemDataContext = createContext(null);
 

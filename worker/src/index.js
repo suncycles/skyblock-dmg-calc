@@ -6,9 +6,12 @@
    Weapons/armor/equipment/pet items are pre-parsed offline by scripts/build-item-data.mjs into
    src/data/{weapons,armor,equipment,petItems}.json and bundled at deploy time; re-run + redeploy
    to pick up NEU-REPO updates. Enchant and reforge data are small and fetched live here instead.
+   Real coin prices (see `costs` in the response, resolveCosts()) are a separate, much
+   shorter-lived cache layered on top — sourced from SkyHelperBot/Prices' community-maintained
+   pricesV2.json, refreshed independently of the 6h item-catalog TTL below.
 
    Routes:
-     GET  /api/items            -> returns cached data, refreshing first if stale
+     GET  /api/items            -> returns cached data (+ real coin costs), refreshing first if stale
      POST /api/refresh          -> forces a refetch regardless of staleness
      GET  /api/hypixel/import   -> resolves ?username, fetches their SkyBlock profile(s), decodes
                                     currently-worn armor/equipment/pet plus every weapon candidate
@@ -53,6 +56,20 @@ const NEU_LEVELING_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// Real coin prices — a separate, much-shorter-lived cache than the item catalog above: prices
+// move constantly, catalog data (stats/lore) doesn't. Community-maintained, refreshed by an
+// automated bot roughly every 15 min (verified against its commit history); 20 min keeps us under
+// that with a small margin without hammering it every request.
+const SKYHELPER_PRICES_URL = "https://raw.githubusercontent.com/SkyHelperBot/Prices/main/pricesV2.json";
+const PRICES_CACHE_KEY = "prices_data";
+const PRICES_CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
+
+// Golden/Jade/Rose Dragon are the only pets that level past 100 (real cap 200) — same table as
+// frontend/src/lib/petData.js's EXTENDED_MAX_LEVELS, duplicated here since the Worker and frontend
+// are separate deploys with no shared module today. Used only to build the right
+// LVL_{100|200}_{TIER}_{PETID} price key below.
+const EXTENDED_PET_MAX_LEVELS = { GOLDEN_DRAGON: 200, JADE_DRAGON: 200, ROSE_DRAGON: 200 };
 
 // Short-link storage for /api/loadout — namespaced within the same CACHE KV so it can't collide
 // with the single fixed CACHE_KEY the item-data cache uses.
@@ -108,16 +125,21 @@ async function handleGetItems(env) {
   const cached = await env.CACHE.get(CACHE_KEY, "json");
 
   if (cached && Date.now() - cached.lastFetched < CACHE_TTL_MS) {
-    return jsonResponse(cached, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    const costs = await resolveCosts(env, cached);
+    return jsonResponse({ ...cached, costs }, 200, ITEMS_RESPONSE_CACHE_HEADERS);
   }
 
   try {
     const fresh = await buildFreshData();
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    return jsonResponse(fresh, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    const costs = await resolveCosts(env, fresh);
+    return jsonResponse({ ...fresh, costs }, 200, ITEMS_RESPONSE_CACHE_HEADERS);
   } catch (err) {
     console.error("handleGetItems: buildFreshData failed:", err);
-    if (cached) return jsonResponse(cached, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    if (cached) {
+      const costs = await resolveCosts(env, cached);
+      return jsonResponse({ ...cached, costs }, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    }
     return jsonResponse({ error: "Failed to fetch item data", detail: String(err) }, 502);
   }
 }
@@ -126,7 +148,8 @@ async function handleRefresh(env) {
   try {
     const fresh = await buildFreshData();
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    return jsonResponse(fresh);
+    const costs = await resolveCosts(env, fresh, true);
+    return jsonResponse({ ...fresh, costs });
   } catch (err) {
     console.error("handleRefresh: buildFreshData failed:", err);
     return jsonResponse({ error: "Failed to refresh item data", detail: String(err) }, 502);
@@ -202,6 +225,75 @@ async function buildFreshData() {
 async function fetchPetNums() {
   const res = await fetch(NEU_PETNUMS_URL);
   return res.json();
+}
+
+async function fetchPrices() {
+  const res = await fetch(SKYHELPER_PRICES_URL);
+  return res.json(); // flat { ITEM_ID: coins }
+}
+
+// Real coin cost per star level for one item's real upgrade_costs (see scripts/build-item-data.mjs
+// — Hypixel's own resources API, not in NEU-REPO at all). Each star's cost entry is one of
+// ESSENCE_<type>/direct item id/flat coins; summed cumulatively so star N's price is "everything
+// spent getting from bare to N", matching how a player actually pays for it one star at a time.
+function computeStarCosts(itemId, upgradeCosts, itemPrices, out) {
+  let cumulative = 0;
+  upgradeCosts.forEach((level, i) => {
+    for (const cost of level) {
+      if (cost.type === "ESSENCE") cumulative += (cost.amount || 0) * (itemPrices[`ESSENCE_${cost.essence_type}`] || 0);
+      else if (cost.type === "ITEM") cumulative += (cost.amount || 0) * (itemPrices[cost.item_id] || 0);
+      else if (cost.type === "COINS") cumulative += cost.coins || 0;
+    }
+    out[`${itemId}_${i + 1}`] = cumulative;
+  });
+}
+
+// Real coin costs for every priceable "thing" the Optimizer's candidates can reference — resolved
+// and persisted here (its own KV key/TTL, independent of the 6h item-catalog cache above) rather
+// than recomputed client-side per Optimizer run, per explicit direction: the coin-cost side of a
+// candidate is loadout-independent (a Dragon Claw costs the same no matter whose item it reforges),
+// so it's cheap to compute once per refresh cycle and just looked up afterward. `catalog` is
+// whichever item-catalog object (fresh or cached) the caller is about to respond with — reused for
+// its already-resolved `reforgeStones`/`pets`/`armor`/`weapons` rather than re-fetching them here.
+async function resolveCosts(env, catalog, force = false) {
+  const cachedRaw = await env.CACHE.get(PRICES_CACHE_KEY, "json");
+  if (!force && cachedRaw && Date.now() - cachedRaw.lastFetched < PRICES_CACHE_TTL_MS) {
+    return cachedRaw.costs;
+  }
+
+  try {
+    const itemPrices = await fetchPrices();
+
+    const reforgeCosts = {};
+    for (const [reforgeName, stone] of Object.entries(catalog.reforgeStones || {})) {
+      const price = itemPrices[stone.stoneId];
+      if (price) reforgeCosts[reforgeName] = price;
+    }
+
+    const recombobulatorCost = itemPrices["RECOMBOBULATOR_3000"] || null;
+
+    const petCosts = {};
+    for (const [petId, petCatalog] of Object.entries(catalog.pets || {})) {
+      const tiers = Object.keys(petCatalog);
+      if (tiers.length === 0) continue;
+      const tier = tiers.includes("LEGENDARY") ? "LEGENDARY" : tiers[tiers.length - 1];
+      const maxLevel = EXTENDED_PET_MAX_LEVELS[petId] || 100;
+      const price = itemPrices[`LVL_${maxLevel}_${tier}_${petId}`];
+      if (price) petCosts[petId] = price;
+    }
+
+    const starCosts = {};
+    for (const item of [...armor, ...weapons]) {
+      if (item.upgrade_costs) computeStarCosts(item.id, item.upgrade_costs, itemPrices, starCosts);
+    }
+
+    const costs = { itemPrices, reforgeCosts, recombobulatorCost, petCosts, starCosts };
+    await env.CACHE.put(PRICES_CACHE_KEY, JSON.stringify({ costs, lastFetched: Date.now() }));
+    return costs;
+  } catch (err) {
+    console.error("resolveCosts: fetchPrices failed:", err);
+    return cachedRaw ? cachedRaw.costs : { itemPrices: {}, reforgeCosts: {}, recombobulatorCost: null, petCosts: {}, starCosts: {} };
+  }
 }
 
 async function fetchReforges() {
