@@ -608,17 +608,18 @@ async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig
   return results;
 }
 
-// Every real Crimson armor power tier (Basic/Hot/Burning/Fiery/Infernal) — user-specified: each
-// individual star level counts as its own separate upgrade suggestion for these, not just a
-// single jump-to-max entry, since Crimson's 10/15-star range is a real, expensive-per-star grind
-// (unlike a normal 5-star item) worth seeing broken down. Verified real ids against
+// Every real Crimson armor power tier (Basic/Hot/Burning/Fiery/Infernal) — Crimson's 10/15-star
+// range is a real, expensive-per-star grind (unlike a normal 5-star item), so it gets its own
+// treatment below instead of a single jump-to-max suggestion. Verified real ids against
 // worker/src/data/armor.json (exactly 20: 5 tiers x 4 pieces).
 const CRIMSON_ARMOR_RE = /^(?:INFERNAL_|HOT_|BURNING_|FIERY_)?CRIMSON_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 
 // Brute-forces starring the weapon and every equipped armor piece up to its real max (see
 // lib/starring.js's getMaxStarsForItem) — covers the "infernal stars" step in the user's spec
 // generically. Every non-Crimson item still gets one "jump straight to max" suggestion; Crimson
-// armor (see CRIMSON_ARMOR_RE above) gets one candidate per individual star level instead.
+// armor (see CRIMSON_ARMOR_RE above) only ever offers the single immediate next star level —
+// user-specified: showing every level up to max (or letting a high level like 6✩ outrank 5✩)
+// defeats the point of a real one-star-at-a-time progression, same rule as the armor power tiers.
 async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
   for (const slot of ['weapon', ...ARMOR_SLOTS]) {
@@ -627,14 +628,7 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
     const maxStars = getMaxStarsForItem(equipped.item);
     const currentStars = equipped.modifiers.stars || 0;
     if (currentStars >= maxStars) continue;
-    // Crimson: the FULL 1..max range every time (1..10 for the lower 4 tiers, 1..15 for
-    // Infernal), not just from the current count onward — user-specified. Anything at or below
-    // the current count computes a non-positive percentIncrease and is filtered out downstream
-    // (runOptimizer's withPercent), so this is safe/inert for already-passed levels, not a
-    // regression risk.
-    const starLevels = CRIMSON_ARMOR_RE.test(equipped.item.id)
-      ? Array.from({ length: maxStars }, (_, i) => i + 1)
-      : [maxStars];
+    const starLevels = CRIMSON_ARMOR_RE.test(equipped.item.id) ? [currentStars + 1] : [maxStars];
     for (const stars of starLevels) {
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, stars } } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);

@@ -178,7 +178,10 @@ export default function DamageSources({ embedded = false }) {
     blazeCrimsonIsle,
   ]);
 
-  // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than silently folded in.
+  // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than
+  // silently folded in. hasVanquishedBonus here just means "the set is worn" (cheap short-circuit
+  // for whether to bother computing the comparison at all) — the bonus itself only actually procs
+  // against Inferno Demonlord (see armorSetBonuses.js), checked per-mob below via appliedIds.
   const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
   const withoutVanquishedResult =
     result && hasVanquishedBonus
@@ -210,13 +213,18 @@ export default function DamageSources({ embedded = false }) {
           };
         const mob = { name, types };
         const finalDamage = computeFinalDamage(result, mob, useDungeonizedStats, useMasterMode);
+        // Vanquished's hidden bonus only actually procs against Inferno Demonlord (see
+        // armorSetBonuses.js) — hasVanquishedBonus alone just means the set is worn; check
+        // appliedIds too so the comparison row doesn't show two identical numbers for every
+        // other target.
         return {
           name,
           types,
           finalDamage,
-          finalDamageWithoutVanquished: hasVanquishedBonus
-            ? computeFinalDamage(withoutVanquishedResult, mob, useDungeonizedStats, useMasterMode)
-            : null,
+          finalDamageWithoutVanquished:
+            hasVanquishedBonus && finalDamage.appliedIds.has(VANQUISHED_SET_ID)
+              ? computeFinalDamage(withoutVanquishedResult, mob, useDungeonizedStats, useMasterMode)
+              : null,
           finalDamageWithFabledMax: hasFabledBonus
             ? computeFinalDamage(withFabledMaxResult, mob, useDungeonizedStats, useMasterMode)
             : null,
