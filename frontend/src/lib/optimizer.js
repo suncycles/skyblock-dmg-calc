@@ -793,10 +793,12 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 
 // Runs every evaluator, computes % increase against the current loadout's real baseline, keeps
 // only genuine upgrades (positive delta). Two result shapes:
-// - `slots`: one dedicated entry per OPTIMIZER_GEAR_SLOTS slot — the single candidate across the
-//   whole remaining curated ladder (every tier from the player's current position onward, not
-//   just the nearest one) with the highest real % damage increase, or null ("no upgrades
-//   available") when the slot has nothing configured or nothing left beats the current item.
+// - `slots`: one array per OPTIMIZER_GEAR_SLOTS slot — every real candidate from that slot's
+//   current-tier-plus-immediate-next-tier window (see evaluateTieredProgression), not collapsed
+//   to a single "best" pick. A tier with several real sidegrades (e.g. the helmet's Crimson/
+//   Primordial/Crown of Avarice checkpoint) shows every one of them as its own option, letting the
+//   player pick by cost or preference instead of the app silently deciding for them. Empty array
+//   when the slot has nothing configured or nothing left beats the current item.
 // - `otherResults`: the brute-forced, non-slot-tiered categories (Enchant/Ultimate Enchant/Power
 //   Stone/Stars) — these aren't "tiered", so every real option found still shows, sorted by %.
 // Every result also carries `cost`/`ratio` (damage-increase-per-coin) via withCost/lib/pricing.js
@@ -844,8 +846,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const slotCandidates = [...weapons, ...armor, ...equipment, ...pets];
   const slots = {};
   for (const slot of OPTIMIZER_GEAR_SLOTS) {
-    const forSlot = slotCandidates.filter((r) => r.slot === slot);
-    slots[slot] = forSlot.length > 0 ? forSlot.reduce((best, r) => (r.percentIncrease > best.percentIncrease ? r : best)) : null;
+    slots[slot] = slotCandidates.filter((r) => r.slot === slot);
   }
 
   const otherResults = [
@@ -853,7 +854,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ...reforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
-  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = withCost(slots[slot], itemData);
+  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = slots[slot].map((r) => withCost(r, itemData));
 
   return {
     baselineValue,

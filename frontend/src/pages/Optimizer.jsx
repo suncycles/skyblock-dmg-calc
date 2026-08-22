@@ -243,15 +243,18 @@ export default function Optimizer() {
           <>
             <div className={`${panel} p-3 flex flex-col gap-2`}>
               <div className={sectionTitle}>Upgrades by Slot</div>
-              {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot])
-                .sort((a, b) => compareResults(state.slots[a], state.slots[b], sortBy))
-                .map((slot) => (
+              {OPTIMIZER_GEAR_SLOTS.filter((slot) => state.slots[slot]?.length > 0)
+                .map((slot) => ({ slot, options: [...state.slots[slot]].sort((a, b) => compareResults(a, b, sortBy)) }))
+                .sort((a, b) => compareResults(a.options[0], b.options[0], sortBy))
+                .map(({ slot, options }) => (
                   <div key={slot} className="flex flex-col gap-1">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-neutral-700">{SLOT_LABELS[slot]}</span>
-                    <UpgradeRow result={state.slots[slot]} onSwapIn={(r) => applyOptimizerResult(build, r)} />
+                    {options.map((result, i) => (
+                      <UpgradeRow key={i} result={result} onSwapIn={(r) => applyOptimizerResult(build, r)} />
+                    ))}
                   </div>
                 ))}
-              {OPTIMIZER_GEAR_SLOTS.every((slot) => !state.slots[slot]) && (
+              {OPTIMIZER_GEAR_SLOTS.every((slot) => !(state.slots[slot]?.length > 0)) && (
                 <div className="px-3 py-2 text-xs text-neutral-600 italic">No upgrades available in any slot.</div>
               )}
             </div>
