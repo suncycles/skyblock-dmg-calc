@@ -14,10 +14,10 @@
 //   since one may numerically beat another despite being nominally "equal". Every tier from the
 //   player's current position onward is walked and every genuine improvement offered — except
 //   real Crimson-family armor (base/Hot/Burning/Fiery/Infernal), which is user-specified to never
-//   skip a power tier: only the current tier and the single immediate next tier are offered there
-//   (see evaluateTieredProgression's `restrictToNextTier`), so a real player earns Hot before
-//   Burning before Fiery before Infernal instead of jumping straight to whichever tier scores
-//   highest. Weapons are the one
+//   skip a power tier AND to never skip ahead to the next tier before maxing the current one's
+//   stars: the next tier only unlocks once the current piece hits its real star cap (e.g. base
+//   Crimson at 10✩ -> Hot Crimson at 0✩), see evaluateItemSlotCandidates's `maxIndexOverride`.
+//   Weapons are the one
 //   exception with more than one tier list per mode (SLAYER_WEAPON_PROGRESSION): each real
 //   Slayer type hands out its own independent chain, all targeting the single 'weapon' slot.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
@@ -222,17 +222,17 @@ function findTierIndex(progression, matches) {
 // within the player's current tier are still evaluated too (per the "/" rule), everything else is
 // a straightforward superset.
 //
-// `restrictToNextTier` (user-specified, Crimson-armor-only exception) narrows that window to just
-// the current tier and the single immediate next tier — never further ahead, even if a later tier
-// scores a bigger % increase — so a real player earns each Crimson power tier in order (Hot before
-// Burning before Fiery before Infernal) instead of the app suggesting a shortcut past the rung
-// right in front of them. Every other progression (weapons, non-Crimson armor, equipment, pets)
-// stays unrestricted. An unrecognized current item (currentIndex === -1) has no known tier to step
-// from; under the restricted mode that means only the chain's very first tier is offered rather
-// than guessing how far along an unrecognized item might be.
-async function evaluateTieredProgression(progression, currentIndex, isCurrent, baselineValue, evaluate, restrictToNextTier) {
+// `maxIndexOverride` (user-specified, Crimson-armor-only exception) narrows that window to at most
+// this tier index — never further, even if a later tier scores a bigger % increase — so a real
+// player earns each Crimson power tier in order (Hot before Burning before Fiery before Infernal)
+// instead of the app suggesting a shortcut past the rung right in front of them. The caller
+// (evaluateItemSlotCandidates) sets this to the current tier's own index while that tier's stars
+// aren't yet maxed (no tier-up offered at all, just the next star — see evaluateStarsCandidates)
+// and to current+1 once they are (the next tier unlocks, at 0 stars). Every other progression
+// (weapons, non-Crimson armor, equipment, pets) passes no override and stays unrestricted.
+async function evaluateTieredProgression(progression, currentIndex, isCurrent, baselineValue, evaluate, maxIndexOverride) {
   const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
-  const maxIndex = restrictToNextTier ? (currentIndex === -1 ? effectiveIndex : effectiveIndex + 1) : progression.length - 1;
+  const maxIndex = maxIndexOverride != null ? maxIndexOverride : progression.length - 1;
   const evaluated = [];
   for (let i = effectiveIndex; i <= maxIndex && i < progression.length; i++) {
     const tierCandidates = progression[i].filter((c) => !(i === effectiveIndex && currentIndex !== -1 && isCurrent(c)));
@@ -295,12 +295,21 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
     const progression = progressionBySlot[slot];
     if (!progression) continue;
     const currentModifiers = loadout[slot]?.modifiers;
-    const currentId = loadout[slot]?.item?.id || null;
+    const currentItem = loadout[slot]?.item || null;
+    const currentId = currentItem?.id || null;
     const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
     // User-specified exception: only while currently wearing a real Crimson-family piece (base/
     // Hot/Burning/Fiery/Infernal all contain "CRIMSON" in their id) does this slot's progression
     // refuse to skip a tier — every other armor line stays unrestricted like weapons/equipment/pets.
-    const restrictToNextTier = category === 'Armor' && !!currentId?.includes('CRIMSON');
+    // The next power tier only unlocks once the current one's real star cap is reached (e.g. base
+    // Crimson at 10✩ -> Hot Crimson at 0✩); before that, only the current tier (its own sidegrades,
+    // if any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
+    let maxIndexOverride;
+    if (category === 'Armor' && !!currentId?.includes('CRIMSON')) {
+      const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
+      const starsMaxed = currentIndex !== -1 && currentItem && (currentModifiers?.stars || 0) >= getMaxStarsForItem(currentItem);
+      maxIndexOverride = starsMaxed ? effectiveIndex + 1 : effectiveIndex;
+    }
     const evaluated = await evaluateTieredProgression(
       progression,
       currentIndex,
@@ -341,7 +350,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           apply,
         };
       },
-      restrictToNextTier,
+      maxIndexOverride,
     );
     results.push(...evaluated);
   }
