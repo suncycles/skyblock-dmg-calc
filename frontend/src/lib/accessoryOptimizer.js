@@ -214,7 +214,7 @@ const CATEGORY_LABELS = {
 // allocation (a full from-scratch search per candidate would mean tens of thousands of real
 // pipeline evaluations across ~90 candidates — this keeps it to a few hundred).
 export async function evaluateAccessoryCandidates(loadout, itemData, build, mode, mob, candidates) {
-  const modeConfig = getModeConfig(mode);
+  const modeConfig = getModeConfig(mode, build.useMasterMode);
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
   const currentMp = accessorySlot.modifiers.magicalPower || 0;
   // Includes the Tuning Box attribute's own flat point grant (see computeTotalTuningPoints) for

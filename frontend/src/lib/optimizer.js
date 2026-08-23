@@ -7,25 +7,29 @@
 // Two kinds of candidates:
 // - Curated progression lists (weapons, armor pieces, equipment, pets) — most of the catalog is
 //   either irrelevant or has no modeled damage effect in this calculator, so these are
-//   hand-authored worst-to-best tier lists, confirmed with the user. Only Slayer mode has one so
-//   far; Mage/Dungeon-Archer/Dungeon-Mage only surface the brute-forced categories below until
-//   provided. Tiers are ordered worst -> best; multiple entries in one tier are sidegrades —
-//   every sidegrade is always evaluated (even the ones matching the player's current tier),
-//   since one may numerically beat another despite being nominally "equal". Every tier from the
-//   player's current position onward is walked and every genuine improvement offered — except
-//   real Crimson-family armor (base/Hot/Burning/Fiery/Infernal), which is user-specified to never
-//   skip a power tier AND to never skip ahead to the next tier before maxing the current one's
-//   stars: the next tier only unlocks once the current piece hits its real star cap (e.g. base
-//   Crimson at 10✩ -> Hot Crimson at 0✩), see evaluateItemSlotCandidates's `maxIndexOverride`.
-//   Weapons are the one
-//   exception with more than one tier list per mode (SLAYER_WEAPON_PROGRESSION): each real
-//   Slayer type hands out its own independent chain, all targeting the single 'weapon' slot.
+//   hand-authored worst-to-best tier lists, confirmed with the user. Slayer and Mage (including
+//   Dungeon/Mage Beam and Dungeon/Mage Ability, which share Mage's curated gear) have one;
+//   Dungeon-Archer only surfaces the brute-forced categories below until provided. Tiers are
+//   ordered worst -> best; multiple entries in one tier are sidegrades — every sidegrade is
+//   always evaluated (even the ones matching the player's current tier), since one may
+//   numerically beat another despite being nominally "equal". Every tier from the player's
+//   current position onward is walked and every genuine improvement offered — except real
+//   Crimson-family armor (base/Hot/Burning/Fiery/Infernal), which is user-specified to never skip
+//   a power tier AND to never skip ahead to the next tier before maxing the current one's stars:
+//   the next tier only unlocks once the current piece hits its real star cap (e.g. base Crimson
+//   at 10✩ -> Hot Crimson at 0✩), see evaluateItemSlotCandidates's `maxIndexOverride`.
+//   A slot can also have more than one independent chain instead of one flat list — weapons
+//   always have (SLAYER_WEAPON_PROGRESSION: each real Slayer type hands out its own chain, all
+//   targeting the single 'weapon' slot), and Mage's helmet does too (the Wise Dragon/Storm's/
+//   Aurora line and the separate Dark/Shadow/Wither Goggles line are both real, independent
+//   tracks). See resolveChainsToWalk for the shared "walk the chain(s) the player already owns,
+//   or every chain from scratch" rule both cases use.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
 //   Power Stones, Stars, and Pet Items all have a small enumerable real catalog this app's damage pipeline
 //   already fully understands, so every real option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
-import { computeAbilityDamage, computeDpsBreakdown } from './finalDamage';
+import { computeAbilityDamage, computeDpsBreakdown, computeMageStaffBeamDamage } from './finalDamage';
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import { VANQUISHED_SET, FINAL_DESTINATION_SET, hasFullSet } from './armorSetBonuses';
@@ -42,7 +46,7 @@ import {
   computeConflictingEntries,
 } from './enchantEffects';
 import { STONE_POWERS } from './accessoryPowers';
-import { getMaxStarsForItem } from './starring';
+import { getMaxStarsForItem, isStarrableItem, MASTER_STAR_MIN_BASE_STARS, MAX_MASTER_STARS } from './starring';
 import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
@@ -51,23 +55,35 @@ export const OPTIMIZER_MODES = [
   { id: 'slayer', label: 'Slayer' },
   { id: 'mage', label: 'Mage' },
   { id: 'dungeon_archer', label: 'Dungeon / Archer' },
-  { id: 'dungeon_mage', label: 'Dungeon / Mage' },
+  { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam' },
+  { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability' },
 ];
 
 // Which real damage number each mode optimizes — reuses this app's existing melee DPS / Ability
-// Damage pipelines rather than a new one. Stated assumption (user hasn't corrected it): Slayer
-// and Dungeon/Archer optimize melee Total DPS (DPS Mode's own pipeline, see finalDamage.js);
-// Mage and Dungeon/Mage optimize Ability Damage. The two Dungeon variants additionally turn on
+// Damage / Mage Staff Beam pipelines rather than a new one (see finalDamage.js). Slayer and
+// Dungeon/Archer optimize melee Total DPS. Mage optimizes Ability Damage. Dungeon/Mage splits into
+// two modes (user-specified, 2026-08-22) since a real Mage build cares about one damage number or
+// the other depending on playstyle, not both at once: Dungeon/Mage Beam optimizes the Mage Staff
+// Beam number (computeMageStaffBeamDamage — always-on, scales off melee Final Damage +
+// Intelligence), Dungeon/Mage Ability optimizes Ability Damage. All Dungeon variants turn on
 // Dungeonized Stats.
 const MODE_CONFIG = {
-  slayer: { useDungeonizedStats: false, useMasterMode: false, metric: 'dps' },
-  mage: { useDungeonizedStats: false, useMasterMode: false, metric: 'ability' },
-  dungeon_archer: { useDungeonizedStats: true, useMasterMode: false, metric: 'dps' },
-  dungeon_mage: { useDungeonizedStats: true, useMasterMode: false, metric: 'ability' },
+  slayer: { useDungeonizedStats: false, metric: 'dps' },
+  mage: { useDungeonizedStats: false, metric: 'ability' },
+  dungeon_archer: { useDungeonizedStats: true, metric: 'dps' },
+  dungeon_mage_beam: { useDungeonizedStats: true, metric: 'beam' },
+  dungeon_mage_ability: { useDungeonizedStats: true, metric: 'ability' },
 };
 
-export function getModeConfig(mode) {
-  return MODE_CONFIG[mode] || MODE_CONFIG.slayer;
+// useMasterMode isn't part of a mode's own static config — it's the player's real, live "Master"
+// toggle (build.useMasterMode, the same one DamageSources.jsx already reads to pick between
+// finalDamage.js's dungeonized vs master-dungeonized base stats), so it has to come in per call
+// rather than being hardcoded. Master Stars (see evaluateMasterStarsCandidates) only ever show a
+// real effect when this is true — bug fixed 2026-08-22: every mode previously hardcoded this to
+// false here, so the optimizer silently ignored the player's own Master toggle in every dungeonized
+// mode, not just for Master Stars (any stat with a masterDungeonized variant was affected).
+export function getModeConfig(mode, useMasterMode = false) {
+  return { ...(MODE_CONFIG[mode] || MODE_CONFIG.slayer), useMasterMode };
 }
 
 // Real ids, confirmed against worker/src/data/armor.json. "10m/100m/1b coin COA" = Crown of
@@ -180,12 +196,166 @@ const SLAYER_WEAPON_PROGRESSION = {
   enderman: [[{ id: 'VOIDWALKER_KATANA' }], [{ id: 'VOIDEDGE_KATANA' }], [{ id: 'VORPAL_KATANA' }], [{ id: 'ATOMSPLIT_KATANA' }]],
   blaze_fire: [[{ id: 'FIREDUST_DAGGER' }], [{ id: 'BURSTFIRE_DAGGER' }], [{ id: 'HEARTFIRE_DAGGER' }]],
   blaze_maw: [[{ id: 'MAWDUST_DAGGER' }], [{ id: 'BURSTMAW_DAGGER' }], [{ id: 'HEARTMAW_DAGGER' }]],
+  // Wolf Slayer also has a third real reward weapon, Edible Mace (RARE, Wolf Slayer 5) — an
+  // ability/stun weapon rather than a stat-stick, user-excluded from this DPS progression.
+  wolf: [[{ id: 'SHAMAN_SWORD' }], [{ id: 'POOCH_SWORD' }]],
 };
 
-const ARMOR_PROGRESSION_BY_MODE = { slayer: SLAYER_ARMOR_PROGRESSION };
-const EQUIPMENT_PROGRESSION_BY_MODE = { slayer: SLAYER_EQUIPMENT_PROGRESSION };
-const PET_PROGRESSION_BY_MODE = { slayer: SLAYER_PET_PROGRESSION };
-const WEAPON_PROGRESSION_BY_MODE = { slayer: SLAYER_WEAPON_PROGRESSION };
+// Mage progression (user-specified, 2026-08-22) — armor/equipment/pet shared by Mage, Dungeon/
+// Mage Beam, and Dungeon/Mage Ability (same curated gear; differ only in which damage number they
+// optimize, via MODE_CONFIG). Weapons are the exception: Dungeon/Mage Beam has its own distinct
+// chain below (MAGE_BEAM_WEAPON_PROGRESSION) — Beam's damage comes from melee Final Damage, not
+// the Ability Damage this weapon chain was built around, so a different set of weapons matters.
+// Ids confirmed real against worker/src/data/weapons.json, armor.json, equipment.json, and
+// NEU-REPO's petnums.json.
+const MAGE_WEAPON_PROGRESSION = {
+  staff: [
+    [{ id: 'CRYPT_DREADLORD_SWORD' }],
+    [
+      { id: 'FROZEN_SCYTHE' },
+      { id: 'BONZO_STAFF' },
+      { id: 'GLACIAL_SCYTHE' },
+      { id: 'BAT_WAND' }, // Spirit Sceptre
+      { id: 'YETI_SWORD' },
+      { id: 'MIDAS_STAFF' },
+      { id: 'FIRE_VEIL_WAND' },
+    ],
+    [{ id: 'HYPERION' }],
+  ],
+};
+
+// Dungeon/Mage Beam's own weapon progression (user-specified, 2026-08-22): Giant's Sword and
+// Midas Sword are sidegrades (both always evaluated — live testing found Giant's Sword actually
+// outscoring a maxed Midas Sword for one real test account, so which one's genuinely better
+// depends on the player's own stats, not a fixed order), Dark Claymore is the real top. All 3
+// real, LEGENDARY Dungeon weapons. Midas Sword forces its own real reforge — Gilded, the Midas
+// Jewel stone (NEU-REPO reforgestones.json — itemData.reforgeStones.Gilded, item-exclusive to
+// Midas' Sword/Staff: +75/+75/+8 damage/strength/ability_damage at LEGENDARY, +90/+90/+10 at
+// MYTHIC) — since it's the one reforge actually meant for this weapon, not whatever the player's
+// previous weapon happened to have (see evaluateWeaponProgressionCandidates' `forcedReforge`
+// handling). Also stamped with its own real Price Paid cap (special: 50_000_000, matching
+// lib/specialWeapons.js's own priceCap for base MIDAS_SWORD) for the same "compare at real
+// best-case" treatment David's Cloak already gets — without it, Midas Sword's own Greed ability
+// bonus (its whole reason to use this weapon) would compare as if 0% invested.
+const MAGE_BEAM_WEAPON_PROGRESSION = {
+  sword: [
+    [{ id: 'GIANTS_SWORD' }, { id: 'MIDAS_SWORD', forcedReforge: 'Gilded', special: 50_000_000 }],
+    [{ id: 'DARK_CLAYMORE' }],
+  ],
+};
+
+// Wise Dragon -> Storm's/Aurora(+ Aurora's own Hot/Burning/Fiery/Infernal power tiers, same
+// per-power-tier treatment as Slayer's Crimson line) — Storm's has no power tiers of its own, so
+// it sits as a sidegrade at the base-Aurora rung; Aurora's own tiers keep climbing above that
+// alone, mirroring how the Slayer helmet chain treats Crimson/Primordial/Crown of Avarice.
+// `dungeonOnly` (Dungeon/Mage Beam and Ability, user-specified 2026-08-22): Aurora isn't real
+// Dungeon-tagged gear, so it's dropped entirely there — Storm's alone is the top of the line.
+function mageArmorProgression(slot, { dungeonOnly = false } = {}) {
+  const suffix = slot.toUpperCase();
+  if (dungeonOnly) return [[{ id: `WISE_DRAGON_${suffix}` }], [{ id: `WISE_WITHER_${suffix}` }]]; // Storm's
+  return [
+    [{ id: `WISE_DRAGON_${suffix}` }],
+    [{ id: `AURORA_${suffix}` }, { id: `WISE_WITHER_${suffix}` }], // Storm's
+    [{ id: `HOT_AURORA_${suffix}` }],
+    [{ id: `BURNING_AURORA_${suffix}` }],
+    [{ id: `FIERY_AURORA_${suffix}` }],
+    [{ id: `INFERNAL_AURORA_${suffix}` }],
+  ];
+}
+
+// Helmet has a second, fully independent chain — Dark/Shadow/Wither Goggles is a real, separate
+// reward line from the Wise Dragon/Storm's/Aurora line above (user-specified: two chains, not one
+// combined ladder) — see resolveChainsToWalk. Goggles are already real Dungeon-tagged gear, so
+// this chain is identical for both the plain-Mage and Dungeon/Mage progressions below.
+const MAGE_HELMET_PROGRESSION = {
+  wise_dragon: mageArmorProgression('helmet'),
+  goggles: [[{ id: 'DARK_GOGGLES' }], [{ id: 'SHADOW_GOGGLES' }], [{ id: 'WITHER_GOGGLES' }]],
+};
+const DUNGEON_MAGE_HELMET_PROGRESSION = {
+  wise_dragon: mageArmorProgression('helmet', { dungeonOnly: true }),
+  goggles: MAGE_HELMET_PROGRESSION.goggles,
+};
+
+const MAGE_ARMOR_PROGRESSION = {
+  helmet: MAGE_HELMET_PROGRESSION,
+  chestplate: mageArmorProgression('chestplate'),
+  leggings: mageArmorProgression('leggings'),
+  boots: mageArmorProgression('boots'),
+};
+// Dungeon/Mage Ability's own armor progression — same shape as plain Mage, Aurora dropped throughout.
+const MAGE_ABILITY_ARMOR_PROGRESSION = {
+  helmet: DUNGEON_MAGE_HELMET_PROGRESSION,
+  chestplate: mageArmorProgression('chestplate', { dungeonOnly: true }),
+  leggings: mageArmorProgression('leggings', { dungeonOnly: true }),
+  boots: mageArmorProgression('boots', { dungeonOnly: true }),
+};
+// Dungeon/Mage Beam has its own, much simpler armor progression (user-specified, 2026-08-22):
+// Storm's is the only real armor pick — no Wise Dragon tier below it, no Aurora, no Goggles
+// alternative — so each slot is a single one-item tier. The only further improvement past that is
+// Stars/Master Stars (evaluateStarsCandidates/evaluateMasterStarsCandidates already run
+// unconditionally on whatever's equipped, so nothing extra is needed to make that the real
+// upgrade path — it's just what's left once there's no higher armor tier to suggest).
+const MAGE_BEAM_ARMOR_PROGRESSION = {
+  helmet: [[{ id: 'WISE_WITHER_HELMET' }]],
+  chestplate: [[{ id: 'WISE_WITHER_CHESTPLATE' }]],
+  leggings: [[{ id: 'WISE_WITHER_LEGGINGS' }]],
+  boots: [[{ id: 'WISE_WITHER_BOOTS' }]],
+};
+
+// Balloon Snake and Rift Necklace are real sidegrades despite the rarity gap (RARE vs LEGENDARY,
+// user-specified) — both always compared, not a strict tier order. Only necklace/belt have
+// curated Mage picks; cloak/gloves fall through to the brute-forced categories, same as any
+// other uncurated slot.
+const MAGE_EQUIPMENT_PROGRESSION = {
+  necklace: [[{ id: 'BALLOON_SNAKE' }, { id: 'RIFT_NECKLACE_OUTSIDE' }]],
+  belt: [[{ id: 'IMPLOSION_BELT' }]],
+};
+
+// Dungeon/Mage Beam's own equipment picks (user-specified, 2026-08-22) — all 4 slots covered,
+// unlike plain Mage above. Bone Necklace/Balloon Snake are sidegrades; cloak/belt/gloves are each
+// a single real pick. All real, EPIC Dungeon-tagged equipment (Balloon Snake RARE — already
+// confirmed a real sidegrade despite the rarity gap, see MAGE_EQUIPMENT_PROGRESSION above).
+const MAGE_BEAM_EQUIPMENT_PROGRESSION = {
+  necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }]],
+  cloak: [[{ id: 'SHADOW_ASSASSIN_CLOAK' }]],
+  belt: [[{ id: 'ADAPTIVE_BELT' }]],
+  gloves: [[{ id: 'SOULWEAVER_GLOVES' }]],
+};
+
+// User-specified: no clear universal best (situational, like Slayer's pet list) — all 4 real ids
+// sit in one flat tier, always compared against each other.
+const MAGE_PET_PROGRESSION = [[{ petId: 'GUARDIAN' }, { petId: 'CROW' }, { petId: 'SHEEP' }, { petId: 'GOLDEN_DRAGON' }]];
+
+// Pet Items (Textbook, Minos Relic, Hephaestus Relic — user-specified as Mage-relevant) get no
+// curated list here: evaluatePetItemCandidates already brute-forces every real pet item
+// regardless of mode (see this file's header comment), so a hand-authored allowlist would only
+// ever narrow that, not improve it — the optimizer already surfaces whichever of these (or
+// anything else) is genuinely best for the equipped pet.
+
+const ARMOR_PROGRESSION_BY_MODE = {
+  slayer: SLAYER_ARMOR_PROGRESSION,
+  mage: MAGE_ARMOR_PROGRESSION,
+  dungeon_mage_beam: MAGE_BEAM_ARMOR_PROGRESSION,
+  dungeon_mage_ability: MAGE_ABILITY_ARMOR_PROGRESSION,
+};
+const EQUIPMENT_PROGRESSION_BY_MODE = {
+  slayer: SLAYER_EQUIPMENT_PROGRESSION,
+  mage: MAGE_EQUIPMENT_PROGRESSION,
+  dungeon_mage_beam: MAGE_BEAM_EQUIPMENT_PROGRESSION,
+  dungeon_mage_ability: MAGE_EQUIPMENT_PROGRESSION,
+};
+const PET_PROGRESSION_BY_MODE = {
+  slayer: SLAYER_PET_PROGRESSION,
+  mage: MAGE_PET_PROGRESSION,
+  dungeon_mage_beam: MAGE_PET_PROGRESSION,
+  dungeon_mage_ability: MAGE_PET_PROGRESSION,
+};
+const WEAPON_PROGRESSION_BY_MODE = {
+  slayer: SLAYER_WEAPON_PROGRESSION,
+  mage: MAGE_WEAPON_PROGRESSION,
+  dungeon_mage_beam: MAGE_BEAM_WEAPON_PROGRESSION,
+  dungeon_mage_ability: MAGE_WEAPON_PROGRESSION,
+};
 
 export function hasCuratedData(mode) {
   return (
@@ -215,6 +385,19 @@ function findTierIndex(progression, matches) {
   return -1;
 }
 
+// A progression entry is either ONE flat chain (the common case — an array of tiers) or, for a
+// slot with more than one real independent reward line (SLAYER_WEAPON_PROGRESSION's per-Slayer-
+// type chains; Mage's helmet, which has both the Wise Dragon/Storm's/Aurora line and the separate
+// Dark/Shadow/Wither Goggles line — user-specified, 2026-08-22), a plain object of named chains.
+// Either way: if the player's current item is recognized in one or more of those chains, only
+// those get walked; otherwise every chain is walked from tier 0. This used to be duplicated
+// (weapons had their own copy of this exact selection logic) — shared here so the two can't drift.
+function resolveChainsToWalk(progression, currentId) {
+  const chains = Array.isArray(progression) ? [progression] : Object.values(progression);
+  const owned = chains.filter((chain) => findTierIndex(chain, (c) => c.id === currentId) !== -1);
+  return owned.length > 0 ? owned : chains;
+}
+
 // Walks every tier from the player's current position onward (tier 0 if unrecognized) — not just
 // the nearest one — evaluating every real candidate via `evaluate` (resolves a candidate to
 // `{value, ...}` or null on a catalog miss — skipped rather than guessed) and keeping every
@@ -239,7 +422,14 @@ async function evaluateTieredProgression(progression, currentIndex, isCurrent, b
     for (const candidate of tierCandidates) {
       const outcome = await evaluate(candidate);
       if (!outcome) continue;
-      const percentIncrease = baselineValue > 0 ? ((outcome.value - baselineValue) / baselineValue) * 100 : 0;
+      // A 0 baseline (e.g. Mage/Dungeon-Mage-Ability's Ability Damage metric, starting from a
+      // weapon with no ability at all) has no real "% of baseline" to compute — dividing by 0
+      // used to hardcode this to 0, silently discarding every real candidate no matter how much
+      // Ability Damage it actually added (bug: Mage mode's weapon progression looked completely
+      // empty starting from a non-ability weapon, the single most common Mage starting point).
+      // Scaling the raw value directly keeps a real, positive number that both formats safely and
+      // ranks candidates by how much Ability Damage they actually add, same as every other case.
+      const percentIncrease = baselineValue > 0 ? ((outcome.value - baselineValue) / baselineValue) * 100 : outcome.value * 100;
       if (percentIncrease > 0.001) evaluated.push({ ...outcome, percentIncrease });
     }
   }
@@ -272,6 +462,12 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   }
 
   const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
+
+  if (modeConfig.metric === 'beam') {
+    const beam = computeMageStaffBeamDamage(sources, dps.meleeFinalDamage, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
+    return { value: beam.finalDamage, sources };
+  }
+
   return { value: dps.total, sources };
 }
 
@@ -292,67 +488,69 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
   if (!progressionBySlot) return [];
   const results = [];
   for (const slot of slots) {
-    const progression = progressionBySlot[slot];
-    if (!progression) continue;
+    const progressionOrChains = progressionBySlot[slot];
+    if (!progressionOrChains) continue;
     const currentModifiers = loadout[slot]?.modifiers;
     const currentItem = loadout[slot]?.item || null;
     const currentId = currentItem?.id || null;
-    const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
-    // User-specified exception: only while currently wearing a real Crimson-family piece (base/
-    // Hot/Burning/Fiery/Infernal all contain "CRIMSON" in their id) does this slot's progression
-    // refuse to skip a tier — every other armor line stays unrestricted like weapons/equipment/pets.
-    // The next power tier only unlocks once the current one's real star cap is reached (e.g. base
-    // Crimson at 10✩ -> Hot Crimson at 0✩); before that, only the current tier (its own sidegrades,
-    // if any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
-    let maxIndexOverride;
-    if (category === 'Armor' && !!currentId?.includes('CRIMSON')) {
-      const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
-      const starsMaxed = currentIndex !== -1 && currentItem && (currentModifiers?.stars || 0) >= getMaxStarsForItem(currentItem);
-      maxIndexOverride = starsMaxed ? effectiveIndex + 1 : effectiveIndex;
-    }
-    const evaluated = await evaluateTieredProgression(
-      progression,
-      currentIndex,
-      (c) => c.id === currentId,
-      baselineValue,
-      async (candidate) => {
-        const resolved = resolveGearSummary({ id: candidate.id }, itemData);
-        if (!resolved) return null; // catalog lookup failed — skip rather than guess
-        const modifiers = emptyModifiers();
-        if (candidate.special != null) modifiers.special = candidate.special;
-        if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
-        if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
-        if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
-        const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
-        const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-        const apply = [{ type: 'selectItem', slot, item: resolved }];
-        if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
-        if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
-        if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
-        if (currentModifiers?.ultimateEnchantment) {
-          apply.push({
-            type: 'applyEnchant',
+    for (const progression of resolveChainsToWalk(progressionOrChains, currentId)) {
+      const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
+      // User-specified exception: only while currently wearing a real Crimson-family piece (base/
+      // Hot/Burning/Fiery/Infernal all contain "CRIMSON" in their id) does this slot's progression
+      // refuse to skip a tier — every other armor line stays unrestricted like weapons/equipment/pets.
+      // The next power tier only unlocks once the current one's real star cap is reached (e.g. base
+      // Crimson at 10✩ -> Hot Crimson at 0✩); before that, only the current tier (its own sidegrades,
+      // if any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
+      let maxIndexOverride;
+      if (category === 'Armor' && !!currentId?.includes('CRIMSON')) {
+        const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
+        const starsMaxed = currentIndex !== -1 && currentItem && (currentModifiers?.stars || 0) >= getMaxStarsForItem(currentItem);
+        maxIndexOverride = starsMaxed ? effectiveIndex + 1 : effectiveIndex;
+      }
+      const evaluated = await evaluateTieredProgression(
+        progression,
+        currentIndex,
+        (c) => c.id === currentId,
+        baselineValue,
+        async (candidate) => {
+          const resolved = resolveGearSummary({ id: candidate.id }, itemData);
+          if (!resolved) return null; // catalog lookup failed — skip rather than guess
+          const modifiers = emptyModifiers();
+          if (candidate.special != null) modifiers.special = candidate.special;
+          if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
+          if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
+          if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+          const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
+          const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+          const apply = [{ type: 'selectItem', slot, item: resolved }];
+          if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
+          if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
+          if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+          if (currentModifiers?.ultimateEnchantment) {
+            apply.push({
+              type: 'applyEnchant',
+              slot,
+              id: currentModifiers.ultimateEnchantment.id,
+              level: currentModifiers.ultimateEnchantment.level,
+              maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+              removeIds: [],
+            });
+          }
+          return {
+            category,
             slot,
-            id: currentModifiers.ultimateEnchantment.id,
-            level: currentModifiers.ultimateEnchantment.level,
-            maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
-            removeIds: [],
-          });
-        }
-        return {
-          category,
-          slot,
-          label: candidate.label || formatItemName(resolved.name),
-          itemId: resolved.id,
-          material: resolved.material,
-          special: candidate.special,
-          value,
-          apply,
-        };
-      },
-      maxIndexOverride,
-    );
-    results.push(...evaluated);
+            label: candidate.label || formatItemName(resolved.name),
+            itemId: resolved.id,
+            material: resolved.material,
+            special: candidate.special,
+            value,
+            apply,
+          };
+        },
+        maxIndexOverride,
+      );
+      results.push(...evaluated);
+    }
   }
   return results;
 }
@@ -436,25 +634,31 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
   if (!chains) return [];
   const currentModifiers = loadout.weapon?.modifiers;
   const currentId = loadout.weapon?.item?.id || null;
-  const allProgressions = Object.values(chains);
-  const ownedProgressions = allProgressions.filter((progression) => findTierIndex(progression, (c) => c.id === currentId) !== -1);
-  const progressionsToWalk = ownedProgressions.length > 0 ? ownedProgressions : allProgressions;
   const results = [];
-  for (const progression of progressionsToWalk) {
+  for (const progression of resolveChainsToWalk(chains, currentId)) {
     const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
     const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
       const resolved = resolveGearSummary({ id: candidate.id }, itemData);
       if (!resolved) return null; // catalog lookup failed — skip rather than guess
       // Same "carry over the current item's persistent upgrades" treatment as
       // evaluateItemSlotCandidates above — a real player re-applies their reforge/ultimate
-      // enchant on a fresh weapon rather than leaving it bare.
+      // enchant on a fresh weapon rather than leaving it bare. `forcedReforge` (Midas Sword's
+      // Gilded) overrides that carry-over — the item-exclusive reforge it's actually meant to
+      // have, not whatever unrelated reforge the player's previous weapon carried. `special`
+      // (Midas Sword's own real Price Paid cap, same "compare at real best-case" treatment
+      // evaluateItemSlotCandidates already gives David's Cloak) needed adding here too — without
+      // it every weapon candidate defaulted to special:0, silently comparing a Greed-less Midas
+      // Sword against everything else.
       const modifiers = emptyModifiers();
-      if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
+      const reforgeName = candidate.forcedReforge || currentModifiers?.reforge;
+      if (reforgeName) modifiers.reforge = reforgeName;
+      if (candidate.special != null) modifiers.special = candidate.special;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
       const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
-      if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot: 'weapon', name: currentModifiers.reforge });
+      if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
+      if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: candidate.special });
       if (currentModifiers?.ultimateEnchantment) {
         apply.push({
           type: 'applyEnchant',
@@ -471,6 +675,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
         label: formatItemName(resolved.name),
         itemId: resolved.id,
         material: resolved.material,
+        special: candidate.special,
         value,
         apply,
       };
@@ -658,6 +863,37 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
   return results;
 }
 
+// Master Stars: a Catacombs-only upgrade (real effect is 0 outside dungeonized-stats modes, so
+// skip the pointless computation there), unlocked per piece once it has 5 real stars
+// (MASTER_STAR_MIN_BASE_STARS), capped at 5. User-specified: always offered one at a time per
+// piece — same "don't let the app suggest a shortcut past the rung right in front of them" rule
+// evaluateStarsCandidates already applies to Crimson armor's regular stars, just unconditional
+// here rather than family-gated (Master Stars are individually significant upgrades regardless of
+// armor family).
+async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob) {
+  if (!modeConfig.useDungeonizedStats) return [];
+  const results = [];
+  for (const slot of ARMOR_SLOTS) {
+    const equipped = loadout[slot];
+    if (!equipped?.item || !isStarrableItem(equipped.item)) continue;
+    if ((equipped.modifiers.stars || 0) < MASTER_STAR_MIN_BASE_STARS) continue;
+    const currentMasterStars = equipped.modifiers.masterStars || 0;
+    if (currentMasterStars >= MAX_MASTER_STARS) continue;
+    const masterStars = currentMasterStars + 1;
+    const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, masterStars } } };
+    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    results.push({
+      category: 'Master Stars',
+      slot,
+      label: `${formatItemName(equipped.item.name)} — Master Star ${masterStars}`,
+      itemId: equipped.item.id,
+      value,
+      apply: [{ type: 'setMasterStarCount', slot, count: masterStars }],
+    });
+  }
+  return results;
+}
+
 // Pet Items: brute-forced against the full real catalog (~88 entries, see worker/src/data/
 // petItems.json) rather than curated — small enough to just test everything, and
 // lib/petItemEffects.js's parsePetItemStatBoost already tells real combat-stat boosts (Strength,
@@ -829,10 +1065,10 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 // — a real number when a coin cost source exists for that specific candidate, `'?'`/`null` when
 // it doesn't (see lib/pricing.js for exactly which categories are/aren't priceable today).
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
-  const modeConfig = getModeConfig(mode);
+  const modeConfig = getModeConfig(mode, build.useMasterMode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
 
-  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, reforges, recombs, petItems, fullSets] =
+  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, masterStars, reforges, recombs, petItems, fullSets] =
     await Promise.all([
       evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
       evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
@@ -853,6 +1089,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
       evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
       evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
+      evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
       evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
       evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
       evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
@@ -861,10 +1098,15 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
 
   // Armor/equipment/pet/reforge results already carry their own real percentIncrease
   // (evaluateTieredProgression computes it while walking tiers, since it needs the value to decide
-  // whether to advance) — only the non-tiered categories below still need it computed here.
+  // whether to advance) — only the non-tiered categories below still need it computed here. Same
+  // 0-baseline handling as evaluateTieredProgression (see its comment) — a hardcoded 0 used to
+  // silently discard every real candidate whenever the mode's damage number started at exactly 0.
   const withPercent = (list) =>
     list
-      .map((r) => ({ ...r, percentIncrease: baselineValue > 0 ? ((r.value - baselineValue) / baselineValue) * 100 : 0 }))
+      .map((r) => ({
+        ...r,
+        percentIncrease: baselineValue > 0 ? ((r.value - baselineValue) / baselineValue) * 100 : r.value * 100,
+      }))
       .filter((r) => r.percentIncrease > 0.001);
 
   const slotCandidates = [...weapons, ...armor, ...equipment, ...pets];
@@ -874,7 +1116,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   }
 
   const otherResults = [
-    ...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...recombs, ...petItems, ...fullSets]),
+    ...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...masterStars, ...recombs, ...petItems, ...fullSets]),
     ...reforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
@@ -910,6 +1152,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setStarCount':
         build.setStarCount(step.slot, step.count);
+        break;
+      case 'setMasterStarCount':
+        build.setMasterStars(step.slot, step.count);
         break;
       case 'setPetItem':
         build.setPetItem(step.petItemId);
