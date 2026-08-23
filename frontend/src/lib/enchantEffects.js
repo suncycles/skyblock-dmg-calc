@@ -6,6 +6,31 @@ const NEU_ITEMS_BASE = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEn
 const MAX_PROBE_LEVEL = 10;
 
 const levelsCache = new Map(); // enchantId -> Promise<Array<{level, lore}>>
+const PERSIST_PREFIX = 'enchantLevels:';
+
+// NEU-REPO's per-level lore is static, so a resolved probe is safe to keep across page loads —
+// without this, every hard reload re-probes up to 10 raw.githubusercontent.com requests per
+// distinct enchant on the weapon, right on the Optimizer's critical path (Enchant/Ultimate
+// Enchant candidates await this). Only successful (non-empty) probes are persisted — an empty
+// result more often means a transient network failure than a real "no levels exist" case, and
+// caching that permanently would silently break the enchant forever instead of just once.
+function loadPersistedLevels(id) {
+  try {
+    const raw = localStorage.getItem(PERSIST_PREFIX + id);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePersistedLevels(id, levels) {
+  if (levels.length === 0) return;
+  try {
+    localStorage.setItem(PERSIST_PREFIX + id, JSON.stringify(levels));
+  } catch {
+    // localStorage full or unavailable (private browsing) — in-memory cache still covers this session
+  }
+}
 
 async function fetchLevel(fileId, level) {
   const url = `${NEU_ITEMS_BASE}/${encodeURIComponent(`${fileId};${level}`)}.json`;
@@ -78,6 +103,13 @@ function buildVenomousLevels() {
 export function fetchEnchantLevels(id, enchantsMeta) {
   if (levelsCache.has(id)) return levelsCache.get(id);
 
+  const persisted = loadPersistedLevels(id);
+  if (persisted) {
+    const promise = Promise.resolve(persisted);
+    levelsCache.set(id, promise);
+    return promise;
+  }
+
   const promise = (async () => {
     if (id.toLowerCase() === 'venomous') return buildVenomousLevels();
     let levels = await probeLevels(id.toUpperCase());
@@ -85,6 +117,7 @@ export function fetchEnchantLevels(id, enchantsMeta) {
       const altFileId = resolveAlternateFileId(enchantsMeta, id);
       if (altFileId) levels = await probeLevels(altFileId);
     }
+    savePersistedLevels(id, levels);
     return levels;
   })();
 

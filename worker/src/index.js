@@ -65,6 +65,34 @@ const SKYHELPER_PRICES_URL = "https://raw.githubusercontent.com/SkyHelperBot/Pri
 const PRICES_CACHE_KEY = "prices_data";
 const PRICES_CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
 
+// Ids the client looks up directly from `costs.itemPrices` (see frontend/src/lib/pricing.js and
+// accessoryOptimizer.js's lookupAccessoryCost) that don't come from any catalog list below.
+const PRICED_EXTRA_IDS = [
+  "CROWN_OF_AVARICE",
+  "RECOMBOBULATOR_3000",
+  "PERFECT_AMBER_GEM", "PERFECT_AMETHYST_GEM", "PERFECT_AQUAMARINE_GEM", "PERFECT_CITRINE_GEM",
+  "PERFECT_JADE_GEM", "PERFECT_JASPER_GEM", "PERFECT_ONYX_GEM", "PERFECT_OPAL_GEM",
+  "PERFECT_PERIDOT_GEM", "PERFECT_RUBY_GEM", "PERFECT_SAPPHIRE_GEM", "PERFECT_TOPAZ_GEM",
+];
+
+// The raw SkyHelper price map has ~14K entries covering the whole Bazaar/AH; the app only ever
+// looks up a few hundred of them (real gear/pet/enchant ids). Shipping the full map to every
+// client cost ~860KB of the ~2MB /api/items payload for prices nothing here will ever read —
+// prune to just the ids `pricing.js`/`accessoryOptimizer.js` can actually ask for before it's
+// cached/returned. Enchant book prices (`ENCHANTMENT_<name>_<level>`) are kept wholesale since
+// there's no static list of valid id/level combos to allowlist against server-side.
+function pruneItemPrices(itemPrices, catalog) {
+  const keep = new Set(PRICED_EXTRA_IDS);
+  for (const item of [...catalog.weapons, ...catalog.armor, ...catalog.equipment, ...catalog.petItems, ...catalog.accessories, ...catalog.powerStones]) {
+    if (item.id) keep.add(item.id);
+  }
+  const pruned = {};
+  for (const [id, price] of Object.entries(itemPrices)) {
+    if (keep.has(id) || id.startsWith("ENCHANTMENT_")) pruned[id] = price;
+  }
+  return pruned;
+}
+
 // Golden/Jade/Rose Dragon are the only pets that level past 100 (real cap 200) — same table as
 // frontend/src/lib/petData.js's EXTENDED_MAX_LEVELS, duplicated here since the Worker and frontend
 // are separate deploys with no shared module today. Used only to build the right
@@ -287,7 +315,7 @@ async function resolveCosts(env, catalog, force = false) {
       if (item.upgrade_costs) computeStarCosts(item.id, item.upgrade_costs, itemPrices, starCosts);
     }
 
-    const costs = { itemPrices, reforgeCosts, recombobulatorCost, petCosts, starCosts };
+    const costs = { itemPrices: pruneItemPrices(itemPrices, catalog), reforgeCosts, recombobulatorCost, petCosts, starCosts };
     await env.CACHE.put(PRICES_CACHE_KEY, JSON.stringify({ costs, lastFetched: Date.now() }));
     return costs;
   } catch (err) {
