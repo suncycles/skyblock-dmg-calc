@@ -108,6 +108,11 @@ export function lookupCandidateCost(result, itemData) {
       if (!step || result.itemId == null) return null;
       return priceOf(starCosts, `${result.itemId}_${step.count}`);
     }
+    case 'Gemstone': {
+      const step = findStep(result.apply, 'setGemstone');
+      if (!step) return null;
+      return priceOf(itemPrices, `${step.tier.toUpperCase()}_${step.gem}_GEM`);
+    }
     default:
       return null;
   }
