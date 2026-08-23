@@ -176,7 +176,7 @@ function UpgradeRow({ result, onSwapIn }) {
           {coinsPerPercent && ` · ${coinsPerPercent}/%`}
         </span>
       </div>
-      <span className="text-[11px] font-mono font-bold text-green-700 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
+      <span className="text-[11px] font-mono font-bold text-green-500 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
     </button>
   );
 }

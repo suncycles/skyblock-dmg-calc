@@ -98,7 +98,7 @@ function UpgradeRow({ result, onSwapIn }) {
           Cost: {formatCoinsShort(result.cost)} coins{coinsPerPercent && ` · ${coinsPerPercent} coins/%`}
         </span>
       </div>
-      <span className="text-sm font-mono font-bold text-green-700 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
+      <span className="text-sm font-mono font-bold text-green-500 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
     </button>
   );
 }
