@@ -1230,6 +1230,9 @@ export async function collectDamageSources(
   blazeCrimsonIsle = false,
 ) {
   const out = {
+    // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
+    // the full loadout) can check weapon-specific target restrictions — see DAGGER_LINE_WEAPON_IDS.
+    weaponId: loadout.weapon?.item?.id ?? null,
     baseStats: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     baseStatSources: Object.fromEntries(TRACKED_STATS.map((key) => [key, []])),
     // Gear-only deltas (dungeonized/master total minus normal total, summed across equipped
