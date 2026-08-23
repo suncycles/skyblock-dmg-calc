@@ -580,13 +580,12 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           // value" bug stars had (user-confirmed 2026-08-23). Carried blind, same as reforge/stars —
           // a socket-count mismatch between old and new item is a rare edge, not worth reconciling.
           if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
-          // Compare a starrable candidate at ITS real max stars, not bare — same "real best-case"
-          // treatment as special/rarityOverride above (Crown of Avarice/David's Cloak) and pet
-          // candidates elsewhere in this file. Without this, a candidate that's a genuinely better
-          // item (e.g. Hot Crimson Helmet) but starts at 0 stars looks like a sidegrade or worse
-          // against a currently-equipped item the player has already invested real stars into —
-          // understating the swap's true value exactly the way the reforge/enchant carry-over
-          // above already exists to prevent. Confirmed real regression case: Basic Crimson Helmet
+          // The RANKED VALUE still assumes a starrable candidate reaches its real max stars, not
+          // bare — same "real best-case" treatment as special/rarityOverride above (Crown of
+          // Avarice/David's Cloak) and pet candidates elsewhere in this file. Without this, a
+          // candidate that's a genuinely better item (e.g. Hot Crimson Helmet) but starts at 0
+          // stars looks like a sidegrade or worse against a currently-equipped item the player has
+          // already invested real stars into. Confirmed real regression case: Basic Crimson Helmet
           // at 10 stars vs Hot Crimson Helmet at 0 stars computed as a flat 0% "improvement",
           // silently hiding a genuine +3% once Hot is also compared at its own 10-star cap.
           const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
@@ -596,7 +595,13 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           const apply = [{ type: 'selectItem', slot, item: resolved }];
           if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
-          if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot, count: candidateMaxStars });
+          // But the actual SWAP-IN action resets stars to 0, not the assumed max — user-specified
+          // (2026-08-23): a real tier upgrade (Basic -> Hot) is a brand new item that hasn't
+          // actually been re-starred yet, so clicking the suggestion shouldn't hand over 10 free
+          // stars the player never earned. Manually re-picking the same item via Hex still keeps
+          // BuildContext's own stash-and-restore behavior (unrelated to this apply path) — this
+          // only affects the Optimizer's own swap-in action.
+          if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot, count: 0 });
           if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
           if (currentModifiers?.gemstones?.length) {
             currentModifiers.gemstones.forEach((g, index) => {
@@ -762,7 +767,10 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
       if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: candidate.special });
-      if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot: 'weapon', count: candidateMaxStars });
+      // Ranked value assumes real max stars (above); the swap-in action itself resets to 0 — same
+      // user-specified reasoning as evaluateItemSlotCandidates (a weapon tier upgrade is a new item
+      // that hasn't been re-starred yet, so clicking shouldn't hand over free stars).
+      if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot: 'weapon', count: 0 });
       if (currentModifiers?.gemstones?.length) {
         currentModifiers.gemstones.forEach((g, index) => {
           if (g) apply.push({ type: 'setGemstone', slot: 'weapon', index, gem: g.gem, tier: g.tier });
