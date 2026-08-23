@@ -472,7 +472,23 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   return { value: dps.total, sources };
 }
 
+// The brute-force evaluators below call this hundreds of times in tight `for` loops; nothing in
+// the pipeline actually awaits I/O, so those loops used to run as one unbroken synchronous main-
+// thread task (measured: a 209ms optimizer run produced a single 145ms longtask with zero frames
+// painted in between — the tab was fully frozen for the whole run). Yielding here periodically
+// breaks that into chunks small enough for the browser to paint/handle input between them, without
+// slowing the total wall-clock time much (setTimeout(0) is a real macrotask yield, not just a
+// microtask tick like a bare `await` on non-Promise work would be).
+const MAIN_THREAD_YIELD_INTERVAL_MS = 48;
+let lastYieldAt = 0;
+async function yieldToMainThread() {
+  if (performance.now() - lastYieldAt < MAIN_THREAD_YIELD_INTERVAL_MS) return;
+  lastYieldAt = performance.now();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 export async function computeModeDamage(loadout, itemData, build, modeConfig, mob) {
+  await yieldToMainThread();
   return (await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob)).value;
 }
 

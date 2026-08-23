@@ -129,11 +129,18 @@ export default function Optimizer() {
       setState({ ...EMPTY_STATE, status: 'no-target' });
       return;
     }
-    const token = ++tokenRef.current;
     setState((prev) => ({ ...prev, status: 'loading' }));
-    runOptimizer(build.loadout, itemData, build, mode, { name: mobName, types: mobTypes }).then((result) => {
-      if (tokenRef.current === token) setState({ status: 'ok', ...result });
-    });
+    // Debounced: this recomputes by brute-forcing hundreds of candidate loadouts, so firing it on
+    // every keystroke of a stat/mob-HP/etc. input (this effect's deps include the whole loadout and
+    // several free-typed numeric fields) would queue up several full runs back to back. tokenRef
+    // still guards against a stale run's result landing after a newer one.
+    const handle = setTimeout(() => {
+      const token = ++tokenRef.current;
+      runOptimizer(build.loadout, itemData, build, mode, { name: mobName, types: mobTypes }).then((result) => {
+        if (tokenRef.current === token) setState({ status: 'ok', ...result });
+      });
+    }, 200);
+    return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     build.loadout,
@@ -170,10 +177,13 @@ export default function Optimizer() {
       setMpResult(null);
       return;
     }
-    const token = ++mpTokenRef.current;
-    evaluateAccessoryCandidates(build.loadout, itemData, build, mode, { name: mobName, types: mobTypes }, candidates).then((result) => {
-      if (mpTokenRef.current === token) setMpResult(result);
-    });
+    const handle = setTimeout(() => {
+      const token = ++mpTokenRef.current;
+      evaluateAccessoryCandidates(build.loadout, itemData, build, mode, { name: mobName, types: mobTypes }, candidates).then((result) => {
+        if (mpTokenRef.current === token) setMpResult(result);
+      });
+    }, 200);
+    return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [build.loadout, build.attributes, itemData, itemDataLoading, mode, mobName, mobTypes]);
 
