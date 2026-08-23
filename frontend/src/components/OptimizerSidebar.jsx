@@ -123,14 +123,17 @@ const CATEGORY_COLORS = {
 const SLAYER_ATTACK_SPEED_TARGET = 82;
 const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slots: {}, otherResults: [] };
 
-// Ranks by real DPS-per-coin (see lib/pricing.js) so the most coin-efficient upgrades lead;
-// unpriceable ('?') results sink to the bottom rather than being treated as worthless. No toggle
-// here (unlike Optimizer.jsx) — this compact sidebar always shows best value first.
-function compareResults(a, b) {
-  if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
-  if (a.ratio == null) return 1;
-  if (b.ratio == null) return -1;
-  return b.ratio - a.ratio;
+// Same two rankings as Optimizer.jsx's own toggle: "ratio" (real DPS-per-coin, see lib/pricing.js)
+// sinks unpriceable ('?') results to the bottom rather than treating them as worthless; "increase"
+// ignores cost entirely and ranks by raw % DPS gained.
+function compareResults(a, b, sortBy) {
+  if (sortBy === 'ratio') {
+    if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
+    if (a.ratio == null) return 1;
+    if (b.ratio == null) return -1;
+    return b.ratio - a.ratio;
+  }
+  return b.percentIncrease - a.percentIncrease;
 }
 
 // One shared row style for every candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the
@@ -204,14 +207,15 @@ function UpgradeRow({ result, onSwapIn }) {
 //
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
-// together in one list by real DPS-per-coin ratio (mirrors Optimizer.jsx's "Best Value" ranking),
-// rather than a separate "by slot" section capped to one pick per slot. No sort toggle here
-// (unlike Optimizer.jsx) — this compact sidebar just always shows best value first.
+// together in one list, rather than a separate "by slot" section capped to one pick per slot.
+// Same Best Value / Highest Increase sort toggle as Optimizer.jsx, just abbreviated for the
+// panel's width; defaults to Best Value (real DPS-per-coin ratio).
 export default function OptimizerSidebar() {
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
   const [mode, setMode] = useState('slayer');
   const [state, setState] = useState(EMPTY_STATE);
+  const [sortBy, setSortBy] = useState('ratio');
   const tokenRef = useRef(0);
 
   // Floating position/size (desktop only) — null position means "use the default fixed spot"
@@ -474,7 +478,9 @@ export default function OptimizerSidebar() {
   // maxBudget of 0 means "no limit" (default, unset) — see BuildContext.jsx. Unpriced ('?')
   // candidates always stay shown; only a confirmed over-budget real cost gets filtered out.
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
-  const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])].filter(withinBudget).sort(compareResults);
+  const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
+    .filter(withinBudget)
+    .sort((a, b) => compareResults(a, b, sortBy));
 
   // Once the user drags/resizes the panel, its own left/top/width/height override the default
   // fixed spot (right-4/top-20/w-280/h-66vh) via inline style — CSS classes alone can't express
@@ -511,8 +517,30 @@ export default function OptimizerSidebar() {
           <div key={dir} className={className} style={{ zIndex: dir.length === 2 ? 2 : 1 }} onMouseDown={handleResizeStart(dir)} />
         ))}
       <div className={`${panel} p-2 flex flex-col gap-1.5`}>
-        <div className={`${sectionTitle} lg:cursor-move select-none`} onMouseDown={handleDragStart} title="Drag to reposition">
-          Recommended Upgrades
+        <div className={`${sectionTitle} flex items-center justify-between gap-1 lg:cursor-move select-none`} onMouseDown={handleDragStart} title="Drag to reposition">
+          <span>Recommended Upgrades</span>
+          <div className="flex gap-1" onMouseDown={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setSortBy('increase')}
+              title="Highest raw % DPS increase"
+              className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
+                sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+              }`}
+            >
+              Increase
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('ratio')}
+              title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
+              className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
+                sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+              }`}
+            >
+              Value
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-1">
           {OPTIMIZER_MODES.map((m) => (

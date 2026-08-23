@@ -14,10 +14,11 @@
 //   always evaluated (even the ones matching the player's current tier), since one may
 //   numerically beat another despite being nominally "equal". Every tier from the player's
 //   current position onward is walked and every genuine improvement offered — except real
-//   Crimson-family armor (base/Hot/Burning/Fiery/Infernal), which is user-specified to never skip
-//   a power tier AND to never skip ahead to the next tier before maxing the current one's stars:
-//   the next tier only unlocks once the current piece hits its real star cap (e.g. base Crimson
-//   at 10✩ -> Hot Crimson at 0✩), see evaluateItemSlotCandidates's `maxIndexOverride`.
+//   Kuudra-family armor (base/Hot/Burning/Fiery/Infernal, any of the 5 real families — see
+//   lib/armorVariants.js's ARMOR_VARIANT_FAMILIES), which is user-specified to never skip a power
+//   tier AND to never skip ahead to the next tier before maxing the current one's stars: the next
+//   tier only unlocks once the current piece hits its real star cap (e.g. base Crimson at 10✩ ->
+//   Hot Crimson at 0✩), see evaluateItemSlotCandidates's `maxIndexOverride`.
 //   A slot can also have more than one independent chain instead of one flat list — weapons
 //   always have (SLAYER_WEAPON_PROGRESSION: each real Slayer type hands out its own chain, all
 //   targeting the single 'weapon' slot), and Mage's helmet does too (the Wise Dragon/Storm's/
@@ -47,6 +48,7 @@ import {
 } from './enchantEffects';
 import { STONE_POWERS } from './accessoryPowers';
 import { getMaxStarsForItem, isStarrableItem, MASTER_STAR_MIN_BASE_STARS, MAX_MASTER_STARS } from './starring';
+import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
 import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
@@ -88,45 +90,72 @@ export function getModeConfig(mode, useMasterMode = false) {
 }
 
 // Real ids, confirmed against worker/src/data/armor.json. "10m/100m/1b coin COA" = Crown of
-// Avarice's Coins Consumed special value at that tier — see lib/specialWeapons.js. The Crimson
-// line's Hot/Burning/Fiery power tiers sit between the Basic-equivalent checkpoint (bare Crimson/
-// Primordial/10m COA) and the Warden/100m-COA checkpoint, each its own tier (not a sidegrade
-// group) so a real player is only ever offered one power tier at a time — Hot before Burning
-// before Fiery before Infernal — matching lib/armorVariants.js's VARIANT_TIERS stat-confirmed
-// ascending order. Flag if Hot/Burning/Fiery should rank differently against Warden/Crown of
-// Avarice specifically; the within-family Hot<Burning<Fiery<Infernal order itself is confirmed.
-const SLAYER_HELMET_PROGRESSION = [
-  [{ id: 'TARANTULA_HELMET' }],
-  [
-    { id: 'CRIMSON_HELMET' },
-    { id: 'PRIMORDIAL_HELMET' },
-    { id: 'CROWN_OF_AVARICE', special: 10_000_000, label: 'Crown of Avarice (10m Coins Consumed)' },
+// Avarice's Coins Consumed special value at that tier — see lib/specialWeapons.js. Crimson is the
+// only one of the 5 real Kuudra families (lib/armorVariants.js's ARMOR_VARIANT_FAMILIES) with a
+// Warden/Crown of Avarice equivalent — its Hot/Burning/Fiery power tiers sit between the
+// Basic-equivalent checkpoint (bare Crimson/Primordial/10m COA) and the Warden/100m-COA
+// checkpoint, each its own tier (not a sidegrade group) so a real player is only ever offered one
+// power tier at a time — Hot before Burning before Fiery before Infernal — matching
+// lib/armorVariants.js's VARIANT_TIERS stat-confirmed ascending order. Flag if Hot/Burning/Fiery
+// should rank differently against Warden/Crown of Avarice specifically; the within-family
+// Hot<Burning<Fiery<Infernal order itself is confirmed. Aurora/Fervor/Hollow/Terror have no such
+// extra step — their own chains are the same tiers minus Warden/CoA, one flat named chain per
+// family (see resolveChainsToWalk; evaluateItemSlotCandidates dedupes the shared Tarantula Helmet
+// tier-0 that every family's chain repeats).
+function kuudraHelmetTierChain(family) {
+  return [
+    [{ id: 'TARANTULA_HELMET' }],
+    [{ id: `${family}_HELMET` }],
+    [{ id: `HOT_${family}_HELMET` }],
+    [{ id: `BURNING_${family}_HELMET` }],
+    [{ id: `FIERY_${family}_HELMET` }],
+    [{ id: `INFERNAL_${family}_HELMET` }],
+  ];
+}
+const SLAYER_HELMET_PROGRESSION = {
+  CRIMSON: [
+    [{ id: 'TARANTULA_HELMET' }],
+    [
+      { id: 'CRIMSON_HELMET' },
+      { id: 'PRIMORDIAL_HELMET' },
+      { id: 'CROWN_OF_AVARICE', special: 10_000_000, label: 'Crown of Avarice (10m Coins Consumed)' },
+    ],
+    [{ id: 'HOT_CRIMSON_HELMET' }],
+    [{ id: 'BURNING_CRIMSON_HELMET' }],
+    [{ id: 'FIERY_CRIMSON_HELMET' }],
+    [{ id: 'CROWN_OF_AVARICE', special: 100_000_000, label: 'Crown of Avarice (100m Coins Consumed)' }, { id: 'WARDEN_HELMET' }],
+    [
+      { id: 'CROWN_OF_AVARICE', special: 1_000_000_000, label: 'Crown of Avarice (1b Coins Consumed)' },
+      { id: 'INFERNAL_CRIMSON_HELMET' },
+    ],
   ],
-  [{ id: 'HOT_CRIMSON_HELMET' }],
-  [{ id: 'BURNING_CRIMSON_HELMET' }],
-  [{ id: 'FIERY_CRIMSON_HELMET' }],
-  [{ id: 'CROWN_OF_AVARICE', special: 100_000_000, label: 'Crown of Avarice (100m Coins Consumed)' }, { id: 'WARDEN_HELMET' }],
-  [
-    { id: 'CROWN_OF_AVARICE', special: 1_000_000_000, label: 'Crown of Avarice (1b Coins Consumed)' },
-    { id: 'INFERNAL_CRIMSON_HELMET' },
-  ],
-];
+  AURORA: kuudraHelmetTierChain('AURORA'),
+  FERVOR: kuudraHelmetTierChain('FERVOR'),
+  HOLLOW: kuudraHelmetTierChain('HOLLOW'),
+  TERROR: kuudraHelmetTierChain('TERROR'),
+};
 
 // Chestplate/Leggings/Boots share the same chain shape ("other armor" in the user's spec):
-// Shadow Assassin -> Necron's Armor (POWER_WITHER_*, confirmed with the user) -> Crimson's own
-// Basic/Hot/Burning/Fiery power tiers (see the helmet chain's note above for why these are split
-// into individual tiers) -> Infernal Crimson.
+// Shadow Assassin -> Necron's Armor (POWER_WITHER_*, confirmed with the user) -> the chosen Kuudra
+// family's own Basic/Hot/Burning/Fiery/Infernal power tiers (see the helmet chain's note above for
+// why these are split into individual tiers rather than one sidegrade group) — one named chain per
+// family, same shared-prefix dedup as the helmet chain above.
 function otherArmorProgression(slot) {
   const suffix = slot.toUpperCase();
-  return [
-    [{ id: `SHADOW_ASSASSIN_${suffix}` }],
-    [{ id: `POWER_WITHER_${suffix}` }],
-    [{ id: `CRIMSON_${suffix}` }],
-    [{ id: `HOT_CRIMSON_${suffix}` }],
-    [{ id: `BURNING_CRIMSON_${suffix}` }],
-    [{ id: `FIERY_CRIMSON_${suffix}` }],
-    [{ id: `INFERNAL_CRIMSON_${suffix}` }],
-  ];
+  return Object.fromEntries(
+    ARMOR_VARIANT_FAMILIES.map((family) => [
+      family,
+      [
+        [{ id: `SHADOW_ASSASSIN_${suffix}` }],
+        [{ id: `POWER_WITHER_${suffix}` }],
+        [{ id: `${family}_${suffix}` }],
+        [{ id: `HOT_${family}_${suffix}` }],
+        [{ id: `BURNING_${family}_${suffix}` }],
+        [{ id: `FIERY_${family}_${suffix}` }],
+        [{ id: `INFERNAL_${family}_${suffix}` }],
+      ],
+    ]),
+  );
 }
 
 const SLAYER_ARMOR_PROGRESSION = {
@@ -510,16 +539,18 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
     const currentModifiers = loadout[slot]?.modifiers;
     const currentItem = loadout[slot]?.item || null;
     const currentId = currentItem?.id || null;
+    const slotResults = [];
     for (const progression of resolveChainsToWalk(progressionOrChains, currentId)) {
       const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
-      // User-specified exception: only while currently wearing a real Crimson-family piece (base/
-      // Hot/Burning/Fiery/Infernal all contain "CRIMSON" in their id) does this slot's progression
-      // refuse to skip a tier — every other armor line stays unrestricted like weapons/equipment/pets.
-      // The next power tier only unlocks once the current one's real star cap is reached (e.g. base
-      // Crimson at 10✩ -> Hot Crimson at 0✩); before that, only the current tier (its own sidegrades,
-      // if any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
+      // User-specified exception: only while currently wearing a real Kuudra-family piece (base/
+      // Hot/Burning/Fiery/Infernal armor from one of the 5 real families — see
+      // lib/armorVariants.js's ARMOR_VARIANT_FAMILIES) does this slot's progression refuse to skip
+      // a tier — every other armor line stays unrestricted like weapons/equipment/pets. The next
+      // power tier only unlocks once the current one's real star cap is reached (e.g. base Crimson
+      // at 10✩ -> Hot Crimson at 0✩); before that, only the current tier (its own sidegrades, if
+      // any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
       let maxIndexOverride;
-      if (category === 'Armor' && !!currentId?.includes('CRIMSON')) {
+      if (category === 'Armor' && ARMOR_VARIANT_FAMILIES.some((family) => currentId?.includes(family))) {
         const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
         const starsMaxed = currentIndex !== -1 && currentItem && (currentModifiers?.stars || 0) >= getMaxStarsForItem(currentItem);
         maxIndexOverride = starsMaxed ? effectiveIndex + 1 : effectiveIndex;
@@ -566,7 +597,20 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         },
         maxIndexOverride,
       );
-      results.push(...evaluated);
+      slotResults.push(...evaluated);
+    }
+    // Named chains can share prefix tiers (every Kuudra family's helmet chain starts at the same
+    // Tarantula Helmet tier; every other Kuudra slot's chain starts at the same Shadow Assassin ->
+    // Necron's Armor pair) — resolveChainsToWalk correctly walks every chain the current item is
+    // found in, but a shared prefix step then gets evaluated once per matching chain. Dedupe by
+    // real item id (+ special value, so Crown of Avarice's separate Coins Consumed tiers don't
+    // collide) so a shared step only ever shows once.
+    const seenKeys = new Set();
+    for (const r of slotResults) {
+      const key = `${r.itemId}:${r.special ?? ''}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      results.push(r);
     }
   }
   return results;

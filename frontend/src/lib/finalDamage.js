@@ -45,6 +45,20 @@ function isJokeMob(mob) {
   return !!mob?.name && getMobLocations(mob.name).some((loc) => JOKE_LOCATIONS.has(loc));
 }
 
+// Inferno Demonlord (Blaze Slayer Tier 4 boss) only takes real damage from the two Blaze Slayer
+// dagger lines (Firedust->Burstfire->Heartfire, Twilight/Mawdust->Burstmaw->Heartmaw) — every
+// other weapon deals it zero, in-game (user-confirmed 2026-08-23). Same hard-override treatment
+// as isJokeMob above: checked before any real formula logic, not a bonus/penalty multiplier.
+// ponytail: single hardcoded mob; generalize into a per-mob weapon allowlist if another one turns up.
+const DAGGER_ONLY_MOBS = new Set(['Inferno Demonlord']);
+const DAGGER_LINE_WEAPON_IDS = new Set([
+  'FIREDUST_DAGGER', 'BURSTFIRE_DAGGER', 'HEARTFIRE_DAGGER',
+  'MAWDUST_DAGGER', 'BURSTMAW_DAGGER', 'HEARTMAW_DAGGER',
+]);
+function isBlockedByDaggerRestriction(mob, weaponId) {
+  return !!mob?.name && DAGGER_ONLY_MOBS.has(mob.name) && !DAGGER_LINE_WEAPON_IDS.has(weaponId);
+}
+
 // A `condition` string is comma-separated ("Undead, Skeletal, Wither"); each token is either
 // a canonical Mob Type name (matched against the target's own types), the collective "Sea
 // Creatures" grouping (Flaming Flay/Soul Whip) or its narrower "Lava Sea Creatures" subset
@@ -89,7 +103,7 @@ function selectBaseStats(sources, useDungeonizedStats, useMasterMode) {
 // entries) — used by computeDpsBreakdown below for its steady-state hit, since those enchants only
 // fire on a fight's opening hit(s), not every hit.
 export function computeFinalDamage(sources, mob, useDungeonizedStats = false, useMasterMode = false, excludeFirstHitOnly = false) {
-  if (isJokeMob(mob)) {
+  if (isJokeMob(mob) || isBlockedByDaggerRestriction(mob, sources.weaponId)) {
     return {
       initialDamage: 0,
       additiveMultiplier: 1,
@@ -202,7 +216,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   const table = ABILITY_DAMAGE_TABLE[weaponId];
   if (!table) return null;
 
-  if (isJokeMob(mob)) {
+  if (isJokeMob(mob) || isBlockedByDaggerRestriction(mob, weaponId)) {
     return {
       baseDamage: table.base,
       scaling: table.scaling,
