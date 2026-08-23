@@ -101,10 +101,14 @@ export function getModeConfig(mode, useMasterMode = false) {
 // power tier at a time — Hot before Burning before Fiery before Infernal — matching
 // lib/armorVariants.js's VARIANT_TIERS stat-confirmed ascending order. Flag if Hot/Burning/Fiery
 // should rank differently against Warden/Crown of Avarice specifically; the within-family
-// Hot<Burning<Fiery<Infernal order itself is confirmed. Aurora/Fervor/Hollow/Terror have no such
+// Hot<Burning<Fiery<Infernal order itself is confirmed. Aurora/Fervor/Hollow have no such
 // extra step — their own chains are the same tiers minus Warden/CoA, one flat named chain per
 // family (see resolveChainsToWalk; evaluateItemSlotCandidates dedupes the shared Tarantula Helmet
 // tier-0 that every family's chain repeats).
+// Terror is user-excluded from Slayer's armor progression (2026-08-23) — never offered as an
+// upgrade here, though ARMOR_VARIANT_FAMILIES itself (icons, tier badges, gemstone slot counting,
+// etc.) still covers it, since none of that is Slayer-specific.
+const SLAYER_KUUDRA_FAMILIES = ARMOR_VARIANT_FAMILIES.filter((family) => family !== 'TERROR');
 function kuudraHelmetTierChain(family) {
   return [
     [{ id: 'TARANTULA_HELMET' }],
@@ -135,7 +139,6 @@ const SLAYER_HELMET_PROGRESSION = {
   AURORA: kuudraHelmetTierChain('AURORA'),
   FERVOR: kuudraHelmetTierChain('FERVOR'),
   HOLLOW: kuudraHelmetTierChain('HOLLOW'),
-  TERROR: kuudraHelmetTierChain('TERROR'),
 };
 
 // Chestplate/Leggings/Boots share the same chain shape ("other armor" in the user's spec):
@@ -146,7 +149,7 @@ const SLAYER_HELMET_PROGRESSION = {
 function otherArmorProgression(slot) {
   const suffix = slot.toUpperCase();
   return Object.fromEntries(
-    ARMOR_VARIANT_FAMILIES.map((family) => [
+    SLAYER_KUUDRA_FAMILIES.map((family) => [
       family,
       [
         [{ id: `SHADOW_ASSASSIN_${suffix}` }],
@@ -882,13 +885,22 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
   return results;
 }
 
+// User-specified (2026-08-23): Slayer only ever considers these 7 real Power Stones — every
+// other real one (Warrior, Forceful, Sanguisuge, ...) is excluded outright rather than ranked low,
+// same "narrow the real candidate pool, not the formula" treatment as evaluateGemstoneCandidates'
+// RELEVANT_GEMS_BY_METRIC. Treated as sidegrades (no forced order) — the normal flat brute-force
+// comparison below already does that, so no chain/tier structure is needed for them.
+const SLAYER_POWER_STONE_IDS = new Set(['BLOODY', 'ITCHY', 'SCORCHING', 'SHADED', 'SILKY', 'STRONG', 'HURTFUL']);
+
 // Brute-forces every real Power Stone (lib/accessoryPowers.js's STONE_POWERS — already fully
-// modeled real stats, no hand-authored ranking needed) against whichever is currently selected.
-async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob) {
+// modeled real stats, no hand-authored ranking needed) against whichever is currently selected —
+// narrowed to SLAYER_POWER_STONE_IDS for Slayer mode specifically (see above).
+async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   if (!loadout.accessory?.item) return [];
   const currentId = loadout.accessory.item.id;
+  const candidatePowers = mode === 'slayer' ? STONE_POWERS.filter((p) => SLAYER_POWER_STONE_IDS.has(p.id)) : STONE_POWERS;
   const results = [];
-  for (const power of STONE_POWERS) {
+  for (const power of candidatePowers) {
     if (power.id === currentId) continue;
     // Same {id, name, iconId, material} shape AccessoryPowerPicker.jsx's own selectItem call uses.
     const powerItem = { id: power.id, name: power.name, iconId: power.sourceItemId || null, material: power.sourceItemId ? 'SKULL' : 'BOOK' };
@@ -1279,7 +1291,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
-    evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
