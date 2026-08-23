@@ -27,7 +27,7 @@ export default function PageBackground() {
     <div className="fixed inset-0 -z-10 overflow-hidden">
       <img
         key={zoneStyle.image}
-        className="w-full h-full object-cover animate-[bg-video-fade-in_600ms_ease-out]"
+        className="w-full h-full object-cover animate-[bg-video-fade-in_600ms_ease-out] brightness-[0.85]"
         src={zoneStyle.image}
         alt=""
       />
