@@ -574,6 +574,12 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
           if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
           if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+          // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
+          // first written — a candidate with real gemstones stripped off looked artificially worse
+          // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
+          // value" bug stars had (user-confirmed 2026-08-23). Carried blind, same as reforge/stars —
+          // a socket-count mismatch between old and new item is a rare edge, not worth reconciling.
+          if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
           // Compare a starrable candidate at ITS real max stars, not bare — same "real best-case"
           // treatment as special/rarityOverride above (Crown of Avarice/David's Cloak) and pet
           // candidates elsewhere in this file. Without this, a candidate that's a genuinely better
@@ -592,6 +598,11 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
           if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot, count: candidateMaxStars });
           if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+          if (currentModifiers?.gemstones?.length) {
+            currentModifiers.gemstones.forEach((g, index) => {
+              if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
+            });
+          }
           if (currentModifiers?.ultimateEnchantment) {
             apply.push({
               type: 'applyEnchant',
@@ -676,9 +687,15 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       const modifiers = emptyModifiers();
       if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
       candidateLoadout[slot] = { item: resolved, modifiers };
       apply.push({ type: 'selectItem', slot, item: resolved });
       if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+      if (currentModifiers?.gemstones?.length) {
+        currentModifiers.gemstones.forEach((g, index) => {
+          if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
+        });
+      }
       if (currentModifiers?.ultimateEnchantment) {
         apply.push({
           type: 'applyEnchant',
@@ -733,6 +750,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       if (reforgeName) modifiers.reforge = reforgeName;
       if (candidate.special != null) modifiers.special = candidate.special;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
       // Same "compare at real best-case" fix as evaluateItemSlotCandidates — a starrable weapon
       // candidate (Hyperion, etc.) compared bare against a currently-equipped weapon the player
       // already starred understates the swap's true value the same way an unstarred Hot Crimson
@@ -745,6 +763,11 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
       if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: candidate.special });
       if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot: 'weapon', count: candidateMaxStars });
+      if (currentModifiers?.gemstones?.length) {
+        currentModifiers.gemstones.forEach((g, index) => {
+          if (g) apply.push({ type: 'setGemstone', slot: 'weapon', index, gem: g.gem, tier: g.tier });
+        });
+      }
       if (currentModifiers?.ultimateEnchantment) {
         apply.push({
           type: 'applyEnchant',
