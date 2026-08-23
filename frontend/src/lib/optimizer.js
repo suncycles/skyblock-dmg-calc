@@ -50,6 +50,7 @@ import { getMaxStarsForItem, isStarrableItem, MASTER_STAR_MIN_BASE_STARS, MAX_MA
 import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
+import { getApplicableReforges } from './reforgeData';
 
 export const OPTIMIZER_MODES = [
   { id: 'slayer', label: 'Slayer' },
@@ -922,47 +923,78 @@ async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, m
   return results;
 }
 
-// Reforges: user-curated worst -> best progression, not brute-forced (the full reforge catalog
-// is ~130 entries, mostly irrelevant to armor/equipment) — confirmed real names + real itemTypes
-// against NEU-REPO's reforges.json (blacksmith)/reforgestones.json (stone): Pure/Fierce and
-// Renowned/Ancient are ARMOR-typed; Blended/Menacing/Strengthened are EQUIPMENT-typed; Bloodshot
-// (Shriveled Cornea stone) is real itemTypes "BELT" specifically, so it's only offered there.
+// Armor reforges: user-curated worst -> best progression (Pure/Fierce -> Renowned/Ancient),
+// confirmed real names + real itemTypes against NEU-REPO's reforges.json (blacksmith)/
+// reforgestones.json (stone). Equipment reforges are brute-forced instead (see
+// evaluateEquipmentReforgeCandidates below, user-specified 2026-08-22) — armor keeps a hand-picked
+// list since it has a real worst->best order; equipment's real applicable set differs per item
+// (Bloodshot only fits Belts, etc.) so there's no one order to hand-author.
 const ARMOR_REFORGE_PROGRESSION = [
   [{ name: 'Pure' }, { name: 'Fierce' }],
   [{ name: 'Renowned' }, { name: 'Ancient' }],
 ];
-const EQUIPMENT_REFORGE_CANDIDATES = [{ name: 'Blended' }, { name: 'Strengthened' }, { name: 'Menacing' }];
-const BELT_REFORGE_CANDIDATE = { name: 'Bloodshot' };
-
-function reforgeProgressionForSlot(slot) {
-  if (ARMOR_SLOTS.includes(slot)) return ARMOR_REFORGE_PROGRESSION;
-  const candidates = slot === 'belt' ? [...EQUIPMENT_REFORGE_CANDIDATES, BELT_REFORGE_CANDIDATE] : EQUIPMENT_REFORGE_CANDIDATES;
-  return [candidates]; // one flat tier — no worst->best order given for equipment
-}
 
 // Reforge is a modifier change on the item already equipped (not a gear swap), same treatment as
-// Stars below — goes into `otherResults`, not the dedicated per-slot gear picker. Uses the same
-// full-ladder walk as armor/equipment pieces since armor's list has a real worst->best order.
-async function evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
+// Stars below — goes into `otherResults`, not the dedicated per-slot gear picker.
+async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
   const results = [];
-  for (const slot of [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS]) {
+  for (const slot of ARMOR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped?.item) continue;
-    const progression = reforgeProgressionForSlot(slot);
     const currentName = equipped.modifiers.reforge || null;
-    const currentIndex = findTierIndex(progression, (c) => c.name === currentName);
-    const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.name === currentName, baselineValue, async (candidate) => {
-      const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: candidate.name } } };
+    const currentIndex = findTierIndex(ARMOR_REFORGE_PROGRESSION, (c) => c.name === currentName);
+    const evaluated = await evaluateTieredProgression(
+      ARMOR_REFORGE_PROGRESSION,
+      currentIndex,
+      (c) => c.name === currentName,
+      baselineValue,
+      async (candidate) => {
+        const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: candidate.name } } };
+        const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+        return {
+          category: 'Reforge',
+          slot,
+          label: `${formatItemName(equipped.item.name)} — ${candidate.name}`,
+          value,
+          apply: [{ type: 'applyReforge', slot, name: candidate.name }],
+        };
+      },
+    );
+    results.push(...evaluated);
+  }
+  return results;
+}
+
+// Equipment reforges: brute-forced against the full real catalog (NEU-REPO's reforges.json +
+// reforgestones.json, ~130 entries total) via getApplicableReforges — the same "small enumerable
+// real catalog this app's damage pipeline already fully understands" pattern Enchants/Pet Items/
+// Power Stones already use, not a hand-picked list (user-specified, 2026-08-22; this used to be a
+// curated Blended/Strengthened/Menacing/Bloodshot list, same shape as armor's). Percent increase
+// isn't computed here — these go through runOptimizer's withPercent, same as every other true
+// brute-force category, unlike armor's tiered walk above which computes its own while deciding
+// whether to advance a tier.
+async function evaluateEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob) {
+  const results = [];
+  for (const slot of EQUIPMENT_SLOTS) {
+    const equipped = loadout[slot];
+    if (!equipped?.item) continue;
+    const currentName = equipped.modifiers.reforge || null;
+    const applicable = [
+      ...getApplicableReforges(itemData.reforges, equipped.item),
+      ...getApplicableReforges(itemData.reforgeStones, equipped.item),
+    ];
+    for (const reforge of applicable) {
+      if (reforge.name === currentName) continue;
+      const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: reforge.name } } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-      return {
+      results.push({
         category: 'Reforge',
         slot,
-        label: `${formatItemName(equipped.item.name)} — ${candidate.name}`,
+        label: `${formatItemName(equipped.item.name)} — ${reforge.name}`,
         value,
-        apply: [{ type: 'applyReforge', slot, name: candidate.name }],
-      };
-    });
-    results.push(...evaluated);
+        apply: [{ type: 'applyReforge', slot, name: reforge.name }],
+      });
+    }
   }
   return results;
 }
@@ -1068,37 +1100,54 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode, build.useMasterMode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
 
-  const [weapons, armor, equipment, pets, enchants, ultimates, armorUltimates, powers, stars, masterStars, reforges, recombs, petItems, fullSets] =
-    await Promise.all([
-      evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
-      evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
-      evaluateItemSlotCandidates(
-        loadout,
-        itemData,
-        build,
-        modeConfig,
-        mob,
-        baselineValue,
-        EQUIPMENT_SLOTS,
-        EQUIPMENT_PROGRESSION_BY_MODE[mode],
-        'Equipment',
-      ),
-      evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
-      evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
-      evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
-      evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
-      evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
-    ]);
+  const [
+    weapons,
+    armor,
+    equipment,
+    pets,
+    enchants,
+    ultimates,
+    armorUltimates,
+    powers,
+    stars,
+    masterStars,
+    armorReforges,
+    equipmentReforges,
+    recombs,
+    petItems,
+    fullSets,
+  ] = await Promise.all([
+    evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+    evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
+    evaluateItemSlotCandidates(
+      loadout,
+      itemData,
+      build,
+      modeConfig,
+      mob,
+      baselineValue,
+      EQUIPMENT_SLOTS,
+      EQUIPMENT_PROGRESSION_BY_MODE[mode],
+      'Equipment',
+    ),
+    evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+    evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
+    evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
+    evaluateEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
+  ]);
 
-  // Armor/equipment/pet/reforge results already carry their own real percentIncrease
+  // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
   // (evaluateTieredProgression computes it while walking tiers, since it needs the value to decide
-  // whether to advance) — only the non-tiered categories below still need it computed here. Same
+  // whether to advance) — only the non-tiered categories below (including equipment reforges,
+  // brute-forced now, see evaluateEquipmentReforgeCandidates) still need it computed here. Same
   // 0-baseline handling as evaluateTieredProgression (see its comment) — a hardcoded 0 used to
   // silently discard every real candidate whenever the mode's damage number started at exactly 0.
   const withPercent = (list) =>
@@ -1116,8 +1165,19 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   }
 
   const otherResults = [
-    ...withPercent([...enchants, ...ultimates, ...armorUltimates, ...powers, ...stars, ...masterStars, ...recombs, ...petItems, ...fullSets]),
-    ...reforges,
+    ...withPercent([
+      ...enchants,
+      ...ultimates,
+      ...armorUltimates,
+      ...powers,
+      ...stars,
+      ...masterStars,
+      ...equipmentReforges,
+      ...recombs,
+      ...petItems,
+      ...fullSets,
+    ]),
+    ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
   for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = slots[slot].map((r) => withCost(r, itemData));
