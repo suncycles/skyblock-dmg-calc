@@ -12,7 +12,7 @@ import PageHeader from '../components/PageHeader';
 import WeaponIcon from '../components/WeaponIcon';
 import NumberInput from '../components/NumberInput';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
-import { ENCHANTED_BOOK_ICON } from '../lib/icons';
+import { ENCHANTED_BOOK_ICON, getGemstoneIcon } from '../lib/icons';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -32,6 +32,7 @@ const CATEGORY_COLORS = {
   Reforge: '#60a5fa',
   Recombobulator: '#818cf8',
   'Pet Item': '#f472b6',
+  Gemstone: '#e879f9',
   'New Accessory': '#4ade80',
   Recombobulate: '#818cf8',
   'Perfect Gemstones': '#a78bfa',
@@ -65,6 +66,7 @@ function compareResults(a, b, sortBy) {
 function UpgradeRow({ result, onSwapIn }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
+  const isGemstone = result.category === 'Gemstone';
   const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
     <button
@@ -73,7 +75,11 @@ function UpgradeRow({ result, onSwapIn }) {
       title="Click to equip this upgrade"
       className="w-full flex items-center gap-2 px-3 py-2 bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 cursor-pointer text-left transition-colors"
     >
-      {result.itemId || result.material ? (
+      {isGemstone ? (
+        <div className="relative shrink-0 w-6 h-6">
+          <img src={getGemstoneIcon(result.gem, result.tier)} alt="" className="w-6 h-6 pixelated" />
+        </div>
+      ) : result.itemId || result.material ? (
         <div className="relative shrink-0 w-6 h-6">
           <WeaponIcon id={result.itemId} material={result.material} alt="" className="w-6 h-6 pixelated" />
           {badge && (

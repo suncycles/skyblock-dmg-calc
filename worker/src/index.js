@@ -75,6 +75,13 @@ const PRICED_EXTRA_IDS = [
   "PERFECT_PERIDOT_GEM", "PERFECT_RUBY_GEM", "PERFECT_SAPPHIRE_GEM", "PERFECT_TOPAZ_GEM",
 ];
 
+// The 6 real combat gemstones (frontend/src/lib/gemstoneData.js's GEMSTONE_IDS) x 5 real tiers
+// (GEMSTONE_TIERS) — optimizer.js's evaluateGemstoneCandidates brute-forces every one of these 30
+// combos per socket, so pricing.js needs a real cost for each, not just the Perfect tier above
+// (which accessoryOptimizer.js uses for an unrelated "cheapest floor" estimate).
+const GEM_TYPES = ["RUBY", "JASPER", "SAPPHIRE", "AMETHYST", "ONYX", "OPAL"];
+const GEM_TIERS = ["ROUGH", "FLAWED", "FINE", "FLAWLESS", "PERFECT"];
+
 // The raw SkyHelper price map has ~14K entries covering the whole Bazaar/AH; the app only ever
 // looks up a few hundred of them (real gear/pet/enchant ids). Shipping the full map to every
 // client cost ~860KB of the ~2MB /api/items payload for prices nothing here will ever read —
@@ -85,6 +92,9 @@ function pruneItemPrices(itemPrices, catalog) {
   const keep = new Set(PRICED_EXTRA_IDS);
   for (const item of [...catalog.weapons, ...catalog.armor, ...catalog.equipment, ...catalog.petItems, ...catalog.accessories, ...catalog.powerStones]) {
     if (item.id) keep.add(item.id);
+  }
+  for (const tier of GEM_TIERS) {
+    for (const gem of GEM_TYPES) keep.add(`${tier}_${gem}_GEM`);
   }
   const pruned = {};
   for (const [id, price] of Object.entries(itemPrices)) {

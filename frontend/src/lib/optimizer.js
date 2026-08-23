@@ -26,8 +26,9 @@
 //   tracks). See resolveChainsToWalk for the shared "walk the chain(s) the player already owns,
 //   or every chain from scratch" rule both cases use.
 // - Brute-forced against real, already-modeled data — enchant levels, ultimate enchant choice,
-//   Power Stones, Stars, and Pet Items all have a small enumerable real catalog this app's damage pipeline
-//   already fully understands, so every real option is tested directly; no hand-authored list needed.
+//   Power Stones, Stars, Pet Items, weapon/equipment Reforges, and Gemstones all have a small
+//   enumerable real catalog this app's damage pipeline already fully understands, so every real
+//   option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
 import { computeAbilityDamage, computeDpsBreakdown, computeMageStaffBeamDamage } from './finalDamage';
@@ -53,6 +54,8 @@ import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTIO
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
 import { getApplicableReforges } from './reforgeData';
+import { countGemstoneSlots } from './gemstones';
+import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
 export const OPTIMIZER_MODES = [
   { id: 'slayer', label: 'Slayer' },
@@ -568,11 +571,23 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
           if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
           if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+          // Compare a starrable candidate at ITS real max stars, not bare — same "real best-case"
+          // treatment as special/rarityOverride above (Crown of Avarice/David's Cloak) and pet
+          // candidates elsewhere in this file. Without this, a candidate that's a genuinely better
+          // item (e.g. Hot Crimson Helmet) but starts at 0 stars looks like a sidegrade or worse
+          // against a currently-equipped item the player has already invested real stars into —
+          // understating the swap's true value exactly the way the reforge/enchant carry-over
+          // above already exists to prevent. Confirmed real regression case: Basic Crimson Helmet
+          // at 10 stars vs Hot Crimson Helmet at 0 stars computed as a flat 0% "improvement",
+          // silently hiding a genuine +3% once Hot is also compared at its own 10-star cap.
+          const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
+          if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
           const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
           const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
           const apply = [{ type: 'selectItem', slot, item: resolved }];
           if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
+          if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot, count: candidateMaxStars });
           if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
           if (currentModifiers?.ultimateEnchantment) {
             apply.push({
@@ -715,11 +730,18 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       if (reforgeName) modifiers.reforge = reforgeName;
       if (candidate.special != null) modifiers.special = candidate.special;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      // Same "compare at real best-case" fix as evaluateItemSlotCandidates — a starrable weapon
+      // candidate (Hyperion, etc.) compared bare against a currently-equipped weapon the player
+      // already starred understates the swap's true value the same way an unstarred Hot Crimson
+      // Helmet did against a maxed Basic Crimson Helmet.
+      const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
+      if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
       const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
       if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: candidate.special });
+      if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot: 'weapon', count: candidateMaxStars });
       if (currentModifiers?.ultimateEnchantment) {
         apply.push({
           type: 'applyEnchant',
@@ -1025,17 +1047,18 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
   return results;
 }
 
-// Equipment reforges: brute-forced against the full real catalog (NEU-REPO's reforges.json +
-// reforgestones.json, ~130 entries total) via getApplicableReforges — the same "small enumerable
+// Weapon/equipment reforges: brute-forced against the full real catalog (NEU-REPO's reforges.json
+// + reforgestones.json, ~130 entries total) via getApplicableReforges — the same "small enumerable
 // real catalog this app's damage pipeline already fully understands" pattern Enchants/Pet Items/
-// Power Stones already use, not a hand-picked list (user-specified, 2026-08-22; this used to be a
-// curated Blended/Strengthened/Menacing/Bloodshot list, same shape as armor's). Percent increase
-// isn't computed here — these go through runOptimizer's withPercent, same as every other true
-// brute-force category, unlike armor's tiered walk above which computes its own while deciding
-// whether to advance a tier.
-async function evaluateEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob) {
+// Power Stones already use, not a hand-picked list (user-specified, 2026-08-22 for equipment; the
+// weapon slot joined it 2026-08-23 — a sword has no single real worst->best reforge order the way
+// armor does, same reason equipment isn't a curated list either). Percent increase isn't computed
+// here — these go through runOptimizer's withPercent, same as every other true brute-force
+// category, unlike armor's tiered walk above which computes its own while deciding whether to
+// advance a tier.
+async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
-  for (const slot of EQUIPMENT_SLOTS) {
+  for (const slot of ['weapon', ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item) continue;
     const currentName = equipped.modifiers.reforge || null;
@@ -1054,6 +1077,67 @@ async function evaluateEquipmentReforgeCandidates(loadout, itemData, build, mode
         value,
         apply: [{ type: 'applyReforge', slot, name: reforge.name }],
       });
+    }
+  }
+  return results;
+}
+
+const GEMSTONE_TIER_LABELS = { rough: 'Rough', flawed: 'Flawed', fine: 'Fine', flawless: 'Flawless', perfect: 'Perfect' };
+
+// User-specified scope (2026-08-23): only the gem that actually feeds each mode's optimized
+// number, not all 6 — Jasper (Strength)/Onyx (Crit Damage) for melee DPS (Slayer, Dungeon/
+// Archer), Sapphire (Intelligence) for Ability Damage (Mage, Dungeon/Mage Ability), and both
+// Sapphire + Onyx for Mage Staff Beam (its formula is MeleeFinalDamage * (0.3 + 0.0009 *
+// Intelligence) — Beam depends on melee Final Damage too, hence Onyx alongside Sapphire). Keyed
+// by modeConfig.metric ('dps'/'ability'/'beam') rather than the mode id directly since that's
+// what actually determines gem relevance, and it's already how every other mode-specific formula
+// choice in this file is keyed.
+const RELEVANT_GEMS_BY_METRIC = {
+  dps: ['JASPER', 'ONYX'],
+  ability: ['SAPPHIRE'],
+  beam: ['SAPPHIRE', 'ONYX'],
+};
+// User-specified: only Fine tier and up (Rough/Flawed excluded) — GEMSTONE_TIERS is already
+// ascending, so this is everything from 'fine' onward.
+const GEMSTONE_TIERS_FINE_UP = GEMSTONE_TIERS.slice(GEMSTONE_TIERS.indexOf('fine'));
+
+// Gemstones: brute-forced against the real gem(s)/tiers relevant to the mode being optimized (see
+// RELEVANT_GEMS_BY_METRIC/GEMSTONE_TIERS_FINE_UP above) per socket on every armor piece and the
+// weapon — lib/gemstones.js's own comment confirms slot-type restrictions aren't modeled in this
+// app (any of the 6 gems fits any slot in-game too), so the narrowing here is purely "which gem
+// moves this mode's number," not a real slot restriction. An already-socketed slot skips only its
+// own current (gem, tier) so the list never "suggests" what's already equipped there. Equipment is
+// excluded (only 1 of 143 real equipment items has a gemstone slot at all) — user-specified scope
+// was armor + sword.
+async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob) {
+  const relevantGems = RELEVANT_GEMS_BY_METRIC[modeConfig.metric] || [];
+  const results = [];
+  for (const slot of [...ARMOR_SLOTS, 'weapon']) {
+    const equipped = loadout[slot];
+    if (!equipped?.item) continue;
+    const slotCount = countGemstoneSlots(equipped.item.lore);
+    if (slotCount === 0) continue;
+    const currentGemstones = equipped.modifiers.gemstones || [];
+    for (let index = 0; index < slotCount; index++) {
+      const current = currentGemstones[index];
+      for (const gem of relevantGems) {
+        for (const tier of GEMSTONE_TIERS_FINE_UP) {
+          if (current && current.gem === gem && current.tier === tier) continue;
+          const newGemstones = currentGemstones.slice();
+          newGemstones[index] = { gem, tier };
+          const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, gemstones: newGemstones } } };
+          const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+          results.push({
+            category: 'Gemstone',
+            slot,
+            label: `${formatItemName(equipped.item.name)} — Slot ${index + 1}: ${GEMSTONE_TIER_LABELS[tier]} ${GEMSTONES[gem].label}`,
+            gem,
+            tier,
+            value,
+            apply: [{ type: 'setGemstone', slot, index, gem, tier }],
+          });
+        }
+      }
     }
   }
   return results;
@@ -1172,10 +1256,11 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     stars,
     masterStars,
     armorReforges,
-    equipmentReforges,
+    weaponAndEquipmentReforges,
     recombs,
     petItems,
     fullSets,
+    gemstones,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
@@ -1198,18 +1283,20 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
-    evaluateEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
     evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob),
   ]);
 
   // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
   // (evaluateTieredProgression computes it while walking tiers, since it needs the value to decide
-  // whether to advance) — only the non-tiered categories below (including equipment reforges,
-  // brute-forced now, see evaluateEquipmentReforgeCandidates) still need it computed here. Same
-  // 0-baseline handling as evaluateTieredProgression (see its comment) — a hardcoded 0 used to
-  // silently discard every real candidate whenever the mode's damage number started at exactly 0.
+  // whether to advance) — only the non-tiered categories below (including weapon/equipment
+  // reforges and gemstones, both true brute-forces, see evaluateWeaponAndEquipmentReforgeCandidates
+  // / evaluateGemstoneCandidates) still need it computed here. Same 0-baseline handling as
+  // evaluateTieredProgression (see its comment) — a hardcoded 0 used to silently discard every
+  // real candidate whenever the mode's damage number started at exactly 0.
   const withPercent = (list) =>
     list
       .map((r) => ({
@@ -1232,10 +1319,11 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...powers,
       ...stars,
       ...masterStars,
-      ...equipmentReforges,
+      ...weaponAndEquipmentReforges,
       ...recombs,
       ...petItems,
       ...fullSets,
+      ...gemstones,
     ]),
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
@@ -1290,6 +1378,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'toggleRecombobulated':
         build.toggleRecombobulated(step.slot);
+        break;
+      case 'setGemstone':
+        build.applyGemstone(step.slot, step.index, step.gem, step.tier);
         break;
       default:
         break;
