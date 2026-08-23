@@ -237,6 +237,22 @@ const SLAYER_WEAPON_PROGRESSION = {
   wolf: [[{ id: 'SHAMAN_SWORD' }], [{ id: 'POOCH_SWORD' }]],
 };
 
+// User-specified (2026-08-23): Slayer weapon suggestions are restricted to whichever chain(s)
+// actually match the real target mob's own type (lib/damageSymbols.js's MOB_TYPE_SYMBOLS names,
+// e.g. Voidgloom Seraph is Ender) — a player grinding Enderman Slayer shouldn't see Undead Sword
+// suggested just because their current weapon doesn't match any chain yet. Infernal maps to BOTH
+// dagger lines (Blaze Slayer hands out either depending on which Infernal-type mob you're
+// fighting). No entry for Vampire (Riftstalker Bloodfiend) — SLAYER_WEAPON_PROGRESSION has no real
+// chain for it yet, so it correctly falls through to "no weapon suggestions" rather than showing
+// every other Slayer's weapons.
+const SLAYER_MOB_TYPE_TO_WEAPON_CHAINS = {
+  Undead: ['zombie'],
+  Arthropod: ['spider'],
+  Ender: ['enderman'],
+  Infernal: ['blaze_fire', 'blaze_maw'],
+  Animal: ['wolf'],
+};
+
 // Mage progression (user-specified, 2026-08-22) — armor/equipment/pet shared by Mage, Dungeon/
 // Mage Beam, and Dungeon/Mage Ability (same curated gear; differ only in which damage number they
 // optimize, via MODE_CONFIG). Weapons are the exception: Dungeon/Mage Beam has its own distinct
@@ -592,16 +608,14 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
           const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
           const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+          // No explicit star-count apply step needed — BuildContext's own selectItem now handles
+          // the real swap-in outcome itself (Kuudra armor resets to 0, everything else persists
+          // its current stars), the same rule whether reached from here or from Hex directly. Only
+          // the RANKED VALUE above still needs the max-stars assumption, so a Kuudra tier-up isn't
+          // hidden behind a misleadingly small 0-star comparison (see the big comment above).
           const apply = [{ type: 'selectItem', slot, item: resolved }];
           if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
-          // But the actual SWAP-IN action resets stars to 0, not the assumed max — user-specified
-          // (2026-08-23): a real tier upgrade (Basic -> Hot) is a brand new item that hasn't
-          // actually been re-starred yet, so clicking the suggestion shouldn't hand over 10 free
-          // stars the player never earned. Manually re-picking the same item via Hex still keeps
-          // BuildContext's own stash-and-restore behavior (unrelated to this apply path) — this
-          // only affects the Optimizer's own swap-in action.
-          if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot, count: 0 });
           if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
           if (currentModifiers?.gemstones?.length) {
             currentModifiers.gemstones.forEach((g, index) => {
@@ -731,8 +745,13 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
 // list) do all chains get walked from tier 0, same bare-item comparison and apply shape as
 // evaluateItemSlotCandidates above, just without a slot-keyed progression map.
 async function evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
-  const chains = WEAPON_PROGRESSION_BY_MODE[mode];
+  let chains = WEAPON_PROGRESSION_BY_MODE[mode];
   if (!chains) return [];
+  if (mode === 'slayer') {
+    const allowedKeys = new Set((mob?.types || []).flatMap((t) => SLAYER_MOB_TYPE_TO_WEAPON_CHAINS[t] || []));
+    chains = Object.fromEntries(Object.entries(chains).filter(([key]) => allowedKeys.has(key)));
+    if (Object.keys(chains).length === 0) return [];
+  }
   const currentModifiers = loadout.weapon?.modifiers;
   const currentId = loadout.weapon?.item?.id || null;
   const results = [];
@@ -764,13 +783,14 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
       const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers } };
       const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      // No explicit star-count apply step — a weapon is never Kuudra armor, so BuildContext's own
+      // selectItem already persists its current stars onto the new one (clamped to its real cap)
+      // on swap-in, same as a direct Hex pick would. Only the RANKED VALUE above needs the
+      // max-stars assumption, for the same "don't hide a real upgrade behind a 0-star comparison"
+      // reason evaluateItemSlotCandidates does.
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
       if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: candidate.special });
-      // Ranked value assumes real max stars (above); the swap-in action itself resets to 0 — same
-      // user-specified reasoning as evaluateItemSlotCandidates (a weapon tier upgrade is a new item
-      // that hasn't been re-starred yet, so clicking shouldn't hand over free stars).
-      if (candidateMaxStars > 0) apply.push({ type: 'setStarCount', slot: 'weapon', count: 0 });
       if (currentModifiers?.gemstones?.length) {
         currentModifiers.gemstones.forEach((g, index) => {
           if (g) apply.push({ type: 'setGemstone', slot: 'weapon', index, gem: g.gem, tier: g.tier });

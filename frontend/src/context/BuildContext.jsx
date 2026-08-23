@@ -6,6 +6,7 @@ import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
 import { getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from '../lib/petData';
+import { ARMOR_VARIANT_FAMILIES } from '../lib/armorVariants';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
@@ -526,21 +527,32 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
+  // Kuudra armor (any of the 5 real families, any power tier — see ARMOR_VARIANT_FAMILIES) never
+  // carries its stars to a different piece in real Hypixel, even within the same family: Basic ->
+  // Hot is a genuinely new item. Every other piece is much cheaper to re-star in practice, so its
+  // stars persist across a swap instead (user-specified 2026-08-23).
+  function isKuudraArmorId(id) {
+    return !!id && ARMOR_VARIANT_FAMILIES.some((family) => id.includes(family));
+  }
+
   // Equips `item` into `slot`, resetting modifiers to defaults — except Accessory, whose Magical
   // Power/Tuning carry over across Power Stone switches, and weapon/armor/equipment, which restore
-  // whatever modifiers (recomb, enchants, gemstones, stars, reforge, ...) were last seen in this
-  // slot (stashed by removeSlot below — the only way to reach here for a non-empty slot is
-  // remove-then-repick, so `prev[slot]` is already gone by now). Stars/masterStars are reclamped
-  // to the new item's own real cap; every other field carries over blind, same as Accessory always
-  // has — a mismatched reforge/gemstone count for the new item is a rare edge the relevant picker
-  // already surfaces, not something worth reconciling here.
+  // whatever modifiers (recomb, enchants, gemstones, reforge, ...) were last seen in this slot
+  // (stashed by removeSlot below — the only way to reach here for a non-empty slot is
+  // remove-then-repick, so `prev[slot]` is already gone by then). Every field but stars carries
+  // over blind, same as Accessory always has — a mismatched reforge/gemstone count for the new
+  // item is a rare edge the relevant picker already surfaces, not something worth reconciling
+  // here. Stars are handled separately below (isKuudraArmorId) and read straight off `prev[slot]`
+  // — the item actually being replaced — rather than only the remove-then-repick stash, so a
+  // direct swap (the common path, both from Hex and from a Recommended Upgrade) carries them too.
   const selectItem = useCallback((slot, item) => {
     setLoadout((prev) => {
       const stashed = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
       let gearModifiers = stashed ? { ...emptyModifiers(), ...stashed } : emptyModifiers();
-      if (stashed) {
+      if (slot !== 'pet' && slot !== 'accessory') {
+        const carriedStars = prev[slot]?.modifiers?.stars ?? stashed?.stars ?? 0;
         const maxStars = getMaxStarsForItem(item);
-        gearModifiers.stars = Math.max(0, Math.min(maxStars, gearModifiers.stars || 0));
+        gearModifiers.stars = isKuudraArmorId(item.id) ? 0 : Math.max(0, Math.min(maxStars, carriedStars));
         if (gearModifiers.stars < MASTER_STAR_MIN_BASE_STARS) gearModifiers.masterStars = 0;
       }
       const next = {
