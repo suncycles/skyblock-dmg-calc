@@ -49,11 +49,19 @@ import {
 } from './enchantEffects';
 import { STONE_POWERS } from './accessoryPowers';
 import { getMaxStarsForItem, isStarrableItem, MASTER_STAR_MIN_BASE_STARS, MAX_MASTER_STARS } from './starring';
+import {
+  RULER_ATTRIBUTES,
+  STRENGTH_ELEMENTAL_ATTRIBUTES,
+  INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
+  OTHER_ATTRIBUTES,
+  getAttributeMaxLevel,
+} from './attributes';
 import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
 import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
 import { getApplicableReforges } from './reforgeData';
+import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { countGemstoneSlots } from './gemstones';
 import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
@@ -1119,6 +1127,15 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
 // here — these go through runOptimizer's withPercent, same as every other true brute-force
 // category, unlike armor's tiered walk above which computes its own while deciding whether to
 // advance a tier.
+// Fabled's real bonus ("Critical hits have a chance to deal up to +15% extra damage") is a
+// random range, not a fixed number — the main calculator deliberately shows it as a real range
+// (see damageSources.js's FABLED_REFORGE_ID, pushed at a no-op 1x there on purpose) rather than
+// picking one point estimate for the headline Final Damage. But a ranked comparison against every
+// other reforge needs one real number, so it's evaluated here at its statistical midpoint instead
+// — user-confirmed 2026-08-23: +7.5% (half of the confirmed +15% max), i.e. a 1.075x multiplier
+// on top of whatever computeModeDamage already returned for the 0%-boost baseline.
+const FABLED_MIDPOINT_MULTIPLIER = 1 + FABLED_CRIT_BONUS_MAX_PERCENT / 100 / 2;
+
 async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
   for (const slot of ['weapon', ...EQUIPMENT_SLOTS]) {
@@ -1132,7 +1149,8 @@ async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, bu
     for (const reforge of applicable) {
       if (reforge.name === currentName) continue;
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: reforge.name } } };
-      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      let value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      if (reforge.name === FABLED_REFORGE_NAME) value *= FABLED_MIDPOINT_MULTIPLIER;
       results.push({
         category: 'Reforge',
         slot,
@@ -1202,6 +1220,48 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
         }
       }
     }
+  }
+  return results;
+}
+
+// Every real damage-relevant Attribute this app models, with a display name — same 4 sources
+// attributes.js itself is built from, plus the 4 Echo ids (which attributes.js only carries as
+// bare ATTRIBUTE_IDS strings; Attributes.jsx has its own small local {id, name} list for these —
+// mirrored here rather than exported/shared, since it's 4 entries unlikely to ever change).
+const ECHO_ATTRIBUTES = [
+  { id: 'echo_of_ruler', name: 'Echo of Ruler' },
+  { id: 'echo_of_echoes', name: 'Echo of Echoes' },
+  { id: 'echo_of_elemental', name: 'Echo of Elemental' },
+  { id: 'echo_of_boxes', name: 'Echo of Boxes' },
+];
+const ALL_ATTRIBUTES = [
+  ...RULER_ATTRIBUTES,
+  ...ECHO_ATTRIBUTES,
+  ...STRENGTH_ELEMENTAL_ATTRIBUTES,
+  ...INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
+  ...OTHER_ATTRIBUTES,
+];
+
+// Attributes: user-specified 2026-08-23 — only ever compared at max level (no incremental
+// per-level suggestions the way Stars/Gemstones get, since a real player buys the whole stack of
+// shards for a level jump at once rather than grinding it one shard at a time the way stars/gems
+// work). Real coin cost is the Worker-precomputed real shard price x real total shard count to
+// reach max (worker/src/index.js's computeAttributeCosts) — see lib/pricing.js's 'Attribute' case.
+async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob) {
+  const results = [];
+  for (const attribute of ALL_ATTRIBUTES) {
+    const currentLevel = build.attributes?.[attribute.id] || 0;
+    const maxLevel = getAttributeMaxLevel(attribute.id);
+    if (currentLevel >= maxLevel) continue;
+    const candidateBuild = { ...build, attributes: { ...build.attributes, [attribute.id]: maxLevel } };
+    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    results.push({
+      category: 'Attribute',
+      slot: 'attribute',
+      label: `${attribute.name} — ${maxLevel}`,
+      value,
+      apply: [{ type: 'setAttributeLevel', id: attribute.id, level: maxLevel }],
+    });
   }
   return results;
 }
@@ -1324,6 +1384,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     petItems,
     fullSets,
     gemstones,
+    attributes,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
@@ -1351,6 +1412,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
   ]);
 
   // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
@@ -1387,6 +1449,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...petItems,
       ...fullSets,
       ...gemstones,
+      ...attributes,
     ]),
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
@@ -1444,6 +1507,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setGemstone':
         build.applyGemstone(step.slot, step.index, step.gem, step.tier);
+        break;
+      case 'setAttributeLevel':
+        build.setAttributeLevel(step.id, step.level);
         break;
       default:
         break;
