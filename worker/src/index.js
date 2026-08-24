@@ -265,6 +265,97 @@ async function fetchPetNums() {
   return res.json();
 }
 
+async function fetchAttributeShards() {
+  const res = await fetch(NEU_ATTRIBUTE_SHARDS_URL);
+  return res.json();
+}
+
+// Maps this app's own Attribute ids (frontend/src/lib/attributes.js's ATTRIBUTE_IDS) to the real
+// bazaar shard's internalName (minus the ";1" NEU-REPO suffix) — verified live against
+// attribute_shards.json 2026-08-23, matched by each entry's real abilityName since most (but not
+// all) shard ids don't cleanly follow an "<id>" pattern. 6 of the 17 Ruler shards use unrelated
+// legacy bazaar item names from before Hypixel renamed the ability (Arthropod=ARACHNO,
+// Ender=ENDER, Infernal=BLAZING, Pest=INSECT_POWER, Undead=UNDEAD, Woodland=SPIRIT_AXE); Humanoid
+// Ruler specifically needs the "_NEW" variant (attribute_shards.json also has a stale
+// "HUMANOID_RULER" entry under a different real ability, "Undead Fortune" — not this one). Every
+// other id already matches its shard's internalName 1:1.
+const ATTRIBUTE_SHARD_IDS = {
+  ruler_airborne: "ATTRIBUTE_SHARD_AIRBORNE_RULER",
+  ruler_animal: "ATTRIBUTE_SHARD_ANIMAL_RULER",
+  ruler_arcane: "ATTRIBUTE_SHARD_ARCANE_RULER",
+  ruler_arthropod: "ATTRIBUTE_SHARD_ARACHNO",
+  ruler_construct: "ATTRIBUTE_SHARD_CONSTRUCT_RULER",
+  ruler_elusive: "ATTRIBUTE_SHARD_ELUSIVE_RULER",
+  ruler_ender: "ATTRIBUTE_SHARD_ENDER",
+  ruler_frozen: "ATTRIBUTE_SHARD_FROZEN_RULER",
+  ruler_humanoid: "ATTRIBUTE_SHARD_HUMANOID_RULER_NEW",
+  ruler_infernal: "ATTRIBUTE_SHARD_BLAZING",
+  ruler_magmatic: "ATTRIBUTE_SHARD_MAGMATIC_RULER",
+  ruler_mythological: "ATTRIBUTE_SHARD_MYTHOLOGICAL_RULER",
+  ruler_pest: "ATTRIBUTE_SHARD_INSECT_POWER",
+  ruler_skeletal: "ATTRIBUTE_SHARD_SKELETAL_RULER",
+  ruler_subterranean: "ATTRIBUTE_SHARD_SUBTERRANEAN_RULER",
+  ruler_undead: "ATTRIBUTE_SHARD_UNDEAD",
+  ruler_woodland: "ATTRIBUTE_SHARD_SPIRIT_AXE",
+  echo_of_ruler: "ATTRIBUTE_SHARD_ECHO_OF_RULER",
+  echo_of_echoes: "ATTRIBUTE_SHARD_ECHO_OF_ECHOES",
+  echo_of_elemental: "ATTRIBUTE_SHARD_ECHO_OF_ELEMENTAL",
+  echo_of_boxes: "ATTRIBUTE_SHARD_ECHO_OF_BOXES",
+  light_elemental: "ATTRIBUTE_SHARD_LIGHT_ELEMENTAL",
+  stone_elemental: "ATTRIBUTE_SHARD_STONE_ELEMENTAL",
+  lightning_elemental: "ATTRIBUTE_SHARD_LIGHTNING_ELEMENTAL",
+  wind_elemental: "ATTRIBUTE_SHARD_WIND_ELEMENTAL",
+  storm_elemental: "ATTRIBUTE_SHARD_STORM_ELEMENTAL",
+  fog_elemental: "ATTRIBUTE_SHARD_FOG_ELEMENTAL",
+  water_elemental: "ATTRIBUTE_SHARD_WATER_ELEMENTAL",
+  torrent_elemental: "ATTRIBUTE_SHARD_TORRENT_ELEMENTAL",
+  frost_elemental: "ATTRIBUTE_SHARD_FROST_ELEMENTAL",
+  snow_elemental: "ATTRIBUTE_SHARD_SNOW_ELEMENTAL",
+  deadeye: "ATTRIBUTE_SHARD_DEADEYE",
+  warrior: "ATTRIBUTE_SHARD_WARRIOR",
+  elite: "ATTRIBUTE_SHARD_ELITE",
+  unlimited_power: "ATTRIBUTE_SHARD_UNLIMITED_POWER",
+  unlimited_energy: "ATTRIBUTE_SHARD_UNLIMITED_ENERGY",
+  maximal_torment: "ATTRIBUTE_SHARD_MAXIMAL_TORMENT",
+  almighty: "ATTRIBUTE_SHARD_ALMIGHTY",
+  tuning_box: "ATTRIBUTE_SHARD_TUNING_BOX",
+  dominance: "ATTRIBUTE_SHARD_DOMINANCE",
+  attack_speed: "ATTRIBUTE_SHARD_ATTACK_SPEED",
+};
+
+// Dominance is the one attribute whose real max level (32) doesn't follow the standard 10-level
+// curve every other rarity/attribute uses below — see frontend/src/lib/attributes.js's
+// DOMINANCE_MAX_LEVEL (user-confirmed there already: Epic-tier, 32 total shards -> level 32,
+// a flat 1-shard-per-level curve rather than attribute_levelling's escalating one).
+const DOMINANCE_TOTAL_SHARDS = 32;
+
+// Real total shard count to reach an attribute's own max level, times its real shard price —
+// user-specified 2026-08-23. `attributeShards` is attribute_shards.json's parsed body (fetched
+// alongside prices, same cadence); `itemPrices` is the raw (unpruned) price map, since shard ids
+// wouldn't otherwise survive pruneItemPrices. Every attribute here caps at level 10 (the standard
+// attribute_levelling curve) except Dominance (see DOMINANCE_TOTAL_SHARDS above).
+function computeAttributeCosts(itemPrices, attributeShards) {
+  const rarityByInternalName = {};
+  for (const a of attributeShards.attributes) {
+    rarityByInternalName[a.internalName.split(";")[0]] = a.rarity;
+  }
+  const totalShardsAtLevel10ByRarity = {};
+  for (const [rarity, perLevelCosts] of Object.entries(attributeShards.attribute_levelling)) {
+    totalShardsAtLevel10ByRarity[rarity] = perLevelCosts.reduce((a, b) => a + b, 0);
+  }
+
+  const attributeCosts = {};
+  for (const [appId, shardId] of Object.entries(ATTRIBUTE_SHARD_IDS)) {
+    const price = itemPrices[shardId];
+    if (!price) continue;
+    const totalShards =
+      appId === "dominance" ? DOMINANCE_TOTAL_SHARDS : totalShardsAtLevel10ByRarity[rarityByInternalName[shardId]];
+    if (!totalShards) continue;
+    attributeCosts[appId] = price * totalShards;
+  }
+  return attributeCosts;
+}
+
 async function fetchPrices() {
   const res = await fetch(SKYHELPER_PRICES_URL);
   return res.json(); // flat { ITEM_ID: coins }
@@ -300,7 +391,8 @@ async function resolveCosts(env, catalog, force = false) {
   }
 
   try {
-    const itemPrices = await fetchPrices();
+    const [itemPrices, attributeShards] = await Promise.all([fetchPrices(), fetchAttributeShards()]);
+    const attributeCosts = computeAttributeCosts(itemPrices, attributeShards);
 
     const reforgeCosts = {};
     for (const [reforgeName, stone] of Object.entries(catalog.reforgeStones || {})) {
@@ -325,12 +417,21 @@ async function resolveCosts(env, catalog, force = false) {
       if (item.upgrade_costs) computeStarCosts(item.id, item.upgrade_costs, itemPrices, starCosts);
     }
 
-    const costs = { itemPrices: pruneItemPrices(itemPrices, catalog), reforgeCosts, recombobulatorCost, petCosts, starCosts };
+    const costs = {
+      itemPrices: pruneItemPrices(itemPrices, catalog),
+      reforgeCosts,
+      recombobulatorCost,
+      petCosts,
+      starCosts,
+      attributeCosts,
+    };
     await env.CACHE.put(PRICES_CACHE_KEY, JSON.stringify({ costs, lastFetched: Date.now() }));
     return costs;
   } catch (err) {
     console.error("resolveCosts: fetchPrices failed:", err);
-    return cachedRaw ? cachedRaw.costs : { itemPrices: {}, reforgeCosts: {}, recombobulatorCost: null, petCosts: {}, starCosts: {} };
+    return cachedRaw
+      ? cachedRaw.costs
+      : { itemPrices: {}, reforgeCosts: {}, recombobulatorCost: null, petCosts: {}, starCosts: {}, attributeCosts: {} };
   }
 }
 

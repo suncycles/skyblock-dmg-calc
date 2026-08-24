@@ -44,7 +44,7 @@ function findStep(apply, type) {
 export function lookupCandidateCost(result, itemData) {
   const costs = itemData?.costs;
   if (!costs) return null;
-  const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {} } = costs;
+  const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {}, attributeCosts = {} } = costs;
 
   // Crown of Avarice's "Coins Consumed" candidates: cost is the item's own real market price
   // (buying a bare Crown) PLUS the Coins Consumed threshold (1 coin consumed = 1 coin spent,
@@ -112,6 +112,10 @@ export function lookupCandidateCost(result, itemData) {
       const step = findStep(result.apply, 'setGemstone');
       if (!step) return null;
       return priceOf(itemPrices, `${step.tier.toUpperCase()}_${step.gem}_GEM`);
+    }
+    case 'Attribute': {
+      const step = findStep(result.apply, 'setAttributeLevel');
+      return step ? priceOf(attributeCosts, step.id) : null;
     }
     default:
       return null;
