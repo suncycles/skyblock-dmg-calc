@@ -75,20 +75,17 @@ export const SUPERIOR_DRAGON_SET = [
 ];
 export const SUPERIOR_DRAGON_STAT_BOOST_PERCENT = 5;
 
-// Tuxedo: 3 independent tiers (Boots/Chestplate/Leggings each — no Helmet exists), each tier's
-// own bonus applies unconditionally whenever any single piece of that tier is worn, and tiers
-// stack with each other (e.g. wearing one Elegant + one Fancy + one Cheap piece grants all 3).
+// Tuxedo: 3 independent tiers (Boots/Chestplate/Leggings each — no Helmet exists). Each tier's own
+// bonus only applies once all 3 of THAT tier's pieces are worn together (user-confirmed
+// 2026-08-23, correcting an earlier "any single piece" reading). Only one tier can ever be
+// complete at a time — Boots/Chestplate/Leggings is only 3 slots total, so two different full
+// tiers can't be worn simultaneously.
+export const TUXEDO_SLOTS = ['boots', 'chestplate', 'leggings'];
 export const TUXEDO_TIERS = [
   { name: 'Elegant', ids: ['ELEGANT_TUXEDO_BOOTS', 'ELEGANT_TUXEDO_CHESTPLATE', 'ELEGANT_TUXEDO_LEGGINGS'], damagePercent: 150 },
   { name: 'Fancy', ids: ['FANCY_TUXEDO_BOOTS', 'FANCY_TUXEDO_CHESTPLATE', 'FANCY_TUXEDO_LEGGINGS'], damagePercent: 100 },
   { name: 'Cheap', ids: ['CHEAP_TUXEDO_BOOTS', 'CHEAP_TUXEDO_CHESTPLATE', 'CHEAP_TUXEDO_LEGGINGS'], damagePercent: 50 },
 ];
-
-// Whether any equipped armor piece's id is in `ids` — Tuxedo pieces aren't positionally fixed
-// (any tier can go in Boots/Chestplate/Leggings), unlike hasFullSet/countSetPieces above.
-export function hasAnyEquippedId(loadout, slots, ids) {
-  return slots.some((slot) => ids.includes(loadout[slot]?.item?.id));
-}
 
 // Magma Lord/Thunder Armor + their matching Necklace (Magma Lord Necklace = MAGMA_LORD_GAUNTLET,
 // Thunderbolt Necklace = THUNDERBOLT_NECKLACE — real ids confirmed against worker/src/data/
@@ -105,13 +102,22 @@ export const THUNDER_SET = ['THUNDER_HELMET', 'THUNDER_CHESTPLATE', 'THUNDER_LEG
 export const THUNDER_NECKLACE_ID = 'THUNDERBOLT_NECKLACE';
 export const THUNDER_PERCENT_PER_PIECE = 20;
 
+// Reaper Armor (Chestplate/Leggings/Boots only — no real Reaper helmet in this set, Reaper Mask is
+// a separate item) — user-confirmed 2026-08-23: a flat +100% additive melee damage bonus against
+// Undead mobs once the full 3-piece set is worn, not a per-piece scaling like Magma Lord/Thunder
+// above.
+export const REAPER_ARMOR_SLOTS = ['chestplate', 'leggings', 'boots'];
+export const REAPER_ARMOR_SET = ['REAPER_CHESTPLATE', 'REAPER_LEGGINGS', 'REAPER_BOOTS'];
+export const REAPER_ARMOR_UNDEAD_PERCENT = 100;
+
 // Crimson Swipe: a melee-only proc whose damage depends on how many Crimson-family armor pieces
 // (any of the 5 power tiers — see armorVariants.js's VARIANT_TIERS) are equipped, 2-4, and the
 // LOWEST tier among just those equipped pieces — mixing tiers drags the whole bonus down to the
-// weakest piece's row. User-provided table; each cell is a multiplier on CRIMSON_SWIPE_BASE_PERCENT
-// (14.5%) of Final Damage, e.g. table value 1.0 = 14.5% of Final Damage.
+// weakest piece's row. User-provided table; each cell is `SwipeMultiplier` in
+// finalDamage.js's computeCrimsonSwipeDamage: Damage_swipe = MeleeFinal * (SwipeMultiplier * 100)
+// / TotalAdditivePercent (user-confirmed 2026-08-23, replacing an earlier flat-14.5%-of-Final-
+// Damage placeholder — see that function for the full formula).
 export const CRIMSON_SWIPE_MIN_PIECES = 2;
-export const CRIMSON_SWIPE_BASE_PERCENT = 14.5;
 const CRIMSON_SWIPE_TABLE = {
   Basic: { 2: 0.5, 3: 1.0, 4: 1.5 },
   Hot: { 2: 0.625, 3: 1.25, 4: 1.875 },
@@ -137,9 +143,9 @@ export function computeCrimsonSwipeInfo(loadout, slots) {
 }
 
 // Taurus Helmet/Flaming Chestplate/Moogma Leggings: 3 independent items (different slots, not a
-// matched set) each granting a flat, melee-only +10% additive damage bonus against Lava Sea
-// Creatures (their own real lore's mob-type, distinct from Magmatic) when worn — stacks if more
-// than one is worn simultaneously.
+// matched set) each granting a flat, melee-only +10% additive damage bonus against Magmatic mobs
+// when worn — stacks if more than one is worn simultaneously. Condition corrected from "Lava Sea
+// Creatures" to "Magmatic" 2026-08-23 (user-confirmed); constant/export names kept as-is.
 export const LAVA_SEA_CREATURE_ARMOR_PERCENT = 10;
 export const LAVA_SEA_CREATURE_ARMOR_PIECES = [
   { slot: 'helmet', id: 'TAURUS_HELMET', label: 'Taurus Helmet' },
