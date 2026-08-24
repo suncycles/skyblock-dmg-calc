@@ -28,7 +28,7 @@ import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
 import { getMobLocations } from './mobLocations';
-import { CRIMSON_SWIPE_BASE_PERCENT, hasFullSet, computeCrimsonSwipeInfo } from './armorSetBonuses';
+import { hasFullSet, computeCrimsonSwipeInfo } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
@@ -304,13 +304,18 @@ export function computeMageStaffBeamDamage(sources, meleeFinalDamage, useDungeon
   return { meleeFinalDamage, intelligence, finalDamage };
 }
 
-// Crimson Swipe: a melee-only proc, purely multiplicative on meleeFinalDamage — same shape as the
-// Mage Staff Beam above. `swipeInfo` is armorSetBonuses.js's computeCrimsonSwipeInfo() result (null
-// when fewer than 2 Crimson-family pieces are worn, in which case this returns null too). Not
-// shown in the UI yet — computed and stored for a future DPS feature.
-export function computeCrimsonSwipeDamage(meleeFinalDamage, swipeInfo) {
-  if (!swipeInfo) return null;
-  const finalDamage = Math.floor(meleeFinalDamage * swipeInfo.multiplier * (CRIMSON_SWIPE_BASE_PERCENT / 100));
+// Crimson Swipe: a melee-only proc on meleeFinalDamage. `swipeInfo` is armorSetBonuses.js's
+// computeCrimsonSwipeInfo() result (null when fewer than 2 Crimson-family pieces are worn, in
+// which case this returns null too). User-confirmed real formula (2026-08-23), replacing an
+// earlier flat-14.5%-of-Final-Damage placeholder:
+//   Damage_swipe = MeleeFinal * (SwipeMultiplier * 100) / TotalAdditivePercent
+// `additivePercent` is the same raw summed additive % computeFinalDamage already produces (e.g.
+// 300 for +300%, NOT the 1+x/100 multiplier form) — the more additive damage % a player has
+// already stacked, the smaller Swipe's own share of Final Damage. Guards the (rare, near-0-gear)
+// divide-by-zero case rather than emitting Infinity/NaN.
+export function computeCrimsonSwipeDamage(meleeFinalDamage, swipeInfo, additivePercent) {
+  if (!swipeInfo || !additivePercent) return swipeInfo ? { ...swipeInfo, meleeFinalDamage, finalDamage: 0 } : null;
+  const finalDamage = Math.floor(meleeFinalDamage * ((swipeInfo.multiplier * 100) / additivePercent));
   return { ...swipeInfo, meleeFinalDamage, finalDamage };
 }
 
@@ -430,7 +435,11 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   const venomousProc = computeVenomousProcDamage(sources, mob, meleeFinalDamage);
   const thunderlordProc = computeEnchantProcDamage(meleeFinalDamage, sources.thunderlordProc);
   const fireAspectProc = computeEnchantProcDamage(meleeFinalDamage, sources.fireAspectProc);
-  const crimsonSwipeProc = computeCrimsonSwipeDamage(meleeFinalDamage, computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS));
+  const crimsonSwipeProc = computeCrimsonSwipeDamage(
+    meleeFinalDamage,
+    computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS),
+    steadyFinalDamage.additivePercent,
+  );
   const venomous = (venomousProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.venomous;
   const thunderlord = (thunderlordProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.thunderlord;
   const fireAspect = (fireAspectProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.fireAspect;

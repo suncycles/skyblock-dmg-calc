@@ -40,6 +40,7 @@ import {
   STRONG_DRAGON_DAMAGE_BONUS,
   SUPERIOR_DRAGON_SET,
   SUPERIOR_DRAGON_STAT_BOOST_PERCENT,
+  TUXEDO_SLOTS,
   TUXEDO_TIERS,
   MAGMA_LORD_SET,
   MAGMA_LORD_NECKLACE_ID,
@@ -49,9 +50,11 @@ import {
   THUNDER_PERCENT_PER_PIECE,
   LAVA_SEA_CREATURE_ARMOR_PERCENT,
   LAVA_SEA_CREATURE_ARMOR_PIECES,
+  REAPER_ARMOR_SLOTS,
+  REAPER_ARMOR_SET,
+  REAPER_ARMOR_UNDEAD_PERCENT,
   hasFullSet,
   countSetPieces,
-  hasAnyEquippedId,
 } from './armorSetBonuses';
 import {
   petLoreItemId,
@@ -164,81 +167,19 @@ const SLAYER_WEAPON_IDS = new Set([
 // Habanero Tactics: +20%/25% damage with Slayer weapons at level IV/V (5%/level), stacks per armor piece.
 const HABANERO_TACTICS_PERCENT_PER_LEVEL = 5;
 
-// Weapons whose bonus is computed elsewhere (merged into base stats, or hardcoded below) —
-// excluded here so the generic ability-text scan doesn't double up.
-const SPECIAL_SCAN_EXCLUDE_IDS = new Set([
-  'DAEDALUS_AXE',
-  'STARRED_DAEDALUS_AXE',
-  'MIDAS_SWORD',
-  'STARRED_MIDAS_SWORD',
-  'MIDAS_STAFF',
-  'STARRED_MIDAS_STAFF',
-  'EMERALD_BLADE',
-  'WARDEN_HELMET',
-  // Slayer-line weapons — hardcoded in SLAYER_TIER_BONUSES instead.
-  'ATOMSPLIT_KATANA',
-  'VOIDWALKER_KATANA',
-  'VOIDEDGE_KATANA',
-  'VORPAL_KATANA',
-  'REVENANT_SWORD',
-  'REAPER_SWORD',
-  'AXE_OF_THE_SHREDDED',
-  'RECLUSE_FANG',
-  'TARANTULA_FANG',
-  'SCORPION_FOIL',
-  'STING',
-  // Pooch Sword — its "+200% Damage against Wolves" line sits directly above two unrelated
-  // Animal-mob clauses with no blank line between them, so the generic scan's target-text
-  // capture bleeds across all three; hardcoded in POOCH_SWORD_WOLF_DAMAGE_PERCENT instead.
-  'POOCH_SWORD',
-  // Blaze Slayer daggers — each has two "Deal Nx damage to Y mobs" clauses stacked in one
-  // paragraph, a phrasing ("Deal Nx damage to Y", not "Y mobs take Nx damage") the generic
-  // scan's regexes don't match at all; hardcoded in DAGGER_MOB_MULTIPLIERS instead.
-  'BURSTFIRE_DAGGER',
-  'BURSTMAW_DAGGER',
-  'FIREDUST_DAGGER',
-  'HEARTFIRE_DAGGER',
-  'HEARTMAW_DAGGER',
-  'MAWDUST_DAGGER',
-  // Wither Blade family (+ Necron's Blade) — "Deals +50% damage to Wither mobs." sits directly
-  // above two unrelated Catacombs-level-scaling clauses with no blank line between them, same
-  // paragraph-bleed issue as Pooch Sword above; hardcoded in WITHER_BLADE_DAMAGE_MULTIPLIER /
-  // NECRON_BLADE_WITHER_DAMAGE_PERCENT instead.
-  'HYPERION',
-  'ASTRAEA',
-  'VALKYRIE',
-  'SCYLLA',
-  'NECRON_BLADE',
-  // Flaming Flay/Soul Whip — "Deals Nx damage to Sea Creatures" is object-last like the
-  // percent regexes but an "x" multiplier like the subject-first one, a combination none of
-  // the generic scan's regexes cover; hardcoded in SEA_CREATURE_WHIP_MULTIPLIERS instead.
-  'FLAMING_FLAY',
-  'SOUL_WHIP',
-  // Implosion Belt — its real lore's "Increases all explosion damage dealt by 25%" describes an
-  // unrelated generic explosion mechanic, not the Ability Damage bonus this app models (that's
-  // hardcoded via IMPLOSION_BELT_ID below); without this exclusion the generic scan surfaced it
-  // a second time as an unresolved situational note even while the real bonus was already active.
-  IMPLOSION_BELT_ID,
-  // Demonslayer Gauntlet — its "Deal 1.15x damage against Infernal Mobs" line falls through the
-  // generic scan's regexes to the situational fallback (see DAGGER_MOB_MULTIPLIERS above for why);
-  // excluded so it doesn't surface as a redundant "not counted" note alongside the correctly
-  // hardcoded multiplicative entry.
-  'DEMONLORD_GAUNTLET',
-  // Crown of Avarice — its "deal +0.015x Damage for each digit of Coins consumed" clause has no
-  // fixed number for the generic scan's regexes to match, so it falls through to the situational
-  // fallback; excluded so it doesn't surface as a redundant "not counted" note alongside the
-  // correctly hardcoded per-digit multiplicative entry (collectSpecialMechanicEntries below).
-  'CROWN_OF_AVARICE',
-  // Magma Lord/Thunder (+ their necklaces) and Taurus/Flaming/Moogma — real lore phrases the
-  // Magmatic/Lava Sea Creature bonus as an "Nx" multiplier, not "+N%", so the generic scan never
-  // resolves it anyway; excluded so it doesn't surface as a redundant situational note alongside
-  // the hardcoded additiveConditional entry below (same class of bug as Implosion Belt above).
-  ...MAGMA_LORD_SET,
-  MAGMA_LORD_NECKLACE_ID,
-  ...THUNDER_SET,
-  THUNDER_NECKLACE_ID,
-  ...LAVA_SEA_CREATURE_ARMOR_PIECES.map((p) => p.id),
-]);
+// The generic item-lore ability-text scan (which used to auto-detect "+X% damage to Y mobs"
+// phrasing on any equipped item) was removed entirely 2026-08-23 — user-specified, after it
+// repeatedly mis-parsed real lore (Reaper Armor's per-piece triple-count and garbled condition
+// string was the last straw; also unmatchable location/event conditions like Fancy Sword's
+// "on Mining Islands", and discarded scaling clauses like Bone Reaver's per-missing-health%
+// bonus). Every weapon/armor damage-%-vs-mob-type bonus in this app is now hardcoded at its own
+// definition site instead (DAGGER_MOB_MULTIPLIERS/ADDITIVE_MOB_MULTIPLIERS below,
+// WITHER_BLADE_DAMAGE_MULTIPLIER, POOCH_SWORD_WOLF_DAMAGE_PERCENT, SEA_CREATURE_WHIP_MULTIPLIERS,
+// the Magma Lord/Thunder/Taurus-Flaming-Moogma/Reaper Armor set-bonus block, etc.) — real items
+// with damage-%-shaped ability text that ISN'T hardcoded (e.g. Livid Dagger, Ancient Cloak,
+// Shadow Assassin Cloak) are deliberately not modeled rather than guessed at. Pet ability text
+// (Zombie's Rotten Blade, Ender Dragon's End Strike) still uses the same paragraph-scan machinery
+// below (matchDamageParagraph/pushParagraphMatch) — only the ITEM-lore entry point was removed.
 
 // Each Blaze Slayer dagger's own two-mob-type multipliers (real lore, both clauses).
 // Firedust-vs-Infernal and Twilight-vs-Skeletal are overridden to 1.25x — the lore's stated
@@ -270,16 +211,36 @@ const DAGGER_MOB_MULTIPLIERS = {
   ],
   // Demonslayer Gauntlet (GLOVES, not a dagger — same {itemId: [{multiplier, condition}]} shape
   // reused as-is): "Deal 1.15x damage against Infernal Mobs" is verb-first with an "x" suffix, a
-  // phrasing none of the generic scan's regexes match (DEALS_TO_TARGET_RE/DEALS_FLAT_RE expect a
-  // "%" bonus, SUBJECT_MULTIPLIER_RE expects "mobs take Nx damage"). User-confirmed ability-eligible
-  // (applies to Mage Mode's Ability Damage too, unlike the Blaze Slayer daggers above).
+  // phrasing the old generic scan never matched either. User-confirmed ability-eligible (applies
+  // to Mage Mode's Ability Damage too, unlike the Blaze Slayer daggers above).
   DEMONLORD_GAUNTLET: [{ multiplier: 1.15, condition: 'Infernal', abilityEligible: true }],
+  // End Sword/Spider Sword/Prismarine Blade — user-confirmed 2026-08-23, real multiplicative
+  // mob-type bonuses hardcoded after the generic item-lore ability scan was removed entirely (see
+  // its old exclude list, formerly SPECIAL_SCAN_EXCLUDE_IDS, for the class of bugs that scan kept
+  // producing — Reaper Armor triple-counting, unmatchable "on Mining Islands"/event conditions,
+  // discarded missing-health scaling, etc.). Prismarine Blade has no real mob-type restriction.
+  END_SWORD: [{ multiplier: 2, condition: 'Ender' }],
+  SPIDER_SWORD: [{ multiplier: 2, condition: 'Arthropod' }],
+  PRISMARINE_BLADE: [{ multiplier: 3 }],
+};
+
+// Real flat additive mob-type bonuses, hardcoded for the same reason as the multiplicative table
+// above — user-confirmed 2026-08-23. Prismarine Bow's real condition (Squid/Guardian/Elder
+// Guardian) is written out in full even though this app's own mob catalog doesn't have a
+// selectable "Guardian"/"Elder Guardian" entry yet (only "Squid" resolves today) — harmless dead
+// tokens now, correct automatically if those ever get added.
+const ADDITIVE_MOB_MULTIPLIERS = {
+  DEATH_BOW: [{ value: 100, condition: 'Undead' }],
+  SUPER_UNDEAD_BOW: [{ value: 100, condition: 'Undead' }],
+  UNDEAD_BOW: [{ value: 100, condition: 'Undead' }],
+  UNDEAD_SWORD: [{ value: 100, condition: 'Undead' }],
+  WITHER_BOW: [{ value: 100, condition: 'Wither' }],
+  PRISMARINE_BOW: [{ value: 300, condition: 'Squid, Guardian, Elder Guardian' }],
 };
 
 // The 4 real "Wither Blade" swords (Hyperion/Astraea/Valkyrie/Scylla — same family
-// lib/witherBladeBonuses.js's Catacombs-level bonuses cover) carry the "Deals +50% damage to
-// Wither mobs." line — see SPECIAL_SCAN_EXCLUDE_IDS above for why this can't go through the
-// generic ability-text scan. User-confirmed real function: a flat 1.5x multiplier, not a +50%
+// lib/witherBladeBonuses.js's Catacombs-level bonuses cover) carry a "Deals +50% damage to
+// Wither mobs." line. User-confirmed real function: a flat 1.5x multiplier, not a +50%
 // that sums with other weapon-bonus sources — pushed to the multiplicative bucket instead of
 // weaponBonusConditional.
 const WITHER_BLADE_DAMAGE_MULTIPLIER = 1.5;
@@ -290,8 +251,7 @@ const WITHER_BLADE_WEAPON_IDS = new Set(['HYPERION', 'ASTRAEA', 'VALKYRIE', 'SCY
 // treatment rather than assumed to share the same real function without confirming.
 const NECRON_BLADE_WITHER_DAMAGE_PERCENT = 50;
 
-// Pooch Sword's "+200% Damage against Wolves" — see SPECIAL_SCAN_EXCLUDE_IDS above for why
-// this can't go through the generic ability-text scan. "Wolves" covers every wolf-family mob,
+// Pooch Sword's "+200% Damage against Wolves". "Wolves" covers every wolf-family mob,
 // same list as mobModelIcons.json's wolf.png mapping. Real in-game bug: the stated +200% (which
 // would be a 1+200/100 = 3x weapon-bonus multiplier) actually only applies as a flat 2x —
 // pushed to the multiplicative bucket at that real value instead of weaponBonusConditional.
@@ -421,9 +381,11 @@ function cleanTargetText(raw) {
 // Chimera enchant and Manticore Claw gloves both copy a cut of the active pet's stat spread onto
 // the item's own displayed lore (computeItemChimeraBonus/computeManticoreClawBonus in petData.js)
 // — their fractions live there, not duplicated here.
-// Skeleton pet: +75% additive Damage when a bow is equipped, doubled to +150% when the
-// "Toggle Dungeon Stats" switch is on.
-const SKELETON_ARROW_BONUS_PERCENT = 75;
+// Skeleton pet: real per-level scaling, +0.1% additive Damage at level 1 up to +75% at level 100
+// when a bow is equipped, doubled when the "Toggle Dungeon Stats" switch is on — user-confirmed
+// 2026-08-23, correcting an earlier flat +75% (any level) that didn't scale with the pet at all.
+const SKELETON_ARROW_BONUS_MIN_PERCENT = 0.1;
+const SKELETON_ARROW_BONUS_MAX_PERCENT = 75;
 // Ankylosaurus pet: assumed always at its real max, ignoring its actual "Unyielding"/"Clubbed
 // Tail" perks per instruction.
 // Lion's King of the Jungle (Legendary only, assumed always active): 1.5% additive Damage per pet level.
@@ -609,6 +571,25 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
           label: 'T-Rex (Close Combat, assumed active)',
           source: 'Pet',
           value: closeCombat,
+        });
+      }
+    }
+
+    // Wither Skeleton's Wither Blood: +level% additive damage against Wither mobs — user-confirmed
+    // 2026-08-23, a flat 1:1 with real pet level (1% at level 1, 100% at level 100), replacing the
+    // generic ability-text scan's own lore-parsed value here (still correct for Zombie/Ender
+    // Dragon, left untouched — see ABILITY_ELIGIBLE_PET_IDS below). Kept abilityEligible so it
+    // still counts toward Mage Mode's Ability Damage formula, same as before.
+    if (pet.petId === 'WITHER_SKELETON') {
+      const witherBlood = modifiers.level || 0;
+      if (witherBlood) {
+        out.additiveConditional.push({
+          id: 'wither-skeleton-wither-blood',
+          label: 'Wither Skeleton (Wither Blood)',
+          source: 'Pet',
+          value: witherBlood,
+          condition: 'Wither',
+          abilityEligible: true,
         });
       }
     }
@@ -938,9 +919,10 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 }
 
 // ---------------------------------------------------------------------
-// Item/pet ability text: two real damage-bonus phrasings — object-last ("deals +X% damage to
-// Y") and subject-first ("Y mobs take Nx damage"). A third shape, "Y mobs DEAL Nx damage," is
-// an incoming-damage penalty rather than a player bonus, so it's excluded entirely.
+// Pet ability text (Zombie's Rotten Blade, Ender Dragon's End Strike — see
+// ABILITY_ELIGIBLE_PET_IDS below): two real damage-bonus phrasings — object-last ("deals +X%
+// damage to Y") and subject-first ("Y mobs take Nx damage"). A third shape, "Y mobs DEAL Nx
+// damage," is an incoming-damage penalty rather than a player bonus, so it's excluded entirely.
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
 // "Every Nth strike/hit, deal +X% damage" (Tarantula/Primordial armor's Octodexterity set
 // bonus) is a periodic proc, not a per-hit bonus — the generic "deals +X% damage" match below
@@ -971,11 +953,12 @@ function matchDamageParagraph(text) {
   return null;
 }
 
-// `asWeaponBonus`: routes a weapon-slot "+X% damage" match into the weaponBonus buckets instead of the general additive ones.
-// `abilityEligible`: tags the pushed entry so Mage Mode's Ability Damage additive multiplier (finalDamage.js's
-// computeAbilityDamage) also counts it — only set true by callers that know this specific paragraph is one of the
-// hand-verified ability-eligible sources (see collectPetEntries).
-function pushParagraphMatch(out, text, label, source, id, asWeaponBonus, abilityEligible) {
+// `abilityEligible`: tags the pushed entry so Mage Mode's Ability Damage additive multiplier
+// (finalDamage.js's computeAbilityDamage) also counts it — only set true by callers that know this
+// specific paragraph is one of the hand-verified ability-eligible sources (see collectPetEntries).
+// Pet-only now — the item-lore scan this also used to serve was removed 2026-08-23 (see the big
+// comment above DAGGER_MOB_MULTIPLIERS).
+function pushParagraphMatch(out, text, label, source, id, abilityEligible) {
   const match = matchDamageParagraph(text);
   if (!match) return;
   if (match.bucket === 'situational') {
@@ -983,20 +966,10 @@ function pushParagraphMatch(out, text, label, source, id, asWeaponBonus, ability
   } else if (match.bucket === 'multiplicative') {
     out.multiplicative.push({ id, label, source, value: match.value, condition: match.condition });
   } else if (match.bucket === 'additiveConditional') {
-    const bucket = asWeaponBonus ? out.weaponBonusConditional : out.additiveConditional;
-    bucket.push({ id, label, source, value: match.value, condition: match.condition, abilityEligible });
+    out.additiveConditional.push({ id, label, source, value: match.value, condition: match.condition, abilityEligible });
   } else {
-    const bucket = asWeaponBonus ? out.weaponBonusNonConditional : out.additiveNonConditional;
-    bucket.push({ id, label, source, value: match.value, abilityEligible });
+    out.additiveNonConditional.push({ id, label, source, value: match.value, abilityEligible });
   }
-}
-
-function scanItemAbilityText(lore, label, source, out, idPrefix, asWeaponBonus) {
-  splitParagraphs(lore)
-    .filter((p) => !isStatBlockParagraph(p))
-    .forEach((p, idx) =>
-      pushParagraphMatch(out, stripToPlain(stripLeadingHeaderLine(p)), label, source, `${idPrefix}-${idx}`, asWeaponBonus),
-    );
 }
 
 // ---------------------------------------------------------------------
@@ -1038,11 +1011,13 @@ const GOLDEN_DRAGON_TREASURE_RE =
 
 // Pets whose own ability text is a real per-hit damage bonus in the "deals +X% damage to Y
 // mobs" shape Mage Mode's ability formula counts — verified directly against NEU-REPO item
-// lore: Ender Dragon's End Strike (+X% vs Ender), Zombie's Rotten Blade (+X% vs Undead), Wither
-// Skeleton's Wither Blood (+X% vs Wither). Every other pet's ability text either isn't a damage
-// bonus at all or (like Golden Dragon's Legendary Treasure, handled separately below) isn't in
-// this shape, so this is an explicit allowlist rather than a blanket "all pets" flag.
-const ABILITY_ELIGIBLE_PET_IDS = new Set(['ENDER_DRAGON', 'ZOMBIE', 'WITHER_SKELETON']);
+// lore: Ender Dragon's End Strike (+X% vs Ender), Zombie's Rotten Blade (+X% vs Undead). Wither
+// Skeleton's Wither Blood is hardcoded instead now (see collectBaseStats above — user-confirmed
+// 2026-08-23 as a flat level% rather than this generic lore-parsed value). Every other pet's
+// ability text either isn't a damage bonus at all or (like Golden Dragon's Legendary Treasure,
+// handled separately below) isn't in this shape, so this is an explicit allowlist rather than a
+// blanket "all pets" flag.
+const ABILITY_ELIGIBLE_PET_IDS = new Set(['ENDER_DRAGON', 'ZOMBIE']);
 
 // collectPetEntries' real output depends only on (petId, tier, name, level, bankCoins) — every
 // other input (itemData's pet level tables, NEU lore) is stable for the whole app session. The
@@ -1119,7 +1094,6 @@ async function collectPetEntriesInto(pet, modifiers, itemData, out) {
       petLabel,
       source,
       `pet-${idx}`,
-      false,
       ABILITY_ELIGIBLE_PET_IDS.has(pet.petId),
     );
   });
@@ -1387,11 +1361,6 @@ export async function collectDamageSources(
       }
     }
 
-    if (!SPECIAL_SCAN_EXCLUDE_IDS.has(equipped.item.id)) {
-      // Only the weapon slot's ability text is treated as a weapon-bonus.
-      scanItemAbilityText(equipped.item.lore, itemLabel, slotLabel, out, `${slot}-ability`, slot === 'weapon');
-    }
-
     collectSpecialMechanicEntries(equipped.item, equipped.modifiers, itemLabel, slotLabel, out);
 
     if (equipped.item.id === 'WARDEN_HELMET') {
@@ -1475,14 +1444,28 @@ export async function collectDamageSources(
       const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
       for (const { multiplier, condition, abilityEligible } of daggerMultipliers) {
         const entry = {
-          id: `${idBase}-${condition.toLowerCase()}`,
-          label: `${itemLabel} (${condition})`,
+          id: condition ? `${idBase}-${condition.toLowerCase()}` : idBase,
+          label: condition ? `${itemLabel} (${condition})` : itemLabel,
           source: slotLabel,
           value: multiplier,
           condition,
         };
         out.multiplicative.push(entry);
         if (abilityEligible) out.abilityMultiplicative.push(entry);
+      }
+    }
+
+    const additiveMobMultipliers = ADDITIVE_MOB_MULTIPLIERS[equipped.item.id];
+    if (additiveMobMultipliers) {
+      const idBase = equipped.item.id.toLowerCase().replace(/_/g, '-');
+      for (const { value, condition } of additiveMobMultipliers) {
+        out.additiveConditional.push({
+          id: `${idBase}-${condition.toLowerCase()}`,
+          label: `${itemLabel} (${condition})`,
+          source: slotLabel,
+          value,
+          condition,
+        });
       }
     }
 
@@ -1573,9 +1556,10 @@ export async function collectDamageSources(
     });
   }
 
-  // Magma Lord/Thunder/Taurus-Flaming-Moogma: flat melee-only additive damage against Magmatic
-  // (Lava Sea Creatures for the latter) — user-confirmed, not Ability Damage-eligible, unlike the
-  // Implosion Belt/Loving reforge pattern above.
+  // Magma Lord/Thunder/Taurus-Flaming-Moogma: flat melee-only additive damage against Magmatic —
+  // user-confirmed, not Ability Damage-eligible, unlike the Implosion Belt/Loving reforge pattern
+  // above. Taurus/Flaming/Moogma's condition was 'Lava Sea Creatures' (a real, distinct mob-type
+  // grouping) until corrected to 'Magmatic' 2026-08-23, matching Magma Lord/Thunder.
   const magmaLordPieces =
     countSetPieces(loadout, ARMOR_SLOTS, MAGMA_LORD_SET) + (loadout.necklace?.item?.id === MAGMA_LORD_NECKLACE_ID ? 1 : 0);
   if (magmaLordPieces > 0) {
@@ -1607,9 +1591,20 @@ export async function collectDamageSources(
         label,
         source: 'Armor',
         value: LAVA_SEA_CREATURE_ARMOR_PERCENT,
-        condition: 'Lava Sea Creatures',
+        condition: 'Magmatic',
       });
     }
+  }
+
+  // Reaper Armor's "Trolling The Reaper" — a real full-set bonus, hardcoded here.
+  if (hasFullSet(loadout, REAPER_ARMOR_SLOTS, REAPER_ARMOR_SET)) {
+    out.additiveConditional.push({
+      id: 'reaper-armor',
+      label: 'Reaper Armor (Full Set)',
+      source: 'Armor',
+      value: REAPER_ARMOR_UNDEAD_PERCENT,
+      condition: 'Undead',
+    });
   }
 
   if (
@@ -1629,17 +1624,21 @@ export async function collectDamageSources(
   }
 
   if (isBowEquipped(loadout) && loadout.pet?.item?.petId === 'SKELETON') {
-    const skeletonArrowBonus = useDungeonizedStats ? SKELETON_ARROW_BONUS_PERCENT * 2 : SKELETON_ARROW_BONUS_PERCENT;
+    const level = Math.min(100, Math.max(1, loadout.pet.modifiers.level || 1));
+    const basePercent =
+      SKELETON_ARROW_BONUS_MIN_PERCENT +
+      ((level - 1) / 99) * (SKELETON_ARROW_BONUS_MAX_PERCENT - SKELETON_ARROW_BONUS_MIN_PERCENT);
+    const skeletonArrowBonus = useDungeonizedStats ? basePercent * 2 : basePercent;
     out.additiveNonConditional.push({
       id: 'skeleton-arrow-boost',
       label: `Skeleton${useDungeonizedStats ? ' (Dungeon Stats)' : ''}`,
       source: 'Pet',
-      value: skeletonArrowBonus,
+      value: Math.round(skeletonArrowBonus * 10) / 10,
     });
   }
 
   for (const tier of TUXEDO_TIERS) {
-    if (hasAnyEquippedId(loadout, ARMOR_SLOTS, tier.ids)) {
+    if (hasFullSet(loadout, TUXEDO_SLOTS, tier.ids)) {
       out.additiveNonConditional.push({
         id: `tuxedo-${tier.name.toLowerCase()}`,
         label: `${tier.name} Tuxedo`,
