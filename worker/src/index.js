@@ -334,26 +334,44 @@ const DOMINANCE_TOTAL_SHARDS = 32;
 // alongside prices, same cadence); `itemPrices` is the raw (unpruned) price map, since shard ids
 // wouldn't otherwise survive pruneItemPrices. Every attribute here caps at level 10 (the standard
 // attribute_levelling curve) except Dominance (see DOMINANCE_TOTAL_SHARDS above).
+//
+// Also returns attributeCostsByLevel: the same real shard price times the CUMULATIVE shard count
+// through each individual level (not just the final max-level total) — powers the frontend's
+// Setup Cost breakdown, which needs "what did reaching the player's CURRENT level cost", not only
+// "what would maxing it cost". [level - 1] is the cumulative cost to reach `level` from 0.
 function computeAttributeCosts(itemPrices, attributeShards) {
   const rarityByInternalName = {};
   for (const a of attributeShards.attributes) {
     rarityByInternalName[a.internalName.split(";")[0]] = a.rarity;
   }
-  const totalShardsAtLevel10ByRarity = {};
+  const cumulativeShardsByLevelByRarity = {};
   for (const [rarity, perLevelCosts] of Object.entries(attributeShards.attribute_levelling)) {
-    totalShardsAtLevel10ByRarity[rarity] = perLevelCosts.reduce((a, b) => a + b, 0);
+    const cumulative = [];
+    let running = 0;
+    for (const c of perLevelCosts) {
+      running += c;
+      cumulative.push(running);
+    }
+    cumulativeShardsByLevelByRarity[rarity] = cumulative;
   }
 
   const attributeCosts = {};
+  const attributeCostsByLevel = {};
   for (const [appId, shardId] of Object.entries(ATTRIBUTE_SHARD_IDS)) {
     const price = itemPrices[shardId];
     if (!price) continue;
-    const totalShards =
-      appId === "dominance" ? DOMINANCE_TOTAL_SHARDS : totalShardsAtLevel10ByRarity[rarityByInternalName[shardId]];
-    if (!totalShards) continue;
-    attributeCosts[appId] = price * totalShards;
+    if (appId === "dominance") {
+      // Flat 1-shard-per-level curve (see DOMINANCE_TOTAL_SHARDS) rather than the rarity table.
+      attributeCosts[appId] = price * DOMINANCE_TOTAL_SHARDS;
+      attributeCostsByLevel[appId] = Array.from({ length: DOMINANCE_TOTAL_SHARDS }, (_, i) => price * (i + 1));
+      continue;
+    }
+    const cumulative = cumulativeShardsByLevelByRarity[rarityByInternalName[shardId]];
+    if (!cumulative) continue;
+    attributeCosts[appId] = price * cumulative[cumulative.length - 1];
+    attributeCostsByLevel[appId] = cumulative.map((shards) => price * shards);
   }
-  return attributeCosts;
+  return { attributeCosts, attributeCostsByLevel };
 }
 
 async function fetchPrices() {
@@ -392,7 +410,7 @@ async function resolveCosts(env, catalog, force = false) {
 
   try {
     const [itemPrices, attributeShards] = await Promise.all([fetchPrices(), fetchAttributeShards()]);
-    const attributeCosts = computeAttributeCosts(itemPrices, attributeShards);
+    const { attributeCosts, attributeCostsByLevel } = computeAttributeCosts(itemPrices, attributeShards);
 
     const reforgeCosts = {};
     for (const [reforgeName, stone] of Object.entries(catalog.reforgeStones || {})) {
@@ -424,6 +442,7 @@ async function resolveCosts(env, catalog, force = false) {
       petCosts,
       starCosts,
       attributeCosts,
+      attributeCostsByLevel,
     };
     await env.CACHE.put(PRICES_CACHE_KEY, JSON.stringify({ costs, lastFetched: Date.now() }));
     return costs;
@@ -431,7 +450,15 @@ async function resolveCosts(env, catalog, force = false) {
     console.error("resolveCosts: fetchPrices failed:", err);
     return cachedRaw
       ? cachedRaw.costs
-      : { itemPrices: {}, reforgeCosts: {}, recombobulatorCost: null, petCosts: {}, starCosts: {}, attributeCosts: {} };
+      : {
+          itemPrices: {},
+          reforgeCosts: {},
+          recombobulatorCost: null,
+          petCosts: {},
+          starCosts: {},
+          attributeCosts: {},
+          attributeCostsByLevel: {},
+        };
   }
 }
 

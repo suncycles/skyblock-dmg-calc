@@ -904,6 +904,27 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // Optimizer-only: "equipping" a New Accessory/Recombobulate/Perfect Gemstones candidate
+  // (lib/accessoryOptimizer.js) pretends the player now owns/upgraded that real accessory, by
+  // writing it into ownedAccessories the same shape a real Hypixel import would — otherwise
+  // buildAccessoryCandidates keeps re-offering the exact same accessory next run (it only reads
+  // ownedAccessories, which setAccessoryMagicalPower/setAccessoryTuning never touch), silently
+  // double-counting its Magical Power. Always run after setAccessoryMagicalPower in the same
+  // apply chain, which lazily creates the accessory slot if this is the first accessory ever set.
+  const setOwnedAccessory = useCallback(
+    (id, tier, recombobulated) => {
+      updateSlotModifiers('accessory', (modifiers) => {
+        const owned = modifiers.ownedAccessories ? [...modifiers.ownedAccessories] : [];
+        const idx = owned.findIndex((o) => o.id === id);
+        const entry = { id, tier, recombobulated: !!recombobulated };
+        if (idx >= 0) owned[idx] = entry;
+        else owned.push(entry);
+        return { ...modifiers, ownedAccessories: owned };
+      });
+    },
+    [updateSlotModifiers],
+  );
+
   // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
   // Target mob(s) are intentionally left untouched: loadouts describe the player, not the encounter, so swapping loadouts keeps whatever mob(s) are currently targeted.
   const loadFullState = useCallback((state) => {
@@ -1052,6 +1073,7 @@ export function BuildProvider({ children }) {
         setAccessoryEnrichmentType,
         setAccessoryTuningPoint,
         setAccessoryTuning,
+        setOwnedAccessory,
         loadFullState,
         undo,
         redo,

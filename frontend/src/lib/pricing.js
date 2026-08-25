@@ -6,7 +6,7 @@
 // right precomputed key. Returns a number when priceable, or `null` when no real cost source
 // exists (the caller — lib/optimizer.js's withCost — turns `null` into the `'?'` sentinel).
 
-function priceOf(map, id) {
+export function priceOf(map, id) {
   if (id == null || !map) return null;
   const price = map[id];
   return typeof price === 'number' && price > 0 ? price : null;
