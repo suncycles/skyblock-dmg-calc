@@ -406,6 +406,12 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
   if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
   if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
+  // Real digit count off the account's own General's Medallion (worker/src/index.js's
+  // computeLiveAccessoryStats/parseGeneralsMedallionDigits) — 0 (matches the manual input's own
+  // default) when the account doesn't own one in its Accessory Bag.
+  if (typeof raw.accessory?.generalsMedallionDigits === 'number') {
+    playerStats.generalsMedallionDigits = raw.accessory.generalsMedallionDigits;
+  }
 
   return { loadout, skipped, attributes, playerStats };
 }
