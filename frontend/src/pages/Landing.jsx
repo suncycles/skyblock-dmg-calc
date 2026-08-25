@@ -107,6 +107,10 @@ export default function Landing() {
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
   const [costResult, setCostResult] = useState(null);
+  // Whether any currently-selected target is Mythological-typed — Challenger's/Mythos' doubled-stat
+  // tooltip preview (buildFullItemTooltipLines' isMythologicalTarget param) only makes sense to show
+  // when it'd actually apply in combat.
+  const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
 
   function handleCalculateSetupCost() {
     setCostResult((prev) => (prev ? null : computeLoadoutCostBreakdown(loadout, attributes, itemData)));
@@ -277,6 +281,7 @@ export default function Landing() {
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
       potatoBookDoubled,
+      isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
@@ -313,6 +318,7 @@ export default function Landing() {
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
       potatoBookDoubled,
+      isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

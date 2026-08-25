@@ -13,6 +13,7 @@ import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { computeBasePetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
+import { MOB_TYPES } from '../lib/mobTypes';
 import WeaponIcon from '../components/WeaponIcon';
 
 // 6 rows x 9 columns, matching the reference screenshot.
@@ -42,7 +43,8 @@ export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { loadout, toggleRecombobulated, cleanModifiers, playerStats } = useBuild();
+  const { loadout, toggleRecombobulated, cleanModifiers, playerStats, targetMobs } = useBuild();
+  const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
   const gearType = item ? getGearType(item.category) : null;
@@ -70,6 +72,7 @@ export default function Hex() {
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
       potatoBookDoubled,
+      isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

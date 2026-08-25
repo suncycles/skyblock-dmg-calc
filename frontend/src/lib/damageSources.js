@@ -53,6 +53,7 @@ import {
   REAPER_ARMOR_SLOTS,
   REAPER_ARMOR_SET,
   REAPER_ARMOR_UNDEAD_PERCENT,
+  MYTHOLOGICAL_STAT_DOUBLE_IDS,
   hasFullSet,
   countSetPieces,
 } from './armorSetBonuses';
@@ -477,36 +478,15 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
   );
 }
 
-// Challenger's/Mythos Armor+Equipment's "Mythos' Might" ability: real lore says "Grants 2x this
-// armor's/equipment's stats while in The Hub during Diana's Mythological Ritual" — a Hub-only,
-// no-combat condition with nothing to model in a damage calculator. User-directed reinterpretation
-// 2026-08-25: apply the same 2x to the piece's own stats (including its reforge/gemstones, i.e.
-// its full settled tooltip total) whenever the TARGET MOB is of the real, existing 'Mythological'
-// type (lib/mobTypes.js — Minotaur/Sphinx/King Minos/etc, the Bestiary's own Mythological Creatures
-// family) instead — the practical condition this app can actually evaluate. Mirrors the
-// dungeonizeDelta/masterDungeonizeDelta pattern below: computed once per item here (mob-
-// independent, same as the rest of collectBaseStats), folded into a parallel mythologicalBaseStats
-// total at the very end, and picked by finalDamage.js's selectBaseStats only when the mob being
-// evaluated actually has that type — never bakes the doubling into the toggle-only baseStats used
-// by the Damage Sources page's Base Stats display or the Compare page.
-const MYTHOLOGICAL_STAT_DOUBLE_IDS = new Set([
-  'CHALLENGER_HELMET',
-  'CHALLENGER_CHESTPLATE',
-  'CHALLENGER_LEGGINGS',
-  'CHALLENGER_BOOTS',
-  'CHALLENGER_NECKLACE',
-  'CHALLENGER_CLOAK',
-  'CHALLENGER_BELT',
-  'CHALLENGER_BRACELET',
-  'MYTHOS_HELMET',
-  'MYTHOS_CHESTPLATE',
-  'MYTHOS_LEGGINGS',
-  'MYTHOS_BOOTS',
-  'MYTHOS_NECKLACE',
-  'MYTHOS_CLOAK',
-  'MYTHOS_BELT',
-  'MYTHOS_BRACELET',
-]);
+// Challenger's/Mythos Armor+Equipment's "Mythos' Might" doubling (MYTHOLOGICAL_STAT_DOUBLE_IDS,
+// imported above from armorSetBonuses.js — see its own comment for the real-lore-vs-reinterpreted
+// condition). Mirrors the dungeonizeDelta/masterDungeonizeDelta pattern below: computed once per
+// item here (mob-independent, same as the rest of collectBaseStats), folded into a parallel
+// mythologicalBaseStats total at the very end, and picked by finalDamage.js's selectBaseStats only
+// when the mob being evaluated actually has that type — never bakes the doubling into the
+// toggle-only baseStats used by the Damage Sources page's Base Stats display or the Compare page
+// (lib/itemTooltip.js's buildFullItemTooltipLines has its own, separate consumer of the same
+// shared id set, for showing the doubled number directly on the item's tooltip).
 
 // The ONLY definition of what Chimera/Manticore Claw copy — petData.js's computeBasePetStats,
 // which this delegates to rather than re-deriving. This used to be a second, inline copy of that

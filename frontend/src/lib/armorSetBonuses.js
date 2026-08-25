@@ -110,6 +110,35 @@ export const REAPER_ARMOR_SLOTS = ['chestplate', 'leggings', 'boots'];
 export const REAPER_ARMOR_SET = ['REAPER_CHESTPLATE', 'REAPER_LEGGINGS', 'REAPER_BOOTS'];
 export const REAPER_ARMOR_UNDEAD_PERCENT = 100;
 
+// Challenger's/Mythos Armor+Equipment's "Mythos' Might" ability: real lore says "Grants 2x this
+// armor's/equipment's stats while in The Hub during Diana's Mythological Ritual" — a Hub-only,
+// no-combat condition with nothing to model in a damage calculator. User-directed reinterpretation
+// 2026-08-25: apply the same 2x to the piece's own stats (including its reforge/gemstones, i.e.
+// its full settled tooltip total) whenever the TARGET MOB is of the real, existing 'Mythological'
+// type (lib/mobTypes.js — Minotaur/Sphinx/King Minos/etc, the Bestiary's own Mythological Creatures
+// family) instead — the practical condition this app can actually evaluate. Lives here (rather than
+// damageSources.js, where the damage-calc side of this consumes it) so lib/itemTooltip.js can also
+// import it for the tooltip-display side without a damageSources.js <-> itemTooltip.js import cycle
+// (damageSources.js already imports buildFullItemTooltipLines from itemTooltip.js).
+export const MYTHOLOGICAL_STAT_DOUBLE_IDS = new Set([
+  'CHALLENGER_HELMET',
+  'CHALLENGER_CHESTPLATE',
+  'CHALLENGER_LEGGINGS',
+  'CHALLENGER_BOOTS',
+  'CHALLENGER_NECKLACE',
+  'CHALLENGER_CLOAK',
+  'CHALLENGER_BELT',
+  'CHALLENGER_BRACELET',
+  'MYTHOS_HELMET',
+  'MYTHOS_CHESTPLATE',
+  'MYTHOS_LEGGINGS',
+  'MYTHOS_BOOTS',
+  'MYTHOS_NECKLACE',
+  'MYTHOS_CLOAK',
+  'MYTHOS_BELT',
+  'MYTHOS_BRACELET',
+]);
+
 // Crimson Swipe: a melee-only proc whose damage depends on how many Crimson-family armor pieces
 // (any of the 5 power tiers — see armorVariants.js's VARIANT_TIERS) are equipped, 2-4, and the
 // LOWEST tier among just those equipped pieces — mixing tiers drags the whole bonus down to the

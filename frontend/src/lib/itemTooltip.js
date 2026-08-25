@@ -10,7 +10,9 @@ import { computeStarBonuses, buildStarSuffix, buildMasterStarSuffix } from './st
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
-import { applyDungeonizeToLore } from './dungeonize';
+import { applyDungeonizeToLore, sumStatFromTooltipLines } from './dungeonize';
+import { STAT_LABELS } from './reforgeData';
+import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
 
 // Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants alphabetically, gold if maxed else grey.
 function buildAppliedEnchantLines(modifiers) {
@@ -95,6 +97,7 @@ export async function buildFullItemTooltipLines(
   generalsMedallionDigits,
   manticoreClawBonus,
   potatoBookDoubled,
+  isMythologicalTarget,
 ) {
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
@@ -124,6 +127,22 @@ export async function buildFullItemTooltipLines(
   // Enchant stat bonuses also merge into the base stat, no separate annotation.
   const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
   lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
+
+  // Challenger's/Mythos Armor+Equipment's doubled stats against a Mythological target — see
+  // armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS (the same real-lore-vs-reinterpreted-
+  // condition note lives there; damageSources.js's collectBaseStats is the other, separate
+  // consumer that feeds the actual damage calc). Doubling = merging another full copy of
+  // everything settled onto the item so far (base + reforge + gemstones + stars + enchants),
+  // read straight off the lore built up to this point — same "fully-settled total" damageSources.js
+  // already computes via sumStatFromTooltipLines on this same function's output.
+  if (isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id)) {
+    const mythologicalBonus = {};
+    for (const [statKey, meta] of Object.entries(STAT_LABELS)) {
+      const current = sumStatFromTooltipLines(lore, meta.label);
+      if (current) mythologicalBonus[statKey] = current;
+    }
+    lore = mergeStatIntoBase(lore, mythologicalBonus, lore.indexOf(''));
+  }
 
   // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has —
   // curve[catacombsLevel] + Catacombs Stars (10%/star) + General's Medallion digits, applied to
