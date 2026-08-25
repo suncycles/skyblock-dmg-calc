@@ -679,6 +679,23 @@ const PARSABLE_ACCESSORY_STAT_IDS = new Set([
 // guessing which end of the range to assume.
 const GRAVITY_TALISMAN_AVERAGE_STRENGTH = 5;
 
+// General's Medallion: real, per-account Catacombs Stats Boost digit count baked directly into
+// the owned copy's own lore server-side — same "live-computed number in a labeled lore line"
+// pattern as Midas Sword's "Price paid"/Crown of Avarice's "Coins Consumed"/Daedalus Blade's
+// "Bestiary Tiers" (see lib/hypixelImport.js's SPECIAL_LORE_LABELS for the weapon-side versions of
+// this same pattern). Confirmed live 2026-08-25 against a real account: a 5,304-secret account's
+// medallion reads "§7Bonus: §a+4%" — Hypixel itself already caps this at the real max of 6%
+// (the item's own lore states "(Max 6%)"), matching lib/dungeonize.js's MAX_GENERALS_MEDALLION_DIGITS,
+// so no extra clamping is needed here.
+function parseGeneralsMedallionDigits(lore) {
+  for (const rawLine of lore || []) {
+    const line = stripLoreLine(rawLine).trim();
+    const match = /^Bonus:\s*\+(\d+)%/.exec(line);
+    if (match) return parseInt(match[1], 10);
+  }
+  return 0;
+}
+
 // Computes live Magical Power (summed real Accessory Bag rarities), every individually-owned
 // accessory's own real stat line (parsed generically — see parseLeadingStatLines/
 // parseNarrativeStatGrants above — but only for the ~40 real ids in PARSABLE_ACCESSORY_STAT_IDS,
@@ -704,6 +721,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   let hatMagicalPower = 0;
   let hasAbicase = false;
   let enrichmentCount = 0;
+  let generalsMedallionDigits = 0;
 
   for (const raw of items) {
     const ea = raw?.tag?.ExtraAttributes;
@@ -721,6 +739,11 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     }
     if (ea.talisman_enrichment) enrichmentCount++;
     if (id === "ABICASE") hasAbicase = true;
+    // Best (highest-digit) copy counts, same dedup treatment as Magical Power/itemStats above —
+    // a player rarely owns more than one, but a stale lower-secret-count duplicate shouldn't win.
+    if (id === "GENERAL_MEDALLION") {
+      generalsMedallionDigits = Math.max(generalsMedallionDigits, parseGeneralsMedallionDigits(raw?.tag?.display?.Lore));
+    }
 
     let itemStats = null;
     if (id === "GRAVITY_TALISMAN") {
@@ -749,7 +772,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     if (total) itemStats[statKey] = Math.round(total * 10) / 10;
   }
 
-  return { magicalPower, itemStats, enrichmentCount };
+  return { magicalPower, itemStats, enrichmentCount, generalsMedallionDigits };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -1097,6 +1120,10 @@ async function handleHypixelImport(url, env) {
       // fields (a hand-picked ~5-item allowlist) with the real thing for every real accessory.
       itemStats: liveAccessoryStats.itemStats,
       enrichmentCount: liveAccessoryStats.enrichmentCount,
+      // Real Catacombs Stats Boost digit count off the account's own General's Medallion, if
+      // owned — see computeLiveAccessoryStats/parseGeneralsMedallionDigits above. 0 (no bonus,
+      // matching playerStats.generalsMedallionDigits' own default) when not owned.
+      generalsMedallionDigits: liveAccessoryStats.generalsMedallionDigits,
       // Always imports neutral — the real per-item enrichment stat is usually untracked (Magic
       // Find, etc.), so this can't grant a real bonus automatically; the player swaps it onto a
       // tracked stat manually as a "what if" (see computeLiveAccessoryStats' comment).

@@ -519,6 +519,11 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
 // (lib/itemTooltip.js's buildFullItemTooltipLines has its own, separate consumer of the same
 // shared id set, for showing the doubled number directly on the item's tooltip).
 
+// Tabasco enchant: real lore gates its flat weapon-Damage bonus on "you don't have a Dragon pet
+// equipped" without listing which pets that covers — user-confirmed 2026-08-25: Rose/Golden/Ender
+// Dragon specifically (see the per-slot loop below for the actual bonus).
+const TABASCO_DRAGON_PET_IDS = new Set(['ROSE_DRAGON', 'GOLDEN_DRAGON', 'ENDER_DRAGON']);
+
 // The ONLY definition of what Chimera/Manticore Claw copy — petData.js's computeBasePetStats,
 // which this delegates to rather than re-deriving. This used to be a second, inline copy of that
 // same "curve + Shining Scales + Primal Force" logic living here, and the two drifted out of sync
@@ -714,6 +719,16 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     if (equipped.item.id === 'EMERALD_BLADE') {
       const config = getSpecialConfig(equipped.item.id);
       addBaseStat(out, 'damage', computeSpecialBonus(config, equipped.modifiers.special), slotLabel);
+    }
+
+    // Tabasco: flat weapon Damage equal to its own level (real lore, confirmed live via NEU-REPO
+    // 2026-08-25: II grants +2, III grants +3 — no level I exists, max real level is III) UNLESS
+    // the equipped pet is a Dragon — real lore: "Grants +N weapon damage if you don't have a
+    // Dragon pet equipped." User-confirmed 2026-08-25 which pets count as "Dragon" here: Rose/
+    // Golden/Ender Dragon specifically, not every dragon-family pet (Baby/Older/Protector/etc).
+    const tabasco = (equipped.modifiers.hexEnchantments || []).find((e) => e.id.toLowerCase() === 'tabasco');
+    if (tabasco && !TABASCO_DRAGON_PET_IDS.has(loadout.pet?.item?.petId)) {
+      addBaseStat(out, 'damage', tabasco.level, `${slotLabel} (Tabasco)`);
     }
 
     // Chimera (ultimate enchant, any slot) and Manticore Claw (Gloves-slot item) both copy a cut
