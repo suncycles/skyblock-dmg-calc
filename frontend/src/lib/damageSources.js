@@ -438,34 +438,62 @@ function addBaseStat(out, statKey, value, label, dungeonizedValue = value, maste
   }
 }
 
-// A stat's current running total in all three toggle states — `dungeonizeDelta`/
-// `masterDungeonizeDelta` are already fully populated by the time any final-stage source below
-// runs (collectBaseStats, the only place that writes them, always runs first), so this is a valid
-// snapshot of "what the player's stat actually reads right now" in each mode.
+// A stat's current running total in all three toggle states, PLUS the same three again with
+// Challenger's/Mythos' Mythological doubling folded in (see MYTHOLOGICAL_STAT_DOUBLE_IDS) — every
+// one of `dungeonizeDelta`/`masterDungeonizeDelta`/`mythologicalDelta`/`mythologicalDungeonizeDelta`/
+// `mythologicalMasterDungeonizeDelta` is already fully populated by the time any final-stage source
+// below runs (collectBaseStats, the only place that writes them, always runs first), so this is a
+// valid snapshot of "what the player's stat actually reads right now" in each mode.
 function currentStatTotals(out, statKey) {
+  const dungeonized = out.baseStats[statKey] + out.dungeonizeDelta[statKey];
+  const master = out.baseStats[statKey] + out.masterDungeonizeDelta[statKey];
   return {
     normal: out.baseStats[statKey],
-    dungeonized: out.baseStats[statKey] + out.dungeonizeDelta[statKey],
-    master: out.baseStats[statKey] + out.masterDungeonizeDelta[statKey],
+    dungeonized,
+    master,
+    mythological: out.baseStats[statKey] + out.mythologicalDelta[statKey],
+    mythologicalDungeonized: dungeonized + out.mythologicalDungeonizeDelta[statKey],
+    mythologicalMaster: master + out.mythologicalMasterDungeonizeDelta[statKey],
   };
 }
 
-// Records a final-stage stat addition across all three toggle states in one call: writes the
-// labeled breakdown entry (addBaseStat) AND bumps the running dungeonize/master deltas so the
-// toggled top-line total picks the addition up too — without this second part, a source computed
-// here would show correctly in the expanded breakdown but silently vanish from the actual total
-// once Dungeon/Master is toggled.
-function addFinalStatValue(out, statKey, value, dungeonizedValue, masterDungeonizedValue, label) {
+// Records a final-stage stat addition across all toggle states in one call: writes the labeled
+// breakdown entry (addBaseStat) AND bumps the running dungeonize/master/mythological deltas so
+// every toggled top-line total picks the addition up too — without this second part, a source
+// computed here would show correctly in the expanded breakdown but silently vanish from the
+// actual total once Dungeon/Master/a Mythological target is toggled. `mythological*` values are
+// optional (default to the plain values, i.e. "no extra boost from doubling") for callers that
+// haven't computed a Mythological-aware amount.
+function addFinalStatValue(
+  out,
+  statKey,
+  value,
+  dungeonizedValue,
+  masterDungeonizedValue,
+  label,
+  mythologicalValue = value,
+  mythologicalDungeonizedValue = dungeonizedValue,
+  mythologicalMasterValue = masterDungeonizedValue,
+) {
   addBaseStat(out, statKey, value, label, dungeonizedValue, masterDungeonizedValue);
   out.dungeonizeDelta[statKey] += dungeonizedValue - value;
   out.masterDungeonizeDelta[statKey] += masterDungeonizedValue - value;
+  // Extra on top of what the addBaseStat call above already contributes to baseStats (which
+  // mythologicalBaseStats = baseStats + mythologicalDelta already picks up) — only the
+  // INCREMENTAL amount from the bigger Mythological-doubled base needs to land here.
+  out.mythologicalDelta[statKey] += mythologicalValue - value;
+  out.mythologicalDungeonizeDelta[statKey] += mythologicalDungeonizedValue - dungeonizedValue;
+  out.mythologicalMasterDungeonizeDelta[statKey] += mythologicalMasterValue - masterDungeonizedValue;
 }
 
-// `percent`% of `base` (a currentStatTotals()-shaped {normal, dungeonized, master} triple) —
-// covers every final-stage "combat stat boost" source (Unlimited Power/Energy/Torment, Superior
-// Dragon, Ender Dragon Superior, Renowned, Legion, Blaze Crimson Isle): each one is a multiplier
-// on the player's CURRENT stat total, which while Dungeonized/Master is the boosted total (gear's
-// own Catacombs Stats Boost already folded into dungeonizeDelta) — not the flat pre-toggle number.
+// `percent`% of `base` (a currentStatTotals()-shaped totals object) — covers every final-stage
+// "combat stat boost" source (Unlimited Power/Energy/Torment, Superior Dragon, Ender Dragon
+// Superior, Renowned, Legion, Blaze Crimson Isle): each one is a multiplier on the player's
+// CURRENT stat total, which while Dungeonized/Master is the boosted total (gear's own Catacombs
+// Stats Boost already folded into dungeonizeDelta) — not the flat pre-toggle number. Also applies
+// against the Mythological-doubled total (base.mythological*) when a Challenger's/Mythos piece is
+// in play, so these boosts scale with the doubled stats instead of silently only ever reading the
+// un-doubled amount.
 function addPercentStatBoost(out, statKey, percent, label, base) {
   if (!percent) return;
   addFinalStatValue(
@@ -475,6 +503,9 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
     base.dungeonized * (percent / 100),
     base.master * (percent / 100),
     label,
+    base.mythological * (percent / 100),
+    base.mythologicalDungeonized * (percent / 100),
+    base.mythologicalMaster * (percent / 100),
   );
 }
 
@@ -1757,6 +1788,9 @@ export async function collectDamageSources(
       Math.min(strengthTotals.dungeonized, RADIOACTIVE_MAX_STRENGTH) * factor,
       Math.min(strengthTotals.master, RADIOACTIVE_MAX_STRENGTH) * factor,
       'Radioactive',
+      Math.min(strengthTotals.mythological, RADIOACTIVE_MAX_STRENGTH) * factor,
+      Math.min(strengthTotals.mythologicalDungeonized, RADIOACTIVE_MAX_STRENGTH) * factor,
+      Math.min(strengthTotals.mythologicalMaster, RADIOACTIVE_MAX_STRENGTH) * factor,
     );
   }
 
