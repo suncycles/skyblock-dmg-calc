@@ -28,6 +28,7 @@ import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
 import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
 import { getMobLocations } from './mobLocations';
+import { getBestiaryStrengthBonus } from './bestiaryStrength';
 import { hasFullSet, computeCrimsonSwipeInfo } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 
@@ -96,9 +97,25 @@ export function conditionMatchesMob(condition, mob) {
 // back to the non-mythological totals.
 function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob) {
   const isMythological = !!mob?.types?.includes('Mythological');
-  if (!useDungeonizedStats) return isMythological ? sources.mythologicalBaseStats : sources.baseStats;
-  if (useMasterMode) return isMythological ? sources.mythologicalMasterDungeonizedBaseStats : sources.masterDungeonizedBaseStats;
-  return isMythological ? sources.mythologicalDungeonizedBaseStats : sources.dungeonizedBaseStats;
+  const base = !useDungeonizedStats
+    ? isMythological
+      ? sources.mythologicalBaseStats
+      : sources.baseStats
+    : useMasterMode
+      ? isMythological
+        ? sources.mythologicalMasterDungeonizedBaseStats
+        : sources.masterDungeonizedBaseStats
+      : isMythological
+        ? sources.mythologicalDungeonizedBaseStats
+        : sources.dungeonizedBaseStats;
+  // Real per-mob Bestiary "leveling reward" Strength bonus (lib/bestiaryStrength.js) — silently
+  // applied once the specific selected mob's own max tier is confirmed maxed via a real Hypixel
+  // import (sources.bestiaryMaxedMobs). Added here, AFTER collectDamageSources already fully
+  // resolved every statsMultiplier source (Superior Dragon/Unlimited Power/etc all run inside
+  // collectBaseStats/collectAttributeEntries, well before this function is ever called), so it's
+  // deliberately excluded from what those multipliers scale off of — user-specified 2026-08-26.
+  const bestiaryBonus = getBestiaryStrengthBonus(mob?.name, sources.bestiaryMaxedMobs);
+  return bestiaryBonus ? { ...base, strength: (base.strength || 0) + bestiaryBonus } : base;
 }
 
 // `sources` is damageSources.js's collectDamageSources() result; `mob` is {name, types}.

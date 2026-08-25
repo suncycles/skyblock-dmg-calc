@@ -27,6 +27,7 @@ const LEGION_PLAYERS_KEY = 'hexLegionPlayers';
 const BLAZE_CRIMSON_ISLE_KEY = 'hexBlazeCrimsonIsle';
 const MAX_BUDGET_KEY = 'hexMaxBudget';
 const LAST_GEAR_MODIFIERS_KEY = 'hexLastGearModifiers';
+const BESTIARY_MAXED_MOBS_KEY = 'hexBestiaryMaxedMobs';
 
 export const MAX_SWARM_MOBS = 10;
 export const MAX_COMBO_KILLS = 10;
@@ -117,6 +118,20 @@ function loadInitialLegionPlayers() {
 // Loads the Blaze pet's "In Crimson Isle" toggle.
 function loadInitialBlazeCrimsonIsle() {
   return localStorage.getItem(BLAZE_CRIMSON_ISLE_KEY) === 'true';
+}
+
+// Real mob names (matching lib/mobTypes.js's MOB_TYPES keys) the imported account has reached max
+// Bestiary tier on — see lib/bestiaryStrength.js. Import-only, no manual editing UI (unlike
+// blazetekkHamRadio above, this one has a real, reliable import signal every time).
+function loadInitialBestiaryMaxedMobs() {
+  try {
+    const stored = localStorage.getItem(BESTIARY_MAXED_MOBS_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error('Failed to parse saved bestiary maxed mobs:', err);
+    return [];
+  }
 }
 
 // Loads the Optimizer's max coin budget (0 = unlimited, default) — real-priced candidates costing
@@ -320,6 +335,7 @@ export function BuildProvider({ children }) {
   const [comboKills, setComboKillsState] = useState(loadInitialComboKills);
   const [legionPlayers, setLegionPlayersState] = useState(loadInitialLegionPlayers);
   const [blazeCrimsonIsle, setBlazeCrimsonIsleState] = useState(loadInitialBlazeCrimsonIsle);
+  const [bestiaryMaxedMobs, setBestiaryMaxedMobsState] = useState(loadInitialBestiaryMaxedMobs);
   const [maxBudget, setMaxBudgetState] = useState(loadInitialMaxBudget);
 
   const setMobHpPercent = useCallback((value) => {
@@ -642,6 +658,15 @@ export function BuildProvider({ children }) {
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
+  }, []);
+
+  // Full replacement (not a merge) — a fresh Hypixel import is a complete, authoritative snapshot
+  // of "which mobs are maxed right now" (see worker/src/index.js's computeBestiaryMaxedMobs), not
+  // a patch of a few changed entries like the loadout/attributes/playerStats imports above.
+  const importHypixelBestiaryMaxedMobs = useCallback((names) => {
+    const next = Array.isArray(names) ? names : [];
+    setBestiaryMaxedMobsState(next);
+    localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(next));
   }, []);
 
   // Fully unequips a slot, dropping its key from the loadout entirely.
@@ -1010,6 +1035,10 @@ export function BuildProvider({ children }) {
 
     setBlazeCrimsonIsleState(!!state.blazeCrimsonIsle);
     localStorage.setItem(BLAZE_CRIMSON_ISLE_KEY, String(!!state.blazeCrimsonIsle));
+
+    const nextBestiaryMaxedMobs = Array.isArray(state.bestiaryMaxedMobs) ? state.bestiaryMaxedMobs : [];
+    setBestiaryMaxedMobsState(nextBestiaryMaxedMobs);
+    localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(nextBestiaryMaxedMobs));
   }, []);
 
   return (
@@ -1057,12 +1086,14 @@ export function BuildProvider({ children }) {
         setLegionPlayers,
         blazeCrimsonIsle,
         toggleBlazeCrimsonIsle,
+        bestiaryMaxedMobs,
         maxBudget,
         setMaxBudget,
         selectItem,
         importHypixelLoadout,
         importHypixelAttributes,
         importHypixelPlayerStats,
+        importHypixelBestiaryMaxedMobs,
         removeSlot,
         applyEnchant,
         applyGemstone,

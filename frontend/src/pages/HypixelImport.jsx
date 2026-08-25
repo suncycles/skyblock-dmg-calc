@@ -145,7 +145,7 @@ function pickSource(sets, choice, fallback) {
 export default function HypixelImport() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { importHypixelLoadout, importHypixelAttributes, importHypixelPlayerStats } = useBuild();
+  const { importHypixelLoadout, importHypixelAttributes, importHypixelPlayerStats, importHypixelBestiaryMaxedMobs } = useBuild();
   const { itemData } = useItemData();
   const [username, setUsername] = useState(location.state?.username || '');
   const [status, setStatus] = useState('idle'); // idle | loading | picking-profile | reviewing
@@ -226,7 +226,7 @@ export default function HypixelImport() {
     const weaponIndex = typeof weaponChoice === 'number' ? weaponChoice : null;
     const petIndex = typeof petChoice === 'number' ? petChoice : null;
     const excludedSlots = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => !includedSlots.has(slot)));
-    const { loadout, attributes, playerStats } = await mapHypixelImportToLoadout(rawImport, itemData, {
+    const { loadout, attributes, playerStats, bestiaryMaxedMobs } = await mapHypixelImportToLoadout(rawImport, itemData, {
       weaponIndex,
       petIndex,
       excludedSlots,
@@ -240,6 +240,7 @@ export default function HypixelImport() {
     importHypixelLoadout(loadout);
     if (Object.keys(attributes).length > 0) importHypixelAttributes(attributes);
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
+    importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
     navigate('/');
   }
 

@@ -425,5 +425,9 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
     playerStats.generalsMedallionDigits = raw.accessory.generalsMedallionDigits;
   }
 
-  return { loadout, skipped, attributes, playerStats };
+  // Real mob names the account has reached max Bestiary tier on (worker/src/index.js's
+  // computeBestiaryMaxedMobs) — see lib/bestiaryStrength.js for the consumer.
+  const bestiaryMaxedMobs = Array.isArray(raw.bestiaryMaxedMobs) ? raw.bestiaryMaxedMobs : [];
+
+  return { loadout, skipped, attributes, playerStats, bestiaryMaxedMobs };
 }

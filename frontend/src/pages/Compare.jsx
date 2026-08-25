@@ -60,6 +60,7 @@ function useCurrentBuildState(build) {
       comboKills: build.comboKills,
       legionPlayers: build.legionPlayers,
       blazeCrimsonIsle: build.blazeCrimsonIsle,
+      bestiaryMaxedMobs: build.bestiaryMaxedMobs,
     }),
     [
       build.loadout,
@@ -76,6 +77,7 @@ function useCurrentBuildState(build) {
       build.comboKills,
       build.legionPlayers,
       build.blazeCrimsonIsle,
+      build.bestiaryMaxedMobs,
     ],
   );
 }
@@ -130,6 +132,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts) {
           state.comboKills,
           state.legionPlayers,
           state.blazeCrimsonIsle,
+          state.bestiaryMaxedMobs,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));

@@ -100,6 +100,7 @@ export default function DamageSources({ embedded = false }) {
     setLegionPlayers,
     blazeCrimsonIsle,
     toggleBlazeCrimsonIsle,
+    bestiaryMaxedMobs,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
     setAccessoryEnrichmentType,
@@ -163,6 +164,7 @@ export default function DamageSources({ embedded = false }) {
       comboKills,
       legionPlayers,
       blazeCrimsonIsle,
+      bestiaryMaxedMobs,
     ).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
@@ -177,6 +179,7 @@ export default function DamageSources({ embedded = false }) {
     infernalCrimsonStacks,
     useDungeonizedStats,
     swarmMobs,
+    bestiaryMaxedMobs,
     comboKills,
     legionPlayers,
     blazeCrimsonIsle,
