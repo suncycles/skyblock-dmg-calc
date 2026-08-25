@@ -1376,8 +1376,16 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 // it doesn't (see lib/pricing.js for exactly which categories are/aren't priceable today).
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode, build.useMasterMode);
-  const { value: rawBaselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
-  const baselineValue = hasFabledReforgeEquipped(loadout) ? rawBaselineValue * FABLED_MIDPOINT_MULTIPLIER : rawBaselineValue;
+  const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
+  // Only the weapon/equipment Reforge comparison itself needs the Fabled-adjusted baseline below
+  // (reforgeBaselineValue) — every other category's candidates (gear, pets, enchants, gemstones,
+  // etc.) never get a Fabled-style multiplier applied to THEIR values, so comparing them against
+  // an inflated baseline would falsely shrink or negate real upgrades across the board. This used
+  // to multiply the single shared baselineValue directly, which fixed the Reforge oscillation but
+  // broke every other category's percentIncrease whenever Fabled was equipped (bug report
+  // 2026-08-25, second half) — real Pet Item/Gemstone/etc upgrades were reading as ~0% or getting
+  // filtered out entirely, since they were being measured against a baseline ~7.5% too high.
+  const reforgeBaselineValue = hasFabledReforgeEquipped(loadout) ? baselineValue * FABLED_MIDPOINT_MULTIPLIER : baselineValue;
 
   const [
     weapons,
@@ -1434,13 +1442,14 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   // / evaluateGemstoneCandidates) still need it computed here. Same 0-baseline handling as
   // evaluateTieredProgression (see its comment) — a hardcoded 0 used to silently discard every
   // real candidate whenever the mode's damage number started at exactly 0.
-  const withPercent = (list) =>
+  const withPercentUsing = (list, base) =>
     list
       .map((r) => ({
         ...r,
-        percentIncrease: baselineValue > 0 ? ((r.value - baselineValue) / baselineValue) * 100 : r.value * 100,
+        percentIncrease: base > 0 ? ((r.value - base) / base) * 100 : r.value * 100,
       }))
       .filter((r) => r.percentIncrease > 0.001);
+  const withPercent = (list) => withPercentUsing(list, baselineValue);
 
   const slotCandidates = [...weapons, ...armor, ...equipment, ...pets];
   const slots = {};
@@ -1456,13 +1465,13 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...powers,
       ...stars,
       ...masterStars,
-      ...weaponAndEquipmentReforges,
       ...recombs,
       ...petItems,
       ...fullSets,
       ...gemstones,
       ...attributes,
     ]),
+    ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue),
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
