@@ -216,14 +216,26 @@ export function computeBasePetStats(loadout, itemData) {
   return applyLionPrimalForce(pet.petId, stats, otherNums);
 }
 
-// The Chimera bonus for one equipped item slot ({item, modifiers}), or null if it doesn't have Chimera applied.
+// Daedalus Blade/Starred Daedalus Blade's real lore: "copies the base Combat stats of your active
+// pet" unconditionally — an intrinsic, always-on Chimera 5 (100% of pet stats) baked into the
+// weapon itself, independent of whether the real Chimera enchant is also applied. User-confirmed
+// 2026-08-25: stacks additively with a real Chimera 5 enchant to 200% (10 combined "levels" through
+// the same linear formula), not a separate flat bonus of its own.
+const DAEDALUS_BLADE_IDS = ['DAEDALUS_AXE', 'STARRED_DAEDALUS_AXE'];
+const DAEDALUS_BLADE_INTRINSIC_CHIMERA_LEVEL = 5;
+
+// The Chimera bonus for one equipped item slot ({item, modifiers}) — from a real Chimera ultimate
+// enchant, Daedalus Blade's intrinsic copy, or both stacked together — or null if neither applies.
 export function computeItemChimeraBonus(equipped, petStats) {
   if (!equipped) return null;
   const chimera = [
     ...(equipped.modifiers.hexEnchantments || []),
     ...(equipped.modifiers.ultimateEnchantment ? [equipped.modifiers.ultimateEnchantment] : []),
   ].find((e) => e.id.toLowerCase() === 'ultimate_chimera');
-  return chimera ? computeChimeraStatBonus(petStats, chimera.level) : null;
+  const enchantLevel = chimera ? chimera.level : 0;
+  const intrinsicLevel = DAEDALUS_BLADE_IDS.includes(equipped.item.id) ? DAEDALUS_BLADE_INTRINSIC_CHIMERA_LEVEL : 0;
+  const totalLevel = enchantLevel + intrinsicLevel;
+  return totalLevel ? computeChimeraStatBonus(petStats, totalLevel) : null;
 }
 
 // Manticore Claw gloves: same "copy the equipped pet's Combat stats" mechanic as Chimera, flat 10%.
