@@ -1137,6 +1137,16 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
 // on top of whatever computeModeDamage already returned for the 0%-boost baseline.
 const FABLED_MIDPOINT_MULTIPLIER = 1 + FABLED_CRIT_BONUS_MAX_PERCENT / 100 / 2;
 
+// Same midpoint treatment has to apply to the CURRENT loadout's baseline whenever Fabled is
+// already equipped — otherwise the baseline (computed via the deliberate 1x no-op above) reads
+// ~7.5% low compared to how a Fabled candidate gets valued, so every other reforge looks like a
+// false upgrade over an already-equipped Fabled, and Fabled then looks like a false upgrade right
+// back over whatever replaced it — an infinite Fabled<->other suggestion loop (bug report
+// 2026-08-25). Keeps baselineValue and candidate values on the same footing.
+function hasFabledReforgeEquipped(loadout) {
+  return ['weapon', ...EQUIPMENT_SLOTS].some((slot) => loadout[slot]?.modifiers?.reforge === FABLED_REFORGE_NAME);
+}
+
 async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
   for (const slot of ['weapon', ...EQUIPMENT_SLOTS]) {
@@ -1366,7 +1376,8 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 // it doesn't (see lib/pricing.js for exactly which categories are/aren't priceable today).
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const modeConfig = getModeConfig(mode, build.useMasterMode);
-  const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
+  const { value: rawBaselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
+  const baselineValue = hasFabledReforgeEquipped(loadout) ? rawBaselineValue * FABLED_MIDPOINT_MULTIPLIER : rawBaselineValue;
 
   const [
     weapons,
