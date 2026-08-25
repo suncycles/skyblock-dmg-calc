@@ -1511,6 +1511,9 @@ export function applyOptimizerResult(build, result) {
       case 'setAttributeLevel':
         build.setAttributeLevel(step.id, step.level);
         break;
+      case 'setOwnedAccessory':
+        build.setOwnedAccessory(step.id, step.tier, step.recombobulated);
+        break;
       default:
         break;
     }

@@ -163,7 +163,7 @@ export function buildAccessoryCandidates(owned, families) {
       if (members.has(ownedId)) currentTierMp = Math.max(currentTierMp, MAGICAL_POWER_BY_RARITY[tier] || 0);
     }
     const mpGain = (MAGICAL_POWER_BY_RARITY[meta.rarity] || 0) - currentTierMp;
-    if (mpGain > 0) missing.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'missing' });
+    if (mpGain > 0) missing.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'missing', nextRecombobulated: false });
   }
 
   const recombobulate = [];
@@ -180,6 +180,7 @@ export function buildAccessoryCandidates(owned, families) {
           mpGain,
           kind: 'gemstone-upgrade',
           gemstonesNeeded: gem.gemstonesNeeded,
+          nextRecombobulated: recombobulated, // gemstones don't touch recomb status — preserve it
         });
       }
       continue; // Recombobulator doesn't apply to these two rarity jumps — real mechanic is gemstones only.
@@ -191,7 +192,9 @@ export function buildAccessoryCandidates(owned, families) {
     if (recombobulated || nonRecomb.has(id) || !canRecombobulate(tier)) continue;
     const nextTier = bumpRarity(tier);
     const mpGain = (MAGICAL_POWER_BY_RARITY[nextTier] || 0) - (MAGICAL_POWER_BY_RARITY[tier] || 0);
-    if (mpGain > 0) recombobulate.push({ id, name: families.talismans[id]?.name || id, rarity: nextTier, mpGain, kind: 'recombobulate' });
+    if (mpGain > 0) {
+      recombobulate.push({ id, name: families.talismans[id]?.name || id, rarity: nextTier, mpGain, kind: 'recombobulate', nextRecombobulated: true });
+    }
   }
 
   return [...missing, ...recombobulate, ...gemstoneUpgrade];
@@ -258,6 +261,13 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
         apply: [
           { type: 'setAccessoryMagicalPower', mp: currentMp + candidate.mpGain },
           { type: 'setAccessoryTuning', tuning: candidateTuning },
+          // Real accessories only (not the generic +MP steps, which have no real id to "own") —
+          // marks it owned/upgraded so buildAccessoryCandidates treats it as real going forward
+          // (excluded from New Accessory, offered for Recombobulate next, etc.) instead of
+          // silently re-offering the same Magical Power gain again next run.
+          ...(candidate.kind !== 'generic'
+            ? [{ type: 'setOwnedAccessory', id: candidate.id, tier: candidate.rarity, recombobulated: candidate.nextRecombobulated }]
+            : []),
         ],
       }, cost),
     );

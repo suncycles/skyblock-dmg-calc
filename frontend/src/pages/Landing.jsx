@@ -27,6 +27,8 @@ import { SLOT_TEXTURES } from '../lib/icons';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import { encodeLoadout, decodeLoadoutCode, shortenLoadoutCode } from '../lib/loadoutCode';
 import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
+import { computeLoadoutCostBreakdown, LOADOUT_COST_SECTIONS } from '../lib/loadoutCost';
+import { formatCoinsShort } from '../lib/damageFormat';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
@@ -104,6 +106,11 @@ export default function Landing() {
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
+  const [costResult, setCostResult] = useState(null);
+
+  function handleCalculateSetupCost() {
+    setCostResult((prev) => (prev ? null : computeLoadoutCostBreakdown(loadout, attributes, itemData)));
+  }
 
   function dismissEntry() {
     sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
@@ -731,7 +738,29 @@ export default function Landing() {
               />{' '}
               Compare
             </button>
+            <button
+              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+              onClick={handleCalculateSetupCost}
+            >
+              <img src="/images/manual/Coins.webp" alt="" className="w-4 h-4" /> {costResult ? 'Hide Setup Cost' : 'Setup Cost'}
+            </button>
           </div>
+          {costResult && (
+            <div className="w-64 flex flex-col gap-1 text-[12px]">
+              {LOADOUT_COST_SECTIONS.map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between gap-2 text-white">
+                  <span className="text-neutral-300">{label}</span>
+                  <span className="font-mono">
+                    {typeof costResult.breakdown[key] === 'number' ? formatCoinsShort(costResult.breakdown[key]) : '?'}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between gap-2 pt-1 mt-1 border-t border-neutral-600 font-bold text-white">
+                <span>Total{costResult.hasUnknown ? ' (partial)' : ''}</span>
+                <span className="font-mono">{formatCoinsShort(costResult.total)}</span>
+              </div>
+            </div>
+          )}
           {showLoadoutsPanel && (
             <div className="w-64 flex flex-col gap-1">
               <div className="flex gap-1.5">
