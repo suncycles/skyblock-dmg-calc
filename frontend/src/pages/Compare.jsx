@@ -177,10 +177,15 @@ function computeSideMobResult(side, mobName) {
   return { status: 'ok', finalDamage, finalDamageWithFabledMax, dps };
 }
 
-function displayedStat(side, key) {
+function displayedStat(side, key, isMythologicalTarget) {
   if (!side.result || !side.state) return null;
-  if (!side.state.useDungeonizedStats) return side.result.baseStats[key];
-  return side.state.useMasterMode ? side.result.masterDungeonizedBaseStats[key] : side.result.dungeonizedBaseStats[key];
+  if (!side.state.useDungeonizedStats) {
+    return isMythologicalTarget ? side.result.mythologicalBaseStats[key] : side.result.baseStats[key];
+  }
+  if (side.state.useMasterMode) {
+    return isMythologicalTarget ? side.result.mythologicalMasterDungeonizedBaseStats[key] : side.result.masterDungeonizedBaseStats[key];
+  }
+  return isMythologicalTarget ? side.result.mythologicalDungeonizedBaseStats[key] : side.result.dungeonizedBaseStats[key];
 }
 
 // `helmetPreview` per option is a formatted item name | '' (no helmet) | undefined (still
@@ -329,6 +334,9 @@ export default function Compare() {
   const labels = selections.map(sideLabel);
   const slotLetters = selections.map((_, i) => String.fromCharCode(65 + i));
   const targetMobs = build.targetMobs;
+  // Same "applies to at least one selected mob" treatment as DamageSources.jsx — the (Base) Stats
+  // panel below is one shared block per loadout side, not per-mob.
+  const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4">
@@ -452,7 +460,7 @@ export default function Compare() {
         )}
 
         <div className={`${panel} p-3 flex flex-col gap-1.5 overflow-x-auto`}>
-          <div className={sectionTitle}>(Base) Stats</div>
+          <div className={sectionTitle}>(Base) Stats{isMythologicalTarget ? ' (Mythological)' : ''}</div>
           <div
             className="grid gap-x-3 gap-y-1 text-[12px] text-black"
             style={{ gridTemplateColumns: `1fr repeat(${selections.length}, auto)` }}
@@ -469,7 +477,7 @@ export default function Compare() {
                   <Keyworded text={STAT_LABELS[key].label} />
                 </span>
                 {sides.map((side, i) => {
-                  const value = displayedStat(side, key);
+                  const value = displayedStat(side, key, isMythologicalTarget);
                   return (
                     <span key={i} className="text-right font-mono">
                       {value != null ? formatStatValue(key, Math.round(value * 10) / 10) : '—'}

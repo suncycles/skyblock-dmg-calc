@@ -141,6 +141,10 @@ export default function DamageSources({ embedded = false }) {
     (slot) => loadout[slot]?.modifiers?.ultimateEnchantment?.id?.toLowerCase() === 'ultimate_legion',
   );
   const hasBlazePet = loadout.pet?.item?.petId === 'BLAZE';
+  // Whether any currently-selected target is Mythological-typed — same "applies to at least one
+  // selected mob" treatment as appliedToAnyMob below. Drives the (Base) Stats panel's Challenger's/
+  // Mythos doubled-stat display, since that panel is one shared block, not per-mob.
+  const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
 
   useEffect(() => {
     const token = ++tokenRef.current;
@@ -646,7 +650,7 @@ export default function DamageSources({ embedded = false }) {
           <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
             <div className="flex-1">
               <Section
-                title={`(Base) Stats${useDungeonizedStats ? (useMasterMode ? ' (Dungeonized, Master)' : ' (Dungeonized)') : ''}`}
+                title={`(Base) Stats${useDungeonizedStats ? (useMasterMode ? ' (Dungeonized, Master)' : ' (Dungeonized)') : ''}${isMythologicalTarget ? ' (Mythological)' : ''}`}
                 subtitle="Click a stat to see where it comes from."
                 empty=""
               >
@@ -654,10 +658,16 @@ export default function DamageSources({ embedded = false }) {
                   const sources = result.baseStatSources[key];
                   const isExpanded = expandedStat === key;
                   const displayed = !useDungeonizedStats
-                    ? result.baseStats[key]
+                    ? isMythologicalTarget
+                      ? result.mythologicalBaseStats[key]
+                      : result.baseStats[key]
                     : useMasterMode
-                      ? result.masterDungeonizedBaseStats[key]
-                      : result.dungeonizedBaseStats[key];
+                      ? isMythologicalTarget
+                        ? result.mythologicalMasterDungeonizedBaseStats[key]
+                        : result.masterDungeonizedBaseStats[key]
+                      : isMythologicalTarget
+                        ? result.mythologicalDungeonizedBaseStats[key]
+                        : result.dungeonizedBaseStats[key];
                   return (
                     <div key={key}>
                       <div
