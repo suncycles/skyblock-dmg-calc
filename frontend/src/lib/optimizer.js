@@ -524,7 +524,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
 
   if (modeConfig.metric === 'beam') {
-    const beam = computeMageStaffBeamDamage(sources, dps.meleeFinalDamage, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
+    const beam = computeMageStaffBeamDamage(sources, mob, dps.meleeFinalDamage, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
     return { value: beam.finalDamage, sources };
   }
 

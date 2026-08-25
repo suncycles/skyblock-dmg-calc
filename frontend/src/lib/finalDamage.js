@@ -88,10 +88,17 @@ export function conditionMatchesMob(condition, mob) {
 
 // Picks which of damageSources.js's three parallel baseStats totals (normal / dungeonized /
 // master-dungeonized) applies, per the useDungeonizedStats+useMasterMode toggles described above
-// computeFinalDamage and computeAbilityDamage (both need this same selection).
-function selectBaseStats(sources, useDungeonizedStats, useMasterMode) {
-  if (!useDungeonizedStats) return sources.baseStats;
-  return useMasterMode ? sources.masterDungeonizedBaseStats : sources.dungeonizedBaseStats;
+// computeFinalDamage and computeAbilityDamage (both need this same selection) — then, if the mob
+// being evaluated is of the real 'Mythological' type, swaps in the matching mythological* variant
+// instead (Challenger's/Mythos Armor+Equipment's doubled stats — see damageSources.js's
+// MYTHOLOGICAL_STAT_DOUBLE_IDS). `mob` is optional so callers with no specific mob in scope
+// (there currently are none, but this keeps the function safe if that ever changes) just fall
+// back to the non-mythological totals.
+function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob) {
+  const isMythological = !!mob?.types?.includes('Mythological');
+  if (!useDungeonizedStats) return isMythological ? sources.mythologicalBaseStats : sources.baseStats;
+  if (useMasterMode) return isMythological ? sources.mythologicalMasterDungeonizedBaseStats : sources.masterDungeonizedBaseStats;
+  return isMythological ? sources.mythologicalDungeonizedBaseStats : sources.dungeonizedBaseStats;
 }
 
 // `sources` is damageSources.js's collectDamageSources() result; `mob` is {name, types}.
@@ -118,7 +125,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   }
 
   const { additiveNonConditional, additiveConditional, weaponBonusNonConditional, weaponBonusConditional, multiplicative } = sources;
-  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
+  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
   const appliedIds = new Set();
 
   let additivePercent = 0;
@@ -233,7 +240,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   }
 
   const { additiveNonConditional, additiveConditional, abilityMultiplicative } = sources;
-  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
+  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
   const appliedIds = new Set();
 
   let additivePercent = 0;
@@ -297,8 +304,8 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
 const MAGE_STAFF_BEAM_BASE_MULTIPLIER = 0.3;
 const MAGE_STAFF_BEAM_INTELLIGENCE_RATE = 0.0009;
 
-export function computeMageStaffBeamDamage(sources, meleeFinalDamage, useDungeonizedStats = false, useMasterMode = false) {
-  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode);
+export function computeMageStaffBeamDamage(sources, mob, meleeFinalDamage, useDungeonizedStats = false, useMasterMode = false) {
+  const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
   const intelligence = baseStats.intelligence || 0;
   const finalDamage = Math.floor(meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + MAGE_STAFF_BEAM_INTELLIGENCE_RATE * intelligence));
   return { meleeFinalDamage, intelligence, finalDamage };
