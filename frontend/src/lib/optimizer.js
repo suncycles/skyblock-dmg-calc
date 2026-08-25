@@ -514,6 +514,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     build.comboKills,
     build.legionPlayers,
     build.blazeCrimsonIsle,
+    build.bestiaryMaxedMobs,
   );
 
   if (modeConfig.metric === 'ability') {

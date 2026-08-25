@@ -60,6 +60,8 @@ const NEU_LEVELING_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 // each skill's real max level; leveling.json's leveling_xp per-level cost table is still the XP
 // curve source (already verified to have 60 entries, enough for every current real cap).
 const HYPIXEL_SKILLS_URL = "https://api.hypixel.net/v2/resources/skyblock/skills";
+// Real per-mob Bestiary tier-cap/kill-threshold data, for computeBestiaryMaxedMobs below.
+const NEU_BESTIARY_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/bestiary.json";
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -707,6 +709,71 @@ function parseGeneralsMedallionDigits(lore) {
 // type 'none', and the player can swap that to Strength to see the hypothetical +65 Strength.
 // `abiphoneContactCount` (member.nether_island_player_data.abiphone.contact_data key count) adds
 // floor(count/2) bonus Magical Power, but only while an Abicase accessory is owned — user-confirmed.
+// Real per-mob Bestiary tier caps this app models (see frontend/src/lib/bestiaryStrength.js's
+// BESTIARY_STRENGTH_BY_MOB and its own header comment for the full derivation/verification
+// writeup) — only mobs whose own cap lands on 15 or 20 grant a Strength bonus, user-confirmed
+// 2026-08-26. Scans every real bestiary.json family (not just "combat"-sounding ones — plenty of
+// real combat mobs this app tracks, e.g. Rat/Squid/Sheep/Zealot/Werewolf/Yeti, live under
+// farming/foraging/fishing/garden's own bestiary families instead).
+const BESTIARY_FAMILY_KEYS = [
+  "dynamic",
+  "hub",
+  "farming_1",
+  "combat_1",
+  "combat_3",
+  "crimson_isle",
+  "mining_2",
+  "mining_3",
+  "crystal_hollows",
+  "foraging_1",
+  "foraging_2",
+  "spooky_festival",
+  "mythological_creatures",
+  "jerry",
+  "kuudra",
+  "fishing",
+  "catacombs",
+  "garden",
+  "lotus_atoll",
+  "foraging_3",
+  "safari",
+];
+const BESTIARY_STRENGTH_TIERS = new Set([15, 20]);
+
+function stripBestiaryColor(s) {
+  return (s || "").replace(/§./g, "").trim();
+}
+
+async function fetchBestiary() {
+  const res = await fetch(NEU_BESTIARY_URL);
+  return res.json();
+}
+
+// Real mob names (matching this app's own MOB_TYPES keys) the account has actually reached max
+// Bestiary tier on — derived directly from real per-sub-mob kill counts (member.bestiary.kills)
+// summed per family and compared against that family's own real `cap` (the kill count at its own
+// max tier, confirmed live against several real mob families to land exactly on a bracket
+// threshold — see bestiaryStrength.js). Only families whose derived max tier is 15 or 20 are
+// checked at all, since those are the only ones this app has a confirmed Strength bonus for.
+function computeBestiaryMaxedMobs(bestiary, kills) {
+  const maxed = [];
+  for (const familyKey of BESTIARY_FAMILY_KEYS) {
+    const family = bestiary[familyKey];
+    if (!family?.mobs) continue;
+    for (const mobFamily of family.mobs) {
+      const name = stripBestiaryColor(mobFamily.name);
+      if (!name) continue;
+      const bracket = bestiary.brackets[String(mobFamily.bracket)];
+      if (!bracket || typeof mobFamily.cap !== "number") continue;
+      const maxTier = bracket.indexOf(mobFamily.cap) + 1;
+      if (!BESTIARY_STRENGTH_TIERS.has(maxTier)) continue;
+      const totalKills = (mobFamily.mobs || []).reduce((sum, subId) => sum + (kills?.[subId] || 0), 0);
+      if (totalKills >= mobFamily.cap) maxed.push(name);
+    }
+  }
+  return maxed;
+}
+
 function computeLiveAccessoryStats(items, abiphoneContactCount) {
   const bestMagicalPowerById = new Map();
   const bestStatById = {}; // statKey -> Map<id, value>
@@ -997,7 +1064,7 @@ async function handleHypixelImport(url, env) {
     const backpackContents = member.inventory?.backpack_contents || {};
     const backpackIds = Object.keys(backpackContents).sort((a, b) => Number(a) - Number(b));
 
-    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling, skillsResource] =
+    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling, skillsResource, bestiary] =
       await Promise.all([
         member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
         member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
@@ -1014,6 +1081,7 @@ async function handleHypixelImport(url, env) {
         fetch(NEU_ATTRIBUTE_SHARDS_URL).then((r) => r.json()),
         fetch(NEU_LEVELING_URL).then((r) => r.json()),
         fetch(HYPIXEL_SKILLS_URL).then((r) => r.json()),
+        fetchBestiary(),
       ]);
 
     const armorResult = {};
@@ -1161,6 +1229,10 @@ async function handleHypixelImport(url, env) {
     const bank = typeof profile.banking?.balance === "number" ? profile.banking.balance : null;
     const goldCollection = typeof member.collection?.GOLD_INGOT === "number" ? member.collection.GOLD_INGOT : null;
 
+    // Real per-mob Bestiary "leveling reward" Strength bonus — see computeBestiaryMaxedMobs and
+    // frontend/src/lib/bestiaryStrength.js's BESTIARY_STRENGTH_BY_MOB (the consumer).
+    const bestiaryMaxedMobs = computeBestiaryMaxedMobs(bestiary, member.bestiary?.kills);
+
     return jsonResponse({
       profile: { profile_id: profile.profile_id, cute_name: profile.cute_name },
       username: resolvedUsername,
@@ -1177,6 +1249,7 @@ async function handleHypixelImport(url, env) {
       accessory,
       bank,
       goldCollection,
+      bestiaryMaxedMobs,
     });
   } catch (err) {
     console.error("handleHypixelImport: failed to decode inventory data:", err);
