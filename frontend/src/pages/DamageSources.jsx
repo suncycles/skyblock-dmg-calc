@@ -263,14 +263,14 @@ export default function DamageSources({ embedded = false }) {
             abilityDamage: computeAbilityDamage(result, mob, loadout, useDungeonizedStats, useMasterMode),
             beamDamage:
               meleeFinalDamage != null
-                ? computeMageStaffBeamDamage(result, meleeFinalDamage, useDungeonizedStats, useMasterMode)
+                ? computeMageStaffBeamDamage(result, mob, meleeFinalDamage, useDungeonizedStats, useMasterMode)
                 : null,
             // Beam is a cut of melee Final Damage, so Fabled's randomized crit bonus (see
             // finalDamageWithFabledMax above) carries through the same way — a second "up to"
             // figure, not folded into the baseline Beam number.
             beamDamageWithFabledMax:
               meleeFinalDamageWithFabledMax != null
-                ? computeMageStaffBeamDamage(result, meleeFinalDamageWithFabledMax, useDungeonizedStats, useMasterMode)
+                ? computeMageStaffBeamDamage(result, mob, meleeFinalDamageWithFabledMax, useDungeonizedStats, useMasterMode)
                 : null,
           };
         })

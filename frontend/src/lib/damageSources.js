@@ -477,6 +477,37 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
   );
 }
 
+// Challenger's/Mythos Armor+Equipment's "Mythos' Might" ability: real lore says "Grants 2x this
+// armor's/equipment's stats while in The Hub during Diana's Mythological Ritual" — a Hub-only,
+// no-combat condition with nothing to model in a damage calculator. User-directed reinterpretation
+// 2026-08-25: apply the same 2x to the piece's own stats (including its reforge/gemstones, i.e.
+// its full settled tooltip total) whenever the TARGET MOB is of the real, existing 'Mythological'
+// type (lib/mobTypes.js — Minotaur/Sphinx/King Minos/etc, the Bestiary's own Mythological Creatures
+// family) instead — the practical condition this app can actually evaluate. Mirrors the
+// dungeonizeDelta/masterDungeonizeDelta pattern below: computed once per item here (mob-
+// independent, same as the rest of collectBaseStats), folded into a parallel mythologicalBaseStats
+// total at the very end, and picked by finalDamage.js's selectBaseStats only when the mob being
+// evaluated actually has that type — never bakes the doubling into the toggle-only baseStats used
+// by the Damage Sources page's Base Stats display or the Compare page.
+const MYTHOLOGICAL_STAT_DOUBLE_IDS = new Set([
+  'CHALLENGER_HELMET',
+  'CHALLENGER_CHESTPLATE',
+  'CHALLENGER_LEGGINGS',
+  'CHALLENGER_BOOTS',
+  'CHALLENGER_NECKLACE',
+  'CHALLENGER_CLOAK',
+  'CHALLENGER_BELT',
+  'CHALLENGER_BRACELET',
+  'MYTHOS_HELMET',
+  'MYTHOS_CHESTPLATE',
+  'MYTHOS_LEGGINGS',
+  'MYTHOS_BOOTS',
+  'MYTHOS_NECKLACE',
+  'MYTHOS_CLOAK',
+  'MYTHOS_BELT',
+  'MYTHOS_BRACELET',
+]);
+
 // The ONLY definition of what Chimera/Manticore Claw copy — petData.js's computeBasePetStats,
 // which this delegates to rather than re-deriving. This used to be a second, inline copy of that
 // same "curve + Shining Scales + Primal Force" logic living here, and the two drifted out of sync
@@ -639,6 +670,11 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       addBaseStat(out, statKey, normal, slotLabel, dungeonized, masterDungeonized);
       out.dungeonizeDelta[statKey] += dungeonized - normal;
       out.masterDungeonizeDelta[statKey] += masterDungeonized - normal;
+      if (MYTHOLOGICAL_STAT_DOUBLE_IDS.has(equipped.item.id)) {
+        out.mythologicalDelta[statKey] += normal;
+        out.mythologicalDungeonizeDelta[statKey] += dungeonized;
+        out.mythologicalMasterDungeonizeDelta[statKey] += masterDungeonized;
+      }
     }
     // Mage Mode's fixed "Base Ability Damage" constant (lib/abilityDamage.js's ABILITY_DAMAGE_TABLE,
     // e.g. Hyperion's 10000) isn't a lore stat line, so it never went through Dungeonize's
@@ -1216,6 +1252,13 @@ export async function collectDamageSources(
     // themselves be re-scaled by Dungeonize.
     dungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     masterDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
+    // Mythos' Might (see MYTHOLOGICAL_STAT_DOUBLE_IDS above) — same "delta on top of each of the
+    // three normal/dungeonized/master totals" shape as dungeonizeDelta/masterDungeonizeDelta,
+    // folded into mythologicalBaseStats/mythologicalDungeonizedBaseStats/
+    // mythologicalMasterDungeonizedBaseStats at the very end.
+    mythologicalDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
+    mythologicalDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
+    mythologicalMasterDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     // Weapon-only Catacombs Stats Boost percentage for computeAbilityDamage's Base Ability Damage
     // scaling — see the `abilityBaseDamageBoost` assignment in collectBaseStats above. Zero (no
     // boost) when the equipped weapon isn't dungeonized, so the toggle never leaves it undefined.
@@ -1739,9 +1782,15 @@ export async function collectDamageSources(
 
   out.dungeonizedBaseStats = {};
   out.masterDungeonizedBaseStats = {};
+  out.mythologicalBaseStats = {};
+  out.mythologicalDungeonizedBaseStats = {};
+  out.mythologicalMasterDungeonizedBaseStats = {};
   for (const statKey of TRACKED_STATS) {
     out.dungeonizedBaseStats[statKey] = out.baseStats[statKey] + out.dungeonizeDelta[statKey];
     out.masterDungeonizedBaseStats[statKey] = out.baseStats[statKey] + out.masterDungeonizeDelta[statKey];
+    out.mythologicalBaseStats[statKey] = out.baseStats[statKey] + out.mythologicalDelta[statKey];
+    out.mythologicalDungeonizedBaseStats[statKey] = out.dungeonizedBaseStats[statKey] + out.mythologicalDungeonizeDelta[statKey];
+    out.mythologicalMasterDungeonizedBaseStats[statKey] = out.masterDungeonizedBaseStats[statKey] + out.mythologicalMasterDungeonizeDelta[statKey];
   }
 
   return out;

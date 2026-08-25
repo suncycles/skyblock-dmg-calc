@@ -53,6 +53,13 @@ const NEU_PETNUMS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotE
 // folded into the main KV-cached blob (small files, low-traffic route).
 const NEU_ATTRIBUTE_SHARDS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/attribute_shards.json";
 const NEU_LEVELING_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/leveling.json";
+// Hypixel's own live skill-cap source (public, no key) — NEU-REPO's leveling.json's own
+// leveling_caps object has drifted stale against real game updates (confirmed live 2026-08-25:
+// it still reports Farming/Foraging/Taming capped at 50, while Hypixel's own resource reports
+// their real current caps of 60/57/60 — Taming's stale "50" was the reported bug). Used only for
+// each skill's real max level; leveling.json's leveling_xp per-level cost table is still the XP
+// curve source (already verified to have 60 entries, enough for every current real cap).
+const HYPIXEL_SKILLS_URL = "https://api.hypixel.net/v2/resources/skyblock/skills";
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -975,7 +982,7 @@ async function handleHypixelImport(url, env) {
     const backpackContents = member.inventory?.backpack_contents || {};
     const backpackIds = Object.keys(backpackContents).sort((a, b) => Number(a) - Number(b));
 
-    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling] =
+    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling, skillsResource] =
       await Promise.all([
         member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
         member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
@@ -991,6 +998,7 @@ async function handleHypixelImport(url, env) {
         member.inventory?.bag_contents?.talisman_bag?.data ? decodeInventoryB64(member.inventory.bag_contents.talisman_bag.data) : [],
         fetch(NEU_ATTRIBUTE_SHARDS_URL).then((r) => r.json()),
         fetch(NEU_LEVELING_URL).then((r) => r.json()),
+        fetch(HYPIXEL_SKILLS_URL).then((r) => r.json()),
       ]);
 
     const armorResult = {};
@@ -1046,13 +1054,17 @@ async function handleHypixelImport(url, env) {
     const thresholds = buildAttributeThresholds(attributeShards.attribute_levelling);
     const attributeLevels = computeAttributeLevels(member.attributes?.stacks, rarityMap, thresholds);
 
+    // Hypixel's own skill ids are uppercase (e.g. "TAMING") — real maxLevel per skill, falling
+    // back to NEU-REPO's static cap only if the live resource is ever missing that skill.
+    const skillCap = (key, staticCap) => skillsResource?.skills?.[key.toUpperCase()]?.maxLevel || staticCap;
+
     const experience = member.player_data?.experience || {};
     const skills = {
-      alchemy: computeSkillLevel(experience.SKILL_ALCHEMY || 0, leveling.leveling_xp, leveling.leveling_caps.alchemy),
-      enchanting: computeSkillLevel(experience.SKILL_ENCHANTING || 0, leveling.leveling_xp, leveling.leveling_caps.enchanting),
-      combat: computeSkillLevel(experience.SKILL_COMBAT || 0, leveling.leveling_xp, leveling.leveling_caps.combat),
-      foraging: computeSkillLevel(experience.SKILL_FORAGING || 0, leveling.leveling_xp, leveling.leveling_caps.foraging),
-      taming: computeSkillLevel(experience.SKILL_TAMING || 0, leveling.leveling_xp, leveling.leveling_caps.taming),
+      alchemy: computeSkillLevel(experience.SKILL_ALCHEMY || 0, leveling.leveling_xp, skillCap("alchemy", leveling.leveling_caps.alchemy)),
+      enchanting: computeSkillLevel(experience.SKILL_ENCHANTING || 0, leveling.leveling_xp, skillCap("enchanting", leveling.leveling_caps.enchanting)),
+      combat: computeSkillLevel(experience.SKILL_COMBAT || 0, leveling.leveling_xp, skillCap("combat", leveling.leveling_caps.combat)),
+      foraging: computeSkillLevel(experience.SKILL_FORAGING || 0, leveling.leveling_xp, skillCap("foraging", leveling.leveling_caps.foraging)),
+      taming: computeSkillLevel(experience.SKILL_TAMING || 0, leveling.leveling_xp, skillCap("taming", leveling.leveling_caps.taming)),
       // Catacombs uses its own XP-cost table (leveling.catacombs), not the shared skill one.
       catacombs: computeSkillLevel(
         member.dungeons?.dungeon_types?.catacombs?.experience || 0,
