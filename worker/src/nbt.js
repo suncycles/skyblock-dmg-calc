@@ -168,6 +168,11 @@ export function extractItemSummary(slotItem) {
     // where masterStars/category both give no signal. See lib/hypixelImport.js's consumer.
     dungeonized: !!ea.dungeon_item,
     hotPotatoBooks: ea.hot_potato_count || 0,
+    // Confirmed live (2026-08-25) against a real weapon with The Art of War applied:
+    // ExtraAttributes.art_of_war_count === 1. No confirmed real field for The Art of Peace yet
+    // (no armor piece with it applied found in the account checked) — left unset until confirmed,
+    // rather than guessed. See lib/hypixelImport.js's consumer.
+    artOfWar: !!ea.art_of_war_count,
     enchantments: ea.enchantments || {},
     gems: ea.gems || null,
     // Real per-instance lore (with §-codes) — most items don't need this (their real stats come

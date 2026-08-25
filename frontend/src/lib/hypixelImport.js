@@ -205,13 +205,17 @@ function parseDavidsCloakFromLore(lore) {
   return { special, rarityOverride };
 }
 
-// Both Midas' Sword/Staff's Greed ability and Crown of Avarice's Overindulgence ability bake
-// their live coin counter straight into the owned item's own lore as a single "Label: N[ Coins]"
-// line (confirmed live against real accounts — sammui's/GiantWizard's Midas' Staff/Sword read
-// "§7Price paid: §6{amount} Coins", sammui's Crown of Avarice reads "§7Coins Consumed: §6{amount}")
-// — parsed from there into `modifiers.special`, the same field the Special screen's manual input
-// already writes to.
-function parseCoinValueFromLore(lore, labelPattern) {
+// Several weapons' Special values bake a live "Label: N[ Coins/etc]" line straight into the owned
+// item's own lore, not just a raw coin counter — Midas' Sword/Staff's Greed ability and Crown of
+// Avarice's Overindulgence ability (confirmed live against real accounts — sammui's/GiantWizard's
+// Midas' Staff/Sword read "§7Price paid: §6{amount} Coins", sammui's Crown of Avarice reads
+// "§7Coins Consumed: §6{amount}"), and Daedalus Blade/Starred Daedalus Blade's real, dynamically
+// computed "§7§2 Mythological §7Bestiary Tiers: §3{count}" line (also confirmed live 2026-08-25 —
+// Hypixel computes and bakes the account's real combined tier count directly into the item's own
+// lore server-side, same as the coin counters, so no separate Bestiary API call/tier-threshold
+// math is needed). Parsed from there into `modifiers.special`, the same field the Special screen's
+// manual input already writes to.
+function parseLabeledNumberFromLore(lore, labelPattern) {
   if (!Array.isArray(lore)) return 0;
   const stripped = lore.map((l) => l.replace(/§./g, ''));
   const line = stripped.find((l) => labelPattern.test(l.trim()));
@@ -223,6 +227,7 @@ const SPECIAL_LORE_LABELS = {
   midasSword: /^Price paid:/i,
   midasStaff: /^Price paid:/i,
   crownOfAvarice: /^Coins Consumed:/i,
+  bestiary: /Bestiary Tiers:/i,
 };
 
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
@@ -231,7 +236,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   const davidsCloak = item.id === 'DAVIDS_CLOAK' ? parseDavidsCloakFromLore(summary.lore) : null;
   const specialKind = getSpecialConfig(item.id)?.kind;
   const specialLabel = SPECIAL_LORE_LABELS[specialKind];
-  const coinSpecial = specialLabel ? { special: parseCoinValueFromLore(summary.lore, specialLabel) } : null;
+  const coinSpecial = specialLabel ? { special: parseLabeledNumberFromLore(summary.lore, specialLabel) } : null;
   return {
     ...emptyModifiers(),
     hexEnchantments,
@@ -240,6 +245,9 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     books: Math.min(15, summary.hotPotatoBooks || 0),
     recombobulated: !!summary.recombobulated,
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
+    // ExtraAttributes.art_of_war_count (see nbt.js) — real, weapon-only. No confirmed real field
+    // for The Art of Peace yet, so armor keeps the emptyModifiers() default (false) here.
+    artOfWar: !!summary.artOfWar,
     stars,
     masterStars,
     // Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source —
