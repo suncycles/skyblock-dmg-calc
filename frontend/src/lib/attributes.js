@@ -9,13 +9,18 @@
 // Attack Speed (the "Inferno Demonlord" shard — always-active, feeds Bonus Attack Speed
 // directly). Lifeline is out of scope.
 
+// Every attribute tops out at level 10 regardless of its shard's rarity — rarity only changes how
+// many shards each level costs (attribute_shards.json's attribute_levelling table has exactly 10
+// per-level entries for every one of its 5 rarities: Common/Uncommon/Rare/Epic/Legendary), not the
+// level cap itself. Dominance is an Epic-tier shard (Thorn) needing 32 total shards to reach level
+// 10 — user-confirmed 2026-08-26, correcting an earlier bug here that conflated "32 shards needed"
+// with "max level 32" and let it be over-leveled past its real cap.
 export const MAX_ATTRIBUTE_LEVEL = 10;
-// Dominance is an Epic-tier shard (32 total copies -> max level 32), unlike every other
-// attribute here, which tops out at the Common-tier 10.
-export const DOMINANCE_MAX_LEVEL = 32;
 
+// Takes `id` (unused) so every call site can stay "per-attribute" shaped, in case a real
+// non-10 cap ever needs to come back for a specific attribute.
 export function getAttributeMaxLevel(id) {
-  return id === 'dominance' ? DOMINANCE_MAX_LEVEL : MAX_ATTRIBUTE_LEVEL;
+  return MAX_ATTRIBUTE_LEVEL;
 }
 
 export const RULER_RATE = 3; // %/level, "+3%-30% more Damage against <Type> mobs"

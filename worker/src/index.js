@@ -330,17 +330,15 @@ const ATTRIBUTE_SHARD_IDS = {
   attack_speed: "ATTRIBUTE_SHARD_ATTACK_SPEED",
 };
 
-// Dominance is the one attribute whose real max level (32) doesn't follow the standard 10-level
-// curve every other rarity/attribute uses below — see frontend/src/lib/attributes.js's
-// DOMINANCE_MAX_LEVEL (user-confirmed there already: Epic-tier, 32 total shards -> level 32,
-// a flat 1-shard-per-level curve rather than attribute_levelling's escalating one).
-const DOMINANCE_TOTAL_SHARDS = 32;
-
-// Real total shard count to reach an attribute's own max level, times its real shard price —
-// user-specified 2026-08-23. `attributeShards` is attribute_shards.json's parsed body (fetched
+// Real total shard count to reach an attribute's own max level (always 10 — every rarity in
+// attribute_shards.json's attribute_levelling table has exactly 10 per-level entries; rarity only
+// changes how many shards each level costs, not the level cap itself), times its real shard price
+// — user-specified 2026-08-23. `attributeShards` is attribute_shards.json's parsed body (fetched
 // alongside prices, same cadence); `itemPrices` is the raw (unpruned) price map, since shard ids
-// wouldn't otherwise survive pruneItemPrices. Every attribute here caps at level 10 (the standard
-// attribute_levelling curve) except Dominance (see DOMINANCE_TOTAL_SHARDS above).
+// wouldn't otherwise survive pruneItemPrices. Dominance (an Epic-tier shard, 32 total shards to
+// reach level 10) used to be special-cased here as "32 shards -> level 32", a units-confusion bug
+// — user-corrected 2026-08-26; it now goes through the exact same rarity-table path as every other
+// attribute, matching frontend/src/lib/attributes.js's MAX_ATTRIBUTE_LEVEL = 10 for everyone.
 //
 // Also returns attributeCostsByLevel: the same real shard price times the CUMULATIVE shard count
 // through each individual level (not just the final max-level total) — powers the frontend's
@@ -367,12 +365,6 @@ function computeAttributeCosts(itemPrices, attributeShards) {
   for (const [appId, shardId] of Object.entries(ATTRIBUTE_SHARD_IDS)) {
     const price = itemPrices[shardId];
     if (!price) continue;
-    if (appId === "dominance") {
-      // Flat 1-shard-per-level curve (see DOMINANCE_TOTAL_SHARDS) rather than the rarity table.
-      attributeCosts[appId] = price * DOMINANCE_TOTAL_SHARDS;
-      attributeCostsByLevel[appId] = Array.from({ length: DOMINANCE_TOTAL_SHARDS }, (_, i) => price * (i + 1));
-      continue;
-    }
     const cumulative = cumulativeShardsByLevelByRarity[rarityByInternalName[shardId]];
     if (!cumulative) continue;
     attributeCosts[appId] = price * cumulative[cumulative.length - 1];

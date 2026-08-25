@@ -23,30 +23,42 @@ import { getSpecialConfig } from './specialWeapons';
    and a pet before mapHypixelImportToLoadout resolves those choices into the loadout. */
 
 // Hypixel's raw attribute id order is "<mobType>_ruler" (e.g. "skeletal_ruler") — reversed from
-// this app's own "ruler_<mobType>" id. Every other attribute id (elementals, echoes, deadeye,
-// unlimited_power, maximal_torment, etc.) already matches Hypixel's raw key 1:1, verified against
-// a real account — note the in-game shard's internalName is "MAXIMAL_TORMENT" even though its
-// displayed ability name is "Unlimited Torment".
-const RULER_TYPES = [
+// this app's own "ruler_<mobType>" id, for 10 of the 17 real Ruler types. Every other (non-Ruler)
+// attribute id (elementals, echoes, deadeye, unlimited_power, maximal_torment, etc.) already
+// matches Hypixel's raw key 1:1, verified against a real account — note the in-game shard's
+// internalName is "MAXIMAL_TORMENT" even though its displayed ability name is "Unlimited Torment".
+const STANDARD_PATTERN_RULER_TYPES = [
   'airborne',
   'animal',
   'arcane',
-  'arthropod',
   'construct',
   'elusive',
-  'ender',
   'frozen',
-  'humanoid',
-  'infernal',
   'magmatic',
   'mythological',
-  'pest',
   'skeletal',
   'subterranean',
-  'undead',
-  'woodland',
 ];
-const RAW_ATTRIBUTE_ID_REMAP = Object.fromEntries(RULER_TYPES.map((t) => [`${t}_ruler`, `ruler_${t}`]));
+// The other 7 Rulers' real raw stack key doesn't follow "<mobType>_ruler" at all — each is an
+// unrelated legacy bazaar-shard short id instead, confirmed live against a real account's
+// member.attributes.stacks 2026-08-26 (previously only checked for the shard-item PRICING side,
+// worker/src/index.js's ATTRIBUTE_SHARD_IDS — this is the same off-pattern issue, but was still
+// silently dropping these 6 Rulers' real levels on import since "infernal_ruler" etc. never
+// actually appears as a raw key). Humanoid Ruler is worse than merely off-pattern: a raw
+// "humanoid_ruler" key DOES exist, but it's a stale duplicate tracking a completely different real
+// ability ("Undead Fortune") — the real Humanoid Ruler stack lives under "humanoid_ruler_new".
+// Deliberately NOT mapping the plain "humanoid_ruler" key at all, so it's dropped instead of
+// silently importing the wrong attribute's level as ruler_humanoid.
+const RAW_ATTRIBUTE_ID_REMAP = {
+  ...Object.fromEntries(STANDARD_PATTERN_RULER_TYPES.map((t) => [`${t}_ruler`, `ruler_${t}`])),
+  blazing: 'ruler_infernal',
+  insect_power: 'ruler_pest',
+  undead: 'ruler_undead',
+  spirit_axe: 'ruler_woodland',
+  arachno: 'ruler_arthropod',
+  ender: 'ruler_ender',
+  humanoid_ruler_new: 'ruler_humanoid',
+};
 
 // Hypixel's raw Stat Tuning field names differ from this app's own TUNING_STATS ids (see
 // lib/accessoryPowers.js) — remapped 1:1. The Hypixel API docs don't cover this field; verified

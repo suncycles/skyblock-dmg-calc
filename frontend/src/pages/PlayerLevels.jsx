@@ -34,6 +34,7 @@ export default function PlayerLevels() {
     setAlchemyLevel,
     setEnchantingLevel,
     setGeneralsMedallionDigits,
+    toggleBlazetekkHamRadio,
   } = useBuild();
 
   return (
@@ -150,6 +151,19 @@ export default function PlayerLevels() {
             value={playerStats.generalsMedallionDigits}
             onChange={setGeneralsMedallionDigits}
             className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="blazetekk-ham-radio">
+            Blazetekk™ Ham Radio (owned)
+          </label>
+          <input
+            id="blazetekk-ham-radio"
+            type="checkbox"
+            checked={playerStats.blazetekkHamRadio}
+            onChange={toggleBlazetekkHamRadio}
+            className="w-5 h-5 accent-black cursor-pointer"
           />
         </div>
       </div>
