@@ -524,6 +524,12 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
 // Dragon specifically (see the per-slot loop below for the actual bonus).
 const TABASCO_DRAGON_PET_IDS = new Set(['ROSE_DRAGON', 'GOLDEN_DRAGON', 'ENDER_DRAGON']);
 
+// Blazetekk™ Ham Radio + Bluetooth/Bluertooth Ring — see the flat Damage bonus below (main
+// collectDamageSources body, not this per-item helper's scope, since it's a global player-level
+// bonus rather than tied to one equipped slot).
+const BLAZETEKK_HAM_RADIO_BLUETOOTH_DAMAGE = 3;
+const BLAZETEKK_HAM_RADIO_BLUERTOOTH_DAMAGE = 4;
+
 // The ONLY definition of what Chimera/Manticore Claw copy — petData.js's computeBasePetStats,
 // which this delegates to rather than re-deriving. This used to be a second, inline copy of that
 // same "curve + Shining Scales + Primal Force" logic living here, and the two drifted out of sync
@@ -1320,6 +1326,25 @@ export async function collectDamageSources(
   addBaseStat(out, 'ability_damage', computeEnchantingAbilityDamageBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'crit_damage', computeTarantulaSlayerCritDamageBonus(playerStats?.tarantulaSlayerLevel), 'Tarantula Slayer Level');
   addBaseStat(out, 'crit_chance', computeCombatLevelCritChanceBonus(playerStats?.combatLevel), 'Combat Level');
+
+  // Blazetekk™ Ham Radio: real lore confirmed via NEU-REPO 2026-08-25 — the radio itself carries
+  // no visible Damage line; Bluetooth Ring's own lore states "Adds +3 Damage bonus to the
+  // Blazetekk™ Ham Radio", Bluertooth Ring's states "+4" (its own separate "+1/+2 Damage if 6+
+  // players on island" bonus is a different, unrelated mechanic — not modeled here). Ham Radio
+  // ownership has no signal this app's Hypixel import can read (a placed/inventory item, not
+  // equipped gear or an Accessory Bag member) — manual toggle on the Levels page
+  // (playerStats.blazetekkHamRadio). Ring ownership DOES have a real signal — a real Hypixel
+  // import's ownedAccessories — checked automatically when available.
+  if (playerStats?.blazetekkHamRadio) {
+    const ownedAccessories = loadout.accessory?.modifiers?.ownedAccessories || [];
+    const radioBonus = ownedAccessories.some((a) => a.id === 'BLUERTOOTH_RING')
+      ? BLAZETEKK_HAM_RADIO_BLUERTOOTH_DAMAGE
+      : ownedAccessories.some((a) => a.id === 'BLUETOOTH_RING')
+        ? BLAZETEKK_HAM_RADIO_BLUETOOTH_DAMAGE
+        : 0;
+    if (radioBonus) addBaseStat(out, 'damage', radioBonus, 'Blazetekk Ham Radio');
+  }
+
   // Real Hypixel base stats before any gear.
   addBaseStat(out, 'crit_chance', BASE_CRIT_CHANCE, 'Base');
   addBaseStat(out, 'crit_damage', BASE_CRIT_DAMAGE, 'Base');

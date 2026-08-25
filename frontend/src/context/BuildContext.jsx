@@ -176,6 +176,7 @@ function loadInitialPlayerStats() {
     alchemyLevel: 0,
     enchantingLevel: 0,
     generalsMedallionDigits: 0,
+    blazetekkHamRadio: false,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
@@ -192,6 +193,7 @@ function loadInitialPlayerStats() {
       alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
       enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
+      blazetekkHamRadio: typeof parsed.blazetekkHamRadio === 'boolean' ? parsed.blazetekkHamRadio : false,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -512,6 +514,17 @@ export function BuildProvider({ children }) {
   const setGeneralsMedallionDigits = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, generalsMedallionDigits: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Blazetekk™ Ham Radio: manual — real ownership (it's a placed/inventory item, not equipped
+  // gear or an Accessory Bag member) has no signal this app's Hypixel import currently reads. See
+  // lib/damageSources.js for the Bluetooth/Bluertooth Ring damage bonus this toggle gates.
+  const toggleBlazetekkHamRadio = useCallback(() => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, blazetekkHamRadio: !prev.blazetekkHamRadio };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -943,6 +956,7 @@ export function BuildProvider({ children }) {
       alchemyLevel: 0,
       enchantingLevel: 0,
       generalsMedallionDigits: 0,
+      blazetekkHamRadio: false,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -1013,6 +1027,7 @@ export function BuildProvider({ children }) {
         setAlchemyLevel,
         setEnchantingLevel,
         setGeneralsMedallionDigits,
+        toggleBlazetekkHamRadio,
         targetMobs,
         toggleTargetMob,
         clearTargetMobs,
