@@ -10,10 +10,15 @@
 // tracks per accessory: the Accessory Power stat multiplier (via the player's chosen Power Stone,
 // scaled by total MP) and each individually-owned accessory's own real stat line (Shark Tooth's
 // Strength, Red Claw's Crit Damage, ... — see worker/src/index.js's computeLiveAccessoryStats,
-// imported into modifiers.individualAccessoryStats). The latter is read-only here (it comes from
-// a real Hypixel import of the CURRENT account, same as `owned` below) — a candidate accessory
-// not yet owned obviously has no known real per-instance lore to parse, so only its Magical Power
-// contribution (and any resulting Tuning Points) are simulated, not a guessed stat line.
+// imported into modifiers.individualAccessoryStats). The account's CURRENT accessories' totals come
+// from a real Hypixel import, same as `owned` below; a "New Accessory" (`kind: 'missing'`) candidate
+// the player doesn't yet own has no live per-instance lore to read, but its own stat line is still a
+// fixed, real, per-tier constant baked into the item's own static definition (see worker/src/
+// index.js's ACCESSORY_INNATE_STATS_BY_ID, computed from the SAME catalog lore this file already
+// gets via itemData) — evaluateAccessoryCandidates below adds it on top of the account's real
+// current total, not a guessed number. Recombobulate/Perfect-Gemstone candidates (upgrading an
+// already-owned copy) don't get the tier-up's stat DELTA yet — a real, documented gap, see the
+// comment at that call site.
 //
 // TEMPORARY IMPLEMENTATION — known scope limits:
 // - non_recombobulatable_ids is a curated, non-exhaustive list (4 confirmed real ids) — not every
@@ -21,7 +26,7 @@
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { bumpRarity, canRecombobulate } from './recombobulator';
-import { computeModeDamage, getModeConfig } from './optimizer';
+import { computeModeDamage, getModeConfig, withOptimizerSwarmMobs } from './optimizer';
 import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
 import { cheapestPerfectGemstonePrice } from './pricing';
@@ -217,6 +222,7 @@ const CATEGORY_LABELS = {
 // allocation (a full from-scratch search per candidate would mean tens of thousands of real
 // pipeline evaluations across ~90 candidates — this keeps it to a few hundred).
 export async function evaluateAccessoryCandidates(loadout, itemData, build, mode, mob, candidates) {
+  build = withOptimizerSwarmMobs(build, mode);
   const modeConfig = getModeConfig(mode, build.useMasterMode);
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
   const currentMp = accessorySlot.modifiers.magicalPower || 0;
@@ -239,9 +245,29 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
     );
     const extraPoints = newPoints - currentPoints;
     const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints) : baselineTuning;
+    // A brand-new accessory (not yet owned) carries its own real innate stat line (Shark Tooth
+    // Necklace's Strength, Red Claw's Crit Damage, ...) on top of its Magical Power contribution —
+    // see worker/src/index.js's ACCESSORY_INNATE_STATS_BY_ID, additive onto whatever the account's
+    // OTHER real owned accessories already contribute (individualAccessoryStats is a running sum
+    // across the whole bag, not per-item). Recombobulate/Perfect-Gemstone candidates upgrade an
+    // ALREADY-owned copy whose current-tier stat is already counted in that real sum — the tier-up's
+    // stat DELTA isn't modeled here (would need a reliable family+rarity -> item-id lookup this data
+    // doesn't confirm), a real, documented gap rather than a guess.
+    const innateStats = candidate.kind === 'missing' ? itemData.accessoryInnateStats?.[candidate.id] : null;
+    const individualAccessoryStats = innateStats
+      ? { ...accessorySlot.modifiers.individualAccessoryStats }
+      : accessorySlot.modifiers.individualAccessoryStats;
+    if (innateStats) {
+      for (const [statKey, value] of Object.entries(innateStats)) {
+        individualAccessoryStats[statKey] = (individualAccessoryStats[statKey] || 0) + value;
+      }
+    }
     const candidateLoadout = {
       ...loadout,
-      accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, magicalPower: currentMp + candidate.mpGain, tuning: candidateTuning } },
+      accessory: {
+        ...accessorySlot,
+        modifiers: { ...accessorySlot.modifiers, magicalPower: currentMp + candidate.mpGain, tuning: candidateTuning, individualAccessoryStats },
+      },
     };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
