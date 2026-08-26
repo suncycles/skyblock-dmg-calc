@@ -28,6 +28,7 @@ const BLAZE_CRIMSON_ISLE_KEY = 'hexBlazeCrimsonIsle';
 const MAX_BUDGET_KEY = 'hexMaxBudget';
 const LAST_GEAR_MODIFIERS_KEY = 'hexLastGearModifiers';
 const BESTIARY_MAXED_MOBS_KEY = 'hexBestiaryMaxedMobs';
+const COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY = 'hexCombinedMythologicalBestiaryTiers';
 
 export const MAX_SWARM_MOBS = 10;
 export const MAX_COMBO_KILLS = 10;
@@ -132,6 +133,18 @@ function loadInitialBestiaryMaxedMobs() {
     console.error('Failed to parse saved bestiary maxed mobs:', err);
     return [];
   }
+}
+
+// Daedalus Blade/Starred Daedalus Blade's real "Combined Mythological Bestiary Tiers" ability
+// input (worker/src/index.js's computeCombinedMythologicalBestiaryTiers) — independent of whichever
+// weapon is actually equipped, so the Optimizer's Diana weapon progression (lib/optimizer.js) can
+// stamp it onto a hypothetical Daedalus Blade candidate the player doesn't yet own; an OWNED
+// Daedalus Blade still gets its own value straight from its real NBT lore on import (see
+// lib/hypixelImport.js's parseLabeledNumberFromLore), unaffected by this.
+function loadInitialCombinedMythologicalBestiaryTiers() {
+  const stored = localStorage.getItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY);
+  const parsed = stored != null ? Number(stored) : 0;
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
 // Loads the Optimizer's max coin budget (0 = unlimited, default) — real-priced candidates costing
@@ -336,6 +349,9 @@ export function BuildProvider({ children }) {
   const [legionPlayers, setLegionPlayersState] = useState(loadInitialLegionPlayers);
   const [blazeCrimsonIsle, setBlazeCrimsonIsleState] = useState(loadInitialBlazeCrimsonIsle);
   const [bestiaryMaxedMobs, setBestiaryMaxedMobsState] = useState(loadInitialBestiaryMaxedMobs);
+  const [combinedMythologicalBestiaryTiers, setCombinedMythologicalBestiaryTiersState] = useState(
+    loadInitialCombinedMythologicalBestiaryTiers,
+  );
   const [maxBudget, setMaxBudgetState] = useState(loadInitialMaxBudget);
 
   const setMobHpPercent = useCallback((value) => {
@@ -667,6 +683,14 @@ export function BuildProvider({ children }) {
     const next = Array.isArray(names) ? names : [];
     setBestiaryMaxedMobsState(next);
     localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(next));
+  }, []);
+
+  // Same full-replacement treatment as importHypixelBestiaryMaxedMobs above — a fresh import is a
+  // complete, authoritative recomputation from real kill data, not a patch.
+  const importHypixelCombinedMythologicalBestiaryTiers = useCallback((value) => {
+    const next = Number.isFinite(value) ? Math.max(0, value) : 0;
+    setCombinedMythologicalBestiaryTiersState(next);
+    localStorage.setItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY, String(next));
   }, []);
 
   // Fully unequips a slot, dropping its key from the loadout entirely.
@@ -1039,6 +1063,10 @@ export function BuildProvider({ children }) {
     const nextBestiaryMaxedMobs = Array.isArray(state.bestiaryMaxedMobs) ? state.bestiaryMaxedMobs : [];
     setBestiaryMaxedMobsState(nextBestiaryMaxedMobs);
     localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(nextBestiaryMaxedMobs));
+
+    const nextCombinedMythologicalBestiaryTiers = Math.max(0, Number(state.combinedMythologicalBestiaryTiers) || 0);
+    setCombinedMythologicalBestiaryTiersState(nextCombinedMythologicalBestiaryTiers);
+    localStorage.setItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY, String(nextCombinedMythologicalBestiaryTiers));
   }, []);
 
   return (
@@ -1087,6 +1115,7 @@ export function BuildProvider({ children }) {
         blazeCrimsonIsle,
         toggleBlazeCrimsonIsle,
         bestiaryMaxedMobs,
+        combinedMythologicalBestiaryTiers,
         maxBudget,
         setMaxBudget,
         selectItem,
@@ -1094,6 +1123,7 @@ export function BuildProvider({ children }) {
         importHypixelAttributes,
         importHypixelPlayerStats,
         importHypixelBestiaryMaxedMobs,
+        importHypixelCombinedMythologicalBestiaryTiers,
         removeSlot,
         applyEnchant,
         applyGemstone,

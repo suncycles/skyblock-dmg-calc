@@ -34,7 +34,15 @@ import { collectDamageSources } from './damageSources';
 import { computeAbilityDamage, computeDpsBreakdown, computeMageStaffBeamDamage } from './finalDamage';
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
-import { VANQUISHED_SET, FINAL_DESTINATION_SET, hasFullSet } from './armorSetBonuses';
+import {
+  VANQUISHED_SET,
+  FINAL_DESTINATION_SET,
+  hasFullSet,
+  countSetPieces,
+  INFERNAL_CRIMSON_SET,
+  INFERNAL_CRIMSON_MIN_PIECES,
+  INFERNAL_CRIMSON_MAX_STACKS,
+} from './armorSetBonuses';
 import { resolveGearSummary } from './hypixelImport';
 import { lookupCandidateCost } from './pricing';
 import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
@@ -62,11 +70,13 @@ import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
 import { getApplicableReforges } from './reforgeData';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
+import { getSpecialConfig } from './specialWeapons';
 import { countGemstoneSlots } from './gemstones';
 import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
 export const OPTIMIZER_MODES = [
   { id: 'slayer', label: 'Slayer' },
+  { id: 'diana', label: 'Diana' },
   { id: 'mage', label: 'Mage' },
   { id: 'dungeon_archer', label: 'Dungeon / Archer' },
   { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam' },
@@ -83,6 +93,10 @@ export const OPTIMIZER_MODES = [
 // Dungeonized Stats.
 const MODE_CONFIG = {
   slayer: { useDungeonizedStats: false, metric: 'dps' },
+  // Diana content (Minos Champion/Sphinx/Minotaur/etc, all real 'Mythological'-type mobs) is real
+  // overworld combat like Slayer, not a Dungeon run — same melee Total DPS metric, no Dungeonized
+  // Stats.
+  diana: { useDungeonizedStats: false, metric: 'dps' },
   mage: { useDungeonizedStats: false, metric: 'ability' },
   dungeon_archer: { useDungeonizedStats: true, metric: 'dps' },
   dungeon_mage_beam: { useDungeonizedStats: true, metric: 'beam' },
@@ -219,6 +233,12 @@ const SLAYER_PET_PROGRESSION = [
   ],
 ];
 
+// Diana: Griffin only (user-specified, real in-game mechanic, 2026-08-25) — unlike Slayer's
+// situational flat list above, Griffin's Sacred Strength (+% Strength scaled by pet level, see
+// damageSources.js's sacredStrengthPercent) makes it the one real BiS Diana pet, not a sidegrade
+// among several.
+const DIANA_PET_PROGRESSION = [[{ petId: 'GRIFFIN' }]];
+
 // Slayer weapon reward lines — each Slayer type hands out its own fixed worst->best weapon
 // chain, independent of every other chain (a Reaper Falchion isn't "better or worse" than a
 // Scorpion Foil, they're for different Slayers). User-specified endpoints for all 4; ids
@@ -243,6 +263,64 @@ const SLAYER_WEAPON_PROGRESSION = {
   // Wolf Slayer also has a third real reward weapon, Edible Mace (RARE, Wolf Slayer 5) — an
   // ability/stun weapon rather than a stat-stick, user-excluded from this DPS progression.
   wolf: [[{ id: 'SHAMAN_SWORD' }], [{ id: 'POOCH_SWORD' }]],
+};
+
+// Diana progression (user-specified, 2026-08-25): armor/equipment mirror Slayer's own progression
+// exactly (same Kuudra family Basic->Hot->Burning->Fiery->Infernal ladder, same Shadow Assassin ->
+// Necron's Armor prefix, same Crown of Avarice helmet branch), with one further tier appended per
+// slot — Challenger's/Mythos Armor+Equipment, the real Diana Mythological Ritual reward gear.
+// Their "Mythos' Might" ability doubles the piece's own stats against a real 'Mythological'-type
+// target (armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS) — already fully wired into the damage
+// pipeline via finalDamage.js's selectBaseStats independent of "mode", so it applies here for free
+// once the player picks a Mythological target mob; nothing Diana-specific needed for that half.
+// Appended onto EVERY existing family chain (not a separate 5th chain) so a player already deep
+// into, say, Infernal Aurora still sees Challenger's/Mythos offered as the next rung — a standalone
+// chain would only ever be walked from scratch (resolveChainsToWalk only walks chains that either
+// match the player's current item or, when none match, ALL chains), never reachable from an
+// already-owned Kuudra family piece.
+function appendTierToEachChain(chainsByFamily, tier) {
+  return Object.fromEntries(Object.entries(chainsByFamily).map(([family, chain]) => [family, [...chain, tier]]));
+}
+const MYTHOLOGICAL_ARMOR_TIER = {
+  helmet: [{ id: 'CHALLENGER_HELMET' }, { id: 'MYTHOS_HELMET' }],
+  chestplate: [{ id: 'CHALLENGER_CHESTPLATE' }, { id: 'MYTHOS_CHESTPLATE' }],
+  leggings: [{ id: 'CHALLENGER_LEGGINGS' }, { id: 'MYTHOS_LEGGINGS' }],
+  boots: [{ id: 'CHALLENGER_BOOTS' }, { id: 'MYTHOS_BOOTS' }],
+};
+const DIANA_ARMOR_PROGRESSION = Object.fromEntries(
+  ARMOR_SLOTS.map((slot) => [slot, appendTierToEachChain(SLAYER_ARMOR_PROGRESSION[slot], MYTHOLOGICAL_ARMOR_TIER[slot])]),
+);
+const MYTHOLOGICAL_EQUIPMENT_TIER = {
+  necklace: [{ id: 'CHALLENGER_NECKLACE' }, { id: 'MYTHOS_NECKLACE' }],
+  cloak: [{ id: 'CHALLENGER_CLOAK' }, { id: 'MYTHOS_CLOAK' }],
+  belt: [{ id: 'CHALLENGER_BELT' }, { id: 'MYTHOS_BELT' }],
+  gloves: [{ id: 'CHALLENGER_BRACELET' }, { id: 'MYTHOS_BRACELET' }],
+};
+// Equipment chains are single flat arrays (not per-family dicts, unlike armor), so appending is
+// direct — same reasoning as above, minus the multi-family complication.
+const DIANA_EQUIPMENT_PROGRESSION = Object.fromEntries(
+  EQUIPMENT_SLOTS.map((slot) => [slot, [...SLAYER_EQUIPMENT_PROGRESSION[slot], MYTHOLOGICAL_EQUIPMENT_TIER[slot]]]),
+);
+
+// Diana weapon chain (user-specified, 2026-08-25): Sword of Revelations/Giant's Sword/Dark
+// Claymore/Midas Sword sidegrades -> Daedalus Blade -> Starred Daedalus Blade (real ids confirmed
+// against worker/src/data/weapons.json). Midas Sword gets the same forced-Gilded-reforge + real-
+// Price-Paid-cap treatment as MAGE_BEAM_WEAPON_PROGRESSION's own Midas Sword entry above, for the
+// identical reason (its own Greed ability is the whole point of using it, so it's compared at real
+// best-case rather than a Greed-less special:0). Daedalus Blade/Starred Daedalus Blade's own
+// "Combined Mythological Bestiary Tiers" special value can't be a static number here the way Midas'
+// can — it's the player's real, live Bestiary progress — so it isn't set in this table at all;
+// evaluateWeaponProgressionCandidates below stamps it on dynamically from
+// build.combinedMythologicalBestiaryTiers (worker/src/index.js's
+// computeCombinedMythologicalBestiaryTiers) for any candidate whose real Special config is of
+// SPECIAL_WEAPON_CONFIG's 'bestiary' kind, the same "compare at real best-case" treatment every
+// other special-value weapon here already gets.
+const DIANA_WEAPON_PROGRESSION = {
+  sword: [
+    [{ id: 'SWORD_OF_REVELATIONS' }, { id: 'GIANTS_SWORD' }, { id: 'DARK_CLAYMORE' }, { id: 'MIDAS_SWORD', forcedReforge: 'Gilded', special: 50_000_000 }],
+    [{ id: 'DAEDALUS_AXE' }],
+    [{ id: 'STARRED_DAEDALUS_AXE' }],
+  ],
 };
 
 // User-specified (2026-08-23): Slayer weapon suggestions are restricted to whichever chain(s)
@@ -394,24 +472,28 @@ const MAGE_PET_PROGRESSION = [[{ petId: 'GUARDIAN' }, { petId: 'CROW' }, { petId
 
 const ARMOR_PROGRESSION_BY_MODE = {
   slayer: SLAYER_ARMOR_PROGRESSION,
+  diana: DIANA_ARMOR_PROGRESSION,
   mage: MAGE_ARMOR_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_ARMOR_PROGRESSION,
   dungeon_mage_ability: MAGE_ABILITY_ARMOR_PROGRESSION,
 };
 const EQUIPMENT_PROGRESSION_BY_MODE = {
   slayer: SLAYER_EQUIPMENT_PROGRESSION,
+  diana: DIANA_EQUIPMENT_PROGRESSION,
   mage: MAGE_EQUIPMENT_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_EQUIPMENT_PROGRESSION,
   dungeon_mage_ability: MAGE_EQUIPMENT_PROGRESSION,
 };
 const PET_PROGRESSION_BY_MODE = {
   slayer: SLAYER_PET_PROGRESSION,
+  diana: DIANA_PET_PROGRESSION,
   mage: MAGE_PET_PROGRESSION,
   dungeon_mage_beam: MAGE_PET_PROGRESSION,
   dungeon_mage_ability: MAGE_PET_PROGRESSION,
 };
 const WEAPON_PROGRESSION_BY_MODE = {
   slayer: SLAYER_WEAPON_PROGRESSION,
+  diana: DIANA_WEAPON_PROGRESSION,
   mage: MAGE_WEAPON_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_WEAPON_PROGRESSION,
   dungeon_mage_ability: MAGE_WEAPON_PROGRESSION,
@@ -561,8 +643,29 @@ export async function computeModeDamage(loadout, itemData, build, modeConfig, mo
 // enchants/stars are NOT carried (item-specific slot counts/categories, handled by their own
 // dedicated evaluators). `rarityOverride` (David's Cloak) mirrors the same "compare at real
 // best-case" treatment.
+// Infernal Crimson's Infernal Contact combo-stack mechanic (armorSetBonuses.js) only turns on
+// once 2+ real Infernal Crimson pieces are equipped, and its own real cap is a flat 10 stacks
+// (+100% damage) regardless of piece count beyond that minimum — the player's honestly-entered
+// `infernalCrimsonStacks` slider is a real, meaningful number once their CURRENT loadout already
+// clears that threshold, so it's left alone in that case. But when the current loadout is still
+// BELOW the threshold, that slider was never meaningfully set (typically still its default/0,
+// since the mechanic wasn't even visible) — so a candidate that would newly cross the threshold
+// (e.g. the last Kuudra tier-up completing 2+ Infernal Crimson pieces) is instead evaluated at the
+// mechanic's own real max, same "assume real best-case" treatment already given to a candidate's
+// stars/rarity/special elsewhere in this function, not a guessed number (the mechanic's own +10%/
+// stack up to 10 stacks is already a confirmed real value, see armorSetBonuses.js). Baseline itself
+// is never touched — this only ever changes what a hypothetical candidate's own computeModeDamage
+// call sees.
+function withRealisticInfernalStacks(build, baselinePieces, candidateLoadout) {
+  if (baselinePieces >= INFERNAL_CRIMSON_MIN_PIECES) return build;
+  const candidatePieces = countSetPieces(candidateLoadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
+  if (candidatePieces < INFERNAL_CRIMSON_MIN_PIECES) return build;
+  return { ...build, infernalCrimsonStacks: INFERNAL_CRIMSON_MAX_STACKS };
+}
+
 async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category) {
   if (!progressionBySlot) return [];
+  const baselineInfernalPieces = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
   const results = [];
   for (const slot of slots) {
     const progressionOrChains = progressionBySlot[slot];
@@ -616,7 +719,8 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
           if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
           const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
-          const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+          const candidateBuild = withRealisticInfernalStacks(build, baselineInfernalPieces, candidateLoadout);
+          const value = await computeModeDamage(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
           // No explicit star-count apply step needed — BuildContext's own selectItem now handles
           // the real swap-in outcome itself (Kuudra armor resets to 0, everything else persists
           // its current stars), the same rule whether reached from here or from Hex directly. Only
@@ -777,11 +881,21 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       // (Midas Sword's own real Price Paid cap, same "compare at real best-case" treatment
       // evaluateItemSlotCandidates already gives David's Cloak) needed adding here too — without
       // it every weapon candidate defaulted to special:0, silently comparing a Greed-less Midas
-      // Sword against everything else.
+      // Sword against everything else. Daedalus Blade/Starred Daedalus Blade (SPECIAL_WEAPON_
+      // CONFIG's 'bestiary' kind) can't have a static `candidate.special` the way Midas Sword
+      // does — their real Bestiary Tiers count is the player's own live progress, not a constant —
+      // so it's read from build.combinedMythologicalBestiaryTiers (the account's real, independently
+      // -derived value, see worker/src/index.js's computeCombinedMythologicalBestiaryTiers) instead,
+      // capped at the item's own real max the same way the static values above already are.
       const modifiers = emptyModifiers();
       const reforgeName = candidate.forcedReforge || currentModifiers?.reforge;
       if (reforgeName) modifiers.reforge = reforgeName;
-      if (candidate.special != null) modifiers.special = candidate.special;
+      const bestiaryTiersConfig = getSpecialConfig(candidate.id);
+      const specialValue =
+        bestiaryTiersConfig?.kind === 'bestiary'
+          ? Math.min(build.combinedMythologicalBestiaryTiers || 0, bestiaryTiersConfig.max)
+          : candidate.special;
+      if (specialValue != null) modifiers.special = specialValue;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
       // Same "compare at real best-case" fix as evaluateItemSlotCandidates — a starrable weapon
@@ -799,7 +913,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       // reason evaluateItemSlotCandidates does.
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
-      if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: candidate.special });
+      if (specialValue != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: specialValue });
       if (currentModifiers?.gemstones?.length) {
         currentModifiers.gemstones.forEach((g, index) => {
           if (g) apply.push({ type: 'setGemstone', slot: 'weapon', index, gem: g.gem, tier: g.tier });
@@ -821,7 +935,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
         label: formatItemName(resolved.name),
         itemId: resolved.id,
         material: resolved.material,
-        special: candidate.special,
+        special: specialValue,
         value,
         apply,
       };
@@ -909,7 +1023,7 @@ async function evaluateEnchantCandidates(loadout, itemData, build, modeConfig, m
 // every other enchant" rule: both the resulting damage number (candidateLoadout below) and the
 // swap-in action's removeIds need this, or a One For All suggestion would silently keep double-
 // counting Sharpness/etc.'s damage instead of actually replacing them.
-async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
+async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const weapon = loadout.weapon;
   if (!weapon) return [];
   const category = resolveEnchantCategory(weapon.item.category);
@@ -918,6 +1032,8 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
   const results = [];
   for (const id of ids) {
     if (id.toLowerCase() === currentId) continue;
+    // User-specified, 2026-08-25: never recommend One For All for Diana.
+    if (mode === 'diana' && id.toLowerCase() === 'ultimate_one_for_all') continue;
     const levels = await fetchEnchantLevels(id, itemData.enchants);
     if (levels.length === 0) continue;
     const maxLevel = Math.max(...levels.map((l) => l.level));
@@ -954,11 +1070,16 @@ const SLAYER_POWER_STONE_IDS = new Set(['BLOODY', 'ITCHY', 'SCORCHING', 'SHADED'
 
 // Brute-forces every real Power Stone (lib/accessoryPowers.js's STONE_POWERS — already fully
 // modeled real stats, no hand-authored ranking needed) against whichever is currently selected —
-// narrowed to SLAYER_POWER_STONE_IDS for Slayer mode specifically (see above).
+// narrowed to SLAYER_POWER_STONE_IDS for Slayer mode specifically (see above). Diana shares the
+// same narrowed set (user-specified, 2026-08-25) — same real overworld-combat power stones matter,
+// not the Dungeon-specific ones.
+const POWER_STONE_RESTRICTED_MODES = new Set(['slayer', 'diana']);
 async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   if (!loadout.accessory?.item) return [];
   const currentId = loadout.accessory.item.id;
-  const candidatePowers = mode === 'slayer' ? STONE_POWERS.filter((p) => SLAYER_POWER_STONE_IDS.has(p.id)) : STONE_POWERS;
+  const candidatePowers = POWER_STONE_RESTRICTED_MODES.has(mode)
+    ? STONE_POWERS.filter((p) => SLAYER_POWER_STONE_IDS.has(p.id))
+    : STONE_POWERS;
   const results = [];
   for (const power of candidatePowers) {
     if (power.id === currentId) continue;
@@ -1421,7 +1542,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ),
     evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),

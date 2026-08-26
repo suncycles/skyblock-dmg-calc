@@ -429,5 +429,17 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // computeBestiaryMaxedMobs) — see lib/bestiaryStrength.js for the consumer.
   const bestiaryMaxedMobs = Array.isArray(raw.bestiaryMaxedMobs) ? raw.bestiaryMaxedMobs : [];
 
-  return { loadout, skipped, attributes, playerStats, bestiaryMaxedMobs };
+  // Daedalus Blade/Starred Daedalus Blade's real "Combined Mythological Bestiary Tiers" ability
+  // input — independently derived (worker/src/index.js's computeCombinedMythologicalBestiaryTiers)
+  // from the SAME real member.bestiary.kills data buildItemModifiers already reads straight off an
+  // OWNED Daedalus Blade's own NBT lore above (parseLabeledNumberFromLore/SPECIAL_LORE_LABELS.
+  // bestiary) — that NBT read stays untouched and is still what a real owned Daedalus Blade uses on
+  // import, since it's the most direct source for an item the player actually has. This top-level
+  // value exists for the one case NBT can't cover: the Optimizer proposing a Daedalus Blade the
+  // player doesn't yet own (see lib/optimizer.js's Diana weapon progression), where there's no
+  // owned item's lore to read at all.
+  const combinedMythologicalBestiaryTiers =
+    typeof raw.combinedMythologicalBestiaryTiers === 'number' ? raw.combinedMythologicalBestiaryTiers : 0;
+
+  return { loadout, skipped, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers };
 }
