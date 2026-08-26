@@ -265,6 +265,7 @@ async function buildFreshData() {
     powerStones,
     accessories,
     accessoryFamilies,
+    accessoryInnateStats: ACCESSORY_INNATE_STATS_BY_ID,
     lastFetched: Date.now(),
   };
 }
@@ -696,6 +697,32 @@ const PARSABLE_ACCESSORY_STAT_IDS = new Set([
 // the player walks around). User-confirmed: average it out to a flat +5 rather than parsing 0 or
 // guessing which end of the range to assume.
 const GRAVITY_TALISMAN_AVERAGE_STRENGTH = 5;
+
+// Real innate stat bonus (Strength/Crit Chance/Crit Damage) baked into an accessory's own static
+// item lore — reuses the exact same parsing this file already does for a real owned account's live
+// NBT (computeLiveAccessoryStats/PARSABLE_ACCESSORY_STAT_IDS/parseLeadingStatLines/
+// parseNarrativeStatGrants above), just run once against the catalog's own pristine lore instead of
+// one specific instance's. These ~17 real ids' stat lines are fixed per-tier constants baked into
+// the item definition itself (not account-variable — Blood God Crest/Sigil and Magic 8 Ball are the
+// one real exception, resolving to whatever the catalog's static snapshot lore happens to show,
+// same documented gap PARSABLE_ACCESSORY_STAT_IDS already accepts for a real account), so this
+// resolves to the identical real number computeLiveAccessoryStats would for an owned copy. Lets the
+// Optimizer's "New Accessory" candidates (an accessory the player doesn't yet own — see
+// frontend/src/lib/accessoryOptimizer.js) include this real bonus (e.g. a Shark Tooth Necklace's
+// innate Strength) rather than only its Magical Power contribution, user-confirmed 2026-08-25.
+const ACCESSORY_INNATE_STATS_BY_ID = (() => {
+  const out = {};
+  for (const item of accessories) {
+    if (item.id === "GRAVITY_TALISMAN") {
+      out[item.id] = { strength: GRAVITY_TALISMAN_AVERAGE_STRENGTH };
+      continue;
+    }
+    if (!PARSABLE_ACCESSORY_STAT_IDS.has(item.id)) continue;
+    const stats = { ...parseNarrativeStatGrants(item.lore), ...parseLeadingStatLines(item.lore) };
+    if (Object.keys(stats).length > 0) out[item.id] = stats;
+  }
+  return out;
+})();
 
 // General's Medallion: real, per-account Catacombs Stats Boost digit count baked directly into
 // the owned copy's own lore server-side — same "live-computed number in a labeled lore line"

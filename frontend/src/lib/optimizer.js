@@ -103,6 +103,18 @@ const MODE_CONFIG = {
   dungeon_mage_ability: { useDungeonizedStats: true, metric: 'ability' },
 };
 
+// User-specified (2026-08-25): the Optimizer's own Ultimate Swarm mob-count assumption, per mode —
+// a real Slayer boss fight typically has several adds nearby (5), a real Diana Mythological hunt is
+// usually solo (1). This ONLY affects the Optimizer's own ranking run (both runOptimizer below and
+// accessoryOptimizer.js's evaluateAccessoryCandidates, which needs the identical assumption to stay
+// consistent with it) — never touches the player's own real Misc-panel swarmMobs setting
+// (build.swarmMobs) used everywhere else in the app (main calculator, Damage Sources page, etc).
+const OPTIMIZER_SWARM_MOBS_BY_MODE = { slayer: 5, diana: 1 };
+export function withOptimizerSwarmMobs(build, mode) {
+  const swarmMobs = OPTIMIZER_SWARM_MOBS_BY_MODE[mode];
+  return swarmMobs != null ? { ...build, swarmMobs } : build;
+}
+
 // useMasterMode isn't part of a mode's own static config — it's the player's real, live "Master"
 // toggle (build.useMasterMode, the same one DamageSources.jsx already reads to pick between
 // finalDamage.js's dungeonized vs master-dungeonized base stats), so it has to come in per call
@@ -1034,6 +1046,10 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
     if (id.toLowerCase() === currentId) continue;
     // User-specified, 2026-08-25: never recommend One For All for Diana.
     if (mode === 'diana' && id.toLowerCase() === 'ultimate_one_for_all') continue;
+    // User-specified, 2026-08-25: never recommend Combo at all (any mode) — unlike Swarm's real
+    // nearby-mob-count assumption below, Combo's real value depends on a per-fight kill streak this
+    // app has no realistic fixed assumption for.
+    if (id.toLowerCase() === 'ultimate_combo') continue;
     const levels = await fetchEnchantLevels(id, itemData.enchants);
     if (levels.length === 0) continue;
     const maxLevel = Math.max(...levels.map((l) => l.level));
@@ -1513,6 +1529,7 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 // — a real number when a coin cost source exists for that specific candidate, `'?'`/`null` when
 // it doesn't (see lib/pricing.js for exactly which categories are/aren't priceable today).
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
+  build = withOptimizerSwarmMobs(build, mode);
   const modeConfig = getModeConfig(mode, build.useMasterMode);
   const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
   // Only the weapon/equipment Reforge comparison itself needs the Fabled-adjusted baseline below
