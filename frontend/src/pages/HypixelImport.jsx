@@ -145,7 +145,13 @@ function pickSource(sets, choice, fallback) {
 export default function HypixelImport() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { importHypixelLoadout, importHypixelAttributes, importHypixelPlayerStats, importHypixelBestiaryMaxedMobs } = useBuild();
+  const {
+    importHypixelLoadout,
+    importHypixelAttributes,
+    importHypixelPlayerStats,
+    importHypixelBestiaryMaxedMobs,
+    importHypixelCombinedMythologicalBestiaryTiers,
+  } = useBuild();
   const { itemData } = useItemData();
   const [username, setUsername] = useState(location.state?.username || '');
   const [status, setStatus] = useState('idle'); // idle | loading | picking-profile | reviewing
@@ -226,13 +232,17 @@ export default function HypixelImport() {
     const weaponIndex = typeof weaponChoice === 'number' ? weaponChoice : null;
     const petIndex = typeof petChoice === 'number' ? petChoice : null;
     const excludedSlots = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => !includedSlots.has(slot)));
-    const { loadout, attributes, playerStats, bestiaryMaxedMobs } = await mapHypixelImportToLoadout(rawImport, itemData, {
-      weaponIndex,
-      petIndex,
-      excludedSlots,
-      wardrobeSetIndex: wardrobeChoice,
-      wardrobeEquipmentSetIndex: wardrobeEquipmentChoice,
-    });
+    const { loadout, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers } = await mapHypixelImportToLoadout(
+      rawImport,
+      itemData,
+      {
+        weaponIndex,
+        petIndex,
+        excludedSlots,
+        wardrobeSetIndex: wardrobeChoice,
+        wardrobeEquipmentSetIndex: wardrobeEquipmentChoice,
+      },
+    );
     if (Object.keys(loadout).length === 0) {
       setError("Nothing selected to import.");
       return;
@@ -241,6 +251,7 @@ export default function HypixelImport() {
     if (Object.keys(attributes).length > 0) importHypixelAttributes(attributes);
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
     importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
+    importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
     navigate('/');
   }
 

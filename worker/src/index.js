@@ -774,6 +774,35 @@ function computeBestiaryMaxedMobs(bestiary, kills) {
   return maxed;
 }
 
+// Daedalus Blade/Starred Daedalus Blade's own real "Combined Mythological Bestiary Tiers" stat
+// (frontend/src/lib/specialWeapons.js's SPECIAL_WEAPON_CONFIG, kind: 'bestiary') — the SUM of each
+// Mythological-family mob's CURRENT Bestiary tier (0..its own real max, 15 or 20), not a maxed/
+// not-maxed boolean like computeBestiaryMaxedMobs above. Was previously only ever read off the
+// player's own already-equipped Daedalus Blade's live NBT lore at import time (real, but only
+// available for a real, currently-owned Daedalus Blade) — this recomputes the same real number
+// independently from member.bestiary.kills, the same bracket-threshold data
+// computeBestiaryMaxedMobs already uses, so it's available for a hypothetical Daedalus Blade the
+// player doesn't yet own too (see the Diana optimizer weapon chain, lib/optimizer.js). Scoped to
+// bestiary.json's own "mythological_creatures" family only — the one real family that exactly
+// matches the weapon's own lore label (12 real mobs: Gaia Construct/Minos Champion/Minos Hunter/
+// Minos Inquisitor/Minotaur/Siamese Lynx/Cretan Bull/Harpy/King Minos/Manticore/Sphinx/Stranded
+// Nymph — confirmed live against NEU-REPO's bestiary.json).
+function computeCombinedMythologicalBestiaryTiers(bestiary, kills) {
+  const family = bestiary.mythological_creatures;
+  if (!family?.mobs) return 0;
+  let total = 0;
+  for (const mobFamily of family.mobs) {
+    const bracket = bestiary.brackets[String(mobFamily.bracket)];
+    if (!bracket || typeof mobFamily.cap !== "number") continue;
+    const maxTier = bracket.indexOf(mobFamily.cap) + 1;
+    if (maxTier <= 0) continue;
+    const totalKills = (mobFamily.mobs || []).reduce((sum, subId) => sum + (kills?.[subId] || 0), 0);
+    const currentTier = Math.min(bracket.filter((threshold) => totalKills >= threshold).length, maxTier);
+    total += currentTier;
+  }
+  return total;
+}
+
 function computeLiveAccessoryStats(items, abiphoneContactCount) {
   const bestMagicalPowerById = new Map();
   const bestStatById = {}; // statKey -> Map<id, value>
@@ -1232,6 +1261,9 @@ async function handleHypixelImport(url, env) {
     // Real per-mob Bestiary "leveling reward" Strength bonus — see computeBestiaryMaxedMobs and
     // frontend/src/lib/bestiaryStrength.js's BESTIARY_STRENGTH_BY_MOB (the consumer).
     const bestiaryMaxedMobs = computeBestiaryMaxedMobs(bestiary, member.bestiary?.kills);
+    // Daedalus Blade/Starred Daedalus Blade's real Bestiary-Tiers ability input — see
+    // computeCombinedMythologicalBestiaryTiers above.
+    const combinedMythologicalBestiaryTiers = computeCombinedMythologicalBestiaryTiers(bestiary, member.bestiary?.kills);
 
     return jsonResponse({
       profile: { profile_id: profile.profile_id, cute_name: profile.cute_name },
@@ -1250,6 +1282,7 @@ async function handleHypixelImport(url, env) {
       bank,
       goldCollection,
       bestiaryMaxedMobs,
+      combinedMythologicalBestiaryTiers,
     });
   } catch (err) {
     console.error("handleHypixelImport: failed to decode inventory data:", err);
