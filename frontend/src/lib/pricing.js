@@ -111,7 +111,16 @@ export function lookupCandidateCost(result, itemData) {
     case 'Gemstone': {
       const step = findStep(result.apply, 'setGemstone');
       if (!step) return null;
-      return priceOf(itemPrices, `${step.tier.toUpperCase()}_${step.gem}_GEM`);
+      const gemPrice = priceOf(itemPrices, `${step.tier.toUpperCase()}_${step.gem}_GEM`);
+      if (gemPrice == null) return null;
+      if (result.gemstoneOpen) return gemPrice;
+      // Slot isn't unlocked yet — a real one-time unlock fee (coins + specific gem items) is
+      // required before the gem can even be socketed, so it has to be part of a fair cost
+      // comparison against an already-open slot. No real cost data for this specific slot (rather
+      // than a confirmed-free slot) leaves the whole thing unpriced instead of silently
+      // understating it as gem-price-only, same "any unpriced piece makes the total unknown"
+      // treatment Full Set gives a missing item price.
+      return result.gemstoneUnlockCost != null ? gemPrice + result.gemstoneUnlockCost : null;
     }
     case 'Attribute': {
       const step = findStep(result.apply, 'setAttributeLevel');

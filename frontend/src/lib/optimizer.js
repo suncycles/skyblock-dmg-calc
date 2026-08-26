@@ -71,7 +71,7 @@ import { canRecombobulate } from './recombobulator';
 import { getApplicableReforges } from './reforgeData';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { getSpecialConfig } from './specialWeapons';
-import { countGemstoneSlots } from './gemstones';
+import { countGemstoneSlots, getAllowedGemsForSlotType } from './gemstones';
 import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
 export const OPTIMIZER_MODES = [
@@ -1316,12 +1316,21 @@ const GEMSTONE_TIERS_FINE_UP = GEMSTONE_TIERS.slice(GEMSTONE_TIERS.indexOf('fine
 
 // Gemstones: brute-forced against the real gem(s)/tiers relevant to the mode being optimized (see
 // RELEVANT_GEMS_BY_METRIC/GEMSTONE_TIERS_FINE_UP above) per socket on every armor piece and the
-// weapon — lib/gemstones.js's own comment confirms slot-type restrictions aren't modeled in this
-// app (any of the 6 gems fits any slot in-game too), so the narrowing here is purely "which gem
-// moves this mode's number," not a real slot restriction. An already-socketed slot skips only its
-// own current (gem, tier) so the list never "suggests" what's already equipped there. Equipment is
-// excluded (only 1 of 143 real equipment items has a gemstone slot at all) — user-specified scope
-// was armor + sword.
+// weapon, further narrowed per socket to whichever gems its own real slot type actually accepts
+// (lib/gemstones.js's getAllowedGemsForSlotType — e.g. Hyperion's dedicated SAPPHIRE slot never
+// offers Jasper/Onyx even under a DPS-metric mode, and Giant's Sword's two JASPER-only slots never
+// offer Sapphire under an Ability-metric mode). An already-socketed slot skips only its own current
+// (gem, tier) so the list never "suggests" what's already equipped there — and a socketed slot is
+// also, by construction, always unlocked (see below). Equipment is excluded (only 1 of 143 real
+// equipment items has a gemstone slot at all) — user-specified scope was armor + sword.
+//
+// A slot the account hasn't unlocked yet still needs a real one-time unlock price (coins + specific
+// gem items, see worker's computeGemstoneUnlockCost) added on top of the gem's own market price
+// before it's a fair coin-cost comparison against an already-open slot — stashed here as
+// `gemstoneOpen`/`gemstoneUnlockCost` on the result for lib/pricing.js to fold in, rather than
+// computed there, since only this function has the loadout/import data needed to know which slots
+// are actually open. `gemstoneSlotsUnlocked` (lib/hypixelImport.js) only ever reflects real import
+// data — a manual/fresh item defaults to every slot locked, matching real Skyblock's own default.
 async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob) {
   const relevantGems = RELEVANT_GEMS_BY_METRIC[modeConfig.metric] || [];
   const results = [];
@@ -1331,9 +1340,15 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
     const slotCount = countGemstoneSlots(equipped.item.lore);
     if (slotCount === 0) continue;
     const currentGemstones = equipped.modifiers.gemstones || [];
+    const unlockedFlags = equipped.modifiers.gemstoneSlotsUnlocked || [];
+    const catalogSlots = equipped.item.gemstone_slots || [];
     for (let index = 0; index < slotCount; index++) {
       const current = currentGemstones[index];
-      for (const gem of relevantGems) {
+      const allowedGems = getAllowedGemsForSlotType(catalogSlots[index]?.slot_type).filter((g) => relevantGems.includes(g));
+      if (allowedGems.length === 0) continue;
+      const gemstoneOpen = !!current || !!unlockedFlags[index];
+      const gemstoneUnlockCost = gemstoneOpen ? null : (itemData.costs?.gemstoneUnlockCosts?.[`${equipped.item.id}_${index}`] ?? null);
+      for (const gem of allowedGems) {
         for (const tier of GEMSTONE_TIERS_FINE_UP) {
           if (current && current.gem === gem && current.tier === tier) continue;
           const newGemstones = currentGemstones.slice();
@@ -1347,6 +1362,8 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
             gem,
             tier,
             value,
+            gemstoneOpen,
+            gemstoneUnlockCost,
             apply: [{ type: 'setGemstone', slot, index, gem, tier }],
           });
         }

@@ -143,24 +143,63 @@ function buildReforgeNameLookup(itemData) {
   return map;
 }
 
-function extractGemstones(gems) {
-  if (!gems) return [];
-  const result = [];
-  for (const [key, value] of Object.entries(gems)) {
-    const match = key.match(/^([A-Z]+)_\d+$/);
-    if (!match) continue;
-    // Quality is a bare string on most slots, but Hypixel writes {uuid, quality} for gems that
-    // carry a tracked instance id — same quality info either way.
-    const quality = typeof value === 'string' ? value : value?.quality;
-    if (!quality) continue;
-    // A typed slot (e.g. SAPPHIRE_0) names its gem type in the key itself. A category slot
-    // (COMBAT_0, DEFENSIVE_0, UNIVERSAL_0, ...) only holds quality here — the actual gem type
-    // socketed into it lives in the paired "<key>_gem" entry (e.g. "COMBAT_0_gem": "AMETHYST").
-    const gemType = COMBAT_GEM_TYPES.includes(match[1]) ? match[1] : gems[`${key}_gem`];
-    if (!gemType || !COMBAT_GEM_TYPES.includes(gemType)) continue;
-    result.push({ gem: gemType, tier: quality.toLowerCase() });
+// Reads one slot's quality out of the raw gems compound — a bare string on most slots, but
+// Hypixel writes {uuid, quality} for gems that carry a tracked instance id.
+function readGemQuality(gems, key) {
+  const value = gems?.[key];
+  return typeof value === 'string' ? value : value?.quality || null;
+}
+
+// Real per-slot socketed gem + unlock state, mapped onto the item's own real catalog slot ORDER
+// (`catalogSlots` — item.gemstone_slots, see worker/scripts/build-item-data.mjs/lib/gemstones.js's
+// getAllowedGemsForSlotType). Hypixel keys each real slot "<TYPE>_<n>" where n restarts at 0 for
+// EACH DISTINCT slot_type on the item (not one running index across every slot) — confirmed live
+// against a real account's Infernal Crimson pieces (its two COMBAT slots keyed COMBAT_0/COMBAT_1)
+// — so this walks the catalog's ordered slot list with its own per-type counter to recover which
+// raw key belongs to which catalog position, rather than trusting object key insertion order (what
+// the old flat version of this function did, and what a manually-picked item with no catalog
+// gemstone_slots data still falls back to below). A slot with a gem already socketed is unlocked by
+// construction — you can't socket into a locked one — so only an EMPTY slot needs the real
+// `gems.unlocked_slots` list (also confirmed live) to tell locked from open.
+function extractGemstoneSlotState(gems, catalogSlots) {
+  if (!Array.isArray(catalogSlots) || catalogSlots.length === 0) {
+    // No real per-slot type/order data for this item — same flat, order-agnostic extraction as
+    // before rather than losing the gems entirely; unlock state is simply unknown (nothing marked
+    // unlocked below other than what's already, unavoidably, implied by a socketed gem).
+    const gemstones = [];
+    if (gems) {
+      for (const key of Object.keys(gems)) {
+        const match = key.match(/^([A-Z]+)_\d+$/);
+        if (!match) continue;
+        const quality = readGemQuality(gems, key);
+        if (!quality) continue;
+        const gemType = COMBAT_GEM_TYPES.includes(match[1]) ? match[1] : gems[`${key}_gem`];
+        if (!gemType || !COMBAT_GEM_TYPES.includes(gemType)) continue;
+        gemstones.push({ gem: gemType, tier: quality.toLowerCase() });
+      }
+    }
+    return { gemstones, unlocked: [] };
   }
-  return result;
+
+  const unlockedKeys = new Set(gems?.unlocked_slots || []);
+  const typeCounts = {};
+  const gemstones = [];
+  const unlocked = [];
+  catalogSlots.forEach((slotDef, index) => {
+    const type = slotDef.slot_type;
+    const n = typeCounts[type] || 0;
+    typeCounts[type] = n + 1;
+    const key = `${type}_${n}`;
+    const quality = readGemQuality(gems, key);
+    if (quality) {
+      const gemType = COMBAT_GEM_TYPES.includes(type) ? type : gems?.[`${key}_gem`];
+      if (gemType && COMBAT_GEM_TYPES.includes(gemType)) gemstones[index] = { gem: gemType, tier: quality.toLowerCase() };
+      unlocked[index] = true;
+    } else {
+      unlocked[index] = unlockedKeys.has(key);
+    }
+  });
+  return { gemstones, unlocked };
 }
 
 // Splits raw {enchant_id: level} into hexEnchantments/ultimateEnchantment, looking up each
@@ -249,11 +288,13 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   const specialKind = getSpecialConfig(item.id)?.kind;
   const specialLabel = SPECIAL_LORE_LABELS[specialKind];
   const coinSpecial = specialLabel ? { special: parseLabeledNumberFromLore(summary.lore, specialLabel) } : null;
+  const { gemstones, unlocked: gemstoneSlotsUnlocked } = extractGemstoneSlotState(summary.gems, item.gemstone_slots);
   return {
     ...emptyModifiers(),
     hexEnchantments,
     ultimateEnchantment,
-    gemstones: extractGemstones(summary.gems),
+    gemstones,
+    gemstoneSlotsUnlocked,
     books: Math.min(15, summary.hotPotatoBooks || 0),
     recombobulated: !!summary.recombobulated,
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
@@ -275,9 +316,15 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
 }
 
 // Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
-// into the {id, name, material, category, tier, lore, color} shape both the loadout and the
-// Review screen's candidate rows (icon/name) need — null if the id doesn't match anything in the
-// current NEU-REPO catalog (renamed/removed item since the account last equipped it).
+// into the {id, name, material, category, tier, lore, color, gemstone_slots} shape both the loadout
+// and the Review screen's candidate rows (icon/name) need — null if the id doesn't match anything
+// in the current NEU-REPO catalog (renamed/removed item since the account last equipped it).
+// `gemstone_slots` (real per-slot type + unlock cost, worker/scripts/build-item-data.mjs — Hypixel's
+// own resources API) is passed through unchanged (snake_case, same as the catalog field itself,
+// same treatment as `upgrade_costs` elsewhere) rather than renamed, so every path that can put an
+// item into the loadout — a real import via this function, an Optimizer-suggested swap (also via
+// this function, see optimizer.js), or a bare manual pick straight off itemData.armor/weapons —
+// exposes it under the identical key with no translation to keep in sync.
 export function resolveGearSummary(summary, itemData) {
   if (!summary) return null;
   const item = findGearItem(itemData, summary.id);
@@ -290,6 +337,7 @@ export function resolveGearSummary(summary, itemData) {
     tier: item.tier,
     lore: item.lore || [],
     color: item.color,
+    gemstone_slots: item.gemstone_slots || null,
   };
 }
 

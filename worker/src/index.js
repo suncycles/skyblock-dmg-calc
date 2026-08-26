@@ -396,6 +396,22 @@ function computeStarCosts(itemId, upgradeCosts, itemPrices, out) {
   });
 }
 
+// Real coin cost to unlock one gemstone slot (see scripts/build-item-data.mjs's gemstone_slots —
+// Hypixel's own resources API, not in NEU-REPO). Unlike star costs this isn't cumulative — one
+// slot's unlock is a single flat purchase (coins + a fixed handful of specific-tier gem items), not
+// a multi-level ladder. Confirmed live this genuinely varies per item AND per slot index (Hyperion's
+// SAPPHIRE slot: 250k + 4 Flawless Sapphire; Voidedge Katana's SAPPHIRE slot: 100k + 40 Fine
+// Sapphire; Giant's Sword's own two JASPER slots even differ from each other), so it's resolved per
+// real (item, slotIndex) pair, not just per slot type.
+function computeGemstoneUnlockCost(costs, itemPrices) {
+  let total = 0;
+  for (const cost of costs || []) {
+    if (cost.type === "ITEM") total += (cost.amount || 0) * (itemPrices[cost.item_id] || 0);
+    else if (cost.type === "COINS") total += cost.coins || 0;
+  }
+  return total;
+}
+
 // Real coin costs for every priceable "thing" the Optimizer's candidates can reference — resolved
 // and persisted here (its own KV key/TTL, independent of the 6h item-catalog cache above) rather
 // than recomputed client-side per Optimizer run, per explicit direction: the coin-cost side of a
@@ -432,8 +448,14 @@ async function resolveCosts(env, catalog, force = false) {
     }
 
     const starCosts = {};
+    const gemstoneUnlockCosts = {};
     for (const item of [...armor, ...weapons]) {
       if (item.upgrade_costs) computeStarCosts(item.id, item.upgrade_costs, itemPrices, starCosts);
+      if (item.gemstone_slots) {
+        item.gemstone_slots.forEach((slot, i) => {
+          if (slot.costs) gemstoneUnlockCosts[`${item.id}_${i}`] = computeGemstoneUnlockCost(slot.costs, itemPrices);
+        });
+      }
     }
 
     const costs = {
@@ -442,6 +464,7 @@ async function resolveCosts(env, catalog, force = false) {
       recombobulatorCost,
       petCosts,
       starCosts,
+      gemstoneUnlockCosts,
       attributeCosts,
       attributeCostsByLevel,
     };
@@ -457,6 +480,7 @@ async function resolveCosts(env, catalog, force = false) {
           recombobulatorCost: null,
           petCosts: {},
           starCosts: {},
+          gemstoneUnlockCosts: {},
           attributeCosts: {},
           attributeCostsByLevel: {},
         };
