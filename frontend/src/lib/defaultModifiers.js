@@ -7,6 +7,12 @@ export function emptyModifiers() {
     hexEnchantments: [], // [{id, level, maxLevel}], normal enchants
     ultimateEnchantment: null, // {id, level, maxLevel} | null
     gemstones: [],
+    // Real per-slot-index unlock state from a Hypixel import (lib/hypixelImport.js's
+    // extractGemstoneSlotState) — [] (nothing known-unlocked) for a manual/fresh item, matching
+    // real Skyblock's own default (gemstone slots start locked). A slot already holding a gem is
+    // always treated as unlocked regardless of this array (see optimizer.js's
+    // evaluateGemstoneCandidates), so this only matters for a currently-empty slot.
+    gemstoneSlotsUnlocked: [],
     books: 0, // Hot/Fuming Potato Book count, 0-15
     artOfWar: false, // +5 Strength, weapons only
     artOfPeace: false, // +40 Health, armor only

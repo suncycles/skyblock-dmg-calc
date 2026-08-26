@@ -167,8 +167,20 @@ function materialFromItemId(itemid) {
 // has it per-item, keyed by the same internalname. This is the one field this script still pulls
 // live rather than from the NEU-REPO checkout; every other field comes from the offline parse
 // above. One request, done once up front, id-indexed for O(1) lookup during the main item loop.
-console.log('Fetching upgrade_costs from Hypixel resources API...');
+// Real per-slot gemstone TYPE (COMBAT/DEFENSIVE/UNIVERSAL/RUBY/SAPPHIRE/JASPER/AMETHYST/ONYX/OPAL/
+// MINING/CHISEL/...) and real unlock cost (coins + specific Flawless/Fine gem items) — also not in
+// NEU-REPO at all (its own item files have no gemstone_slots key either, confirmed by inspection),
+// same "Hypixel's resources API is the only real source" situation as upgrade_costs. Confirmed live
+// against real items: a "COMBAT" slot accepts any of the 6 gems this app models (verified against a
+// real account's Infernal Crimson pieces holding Onyx in a COMBAT slot), while a slot whose type IS
+// itself one of the 6 gem ids (e.g. Hyperion's "SAPPHIRE" slot, Giant's Sword's two "JASPER" slots)
+// only accepts that one type — see lib/gemstones.js's getAllowedGemsForSlotType, the consumer.
+// Unlock cost is genuinely per-item (not just per slot-type — Hyperion's SAPPHIRE slot costs 250k +
+// 4 Flawless Sapphire while Voidedge Katana's costs only 100k + 40 Fine Sapphire), so the whole
+// per-slot object (type + costs) is kept, not just the type.
+console.log('Fetching upgrade_costs/gemstone_slots from Hypixel resources API...');
 const upgradeCostsById = new Map();
+const gemstoneSlotsById = new Map();
 try {
   const res = await fetch('https://api.hypixel.net/v2/resources/skyblock/items');
   const data = await res.json();
@@ -176,10 +188,13 @@ try {
     if (Array.isArray(it.upgrade_costs) && it.upgrade_costs.length > 0) {
       upgradeCostsById.set(it.id, it.upgrade_costs);
     }
+    if (Array.isArray(it.gemstone_slots) && it.gemstone_slots.length > 0) {
+      gemstoneSlotsById.set(it.id, it.gemstone_slots);
+    }
   }
-  console.log(`Fetched upgrade_costs for ${upgradeCostsById.size} items.`);
+  console.log(`Fetched upgrade_costs for ${upgradeCostsById.size} items, gemstone_slots for ${gemstoneSlotsById.size} items.`);
 } catch (err) {
-  console.error('Failed to fetch upgrade_costs (continuing without star-cost data):', err);
+  console.error('Failed to fetch upgrade_costs/gemstone_slots (continuing without star-cost/gemstone-slot data):', err);
 }
 
 const weapons = [];
@@ -296,6 +311,11 @@ for (const file of files) {
   // omitted on equipment items to avoid bloating equipment.json with a field nothing reads there.
   if ((isWeapon || isArmor) && upgradeCostsById.has(raw.internalname)) {
     item.upgrade_costs = upgradeCostsById.get(raw.internalname);
+  }
+  // Same weapon/armor-only scope as upgrade_costs above — confirmed live that equipment items have
+  // no gemstone_slots at all (real Skyblock equipment doesn't have gem sockets).
+  if ((isWeapon || isArmor) && gemstoneSlotsById.has(raw.internalname)) {
+    item.gemstone_slots = gemstoneSlotsById.get(raw.internalname);
   }
 
   if (isWeapon) weapons.push(item);

@@ -616,6 +616,9 @@ export function BuildProvider({ children }) {
                     tier: item.tier,
                     lore: item.lore || [],
                     color: item.color,
+                    // Real per-slot gemstone type/unlock-cost data (worker/scripts/build-item-
+                    // data.mjs) — see lib/optimizer.js's evaluateGemstoneCandidates, the consumer.
+                    gemstone_slots: item.gemstone_slots || null,
                   },
           modifiers:
             slot === 'pet'
