@@ -28,6 +28,18 @@ export const VANQUISHED_SET_MULTIPLIER = 1.1;
 export const VANQUISHED_SET_ID = 'vanquished-set-hidden-bonus';
 export const VANQUISHED_SET_CONDITION = 'Inferno Demonlord';
 
+// Diana's Mythological Ritual reward armor (see optimizer.js's MYTHOLOGICAL_ARMOR_TIER) — its
+// Mythos' Might doubling only applies to what a piece itself contributes, so a single-piece swap
+// away from a real Kuudra family (losing that family's own set bonus, e.g. Infernal Crimson's
+// stacking damage) nets NEGATIVE even though the full 4-piece set is a real, large upgrade
+// (user-confirmed 2026-08-27: >16% better than a full Hot Crimson set) — same "can't see a
+// lumpy payoff one slot at a time" problem Vanquished/Final Destination already solve below via
+// a dedicated full-set candidate, not the per-slot evaluator. Challenger's (EPIC) is the cheaper,
+// lower-stat rung of the same armor — it has the same Mythos' Might doubling ability (confirmed
+// live in its own real lore), just smaller base Health/Defense/Strength than Mythos (LEGENDARY).
+export const MYTHOS_ARMOR_SET = ['MYTHOS_HELMET', 'MYTHOS_CHESTPLATE', 'MYTHOS_LEGGINGS', 'MYTHOS_BOOTS'];
+export const CHALLENGER_ARMOR_SET = ['CHALLENGER_HELMET', 'CHALLENGER_CHESTPLATE', 'CHALLENGER_LEGGINGS', 'CHALLENGER_BOOTS'];
+
 // Monster Hunter/Monster Raider: undocumented hidden set bonuses. The two sets share their
 // first 3 pieces and differ only in boots, so they're mutually exclusive by construction.
 export const MONSTER_HUNTER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'SPIDER_BOOTS'];
