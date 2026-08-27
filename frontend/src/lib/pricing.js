@@ -62,14 +62,19 @@ export function lookupCandidateCost(result, itemData) {
   if (!costs) return null;
   const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {}, attributeCosts = {} } = costs;
 
-  // Crown of Avarice's "Coins Consumed" candidates: cost is the item's own real market price
-  // (buying a bare Crown) PLUS the Coins Consumed threshold (1 coin consumed = 1 coin spent,
-  // user-confirmed) — a player has to acquire the crown itself before feeding coins into it. Must
-  // be checked before the general Armor-category branch below since Crown candidates carry
-  // category: 'Armor' too. David's Cloak's `special` is a real Strength bonus value, not a coin
-  // amount — deliberately excluded (stays unpriced) rather than misread as coins.
-  if (result.itemId === 'CROWN_OF_AVARICE' && result.special != null) {
-    const basePrice = priceOf(itemPrices, 'CROWN_OF_AVARICE');
+  // Crown of Avarice's "Coins Consumed" and Midas Sword/Staff's "Price Paid at Dark Auction" are
+  // both a literal count of coins actually spent/fed into the item (gone, not held) — cost is the
+  // item's own real market price (buying it bare) PLUS that counter, 1 coin counted = 1 coin spent
+  // (user-confirmed), since a player has to acquire the item itself before investing coins into it.
+  // Must be checked before the general Weapon/Armor-category branch below since these candidates
+  // carry those categories too. David's Cloak's `special` is a real Strength bonus value and
+  // Daedalus Blade's is a Bestiary Tier count — neither is a coin amount, deliberately excluded
+  // (stays unpriced) rather than misread as coins. Emerald Blade's "Coins in Purse" is a live
+  // balance check, not coins spent (you keep them) — not part of this set for that reason, and not
+  // currently offered as an Optimizer candidate anyway.
+  const COIN_DENOMINATED_SPECIAL_IDS = new Set(['CROWN_OF_AVARICE', 'MIDAS_SWORD', 'STARRED_MIDAS_SWORD', 'MIDAS_STAFF', 'STARRED_MIDAS_STAFF']);
+  if (COIN_DENOMINATED_SPECIAL_IDS.has(result.itemId) && result.special != null) {
+    const basePrice = priceOf(itemPrices, result.itemId);
     return (basePrice || 0) + result.special;
   }
 
