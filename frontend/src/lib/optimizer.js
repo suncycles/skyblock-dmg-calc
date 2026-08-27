@@ -1644,7 +1644,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
 // "swap-in" action. `build` must expose selectItem/applyEnchant/setSpecialValue/setStarCount
 // (every one of them already used elsewhere in the app for the exact same mutations, just
 // triggered from a picker page instead of here). Steps run in order since a Crown of Avarice
-// candidate needs its item selected before its Special value can be set.
+// candidate needs its item selected before its Special value can be set. Every modifier-setter
+// call passes `respectEditAll: false` — the Armor/Equipment Options screens' "Edit All" broadcast
+// (BuildContext.jsx's updateSlotModifiers/setStarCount/toggleRecombobulated) is scoped to the Hex
+// screen only (user-specified 2026-08-26), not a Recommended Upgrade swap-in.
 export function applyOptimizerResult(build, result) {
   for (const step of result.apply) {
     switch (step.type) {
@@ -1652,19 +1655,19 @@ export function applyOptimizerResult(build, result) {
         build.selectItem(step.slot, step.item);
         break;
       case 'applyEnchant':
-        build.applyEnchant(step.slot, step.id, step.level, step.maxLevel, step.removeIds || []);
+        build.applyEnchant(step.slot, step.id, step.level, step.maxLevel, step.removeIds || [], false);
         break;
       case 'setSpecialValue':
-        build.setSpecialValue(step.slot, step.value);
+        build.setSpecialValue(step.slot, step.value, false);
         break;
       case 'setRarityOverride':
-        build.setRarityOverride(step.slot, step.tier);
+        build.setRarityOverride(step.slot, step.tier, false);
         break;
       case 'setStarCount':
-        build.setStarCount(step.slot, step.count);
+        build.setStarCount(step.slot, step.count, false);
         break;
       case 'setMasterStarCount':
-        build.setMasterStars(step.slot, step.count);
+        build.setMasterStars(step.slot, step.count, false);
         break;
       case 'setPetItem':
         build.setPetItem(step.petItemId);
@@ -1676,13 +1679,13 @@ export function applyOptimizerResult(build, result) {
         build.setAccessoryTuning(step.tuning);
         break;
       case 'applyReforge':
-        build.applyReforge(step.slot, step.name);
+        build.applyReforge(step.slot, step.name, false);
         break;
       case 'toggleRecombobulated':
-        build.toggleRecombobulated(step.slot);
+        build.toggleRecombobulated(step.slot, false);
         break;
       case 'setGemstone':
-        build.applyGemstone(step.slot, step.index, step.gem, step.tier);
+        build.applyGemstone(step.slot, step.index, step.gem, step.tier, false);
         break;
       case 'setAttributeLevel':
         build.setAttributeLevel(step.id, step.level);

@@ -33,6 +33,8 @@ import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
 import OptimizerSidebar from '../components/OptimizerSidebar';
+import ArmorOptions from './ArmorOptions';
+import EquipmentOptions from './EquipmentOptions';
 
 // Lazy — same reasoning as every other route in App.jsx: keeps Landing's own (highest-traffic)
 // bundle small. Merged inline below the gear grid (see the `embedded` prop) instead of behind a
@@ -84,6 +86,8 @@ export default function Landing() {
     useMasterMode,
     mageMode,
     toggleGodPotion,
+    editAllArmor,
+    editAllEquipment,
     attributes,
     miscStats,
     mobHpPercent,
@@ -105,6 +109,8 @@ export default function Landing() {
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
+  const [showArmorOptions, setShowArmorOptions] = useState(false);
+  const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
   const [costResult, setCostResult] = useState(null);
   // Whether any currently-selected target is Mythological-typed — Challenger's/Mythos' doubled-stat
@@ -435,6 +441,45 @@ export default function Landing() {
     for (let col = 0; col < 9; col++) {
       const key = `${row}-${col}`;
 
+      // Column B, row 0 (above Necklace): Equipment Options — clear-all + "Edit All" mode for the
+      // 4 equipment slots below, opened as a popup bubble (see pages/EquipmentOptions.jsx) instead
+      // of a routed page.
+      if (col === 1 && row === 0) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${editAllEquipment ? 'bg-green-400' : ''}`}
+            title="Equipment Options"
+            onClick={() => setShowEquipmentOptions(true)}
+          >
+            <img src="/images/manual/cmd.webp" alt="" className={iconImg} />
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+              Equip. Options
+            </span>
+          </div>,
+        );
+        continue;
+      }
+
+      // Column C, row 0 (above Helmet): Armor Options — same 2 conveniences for the 4 armor slots
+      // below, opened as a popup bubble (see pages/ArmorOptions.jsx) instead of a routed page.
+      if (col === 2 && row === 0) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${editAllArmor ? 'bg-green-400' : ''}`}
+            title="Armor Options"
+            onClick={() => setShowArmorOptions(true)}
+          >
+            <img src="/images/manual/cmd.webp" alt="" className={iconImg} />
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+              Armor Options
+            </span>
+          </div>,
+        );
+        continue;
+      }
+
       // Column B: the 4 equipment slots, rows 2-5.
       if (col === 1 && row >= 1 && row <= 4) {
         const slot = EQUIPMENT_SLOTS[row - 1];
@@ -737,12 +782,7 @@ export default function Landing() {
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={() => navigate('/compare')}
             >
-              <img
-                src="https://images.minecraft-heads.com/render3d/head/0d/0d9a4b2222566d1524b25800efb1a71e.webp"
-                alt=""
-                className="w-4 h-4 pixelated"
-              />{' '}
-              Compare
+              <img src="/images/manual/comp.webp" alt="" className="w-4 h-4 pixelated" /> Compare
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
@@ -843,11 +883,7 @@ export default function Landing() {
         className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer flex items-center gap-2"
         onClick={() => damageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
       >
-        <img
-          src="https://images.minecraft-heads.com/render3d/head/57/57764d38b5971b7c79f587efffe2d29d.webp"
-          alt=""
-          className="w-6 h-6 pixelated"
-        />
+        <img src="/images/manual/dmg.webp" alt="" className="w-6 h-6 pixelated" />
         Calculate Damage
       </button>
 
@@ -858,6 +894,9 @@ export default function Landing() {
           <DamageSources embedded />
         </Suspense>
       </div>
+
+      {showArmorOptions && <ArmorOptions onClose={() => setShowArmorOptions(false)} />}
+      {showEquipmentOptions && <EquipmentOptions onClose={() => setShowEquipmentOptions(false)} />}
     </div>
   );
 }

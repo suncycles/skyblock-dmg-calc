@@ -7,6 +7,14 @@ import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../l
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
 import { getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from '../lib/petData';
 import { ARMOR_VARIANT_FAMILIES } from '../lib/armorVariants';
+import { ARMOR_SLOTS } from '../lib/armorSlots';
+import { EQUIPMENT_SLOTS } from '../lib/equipmentSlots';
+import { countGemstoneSlots, getAllowedGemsForSlotType } from '../lib/gemstones';
+import { isReforgeApplicable } from '../lib/reforgeData';
+import { getSpecialConfig } from '../lib/specialWeapons';
+import { MOB_LOCATIONS } from '../lib/mobLocations';
+
+const CATACOMBS_LOCATION = 'The Catacombs';
 
 const STORAGE_KEY = 'hexLoadout';
 const PLAYER_STATS_KEY = 'hexPlayerStats';
@@ -27,6 +35,8 @@ const LEGION_PLAYERS_KEY = 'hexLegionPlayers';
 const BLAZE_CRIMSON_ISLE_KEY = 'hexBlazeCrimsonIsle';
 const MAX_BUDGET_KEY = 'hexMaxBudget';
 const LAST_GEAR_MODIFIERS_KEY = 'hexLastGearModifiers';
+const EDIT_ALL_ARMOR_KEY = 'hexEditAllArmor';
+const EDIT_ALL_EQUIPMENT_KEY = 'hexEditAllEquipment';
 const BESTIARY_MAXED_MOBS_KEY = 'hexBestiaryMaxedMobs';
 const COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY = 'hexCombinedMythologicalBestiaryTiers';
 
@@ -55,6 +65,17 @@ function loadInitialTargetMobs() {
 // Loads the God Potion on/off toggle (see lib/godPotion.js).
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
+}
+
+// Loads the Armor/Equipment Options screens' "Edit All" toggles (above the Helmet/Necklace
+// slots) — while on, a modifier edit made to one piece via the Hex screen (enchants, gemstones,
+// reforge, stars, special, recomb, Clean, ...) is broadcast to every other equipped piece in the
+// same group. See updateSlotModifiers/setStarCount's `respectEditAll` param below.
+function loadInitialEditAllArmor() {
+  return localStorage.getItem(EDIT_ALL_ARMOR_KEY) === 'true';
+}
+function loadInitialEditAllEquipment() {
+  return localStorage.getItem(EDIT_ALL_EQUIPMENT_KEY) === 'true';
 }
 
 // Loads the "Toggle Dungeon Stats" on/off switch (see lib/dungeonize.js).
@@ -336,6 +357,8 @@ export function BuildProvider({ children }) {
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
+  const [editAllArmor, setEditAllArmorState] = useState(loadInitialEditAllArmor);
+  const [editAllEquipment, setEditAllEquipmentState] = useState(loadInitialEditAllEquipment);
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
   const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
   const [mageMode, setMageModeState] = useState(loadInitialMageMode);
@@ -415,12 +438,21 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Adds/removes a single mob from the selection.
+  // Adds/removes a single mob from the selection. Also auto-toggles God Potion — its real
+  // effects (Strength/Critical/Archery/Spirit potions) don't function inside The Catacombs, so
+  // whenever the selection ends up with at least one mob, God Potion is set ON if none of the
+  // selected mobs are Catacombs-located, OFF if any is (user-specified 2026-08-27). An empty
+  // selection leaves it untouched — nothing to judge it against.
   const toggleTargetMob = useCallback((name) => {
     setTargetMobsState((prev) => {
       const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
       localStorage.setItem(TARGET_MOBS_KEY, JSON.stringify(next));
       localStorage.removeItem(TARGET_MOB_KEY);
+      if (next.length > 0) {
+        const anyCatacombs = next.some((n) => (MOB_LOCATIONS[n] || []).includes(CATACOMBS_LOCATION));
+        setGodPotionActiveState(!anyCatacombs);
+        localStorage.setItem(GOD_POTION_KEY, String(!anyCatacombs));
+      }
       return next;
     });
   }, []);
@@ -438,6 +470,47 @@ export function BuildProvider({ children }) {
       return next;
     });
   }, []);
+
+  const toggleEditAllArmor = useCallback(() => {
+    setEditAllArmorState((prev) => {
+      const next = !prev;
+      localStorage.setItem(EDIT_ALL_ARMOR_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleEditAllEquipment = useCallback(() => {
+    setEditAllEquipmentState((prev) => {
+      const next = !prev;
+      localStorage.setItem(EDIT_ALL_EQUIPMENT_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  // "Clear All" (Armor/Equipment Options popups) — removes every equipped piece in the group at
+  // once AND wipes each slot's lastGearModifiers stash (user-specified "also clean the pieces"):
+  // unlike a single removeSlot, this is meant as a full reset, so a later re-pick for one of these
+  // slots starts from defaults instead of silently restoring the old reforge/stars/gemstones.
+  const clearGroup = useCallback((slots) => {
+    setLoadout((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      const stash = { ...lastGearModifiersRef.current };
+      for (const slot of slots) {
+        if (!prev[slot]) continue;
+        changed = true;
+        delete stash[slot];
+        delete next[slot];
+      }
+      if (!changed) return prev;
+      lastGearModifiersRef.current = stash;
+      localStorage.setItem(LAST_GEAR_MODIFIERS_KEY, JSON.stringify(stash));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  const clearArmor = useCallback(() => clearGroup(ARMOR_SLOTS), [clearGroup]);
+  const clearEquipment = useCallback(() => clearGroup(EQUIPMENT_SLOTS), [clearGroup]);
 
   const toggleUseDungeonizedStats = useCallback(() => {
     setUseDungeonizedStatsState((prev) => {
@@ -563,14 +636,43 @@ export function BuildProvider({ children }) {
   }, []);
 
   // Shared by every modifier setter below: no-ops if the slot is empty, otherwise runs `updater` over its modifiers and persists.
-  const updateSlotModifiers = useCallback((slot, updater) => {
-    setLoadout((prev) => {
-      if (!prev[slot]) return prev;
-      const next = { ...prev, [slot]: { ...prev[slot], modifiers: updater(prev[slot].modifiers) } };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  // `respectEditAll` (default true) lets a caller opt out of the Edit All broadcast below even
+  // while it's toggled on — used by applyOptimizerResult (lib/optimizer.js), since "Edit All"
+  // is scoped to the Hex screen only (user-specified 2026-08-26), not a Recommended Upgrade swap.
+  // `updater` receives (modifiers, item) — the second arg lets a setter that only makes sense for
+  // specific items (applyGemstone's slot count, applyReforge's category/rarity, setRarityOverride's
+  // item-specific config) look at what it's ACTUALLY being applied to and no-op when it doesn't fit,
+  // rather than blindly copying the origin piece's edit onto every other piece in the group. Most
+  // updaters (enchants, books, recomb, ...) just ignore the second arg.
+  const updateSlotModifiers = useCallback(
+    (slot, updater, respectEditAll = true) => {
+      setLoadout((prev) => {
+        if (!prev[slot]) return prev;
+        const next = { ...prev, [slot]: { ...prev[slot], modifiers: updater(prev[slot].modifiers, prev[slot].item) } };
+        // Edit All (Armor/Equipment Options popups, above the Helmet/Necklace slots) — the same
+        // modifier change also applies to every other equipped piece in the group, each running
+        // `updater` over ITS OWN current modifiers independently rather than copying the target
+        // slot's result, so a piece already in a different state (e.g. a different reforge) merges
+        // the same real change instead of being overwritten wholesale.
+        const group = !respectEditAll
+          ? null
+          : editAllArmor && ARMOR_SLOTS.includes(slot)
+            ? ARMOR_SLOTS
+            : editAllEquipment && EQUIPMENT_SLOTS.includes(slot)
+              ? EQUIPMENT_SLOTS
+              : null;
+        if (group) {
+          for (const other of group) {
+            if (other === slot || !next[other]) continue;
+            next[other] = { ...next[other], modifiers: updater(next[other].modifiers, next[other].item) };
+          }
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [editAllArmor, editAllEquipment],
+  );
 
   // Kuudra armor (any of the 5 real families, any power tier — see ARMOR_VARIANT_FAMILIES) never
   // carries its stars to a different piece in real Hypixel, even within the same family: Basic ->
@@ -719,36 +821,52 @@ export function BuildProvider({ children }) {
 
   // Applies (or replaces) a chosen level for one enchant. Ultimate enchants occupy their own single slot; normal enchants upsert by id. removeIds (conflicting enchants) are dropped first.
   const applyEnchant = useCallback(
-    (slot, id, level, maxLevel, removeIds = []) => {
-      updateSlotModifiers(slot, (modifiers) => {
-        const entry = { id, level, maxLevel };
-        let hexEnchantments = modifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id));
-        let ultimateEnchantment =
-          modifiers.ultimateEnchantment && removeIds.includes(modifiers.ultimateEnchantment.id)
-            ? null
-            : modifiers.ultimateEnchantment;
+    (slot, id, level, maxLevel, removeIds = [], respectEditAll = true) => {
+      updateSlotModifiers(
+        slot,
+        (modifiers) => {
+          const entry = { id, level, maxLevel };
+          let hexEnchantments = modifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id));
+          let ultimateEnchantment =
+            modifiers.ultimateEnchantment && removeIds.includes(modifiers.ultimateEnchantment.id)
+              ? null
+              : modifiers.ultimateEnchantment;
 
-        if (isUltimateEnchant(id)) {
-          return { ...modifiers, ultimateEnchantment: entry, hexEnchantments };
-        }
-        return {
-          ...modifiers,
-          hexEnchantments: [...hexEnchantments.filter((e) => e.id !== id), entry],
-          ultimateEnchantment,
-        };
-      });
+          if (isUltimateEnchant(id)) {
+            return { ...modifiers, ultimateEnchantment: entry, hexEnchantments };
+          }
+          return {
+            ...modifiers,
+            hexEnchantments: [...hexEnchantments.filter((e) => e.id !== id), entry],
+            ultimateEnchantment,
+          };
+        },
+        respectEditAll,
+      );
     },
     [updateSlotModifiers],
   );
 
   // Sets (or replaces) the gemstone in one slot index — gemstones is a sparse array indexed by slot position.
   const applyGemstone = useCallback(
-    (slot, slotIndex, gemId, tier) => {
-      updateSlotModifiers(slot, (modifiers) => {
-        const gemstones = (modifiers.gemstones || []).slice();
-        gemstones[slotIndex] = { gem: gemId, tier };
-        return { ...modifiers, gemstones };
-      });
+    (slot, slotIndex, gemId, tier, respectEditAll = true) => {
+      updateSlotModifiers(
+        slot,
+        (modifiers, item) => {
+          // Edit All: skip pieces that don't actually have a real gemstone slot at this index
+          // (see lib/gemstones.js's countGemstoneSlots) instead of writing a phantom entry that
+          // still adds its stat bonus in applyGemstonesToLore despite having no matching bracket.
+          if (item && slotIndex >= countGemstoneSlots(item.lore)) return modifiers;
+          // Also skip when this OTHER piece's real slot type at this index doesn't accept this gem
+          // (e.g. broadcasting a Sapphire from Storm Helmet's slot 0 onto a piece whose own slot 0
+          // is Jasper-only) — see lib/gemstones.js's getAllowedGemsForSlotType.
+          if (item && !getAllowedGemsForSlotType(item.gemstone_slots?.[slotIndex]?.slot_type).includes(gemId)) return modifiers;
+          const gemstones = (modifiers.gemstones || []).slice();
+          gemstones[slotIndex] = { gem: gemId, tier };
+          return { ...modifiers, gemstones };
+        },
+        respectEditAll,
+      );
     },
     [updateSlotModifiers],
   );
@@ -773,8 +891,8 @@ export function BuildProvider({ children }) {
   );
 
   const setSpecialValue = useCallback(
-    (slot, value) => {
-      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, special: value }));
+    (slot, value, respectEditAll = true) => {
+      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, special: value }), respectEditAll);
     },
     [updateSlotModifiers],
   );
@@ -793,11 +911,35 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // Not routed through updateSlotModifiers: it's a toggle (flip current state), and broadcasting
+  // a "flip" updater independently to each piece in an Edit All group could leave pieces in
+  // OPPOSITE states depending on what each one already was. Computes the target slot's real new
+  // value once, then force-SETS every other piece in the group to that same value instead — the
+  // "apply the same upgrade everywhere" intent Edit All is actually for.
   const toggleRecombobulated = useCallback(
-    (slot) => {
-      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, recombobulated: !modifiers.recombobulated }));
+    (slot, respectEditAll = true) => {
+      setLoadout((prev) => {
+        if (!prev[slot]) return prev;
+        const nextRecombobulated = !prev[slot].modifiers.recombobulated;
+        const next = { ...prev, [slot]: { ...prev[slot], modifiers: { ...prev[slot].modifiers, recombobulated: nextRecombobulated } } };
+        const group = !respectEditAll
+          ? null
+          : editAllArmor && ARMOR_SLOTS.includes(slot)
+            ? ARMOR_SLOTS
+            : editAllEquipment && EQUIPMENT_SLOTS.includes(slot)
+              ? EQUIPMENT_SLOTS
+              : null;
+        if (group) {
+          for (const other of group) {
+            if (other === slot || !next[other]) continue;
+            next[other] = { ...next[other], modifiers: { ...next[other].modifiers, recombobulated: nextRecombobulated } };
+          }
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
     },
-    [updateSlotModifiers],
+    [editAllArmor, editAllEquipment],
   );
 
   // Hex.jsx's "Clean" button — resets every modifier on the slot's equipped item (enchants,
@@ -812,9 +954,19 @@ export function BuildProvider({ children }) {
   );
 
   // name === null clears the reforge.
+  // `reforgeMeta` (the selected reforge's own {itemTypes, requiredRarities, ...} entry, passed by
+  // ReforgesPicker.jsx) lets Edit All check real applicability per OTHER piece before copying a
+  // reforge onto it — clearing (name === null) or an origin-only call (no meta) always applies.
   const applyReforge = useCallback(
-    (slot, name) => {
-      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, reforge: name }));
+    (slot, name, respectEditAll = true, reforgeMeta = null) => {
+      updateSlotModifiers(
+        slot,
+        (modifiers, item) => {
+          if (name != null && reforgeMeta && item && !isReforgeApplicable(reforgeMeta, item)) return modifiers;
+          return { ...modifiers, reforge: name };
+        },
+        respectEditAll,
+      );
     },
     [updateSlotModifiers],
   );
@@ -823,23 +975,57 @@ export function BuildProvider({ children }) {
   // see lib/starring.js's getMaxStarsForItem) — not a flat 15 for everything. Not routed through
   // updateSlotModifiers since it needs the slot's `item`, not just its `modifiers`. Dropping
   // below the Master Star eligibility threshold also clears masterStars, same as setDungeonized.
-  const setStarCount = useCallback((slot, count) => {
-    setLoadout((prev) => {
-      if (!prev[slot]) return prev;
-      const maxStars = getMaxStarsForItem(prev[slot].item);
-      const stars = Math.max(0, Math.min(maxStars, Math.floor(count) || 0));
-      const modifiers = { ...prev[slot].modifiers, stars };
-      if (stars < MASTER_STAR_MIN_BASE_STARS) modifiers.masterStars = 0;
-      const next = { ...prev, [slot]: { ...prev[slot], modifiers } };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  // Edit All broadcasts the same real "set to `count`" operation to every other equipped piece in
+  // the group, each independently re-clamped against ITS OWN item's max stars (not a flat copy).
+  const setStarCount = useCallback(
+    (slot, count, respectEditAll = true) => {
+      setLoadout((prev) => {
+        if (!prev[slot]) return prev;
+        const applyStars = (entry) => {
+          const maxStars = getMaxStarsForItem(entry.item);
+          const stars = Math.max(0, Math.min(maxStars, Math.floor(count) || 0));
+          const modifiers = { ...entry.modifiers, stars };
+          if (stars < MASTER_STAR_MIN_BASE_STARS) modifiers.masterStars = 0;
+          return { ...entry, modifiers };
+        };
+        const next = { ...prev, [slot]: applyStars(prev[slot]) };
+        const group = !respectEditAll
+          ? null
+          : editAllArmor && ARMOR_SLOTS.includes(slot)
+            ? ARMOR_SLOTS
+            : editAllEquipment && EQUIPMENT_SLOTS.includes(slot)
+              ? EQUIPMENT_SLOTS
+              : null;
+        if (group) {
+          for (const other of group) {
+            if (other === slot || !next[other]) continue;
+            next[other] = applyStars(next[other]);
+          }
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [editAllArmor, editAllEquipment],
+  );
 
   // tier === null resets to the item's own real tier — for milestone-upgrading items (e.g. David's Cloak) whose real rarity isn't in the bundled data.
   const setRarityOverride = useCallback(
-    (slot, tier) => {
-      updateSlotModifiers(slot, (modifiers) => ({ ...modifiers, rarityOverride: tier }));
+    (slot, tier, respectEditAll = true) => {
+      updateSlotModifiers(
+        slot,
+        (modifiers, item) => {
+          // Edit All: rarityOverride only means anything for the specific milestone-upgrading
+          // items that carry a `rarities` config (see lib/specialWeapons.js — currently only
+          // David's Cloak) — it isn't a generic "set every piece's tier to X" knob. Every other
+          // item's real tier/rarity feeds its reforge/gemstone/recomb stat scaling directly (see
+          // lib/itemTooltip.js, lib/recombobulator.js), so broadcasting it blind would silently
+          // change those pieces' computed stats to a tier they were never actually recombobulated to.
+          if (item && !getSpecialConfig(item.id)?.rarities) return modifiers;
+          return { ...modifiers, rarityOverride: tier };
+        },
+        respectEditAll,
+      );
     },
     [updateSlotModifiers],
   );
@@ -866,14 +1052,18 @@ export function BuildProvider({ children }) {
   // Master Stars need both Dungeonize on AND the item already at 5+ base stars (usable on any
   // item once maxed on base stars, not restricted to Dungeon-tagged gear).
   const setMasterStars = useCallback(
-    (slot, count) => {
-      updateSlotModifiers(slot, (modifiers) => ({
-        ...modifiers,
-        masterStars:
-          modifiers.dungeonized && modifiers.stars >= MASTER_STAR_MIN_BASE_STARS
-            ? Math.max(0, Math.min(MAX_MASTER_STARS, Math.floor(count) || 0))
-            : 0,
-      }));
+    (slot, count, respectEditAll = true) => {
+      updateSlotModifiers(
+        slot,
+        (modifiers) => ({
+          ...modifiers,
+          masterStars:
+            modifiers.dungeonized && modifiers.stars >= MASTER_STAR_MIN_BASE_STARS
+              ? Math.max(0, Math.min(MAX_MASTER_STARS, Math.floor(count) || 0))
+              : 0,
+        }),
+        respectEditAll,
+      );
     },
     [updateSlotModifiers],
   );
@@ -1017,6 +1207,12 @@ export function BuildProvider({ children }) {
     setGodPotionActiveState(!!state.godPotionActive);
     localStorage.setItem(GOD_POTION_KEY, String(!!state.godPotionActive));
 
+    setEditAllArmorState(!!state.editAllArmor);
+    localStorage.setItem(EDIT_ALL_ARMOR_KEY, String(!!state.editAllArmor));
+
+    setEditAllEquipmentState(!!state.editAllEquipment);
+    localStorage.setItem(EDIT_ALL_EQUIPMENT_KEY, String(!!state.editAllEquipment));
+
     setUseDungeonizedStatsState(!!state.useDungeonizedStats);
     localStorage.setItem(USE_DUNGEONIZED_STATS_KEY, String(!!state.useDungeonizedStats));
 
@@ -1093,6 +1289,12 @@ export function BuildProvider({ children }) {
         clearTargetMobs,
         godPotionActive,
         toggleGodPotion,
+        editAllArmor,
+        toggleEditAllArmor,
+        editAllEquipment,
+        toggleEditAllEquipment,
+        clearArmor,
+        clearEquipment,
         useDungeonizedStats,
         toggleUseDungeonizedStats,
         useMasterMode,

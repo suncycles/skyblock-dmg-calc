@@ -322,6 +322,31 @@ export default function DamageSources({ embedded = false }) {
           </button>
           <button
             type="button"
+            onClick={toggleUseDungeonizedStats}
+            className={`${panel} px-4 py-2 cursor-pointer flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
+              useDungeonizedStats ? 'hover:brightness-110' : 'brightness-50'
+            }`}
+          >
+            <img src="/images/manual/catacombs.webp" alt="" className="w-5 h-5" />
+            Dungeon
+          </button>
+          <button
+            type="button"
+            onClick={toggleUseMasterMode}
+            disabled={!useDungeonizedStats}
+            className={`${panel} px-4 py-2 flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
+              !useDungeonizedStats
+                ? 'opacity-40 cursor-not-allowed'
+                : useMasterMode
+                  ? 'cursor-pointer hover:brightness-110'
+                  : 'cursor-pointer brightness-50'
+            }`}
+          >
+            <img src="/images/manual/master_catacombs.webp" alt="" className="w-5 h-5" />
+            Master
+          </button>
+          <button
+            type="button"
             onClick={toggleDpsMode}
             className={`${panel} px-4 py-2 cursor-pointer flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
               dpsMode ? 'hover:brightness-110' : 'brightness-50'
@@ -711,7 +736,7 @@ export default function DamageSources({ embedded = false }) {
 
             <div className={`${panel} p-3 flex flex-col gap-2 w-full sm:w-[200px] sm:shrink-0`}>
               <div className={sectionTitle}>Misc</div>
-              <div className="text-[11px] text-neutral-700 leading-snug -mt-1 mb-1">Everything else (Slayer rewards, talisman bonuses, etc).</div>
+              <div className="text-[11px] text-neutral-700 leading-snug -mt-1 mb-1">Any missing stats compared to in-game.</div>
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="misc-strength">
                 <span>
                   <Keyworded text="Strength" />
@@ -846,31 +871,6 @@ export default function DamageSources({ embedded = false }) {
                 />
                 <span className="text-[10px] text-neutral-600 italic">Execute/Prosecute/First Strike/Triple-Strike</span>
               </label>
-              <button
-                type="button"
-                onClick={toggleUseDungeonizedStats}
-                className={`${panel} px-3 py-2 cursor-pointer flex items-center gap-2 text-[12px] font-bold text-black transition-[filter] ${
-                  useDungeonizedStats ? 'hover:brightness-110' : 'brightness-50'
-                }`}
-              >
-                <img src="/images/manual/catacombs.webp" alt="" className="w-5 h-5 shrink-0" />
-                Dungeon
-              </button>
-              <button
-                type="button"
-                onClick={toggleUseMasterMode}
-                disabled={!useDungeonizedStats}
-                className={`${panel} px-3 py-2 flex items-center gap-2 text-[12px] font-bold text-black transition-[filter] ${
-                  !useDungeonizedStats
-                    ? 'opacity-40 cursor-not-allowed'
-                    : useMasterMode
-                      ? 'cursor-pointer hover:brightness-110'
-                      : 'cursor-pointer brightness-50'
-                }`}
-              >
-                <img src="/images/manual/master_catacombs.webp" alt="" className="w-5 h-5 shrink-0" />
-                Master
-              </button>
             </div>
           </div>
 
