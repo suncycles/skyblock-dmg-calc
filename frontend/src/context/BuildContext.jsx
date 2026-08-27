@@ -1185,6 +1185,19 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
+  // Optimizer-only companion to setOwnedAccessory: an "Accessory Upgrade" candidate
+  // (lib/accessoryOptimizer.js) replaces an owned lower-tier item with a different real item id
+  // for the higher tier — this drops the now-gone lower tier's stale ownership record.
+  const removeOwnedAccessory = useCallback(
+    (id) => {
+      updateSlotModifiers('accessory', (modifiers) => ({
+        ...modifiers,
+        ownedAccessories: (modifiers.ownedAccessories || []).filter((o) => o.id !== id),
+      }));
+    },
+    [updateSlotModifiers],
+  );
+
   // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
   // Target mob(s) are intentionally left untouched: loadouts describe the player, not the encounter, so swapping loadouts keeps whatever mob(s) are currently targeted.
   const loadFullState = useCallback((state) => {
@@ -1360,6 +1373,7 @@ export function BuildProvider({ children }) {
         setAccessoryTuningPoint,
         setAccessoryTuning,
         setOwnedAccessory,
+        removeOwnedAccessory,
         loadFullState,
         undo,
         redo,

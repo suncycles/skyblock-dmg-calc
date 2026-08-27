@@ -16,9 +16,9 @@
 // fixed, real, per-tier constant baked into the item's own static definition (see worker/src/
 // index.js's ACCESSORY_INNATE_STATS_BY_ID, computed from the SAME catalog lore this file already
 // gets via itemData) — evaluateAccessoryCandidates below adds it on top of the account's real
-// current total, not a guessed number. Recombobulate/Perfect-Gemstone candidates (upgrading an
-// already-owned copy) don't get the tier-up's stat DELTA yet — a real, documented gap, see the
-// comment at that call site.
+// current total, not a guessed number. Recombobulate/Perfect-Gemstone/Accessory-Upgrade candidates
+// (upgrading an already-owned copy to a new tier or a new item id) don't get the tier-up's stat
+// DELTA yet — a real, documented gap, see the comment at that call site.
 //
 // TEMPORARY IMPLEMENTATION — known scope limits:
 // - non_recombobulatable_ids is a curated, non-exhaustive list (4 confirmed real ids) — not every
@@ -50,6 +50,13 @@ function lookupAccessoryCost(candidate, itemData) {
   if (candidate.kind === 'missing') {
     const price = itemPrices[candidate.id];
     return typeof price === 'number' && price > 0 ? price : null;
+  }
+  if (candidate.kind === 'upgrade') {
+    // Net cost: the higher tier's own price minus the already-owned lower tier's price, not the
+    // higher tier's full price — the player isn't buying this family from zero.
+    const toPrice = itemPrices[candidate.id];
+    const fromPrice = itemPrices[candidate.fromId];
+    return typeof toPrice === 'number' && typeof fromPrice === 'number' ? toPrice - fromPrice : null;
   }
   if (candidate.kind === 'recombobulate') {
     return itemData?.costs?.recombobulatorCost || null;
@@ -156,19 +163,32 @@ export function buildAccessoryCandidates(owned, families) {
   const gemUpgrades = families.perfect_gemstone_rarity_upgrades || {};
 
   const missing = [];
+  const upgrade = [];
   for (const [maxId, meta] of Object.entries(families.max_upgrade_talismans || {})) {
     if (ownedByCanonical.has(maxId)) continue;
     const members = familyMembers(maxId, groups);
     let currentTierMp = 0;
+    let fromId = null;
     for (const [ownedId, { tier }] of ownedByCanonical.entries()) {
       // A lower tier of the SAME real upgrade family the player already owns a higher tier of
       // (e.g. Frozen Chicken when Fried Frozen Chicken is owned) must never itself surface as a
       // separate "missing" candidate — only relevant here for currentTierMp's baseline, which
-      // already covers it via familyMembers' union-find over talisman_upgrades.
-      if (members.has(ownedId)) currentTierMp = Math.max(currentTierMp, MAGICAL_POWER_BY_RARITY[tier] || 0);
+      // already covers it via familyMembers' union-find over talisman_upgrades. `fromId` tracks
+      // WHICH owned id supplied that baseline, so a real net upgrade cost (see lookupAccessoryCost)
+      // can be priced against it instead of the higher tier's full price.
+      const mp = MAGICAL_POWER_BY_RARITY[tier] || 0;
+      if (members.has(ownedId) && mp > currentTierMp) {
+        currentTierMp = mp;
+        fromId = ownedId;
+      }
     }
     const mpGain = (MAGICAL_POWER_BY_RARITY[meta.rarity] || 0) - currentTierMp;
-    if (mpGain > 0) missing.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'missing', nextRecombobulated: false });
+    if (mpGain <= 0) continue;
+    if (fromId) {
+      upgrade.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'upgrade', fromId, nextRecombobulated: false });
+    } else {
+      missing.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'missing', nextRecombobulated: false });
+    }
   }
 
   const recombobulate = [];
@@ -202,11 +222,12 @@ export function buildAccessoryCandidates(owned, families) {
     }
   }
 
-  return [...missing, ...recombobulate, ...gemstoneUpgrade];
+  return [...missing, ...upgrade, ...recombobulate, ...gemstoneUpgrade];
 }
 
 const CATEGORY_LABELS = {
   missing: 'New Accessory',
+  upgrade: 'Accessory Upgrade',
   recombobulate: 'Recombobulate',
   'gemstone-upgrade': 'Perfect Gemstones',
   generic: 'Magical Power (generic)',
@@ -249,10 +270,11 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
     // Necklace's Strength, Red Claw's Crit Damage, ...) on top of its Magical Power contribution —
     // see worker/src/index.js's ACCESSORY_INNATE_STATS_BY_ID, additive onto whatever the account's
     // OTHER real owned accessories already contribute (individualAccessoryStats is a running sum
-    // across the whole bag, not per-item). Recombobulate/Perfect-Gemstone candidates upgrade an
-    // ALREADY-owned copy whose current-tier stat is already counted in that real sum — the tier-up's
-    // stat DELTA isn't modeled here (would need a reliable family+rarity -> item-id lookup this data
-    // doesn't confirm), a real, documented gap rather than a guess.
+    // across the whole bag, not per-item). Recombobulate/Perfect-Gemstone/Accessory-Upgrade
+    // candidates all upgrade an ALREADY-owned copy whose current-tier stat is already counted in
+    // that real sum — the tier-up's stat DELTA isn't modeled here (would need a reliable
+    // family+rarity -> item-id lookup this data doesn't confirm), a real, documented gap rather
+    // than a guess.
     const innateStats = candidate.kind === 'missing' ? itemData.accessoryInnateStats?.[candidate.id] : null;
     const individualAccessoryStats = innateStats
       ? { ...accessorySlot.modifiers.individualAccessoryStats }
@@ -294,6 +316,11 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
           ...(candidate.kind !== 'generic'
             ? [{ type: 'setOwnedAccessory', id: candidate.id, tier: candidate.rarity, recombobulated: candidate.nextRecombobulated }]
             : []),
+          // An 'upgrade' candidate's higher tier is a DIFFERENT real item id than the one it
+          // replaces (unlike Recombobulate/Perfect-Gemstone, which keep the same id) — drop the
+          // now-gone lower tier's ownership record so it doesn't keep surfacing stale
+          // Recombobulate/Perfect-Gemstone suggestions for an item the player no longer has.
+          ...(candidate.kind === 'upgrade' ? [{ type: 'removeOwnedAccessory', id: candidate.fromId }] : []),
         ],
       }, cost),
     );
