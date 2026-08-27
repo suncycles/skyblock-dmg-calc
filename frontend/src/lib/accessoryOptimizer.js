@@ -169,7 +169,8 @@ export function buildAccessoryCandidates(owned, families) {
     const members = familyMembers(maxId, groups);
     let currentTierMp = 0;
     let fromId = null;
-    for (const [ownedId, { tier }] of ownedByCanonical.entries()) {
+    let fromRecombobulated = false;
+    for (const [ownedId, { tier, recombobulated }] of ownedByCanonical.entries()) {
       // A lower tier of the SAME real upgrade family the player already owns a higher tier of
       // (e.g. Frozen Chicken when Fried Frozen Chicken is owned) must never itself surface as a
       // separate "missing" candidate — only relevant here for currentTierMp's baseline, which
@@ -180,14 +181,22 @@ export function buildAccessoryCandidates(owned, families) {
       if (members.has(ownedId) && mp > currentTierMp) {
         currentTierMp = mp;
         fromId = ownedId;
+        fromRecombobulated = recombobulated;
       }
     }
-    const mpGain = (MAGICAL_POWER_BY_RARITY[meta.rarity] || 0) - currentTierMp;
-    if (mpGain <= 0) continue;
     if (fromId) {
-      upgrade.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'upgrade', fromId, nextRecombobulated: false });
+      // A real Recombobulator use carries over through the family's crafting upgrade — the
+      // resulting higher tier keeps the bump instead of losing it, same "carry the owned piece's
+      // persistent upgrades onto the new candidate" rule lib/optimizer.js's gear-slot evaluators
+      // already use for reforges/gemstones/recomb on armor and weapon swaps.
+      const resultRarity = fromRecombobulated && canRecombobulate(meta.rarity) ? bumpRarity(meta.rarity) : meta.rarity;
+      const mpGain = (MAGICAL_POWER_BY_RARITY[resultRarity] || 0) - currentTierMp;
+      if (mpGain > 0) {
+        upgrade.push({ id: maxId, name: meta.name, rarity: resultRarity, mpGain, kind: 'upgrade', fromId, nextRecombobulated: fromRecombobulated });
+      }
     } else {
-      missing.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'missing', nextRecombobulated: false });
+      const mpGain = (MAGICAL_POWER_BY_RARITY[meta.rarity] || 0) - currentTierMp;
+      if (mpGain > 0) missing.push({ id: maxId, name: meta.name, rarity: meta.rarity, mpGain, kind: 'missing', nextRecombobulated: false });
     }
   }
 
