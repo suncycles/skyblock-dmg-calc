@@ -1276,6 +1276,10 @@ export async function collectDamageSources(
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
     // the full loadout) can check weapon-specific target restrictions — see DAGGER_LINE_WEAPON_IDS.
     weaponId: loadout.weapon?.item?.id ?? null,
+    // Stashed the same way, so computeFinalDamage/computeAbilityDamage can look up the target
+    // mob's Damage Reduction (lib/mobDefenses.js — Mythological mobs are 100% immune without a
+    // Griffin pet equipped) without needing the full loadout themselves.
+    isGriffinPet: loadout.pet?.item?.petId === 'GRIFFIN',
     // Stashed (unchanged, mob-independent) so finalDamage.js's selectBaseStats can apply the real
     // per-mob Bestiary Strength bonus (lib/bestiaryStrength.js) once the specific target mob is
     // known — added AFTER the statsMultiplier stage below already ran, so it's deliberately never
