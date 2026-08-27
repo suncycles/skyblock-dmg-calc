@@ -13,6 +13,7 @@ import { countGemstoneSlots, getAllowedGemsForSlotType } from '../lib/gemstones'
 import { isReforgeApplicable } from '../lib/reforgeData';
 import { getSpecialConfig } from '../lib/specialWeapons';
 import { MOB_LOCATIONS } from '../lib/mobLocations';
+import { GOD_POTION_MIXINS } from '../lib/godPotion';
 
 const CATACOMBS_LOCATION = 'The Catacombs';
 
@@ -21,6 +22,7 @@ const PLAYER_STATS_KEY = 'hexPlayerStats';
 const TARGET_MOB_KEY = 'hexTargetMob'; // legacy single-mob key, migrated once then unused
 const TARGET_MOBS_KEY = 'hexTargetMobs';
 const GOD_POTION_KEY = 'hexGodPotion';
+const GOD_POTION_MIXIN_KEY = 'hexGodPotionMixin';
 const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
 const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const MAGE_MODE_KEY = 'hexMageMode';
@@ -65,6 +67,13 @@ function loadInitialTargetMobs() {
 // Loads the God Potion on/off toggle (see lib/godPotion.js).
 function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
+}
+
+// Loads the God Potion's selected Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) — 'none' for
+// anything unrecognized (a fresh browser, or a stale value from before this existed).
+function loadInitialGodPotionMixin() {
+  const stored = localStorage.getItem(GOD_POTION_MIXIN_KEY);
+  return stored && GOD_POTION_MIXINS[stored] ? stored : 'none';
 }
 
 // Loads the Armor/Equipment Options screens' "Edit All" toggles (above the Helmet/Necklace
@@ -222,6 +231,7 @@ function loadInitialPlayerStats() {
     tamingLevel: 0,
     wolfSlayerLevel: 0,
     tarantulaSlayerLevel: 0,
+    blazeSlayerLevel: 0,
     alchemyLevel: 0,
     enchantingLevel: 0,
     generalsMedallionDigits: 0,
@@ -239,6 +249,7 @@ function loadInitialPlayerStats() {
       tamingLevel: typeof parsed.tamingLevel === 'number' ? parsed.tamingLevel : 0,
       wolfSlayerLevel: typeof parsed.wolfSlayerLevel === 'number' ? parsed.wolfSlayerLevel : 0,
       tarantulaSlayerLevel: typeof parsed.tarantulaSlayerLevel === 'number' ? parsed.tarantulaSlayerLevel : 0,
+      blazeSlayerLevel: typeof parsed.blazeSlayerLevel === 'number' ? parsed.blazeSlayerLevel : 0,
       alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
       enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
@@ -357,6 +368,7 @@ export function BuildProvider({ children }) {
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
   const [godPotionActive, setGodPotionActiveState] = useState(loadInitialGodPotion);
+  const [godPotionMixin, setGodPotionMixinState] = useState(loadInitialGodPotionMixin);
   const [editAllArmor, setEditAllArmorState] = useState(loadInitialEditAllArmor);
   const [editAllEquipment, setEditAllEquipmentState] = useState(loadInitialEditAllEquipment);
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
@@ -469,6 +481,17 @@ export function BuildProvider({ children }) {
       localStorage.setItem(GOD_POTION_KEY, String(next));
       return next;
     });
+  }, []);
+
+  const setGodPotionActive = useCallback((value) => {
+    setGodPotionActiveState(!!value);
+    localStorage.setItem(GOD_POTION_KEY, String(!!value));
+  }, []);
+
+  const setGodPotionMixin = useCallback((mixin) => {
+    const next = GOD_POTION_MIXINS[mixin] ? mixin : 'none';
+    setGodPotionMixinState(next);
+    localStorage.setItem(GOD_POTION_MIXIN_KEY, next);
   }, []);
 
   const toggleEditAllArmor = useCallback(() => {
@@ -595,6 +618,14 @@ export function BuildProvider({ children }) {
   const setTarantulaSlayerLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, tarantulaSlayerLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setBlazeSlayerLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, blazeSlayerLevel: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -1213,6 +1244,7 @@ export function BuildProvider({ children }) {
       tamingLevel: 0,
       wolfSlayerLevel: 0,
       tarantulaSlayerLevel: 0,
+      blazeSlayerLevel: 0,
       alchemyLevel: 0,
       enchantingLevel: 0,
       generalsMedallionDigits: 0,
@@ -1224,6 +1256,10 @@ export function BuildProvider({ children }) {
 
     setGodPotionActiveState(!!state.godPotionActive);
     localStorage.setItem(GOD_POTION_KEY, String(!!state.godPotionActive));
+
+    const nextGodPotionMixin = GOD_POTION_MIXINS[state.godPotionMixin] ? state.godPotionMixin : 'none';
+    setGodPotionMixinState(nextGodPotionMixin);
+    localStorage.setItem(GOD_POTION_MIXIN_KEY, nextGodPotionMixin);
 
     setEditAllArmorState(!!state.editAllArmor);
     localStorage.setItem(EDIT_ALL_ARMOR_KEY, String(!!state.editAllArmor));
@@ -1298,6 +1334,7 @@ export function BuildProvider({ children }) {
         setTamingLevel,
         setWolfSlayerLevel,
         setTarantulaSlayerLevel,
+        setBlazeSlayerLevel,
         setAlchemyLevel,
         setEnchantingLevel,
         setGeneralsMedallionDigits,
@@ -1307,6 +1344,9 @@ export function BuildProvider({ children }) {
         clearTargetMobs,
         godPotionActive,
         toggleGodPotion,
+        setGodPotionActive,
+        godPotionMixin,
+        setGodPotionMixin,
         editAllArmor,
         toggleEditAllArmor,
         editAllEquipment,

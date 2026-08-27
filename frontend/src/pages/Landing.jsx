@@ -19,7 +19,7 @@ import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { getMobModelIcon, getMobIconDataUri } from '../lib/mobIcons';
-import { GOD_POTION_TOOLTIP_LINES } from '../lib/godPotion';
+import { getGodPotionTooltipLines } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName, rarityGlowFilter } from '../lib/mcText';
 import { getDisplayTier } from '../lib/recombobulator';
@@ -82,10 +82,12 @@ export default function Landing() {
     targetMobs,
     clearTargetMobs,
     godPotionActive,
+    godPotionMixin,
     useDungeonizedStats,
     useMasterMode,
     mageMode,
-    toggleGodPotion,
+    setGodPotionActive,
+    setGodPotionMixin,
     editAllArmor,
     editAllEquipment,
     attributes,
@@ -144,6 +146,7 @@ export default function Landing() {
         attributes,
         playerStats,
         godPotionActive,
+        godPotionMixin,
         useDungeonizedStats,
         useMasterMode,
         mageMode,
@@ -208,6 +211,7 @@ export default function Landing() {
         attributes,
         playerStats,
         godPotionActive,
+        godPotionMixin,
         useDungeonizedStats,
         useMasterMode,
         mageMode,
@@ -716,21 +720,38 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-left: God Potion — a plain on/off toggle, clicking flips state in place.
+      // Bottom-left: God Potion — a small dropdown (Off / God Potion / +Mixin) rather than a plain
+      // on/off toggle, so a real Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) can be selected
+      // alongside turning the potion on.
       if (col === 0 && row === 5) {
+        const godPotionValue = !godPotionActive ? 'off' : godPotionMixin === 'spider_egg' ? 'spider_egg' : 'on';
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${godPotionActive ? 'bg-green-400' : ''}`}
-            onClick={handleTapOrActivate(
-              'god-potion',
-              (e) => showTooltip(GOD_POTION_TOOLTIP_LINES, e.currentTarget),
-              toggleGodPotion,
-            )}
-            onMouseEnter={guardHover((e) => showTooltip(GOD_POTION_TOOLTIP_LINES, e.currentTarget))}
+            className={`${slotBase} relative flex-col ${godPotionActive ? 'bg-green-400' : ''}`}
+            onMouseEnter={guardHover((e) => showTooltip(getGodPotionTooltipLines(godPotionMixin), e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
-            <WeaponIcon id="GOD_POTION" material="POTION" alt="God Potion" className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`} />
+            <WeaponIcon
+              id="GOD_POTION"
+              material="POTION"
+              alt="God Potion"
+              className={`${iconImg} flex-1 min-h-0 ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
+            />
+            <select
+              value={godPotionValue}
+              onChange={(e) => {
+                const next = e.target.value;
+                setGodPotionActive(next !== 'off');
+                setGodPotionMixin(next === 'spider_egg' ? 'spider_egg' : 'none');
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full shrink-0 text-[8px] leading-tight bg-black/70 text-white border-t border-black/40 cursor-pointer outline-none"
+            >
+              <option value="off">Off</option>
+              <option value="on">God Potion</option>
+              <option value="spider_egg">+Spider Egg</option>
+            </select>
           </div>,
         );
         continue;

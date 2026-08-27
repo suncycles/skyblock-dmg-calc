@@ -77,6 +77,7 @@ export default function DamageSources({ embedded = false }) {
     targetMobs,
     toggleTargetMob,
     godPotionActive,
+    godPotionMixin,
     useDungeonizedStats,
     toggleUseDungeonizedStats,
     useMasterMode,
@@ -165,6 +166,7 @@ export default function DamageSources({ embedded = false }) {
       legionPlayers,
       blazeCrimsonIsle,
       bestiaryMaxedMobs,
+      godPotionMixin,
     ).then((r) => {
       if (tokenRef.current === token) setResult(r);
     });
@@ -173,6 +175,7 @@ export default function DamageSources({ embedded = false }) {
     itemData,
     playerStats,
     godPotionActive,
+    godPotionMixin,
     attributes,
     miscStats,
     mobHpPercent,

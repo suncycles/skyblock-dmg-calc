@@ -6,6 +6,7 @@ import {
   MAX_TAMING_LEVEL,
   MAX_WOLF_SLAYER_LEVEL,
   MAX_TARANTULA_SLAYER_LEVEL,
+  MAX_BLAZE_SLAYER_LEVEL,
   MAX_ALCHEMY_LEVEL,
   MAX_ENCHANTING_LEVEL,
 } from '../lib/playerStats';
@@ -31,6 +32,7 @@ export default function PlayerLevels() {
     setTamingLevel,
     setWolfSlayerLevel,
     setTarantulaSlayerLevel,
+    setBlazeSlayerLevel,
     setAlchemyLevel,
     setEnchantingLevel,
     setGeneralsMedallionDigits,
@@ -111,6 +113,19 @@ export default function PlayerLevels() {
             max={MAX_TARANTULA_SLAYER_LEVEL}
             value={playerStats.tarantulaSlayerLevel}
             onChange={setTarantulaSlayerLevel}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="blaze-slayer-level">
+            Blaze Slayer Level
+          </label>
+          <NumberInput
+            id="blaze-slayer-level"
+            max={MAX_BLAZE_SLAYER_LEVEL}
+            value={playerStats.blazeSlayerLevel}
+            onChange={setBlazeSlayerLevel}
             className={inputClass}
           />
         </div>

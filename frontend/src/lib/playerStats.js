@@ -113,6 +113,16 @@ export function computeTarantulaSlayerCritDamageBonus(level) {
   return TARANTULA_SLAYER_CRIT_DAMAGE_BY_LEVEL[clamped];
 }
 
+export const MAX_BLAZE_SLAYER_LEVEL = 9;
+
+// Inferno Demonlord (Blaze) Slayer Strength reward: +1 at level 2, +2 more at level 6 (+3 total
+// from level 6 on) — user-confirmed table.
+const BLAZE_SLAYER_STRENGTH_BY_LEVEL = [0, 0, 1, 1, 1, 1, 3, 3, 3, 3];
+export function computeBlazeSlayerStrengthBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_BLAZE_SLAYER_LEVEL, level || 0));
+  return BLAZE_SLAYER_STRENGTH_BY_LEVEL[clamped];
+}
+
 // Combat Level Crit Chance reward: +0.5/level, capped at +30 (level 60) — user-confirmed.
 const COMBAT_LEVEL_CRIT_CHANCE_PER_LEVEL = 0.5;
 export function computeCombatLevelCritChanceBonus(level) {
