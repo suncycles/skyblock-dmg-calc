@@ -82,6 +82,7 @@ import {
   computeEnchantingIntelligenceBonus,
   computeEnchantingAbilityDamageBonus,
   computeTarantulaSlayerCritDamageBonus,
+  computeBlazeSlayerStrengthBonus,
   computeCombatLevelCritChanceBonus,
   BASE_CRIT_CHANCE,
   BASE_CRIT_DAMAGE,
@@ -95,6 +96,8 @@ import {
   GOD_POTION_SPIRIT_CRIT_DAMAGE,
   GOD_POTION_ARCHERY_DAMAGE,
   JERRY_CANDY_STRENGTH,
+  GOD_POTION_MIXINS,
+  godPotionMixinCritDamage,
   isBowEquipped,
 } from './godPotion';
 import {
@@ -1271,6 +1274,7 @@ export async function collectDamageSources(
   legionPlayers = 0,
   blazeCrimsonIsle = false,
   bestiaryMaxedMobs = null,
+  godPotionMixin = 'none',
 ) {
   const out = {
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
@@ -1343,6 +1347,7 @@ export async function collectDamageSources(
   addBaseStat(out, 'intelligence', computeEnchantingIntelligenceBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'ability_damage', computeEnchantingAbilityDamageBonus(playerStats?.enchantingLevel), 'Enchanting Level');
   addBaseStat(out, 'crit_damage', computeTarantulaSlayerCritDamageBonus(playerStats?.tarantulaSlayerLevel), 'Tarantula Slayer Level');
+  addBaseStat(out, 'strength', computeBlazeSlayerStrengthBonus(playerStats?.blazeSlayerLevel), 'Blaze Slayer Level');
   addBaseStat(out, 'crit_chance', computeCombatLevelCritChanceBonus(playerStats?.combatLevel), 'Combat Level');
 
   // Blazetekk™ Ham Radio: real lore confirmed via NEU-REPO 2026-08-25 — the radio itself carries
@@ -1376,6 +1381,8 @@ export async function collectDamageSources(
     addBaseStat(out, 'strength', GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH, 'God Potion');
     addBaseStat(out, 'crit_chance', GOD_POTION_CRIT_CHANCE, 'God Potion');
     addBaseStat(out, 'crit_damage', GOD_POTION_CRIT_DAMAGE + GOD_POTION_SPIRIT_CRIT_DAMAGE, 'God Potion');
+    const mixinCritDamage = godPotionMixinCritDamage(godPotionMixin);
+    if (mixinCritDamage) addBaseStat(out, 'crit_damage', mixinCritDamage, `God Potion (${GOD_POTION_MIXINS[godPotionMixin].label} Mixin)`);
     if (isBowEquipped(loadout)) {
       out.additiveNonConditional.push({
         id: 'god-potion-archery',

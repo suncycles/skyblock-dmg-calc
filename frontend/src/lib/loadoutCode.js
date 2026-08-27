@@ -3,6 +3,7 @@ import { getPowerById } from './accessoryPowers';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
 import { WORKER_BASE_URL } from './apiConfig';
 import { INFERNAL_CRIMSON_MAX_STACKS } from './armorSetBonuses';
+import { GOD_POTION_MIXINS } from './godPotion';
 
 /* Encodes the entire build into one compact, URL-safe string and decodes it back — powers
    the "Loadouts" Export/Import buttons and the /loadout/:code share-link route. Only
@@ -97,6 +98,7 @@ function buildEncodableState({
   attributes,
   playerStats,
   godPotionActive,
+  godPotionMixin,
   useDungeonizedStats,
   useMasterMode,
   mageMode,
@@ -142,6 +144,7 @@ function buildEncodableState({
     attributes: trimZeros(attributes),
     playerStats: trimZeros(playerStats),
     godPotionActive: !!godPotionActive,
+    godPotionMixin: godPotionMixin || 'none',
     useDungeonizedStats: !!useDungeonizedStats,
     useMasterMode: !!useMasterMode,
     mageMode: !!mageMode,
@@ -213,6 +216,7 @@ function expandState(compact, itemData) {
     attributes: compact.attributes || {},
     playerStats: compact.playerStats || {},
     godPotionActive: !!compact.godPotionActive,
+    godPotionMixin: GOD_POTION_MIXINS[compact.godPotionMixin] ? compact.godPotionMixin : 'none',
     useDungeonizedStats: !!compact.useDungeonizedStats,
     useMasterMode: !!compact.useMasterMode,
     mageMode: !!compact.mageMode,

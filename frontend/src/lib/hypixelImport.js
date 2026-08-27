@@ -346,7 +346,8 @@ export function resolveGearSummary(summary, itemData) {
 // other slot-setter), `skipped` lists any item/power id that didn't resolve against the current
 // NEU-REPO catalog (renamed/removed item) so the caller can surface it rather than silently
 // dropping it, `attributes` is a {id: level} patch for BuildContext's attributes state, and
-// `playerStats` is a patch for its playerStats state (wolfSlayerLevel/alchemyLevel/enchantingLevel).
+// `playerStats` is a patch for its playerStats state (wolfSlayerLevel/tarantulaSlayerLevel/
+// blazeSlayerLevel/alchemyLevel/enchantingLevel).
 // `selection.weaponIndex` picks one of `raw.weapons` (null/undefined = don't import a weapon —
 // there's no dedicated slot to guess from, so the caller must choose); `selection.excludedSlots`
 // (a Set of GEAR_SLOT_KEYS names) skips those armor/equipment slots entirely, leaving whatever
@@ -459,6 +460,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   const playerStats = {};
   if (typeof raw.slayers?.wolf === 'number') playerStats.wolfSlayerLevel = raw.slayers.wolf;
   if (typeof raw.slayers?.spider === 'number') playerStats.tarantulaSlayerLevel = raw.slayers.spider;
+  if (typeof raw.slayers?.blaze === 'number') playerStats.blazeSlayerLevel = raw.slayers.blaze;
   if (typeof raw.skills?.alchemy === 'number') playerStats.alchemyLevel = raw.skills.alchemy;
   if (typeof raw.skills?.enchanting === 'number') playerStats.enchantingLevel = raw.skills.enchanting;
   if (typeof raw.skills?.combat === 'number') playerStats.combatLevel = raw.skills.combat;

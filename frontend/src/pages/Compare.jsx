@@ -51,6 +51,7 @@ function useCurrentBuildState(build) {
       attributes: build.attributes,
       miscStats: build.miscStats,
       godPotionActive: build.godPotionActive,
+      godPotionMixin: build.godPotionMixin,
       useDungeonizedStats: build.useDungeonizedStats,
       useMasterMode: build.useMasterMode,
       mageMode: build.mageMode,
@@ -68,6 +69,7 @@ function useCurrentBuildState(build) {
       build.attributes,
       build.miscStats,
       build.godPotionActive,
+      build.godPotionMixin,
       build.useDungeonizedStats,
       build.useMasterMode,
       build.mageMode,
@@ -133,6 +135,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts) {
           state.legionPlayers,
           state.blazeCrimsonIsle,
           state.bestiaryMaxedMobs,
+          state.godPotionMixin,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));

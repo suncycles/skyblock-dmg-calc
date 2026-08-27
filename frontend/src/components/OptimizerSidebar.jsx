@@ -461,6 +461,7 @@ export default function OptimizerSidebar() {
     build.attributes,
     build.miscStats,
     build.godPotionActive,
+    build.godPotionMixin,
     build.mobHpPercent,
     build.infernalCrimsonStacks,
     build.swarmMobs,

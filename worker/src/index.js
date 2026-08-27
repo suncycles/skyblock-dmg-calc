@@ -684,6 +684,14 @@ function parseNarrativeStatGrants(lore) {
 // SkyBlock Season — included because whichever category is currently active resolves into a real
 // leading stat line same as anything else; the other 4 categories aren't stats this app tracks, so
 // it contributes 0 except in Season(s) where the account's roll landed on the Combat (Strength) option.
+//
+// Artifact of Power/Relic of Power are a different shape from the rest of this list: the catalog's
+// own pristine lore has no stat line at all (its whole gimmick is empty gemstone slots — "harness
+// the power of N Gemstones... at half power"), so ACCESSORY_INNATE_STATS_BY_ID correctly resolves
+// to nothing for these (there's no one fixed number for an unowned copy). A real owned copy with
+// gems actually socketed DOES render a real leading "Crit Damage: +X" / "Strength: +X" line (the
+// half-power total of whatever's socketed) that parseLeadingStatLines already picks up generically
+// — user-confirmed 2026-08-27 against a real account's Relic of Power (+6 Crit Damage).
 const PARSABLE_ACCESSORY_STAT_IDS = new Set([
   "BLOOD_GOD_CREST", "BLOOD_GOD_SIGIL",
   "BURSTSTOPPER_TALISMAN", "BURSTSTOPPER_ARTIFACT",
@@ -693,6 +701,7 @@ const PARSABLE_ACCESSORY_STAT_IDS = new Set([
   "MAGIC_8_BALL",
   "RED_CLAW_TALISMAN", "RED_CLAW_RING", "RED_CLAW_ARTIFACT",
   "TINY_DANCER",
+  "POWER_ARTIFACT", "POWER_RELIC",
 ]);
 
 // Gravity Talisman's real bonus is "+1 to +10 Strength and Defense, scaling with distance to the
@@ -1247,6 +1256,8 @@ async function handleHypixelImport(url, env) {
       wolf: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.wolf),
       // Tarantula Broodfather is Hypixel's real internal key "spider".
       spider: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.spider),
+      // Inferno Demonlord is Hypixel's real internal key "blaze".
+      blaze: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.blaze),
     };
 
     // Live Magical Power/individual accessory stats from the real Accessory Bag contents
