@@ -648,13 +648,15 @@ export async function computeModeDamage(loadout, itemData, build, modeConfig, mo
 
 // Shared by armor and equipment slots (both are "pick a real catalog item for this slot" —
 // identical shape, only the slot list/progression map/result category differ). Candidates carry
-// over the CURRENTLY equipped item's reforge and ultimate enchant (a real player immediately
-// re-applies their reforge stone/book on a fresh upgrade, not left bare) — compares "same
-// persistent upgrades, different base item" rather than a fully bare candidate against a
-// decked-out current item, which used to understate a real upgrade's true value. Gemstones/normal
-// enchants/stars are NOT carried (item-specific slot counts/categories, handled by their own
-// dedicated evaluators). `rarityOverride` (David's Cloak) mirrors the same "compare at real
-// best-case" treatment.
+// over the CURRENTLY equipped item's reforge, ultimate enchant, gemstones, and recombobulator
+// status (a real player immediately re-applies their reforge stone/book/gems and recombs a fresh
+// upgrade, not left bare) — compares "same persistent upgrades, different base item" rather than
+// a fully bare candidate against a decked-out current item, which used to understate a real
+// upgrade's true value. Normal enchants/stars are handled differently: stars assume the
+// candidate's own real max (see below) rather than carrying the current item's count (item-
+// specific caps), and normal enchants aren't carried at all (item-specific slot categories,
+// handled by their own dedicated evaluator). `rarityOverride` (David's Cloak) mirrors the same
+// "compare at real best-case" treatment.
 // Infernal Crimson's Infernal Contact combo-stack mechanic (armorSetBonuses.js) only turns on
 // once 2+ real Infernal Crimson pieces are equipped, and its own real cap is a flat 10 stacks
 // (+100% damage) regardless of piece count beyond that minimum — the player's honestly-entered
@@ -720,6 +722,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           // value" bug stars had (user-confirmed 2026-08-23). Carried blind, same as reforge/stars —
           // a socket-count mismatch between old and new item is a rare edge, not worth reconciling.
           if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
+          if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
           // The RANKED VALUE still assumes a starrable candidate reaches its real max stars, not
           // bare — same "real best-case" treatment as special/rarityOverride above (Crown of
           // Avarice/David's Cloak) and pet candidates elsewhere in this file. Without this, a
@@ -747,6 +750,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
               if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
             });
           }
+          if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot, value: true });
           if (currentModifiers?.ultimateEnchantment) {
             apply.push({
               type: 'applyEnchant',
@@ -832,6 +836,7 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
+      if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
       candidateLoadout[slot] = { item: resolved, modifiers };
       apply.push({ type: 'selectItem', slot, item: resolved });
       if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
@@ -840,6 +845,7 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
           if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
         });
       }
+      if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot, value: true });
       if (currentModifiers?.ultimateEnchantment) {
         apply.push({
           type: 'applyEnchant',
@@ -910,6 +916,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       if (specialValue != null) modifiers.special = specialValue;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
+      if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
       // Same "compare at real best-case" fix as evaluateItemSlotCandidates — a starrable weapon
       // candidate (Hyperion, etc.) compared bare against a currently-equipped weapon the player
       // already starred understates the swap's true value the same way an unstarred Hot Crimson
@@ -931,6 +938,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
           if (g) apply.push({ type: 'setGemstone', slot: 'weapon', index, gem: g.gem, tier: g.tier });
         });
       }
+      if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot: 'weapon', value: true });
       if (currentModifiers?.ultimateEnchantment) {
         apply.push({
           type: 'applyEnchant',
@@ -1683,6 +1691,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'toggleRecombobulated':
         build.toggleRecombobulated(step.slot, false);
+        break;
+      case 'setRecombobulated':
+        build.toggleRecombobulated(step.slot, false, step.value);
         break;
       case 'setGemstone':
         build.applyGemstone(step.slot, step.index, step.gem, step.tier, false);

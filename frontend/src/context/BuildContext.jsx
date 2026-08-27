@@ -916,11 +916,16 @@ export function BuildProvider({ children }) {
   // OPPOSITE states depending on what each one already was. Computes the target slot's real new
   // value once, then force-SETS every other piece in the group to that same value instead — the
   // "apply the same upgrade everywhere" intent Edit All is actually for.
+  // `forceValue` (optional) sets an exact value instead of flipping — used by the Optimizer's
+  // "carry the current piece's recomb status onto a swap-in candidate" apply step, where the
+  // freshly-selected item's post-selectItem state isn't reliably known in advance (it may already
+  // be recombobulated via BuildContext's own remove-then-repick modifier stash), so a blind flip
+  // could land on the wrong value instead of the intended "make sure it's recombobulated".
   const toggleRecombobulated = useCallback(
-    (slot, respectEditAll = true) => {
+    (slot, respectEditAll = true, forceValue) => {
       setLoadout((prev) => {
         if (!prev[slot]) return prev;
-        const nextRecombobulated = !prev[slot].modifiers.recombobulated;
+        const nextRecombobulated = forceValue !== undefined ? forceValue : !prev[slot].modifiers.recombobulated;
         const next = { ...prev, [slot]: { ...prev[slot], modifiers: { ...prev[slot].modifiers, recombobulated: nextRecombobulated } } };
         const group = !respectEditAll
           ? null
