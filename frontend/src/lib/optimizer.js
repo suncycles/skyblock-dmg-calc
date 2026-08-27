@@ -1773,6 +1773,9 @@ export function applyOptimizerResult(build, result) {
       case 'setOwnedAccessory':
         build.setOwnedAccessory(step.id, step.tier, step.recombobulated);
         break;
+      case 'removeOwnedAccessory':
+        build.removeOwnedAccessory(step.id);
+        break;
       default:
         break;
     }

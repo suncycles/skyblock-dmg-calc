@@ -123,6 +123,7 @@ const CATEGORY_COLORS = {
   'Pet Item': '#f472b6',
   Gemstone: '#e879f9',
   'New Accessory': '#4ade80',
+  'Accessory Upgrade': '#34d399',
   Recombobulate: '#818cf8',
   'Perfect Gemstones': '#a78bfa',
   'Magical Power (generic)': '#facc15',
