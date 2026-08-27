@@ -713,6 +713,20 @@ function withRealisticInfernalStacks(build, baselinePieces, candidateLoadout) {
   return { ...build, infernalCrimsonStacks: INFERNAL_CRIMSON_MAX_STACKS };
 }
 
+// The currently-equipped item's gemstones carry onto a candidate the same blind way reforge/
+// recomb/ultimate-enchant do (see evaluateItemSlotCandidates's header comment) — but unlike those,
+// a candidate can have FEWER real gemstone slots than the item it's replacing (e.g. Infernal
+// Crimson Chestplate's 2 slots vs Mythos Chestplate's 1). Blindly carrying every gem across let the
+// RANKED VALUE count a gem the candidate physically can't hold, silently overstating (or even
+// flipping the sign of) a real downgrade — confirmed real case: Mythos Chestplate ranked as a
+// +0.8% upgrade over 3-piece Infernal Crimson while actually costing overall DPS once the second
+// carried gem (impossible on Mythos' single slot) is dropped, same real per-hit gain and lost
+// Crimson Swipe damage the header comment's "one piece at a time" set-bonus note describes.
+function clipGemstonesToSlots(gemstones, resolved) {
+  const slotCount = resolved?.gemstone_slots?.length || 0;
+  return gemstones.slice(0, slotCount);
+}
+
 async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category) {
   if (!progressionBySlot) return [];
   const baselineInfernalPieces = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
@@ -768,9 +782,11 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
           // first written — a candidate with real gemstones stripped off looked artificially worse
           // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
-          // value" bug stars had (user-confirmed 2026-08-23). Carried blind, same as reforge/stars —
-          // a socket-count mismatch between old and new item is a rare edge, not worth reconciling.
-          if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
+          // value" bug stars had (user-confirmed 2026-08-23). Carried over, same as reforge/stars —
+          // but clipped to the candidate's own real slot count (see clipGemstonesToSlots) rather
+          // than blind, since a socket-count mismatch between old and new item can otherwise
+          // overstate a candidate's value enough to flip a real downgrade into an apparent upgrade.
+          if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
           if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
           // The RANKED VALUE still assumes a starrable candidate reaches its real max stars, not
           // bare — same "real best-case" treatment as special/rarityOverride above (Crown of
@@ -794,8 +810,8 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
           if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
-          if (currentModifiers?.gemstones?.length) {
-            currentModifiers.gemstones.forEach((g, index) => {
+          if (modifiers.gemstones.length) {
+            modifiers.gemstones.forEach((g, index) => {
               if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
             });
           }
@@ -904,13 +920,15 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       const modifiers = emptyModifiers();
       if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
-      if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
+      // Clipped to the candidate's own real slot count (see clipGemstonesToSlots) — a candidate
+      // can have fewer gemstone slots than the item it's replacing.
+      if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
       if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
       candidateLoadout[slot] = { item: resolved, modifiers };
       apply.push({ type: 'selectItem', slot, item: resolved });
       if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
-      if (currentModifiers?.gemstones?.length) {
-        currentModifiers.gemstones.forEach((g, index) => {
+      if (modifiers.gemstones.length) {
+        modifiers.gemstones.forEach((g, index) => {
           if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
         });
       }
@@ -984,7 +1002,9 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
           : candidate.special;
       if (specialValue != null) modifiers.special = specialValue;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
-      if (currentModifiers?.gemstones?.length) modifiers.gemstones = currentModifiers.gemstones;
+      // Clipped to the candidate's own real slot count (see clipGemstonesToSlots) — a candidate
+      // can have fewer gemstone slots than the item it's replacing.
+      if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
       if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
       // Same "compare at real best-case" fix as evaluateItemSlotCandidates — a starrable weapon
       // candidate (Hyperion, etc.) compared bare against a currently-equipped weapon the player
@@ -1002,8 +1022,8 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
       if (specialValue != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: specialValue });
-      if (currentModifiers?.gemstones?.length) {
-        currentModifiers.gemstones.forEach((g, index) => {
+      if (modifiers.gemstones.length) {
+        modifiers.gemstones.forEach((g, index) => {
           if (g) apply.push({ type: 'setGemstone', slot: 'weapon', index, gem: g.gem, tier: g.tier });
         });
       }
