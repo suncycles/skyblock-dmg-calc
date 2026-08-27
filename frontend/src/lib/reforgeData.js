@@ -67,9 +67,14 @@ export function formatStatValue(statKey, value) {
   return meta && meta.isPercent ? `${sign}${value}%` : `${sign}${value}`;
 }
 
-// Reforges applicable to a given weapon: matching itemTypes and requiring a rarity the item actually has.
-export function getApplicableReforges(reforges, item) {
-  if (!reforges || !item) return [];
+// Whether one specific reforge (an {itemTypes, requiredRarities, ...} entry from the reforges/
+// reforgeStones tables) is real-game-applicable to a given item — matching itemTypes and
+// requiring a rarity the item actually has. Factored out of getApplicableReforges below so
+// BuildContext.jsx's Edit All broadcast (updateSlotModifiers) can run the same real check against
+// each OTHER equipped piece before copying a reforge onto it — without this, Edit All could apply
+// e.g. a Chestplate-exclusive reforge onto boots, or a Legendary-only reforge onto an Epic piece.
+export function isReforgeApplicable(reforge, item) {
+  if (!reforge || !item) return false;
   // ponytail: Gemstone Gauntlet is a one-off — its real category is GAUNTLET (a mining tool, see
   // build-item-data.mjs), but it reforges off the same table as swords in-game. Matched by id
   // rather than folded into CATEGORY_TO_REFORGE_TYPES, since there's no general "Gauntlet" rule.
@@ -77,24 +82,28 @@ export function getApplicableReforges(reforges, item) {
     item.id === 'GEMSTONE_GAUNTLET' ? ['SWORD/ROD', 'SWORD'] : CATEGORY_TO_REFORGE_TYPES[item.category] || [];
   const rarity = (item.tier || '').toUpperCase();
   // No recognized rarity means treat as not-reforgeable rather than showing every reforge as applicable.
-  if (!rarity) return [];
+  if (!rarity) return false;
 
+  const types = reforge.itemTypes;
+  let matchesType;
+  if (typeof types === 'string') {
+    matchesType = categoryTypes.includes(types);
+  } else if (types && typeof types === 'object') {
+    const ids = types.internalName || types.itemId || [];
+    matchesType = ids.includes(item.id);
+  } else {
+    matchesType = false;
+  }
+  if (!matchesType) return false;
+  if (!Array.isArray(reforge.requiredRarities) || !reforge.requiredRarities.includes(rarity)) return false;
+  return true;
+}
+
+// Reforges applicable to a given weapon: matching itemTypes and requiring a rarity the item actually has.
+export function getApplicableReforges(reforges, item) {
+  if (!reforges || !item) return [];
   return Object.entries(reforges)
-    .filter(([, r]) => {
-      const types = r.itemTypes;
-      let matchesType;
-      if (typeof types === 'string') {
-        matchesType = categoryTypes.includes(types);
-      } else if (types && typeof types === 'object') {
-        const ids = types.internalName || types.itemId || [];
-        matchesType = ids.includes(item.id);
-      } else {
-        matchesType = false;
-      }
-      if (!matchesType) return false;
-      if (!Array.isArray(r.requiredRarities) || !r.requiredRarities.includes(rarity)) return false;
-      return true;
-    })
+    .filter(([, r]) => isReforgeApplicable(r, item))
     .map(([name, r]) => ({ name, ...r }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -220,7 +220,7 @@ export default function BooksPicker() {
             title="Remove Books"
             onClick={handleRemove}
           >
-            🗑️
+            <img src="/images/manual/trash.webp" alt="Remove" className="w-[85%] h-[85%] object-contain pixelated" />
           </div>,
         );
       } else if (row === 5 && col === 4) {

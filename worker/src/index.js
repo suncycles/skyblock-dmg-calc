@@ -82,6 +82,10 @@ const PRICED_EXTRA_IDS = [
   "PERFECT_AMBER_GEM", "PERFECT_AMETHYST_GEM", "PERFECT_AQUAMARINE_GEM", "PERFECT_CITRINE_GEM",
   "PERFECT_JADE_GEM", "PERFECT_JASPER_GEM", "PERFECT_ONYX_GEM", "PERFECT_OPAL_GEM",
   "PERFECT_PERIDOT_GEM", "PERFECT_RUBY_GEM", "PERFECT_SAPPHIRE_GEM", "PERFECT_TOPAZ_GEM",
+  // Real per-tier Master Star items (see lib/pricing.js's MASTER_STAR_ITEM_IDS) — consumed one at a
+  // time to apply each Master Star level, flat cost same for every item (unlike base Stars' Essence
+  // costs, which vary per item). User-confirmed source: pricesV2.json.
+  "FIRST_MASTER_STAR", "SECOND_MASTER_STAR", "THIRD_MASTER_STAR", "FOURTH_MASTER_STAR", "FIFTH_MASTER_STAR",
 ];
 
 // The 6 real combat gemstones (frontend/src/lib/gemstoneData.js's GEMSTONE_IDS) x 5 real tiers

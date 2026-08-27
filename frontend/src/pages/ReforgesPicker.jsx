@@ -40,8 +40,10 @@ export default function ReforgesPicker({ blacksmith }) {
   const pageReforges = applicable.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   const current = loadout[slot]?.modifiers?.reforge;
 
-  function handleSelect(name) {
-    applyReforge(slot, name);
+  // Passing the full `reforge` object (not just its name) lets applyReforge validate real
+  // applicability against each other piece when Edit All is on — see BuildContext.jsx.
+  function handleSelect(reforge) {
+    applyReforge(slot, reforge ? reforge.name : null, true, reforge);
     navigate(`/hex/${slot}`);
   }
 
@@ -100,7 +102,7 @@ export default function ReforgesPicker({ blacksmith }) {
             <div
               key={key}
               className={`${slotBase} cursor-pointer hover:brightness-110 ${current === reforge.name ? 'bg-green-400' : ''}`}
-              onClick={handleTapOrActivate(reforge.name, (e) => handleHover(reforge, e), () => handleSelect(reforge.name))}
+              onClick={handleTapOrActivate(reforge.name, (e) => handleHover(reforge, e), () => handleSelect(reforge))}
               onMouseEnter={guardHover((e) => handleHover(reforge, e))}
               onMouseLeave={guardHover(() => {
                 hoveredNameRef.current = null;
@@ -140,7 +142,7 @@ export default function ReforgesPicker({ blacksmith }) {
       } else if (isNavRow && col === 2 && current) {
         cells.push(
           <div key={key} className={navSlot} title="Remove Reforge" onClick={() => handleSelect(null)}>
-            🗑️
+            <img src="/images/manual/trash.webp" alt="Remove" className={iconImg} />
           </div>,
         );
       } else if (isNavRow && col === 3) {

@@ -37,6 +37,22 @@ export function cheapestPerfectGemstonePrice(itemData) {
   return prices.length > 0 ? Math.min(...prices) : null;
 }
 
+// Master Star levels 1-5 each consume one specific real item (user-confirmed source:
+// pricesV2.json) — a flat cost, the same for every piece of gear, unlike base Stars' per-item
+// Essence costs. Cumulative cost to reach `count` Master Stars is the sum of levels 1..count.
+const MASTER_STAR_ITEM_IDS = ['FIRST_MASTER_STAR', 'SECOND_MASTER_STAR', 'THIRD_MASTER_STAR', 'FOURTH_MASTER_STAR', 'FIFTH_MASTER_STAR'];
+
+export function masterStarCost(count, itemPrices) {
+  if (!count) return null;
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    const price = priceOf(itemPrices, MASTER_STAR_ITEM_IDS[i]);
+    if (price == null) return null;
+    total += price;
+  }
+  return total;
+}
+
 function findStep(apply, type) {
   return (apply || []).find((s) => s.type === type);
 }
@@ -107,6 +123,10 @@ export function lookupCandidateCost(result, itemData) {
       const step = findStep(result.apply, 'setStarCount');
       if (!step || result.itemId == null) return null;
       return priceOf(starCosts, `${result.itemId}_${step.count}`);
+    }
+    case 'Master Stars': {
+      const step = findStep(result.apply, 'setMasterStarCount');
+      return step ? masterStarCost(step.count, itemPrices) : null;
     }
     case 'Gemstone': {
       const step = findStep(result.apply, 'setGemstone');

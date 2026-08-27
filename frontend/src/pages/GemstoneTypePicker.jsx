@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { GEMSTONES, GEMSTONE_IDS } from '../lib/gemstoneData';
+import { getAllowedGemsForSlotType } from '../lib/gemstones';
 import { getGemstoneIcon, SLOT_TEXTURES } from '../lib/icons';
 
 const slotBase =
@@ -10,14 +11,22 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Step 1 of applying a gemstone: pick which of the 6 supported gem types goes in this slot. Any gem is allowed in any slot for now.
+// Step 1 of applying a gemstone: pick which of the 6 supported gem types goes in this slot. Real
+// per-slot type restrictions (item.gemstone_slots[idx].slot_type, from Hypixel's resources API —
+// see lib/gemstones.js's getAllowedGemsForSlotType) narrow this down for slots that aren't
+// COMBAT/UNIVERSAL — e.g. Deathripper Dagger's 2nd slot only takes Opal, Storm armor's 1st slot
+// only takes Sapphire. A gem not allowed in this slot renders disabled instead of being hidden,
+// so it's clear it exists but doesn't fit here.
 export default function GemstoneTypePicker() {
   const { slot, slotIndex } = useParams();
   const navigate = useNavigate();
   const { loadout, removeGemstone } = useBuild();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const idx = Number(slotIndex);
+  const item = loadout[slot]?.item;
   const current = loadout[slot]?.modifiers?.gemstones?.[idx];
+  const slotType = item?.gemstone_slots?.[idx]?.slot_type;
+  const allowedGems = getAllowedGemsForSlotType(slotType);
 
   const cells = [];
   for (let row = 0; row < 6; row++) {
@@ -31,22 +40,35 @@ export default function GemstoneTypePicker() {
         const gemId = GEMSTONE_IDS[gemIdx];
         if (gemId) {
           const gem = GEMSTONES[gemId];
-          cells.push(
-            <div
-              key={key}
-              className={`${slotBase} cursor-pointer hover:brightness-110 ${current?.gem === gemId ? 'bg-green-400' : ''}`}
-              title={`${gem.label} (${gem.statLabel})`}
-              onClick={handleTapOrActivate(
-                gemId,
-                (e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget),
-                () => navigate(`/gemstones/${slot}/${idx}/${gemId}`),
-              )}
-              onMouseEnter={guardHover((e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget))}
-              onMouseLeave={guardHover(hideTooltip)}
-            >
-              <img src={getGemstoneIcon(gemId, 'rough')} alt={gem.label} className={iconImg} />
-            </div>,
-          );
+          const isAllowed = allowedGems.includes(gemId);
+          if (!isAllowed) {
+            cells.push(
+              <div
+                key={key}
+                className={`${slotBase} opacity-40 cursor-not-allowed grayscale`}
+                title={`${gem.label} — doesn't fit this slot`}
+              >
+                <img src={getGemstoneIcon(gemId, 'rough')} alt={gem.label} className={iconImg} />
+              </div>,
+            );
+          } else {
+            cells.push(
+              <div
+                key={key}
+                className={`${slotBase} cursor-pointer hover:brightness-110 ${current?.gem === gemId ? 'bg-green-400' : ''}`}
+                title={`${gem.label} (${gem.statLabel})`}
+                onClick={handleTapOrActivate(
+                  gemId,
+                  (e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget),
+                  () => navigate(`/gemstones/${slot}/${idx}/${gemId}`),
+                )}
+                onMouseEnter={guardHover((e) => showTooltip([`§${gem.colorCode}${gem.symbol} ${gem.label}`, `§7${gem.statLabel}`], e.currentTarget))}
+                onMouseLeave={guardHover(hideTooltip)}
+              >
+                <img src={getGemstoneIcon(gemId, 'rough')} alt={gem.label} className={iconImg} />
+              </div>,
+            );
+          }
         } else {
           cells.push(
             <div key={key} className={slotBase}>
@@ -71,7 +93,7 @@ export default function GemstoneTypePicker() {
               navigate(`/gemstones/${slot}`);
             }}
           >
-            🗑️
+            <img src="/images/manual/trash.webp" alt="Remove" className="w-[85%] h-[85%] object-contain pixelated" />
           </div>,
         );
       } else if (row === 5 && col === 4) {
@@ -90,11 +112,21 @@ export default function GemstoneTypePicker() {
     }
   }
 
+  const onlyGemLabel = allowedGems.length === 1 ? GEMSTONES[allowedGems[0]].label : null;
+  const slotContextText =
+    allowedGems.length === GEMSTONE_IDS.length
+      ? 'Any of the 6 gems fit this slot.'
+      : onlyGemLabel
+        ? `This is ${/^[aeiou]/i.test(onlyGemLabel) ? 'an' : 'a'} ${onlyGemLabel}-only slot.`
+        : `This slot only accepts ${slotType || 'a'} gems, which this calculator doesn't model.`;
+
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
       <header className="w-full max-w-[700px] mb-4">
         <h1 className="text-xl font-bold">Choose a Gemstone</h1>
       </header>
+
+      <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">{slotContextText}</div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">
         <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
