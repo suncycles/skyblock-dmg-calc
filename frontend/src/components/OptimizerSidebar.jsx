@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
-import { runOptimizer, applyOptimizerResult, OPTIMIZER_MODES, OPTIMIZER_GEAR_SLOTS, hasCuratedData } from '../lib/optimizer';
+import {
+  runOptimizer,
+  applyOptimizerResult,
+  OPTIMIZER_MODES,
+  OPTIMIZER_GEAR_SLOTS,
+  hasCuratedData,
+  loadOptimizerMode,
+  saveOptimizerMode,
+} from '../lib/optimizer';
 import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
@@ -220,7 +228,11 @@ function UpgradeRow({ result, onSwapIn }) {
 export default function OptimizerSidebar() {
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
-  const [mode, setMode] = useState('slayer');
+  const [mode, setModeState] = useState(loadOptimizerMode);
+  const setMode = (next) => {
+    setModeState(next);
+    saveOptimizerMode(next);
+  };
   const [state, setState] = useState(EMPTY_STATE);
   const [sortBy, setSortBy] = useState('ratio');
   const tokenRef = useRef(0);
@@ -556,12 +568,15 @@ export default function OptimizerSidebar() {
             <button
               key={m.id}
               type="button"
-              onClick={() => setMode(m.id)}
-              className={`${panel} px-2 py-1 text-[10px] font-bold text-black cursor-pointer transition-[filter] ${
-                mode === m.id ? 'hover:brightness-110' : 'brightness-50'
+              disabled={m.disabled}
+              onClick={() => !m.disabled && setMode(m.id)}
+              title={m.disabled ? `${m.label} — not selectable yet` : m.label}
+              className={`${panel} px-2 py-1 flex items-center justify-center gap-1 text-[10px] font-bold text-black transition-[filter] ${
+                m.disabled ? 'opacity-40 cursor-not-allowed' : mode === m.id ? 'cursor-pointer hover:brightness-110' : 'cursor-pointer brightness-50'
               }`}
             >
-              {m.label}
+              {m.icon && <img src={m.icon} alt="" className="w-4 h-4 pixelated shrink-0" />}
+              <span className="truncate">{m.label}</span>
             </button>
           ))}
         </div>

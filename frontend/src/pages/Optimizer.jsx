@@ -2,7 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
-import { runOptimizer, applyOptimizerResult, OPTIMIZER_MODES, OPTIMIZER_GEAR_SLOTS, hasCuratedData } from '../lib/optimizer';
+import {
+  runOptimizer,
+  applyOptimizerResult,
+  OPTIMIZER_MODES,
+  OPTIMIZER_GEAR_SLOTS,
+  hasCuratedData,
+  loadOptimizerMode,
+  saveOptimizerMode,
+} from '../lib/optimizer';
 import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
@@ -120,7 +128,11 @@ export default function Optimizer() {
   const navigate = useNavigate();
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
-  const [mode, setMode] = useState('slayer');
+  const [mode, setModeState] = useState(loadOptimizerMode);
+  const setMode = (next) => {
+    setModeState(next);
+    saveOptimizerMode(next);
+  };
   const [state, setState] = useState(EMPTY_STATE);
   const tokenRef = useRef(0);
 
@@ -219,12 +231,15 @@ export default function Optimizer() {
               <button
                 key={m.id}
                 type="button"
-                onClick={() => setMode(m.id)}
-                className={`${panel} px-3 py-2 text-sm font-bold text-black cursor-pointer transition-[filter] ${
-                  mode === m.id ? 'hover:brightness-110' : 'brightness-50'
+                disabled={m.disabled}
+                onClick={() => !m.disabled && setMode(m.id)}
+                title={m.disabled ? `${m.label} — not selectable yet` : m.label}
+                className={`${panel} px-3 py-2 flex items-center justify-center gap-2 text-sm font-bold text-black transition-[filter] ${
+                  m.disabled ? 'opacity-40 cursor-not-allowed' : mode === m.id ? 'cursor-pointer hover:brightness-110' : 'cursor-pointer brightness-50'
                 }`}
               >
-                {m.label}
+                {m.icon && <img src={m.icon} alt="" className="w-5 h-5 pixelated shrink-0" />}
+                <span className="truncate">{m.label}</span>
               </button>
             ))}
           </div>

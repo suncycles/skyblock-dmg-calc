@@ -76,14 +76,32 @@ import { getSpecialConfig } from './specialWeapons';
 import { countGemstoneSlots, getAllowedGemsForSlotType } from './gemstones';
 import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
+// `disabled` (user-specified 2026-08-27, temporary): only Slayer/Diana are selectable for now —
+// the other 4 stay visible but inert until their own curated progressions get the same real
+// vetting Slayer/Diana already have.
 export const OPTIMIZER_MODES = [
-  { id: 'slayer', label: 'Slayer' },
-  { id: 'diana', label: 'Diana' },
-  { id: 'mage', label: 'Mage' },
-  { id: 'dungeon_archer', label: 'Dungeon / Archer' },
-  { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam' },
-  { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability' },
+  { id: 'slayer', label: 'Slayer', icon: '/images/manual/slayer.webp' },
+  { id: 'diana', label: 'Diana', icon: '/images/manual/diana.webp' },
+  { id: 'mage', label: 'Mage', disabled: true },
+  { id: 'dungeon_archer', label: 'Dungeon / Archer', disabled: true },
+  { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam', disabled: true },
+  { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability', disabled: true },
 ];
+
+// Shared between OptimizerSidebar.jsx (the embedded Landing panel) and Optimizer.jsx (the
+// dedicated page) so picking a mode in either place — or navigating away and back to either —
+// keeps the same selection instead of each resetting to Slayer independently.
+const OPTIMIZER_MODE_KEY = 'hexOptimizerMode';
+const SELECTABLE_MODE_IDS = new Set(OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => m.id));
+
+export function loadOptimizerMode() {
+  const stored = localStorage.getItem(OPTIMIZER_MODE_KEY);
+  return stored && SELECTABLE_MODE_IDS.has(stored) ? stored : 'slayer';
+}
+
+export function saveOptimizerMode(mode) {
+  localStorage.setItem(OPTIMIZER_MODE_KEY, mode);
+}
 
 // Which real damage number each mode optimizes — reuses this app's existing melee DPS / Ability
 // Damage / Mage Staff Beam pipelines rather than a new one (see finalDamage.js). Slayer and
