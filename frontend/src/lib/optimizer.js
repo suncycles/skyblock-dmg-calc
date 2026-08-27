@@ -37,6 +37,8 @@ import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import {
   VANQUISHED_SET,
   FINAL_DESTINATION_SET,
+  MYTHOS_ARMOR_SET,
+  CHALLENGER_ARMOR_SET,
   hasFullSet,
   countSetPieces,
   INFERNAL_CRIMSON_SET,
@@ -567,11 +569,27 @@ function resolveChainsToWalk(progression, currentId) {
 // aren't yet maxed (no tier-up offered at all, just the next star — see evaluateStarsCandidates)
 // and to current+1 once they are (the next tier unlocks, at 0 stars). Every other progression
 // (weapons, non-Crimson armor, equipment, pets) passes no override and stays unrestricted.
-async function evaluateTieredProgression(progression, currentIndex, isCurrent, baselineValue, evaluate, maxIndexOverride) {
+async function evaluateTieredProgression(
+  progression,
+  currentIndex,
+  isCurrent,
+  baselineValue,
+  evaluate,
+  maxIndexOverride,
+  alwaysIncludeLastTier,
+) {
   const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
   const maxIndex = maxIndexOverride != null ? maxIndexOverride : progression.length - 1;
+  const lastIndex = progression.length - 1;
+  const indices = [];
+  for (let i = effectiveIndex; i <= maxIndex && i < progression.length; i++) indices.push(i);
+  // The chain's own final tier may be an independently-obtainable upgrade appended after a
+  // tier-skip-restricted run (e.g. Diana's Challenger's/Mythos armor, from the Mythological
+  // Ritual — not a Kuudra crafting step at all) — see evaluateItemSlotCandidates' caller. Walked
+  // regardless of maxIndexOverride so it isn't hidden behind grinding every Kuudra tier first.
+  if (alwaysIncludeLastTier && lastIndex > maxIndex && lastIndex >= effectiveIndex) indices.push(lastIndex);
   const evaluated = [];
-  for (let i = effectiveIndex; i <= maxIndex && i < progression.length; i++) {
+  for (const i of indices) {
     const tierCandidates = progression[i].filter((c) => !(i === effectiveIndex && currentIndex !== -1 && isCurrent(c)));
     for (const candidate of tierCandidates) {
       const outcome = await evaluate(candidate);
@@ -698,10 +716,23 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
       // at 10✩ -> Hot Crimson at 0✩); before that, only the current tier (its own sidegrades, if
       // any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
       let maxIndexOverride;
+      let alwaysIncludeLastTier = false;
       if (category === 'Armor' && ARMOR_VARIANT_FAMILIES.some((family) => currentId?.includes(family))) {
         const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
         const starsMaxed = currentIndex !== -1 && currentItem && (currentModifiers?.stars || 0) >= getMaxStarsForItem(currentItem);
         maxIndexOverride = starsMaxed ? effectiveIndex + 1 : effectiveIndex;
+        // The chain's own final tier can be an independently-obtainable upgrade appended after
+        // the real Kuudra progression (Diana's Challenger's/Mythos armor, from the Mythological
+        // Ritual — not a Kuudra crafting step at all, see appendTierToEachChain/
+        // MYTHOLOGICAL_ARMOR_TIER above) rather than another real Kuudra tier. The "don't skip a
+        // tier" restriction only makes sense WITHIN the Kuudra family itself — a non-Kuudra final
+        // tier (no candidate id containing any real family name) stays reachable regardless of
+        // current star progress, so it isn't hidden behind grinding all the way to Infernal first
+        // even from an early Kuudra tier (user-confirmed 2026-08-27: real per-piece comparison
+        // against Sammui's account — Mythos/Challenger's already beats Hot tier Crimson piece for
+        // piece, once compared fairly with the same reforge/gems/recomb carried over).
+        const lastTier = progression[progression.length - 1];
+        alwaysIncludeLastTier = lastTier.some((c) => !ARMOR_VARIANT_FAMILIES.some((family) => c.id?.includes(family)));
       }
       const evaluated = await evaluateTieredProgression(
         progression,
@@ -773,6 +804,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           };
         },
         maxIndexOverride,
+        alwaysIncludeLastTier,
       );
       slotResults.push(...evaluated);
     }
@@ -793,14 +825,19 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
   return results;
 }
 
-// Vanquished (Equipment) and Final Destination (Armor) only pay off once EVERY piece is worn (see
-// armorSetBonuses.js's hasFullSet) — evaluating one slot at a time like evaluateItemSlotCandidates
-// does could never show a mid-swap piece's true value, since the set bonus doesn't activate until
-// the last piece lands (the same "coarse per-point search can't see a lumpy payoff" problem
-// lib/tuningOptimizer.js solves for Bonus Attack Speed's breakpoints). So each is its own single
+// Vanquished (Equipment), Final Destination (Armor), and Mythos'/Challenger's (Armor) only pay
+// off once EVERY piece is worn (see armorSetBonuses.js's hasFullSet) — evaluating one slot at a
+// time like evaluateItemSlotCandidates does could never show a mid-swap piece's true value, since
+// the set bonus doesn't activate until the last piece lands (the same "coarse per-point search
+// can't see a lumpy payoff" problem lib/tuningOptimizer.js solves for Bonus Attack Speed's
+// breakpoints) — Mythos'/Challenger's specifically nets NEGATIVE one piece at a time since it also
+// loses whatever real Kuudra-family set bonus (e.g. Infernal Crimson's stacking damage) the
+// swapped-out piece was contributing (user-confirmed 2026-08-27). So each is its own single
 // candidate that swaps every slot in the set at once, carrying over each existing slot's own
 // reforge/ultimate enchant the same way evaluateItemSlotCandidates does. Runs unconditionally
-// (not gated on a mode's curated progression) since neither set is mode-specific content.
+// (not gated on a mode's curated progression) — Mythos'/Challenger's doubling ability itself is
+// already mode-independent (only cares whether the selected target mob is Mythological-typed, see
+// finalDamage.js's selectBaseStats), same as Vanquished/Final Destination not being mode-specific.
 const FULL_SET_CANDIDATES = [
   {
     category: 'Full Set',
@@ -815,6 +852,20 @@ const FULL_SET_CANDIDATES = [
     slots: ARMOR_SLOTS,
     idsBySlot: { helmet: 'FINAL_DESTINATION_HELMET', chestplate: 'FINAL_DESTINATION_CHESTPLATE', leggings: 'FINAL_DESTINATION_LEGGINGS', boots: 'FINAL_DESTINATION_BOOTS' },
     setIds: FINAL_DESTINATION_SET,
+  },
+  {
+    category: 'Full Set',
+    label: "Challenger's Armor (Full Set)",
+    slots: ARMOR_SLOTS,
+    idsBySlot: { helmet: 'CHALLENGER_HELMET', chestplate: 'CHALLENGER_CHESTPLATE', leggings: 'CHALLENGER_LEGGINGS', boots: 'CHALLENGER_BOOTS' },
+    setIds: CHALLENGER_ARMOR_SET,
+  },
+  {
+    category: 'Full Set',
+    label: 'Mythos Armor (Full Set)',
+    slots: ARMOR_SLOTS,
+    idsBySlot: { helmet: 'MYTHOS_HELMET', chestplate: 'MYTHOS_CHESTPLATE', leggings: 'MYTHOS_LEGGINGS', boots: 'MYTHOS_BOOTS' },
+    setIds: MYTHOS_ARMOR_SET,
   },
 ];
 
