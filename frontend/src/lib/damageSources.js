@@ -537,7 +537,7 @@ const BLAZETEKK_HAM_RADIO_BLUERTOOTH_DAMAGE = 4;
 // computeBasePetStats alone, because this file's own copy still had the bug. Do not reintroduce a
 // local reimplementation here; if the scope of "base stats" ever needs to change again, change it
 // in computeBasePetStats and this call picks it up for free.
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, generalsMedallionDigits, out) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, generalsMedallionDigits, out) {
   let basePetStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
   out.firstPounceFactor = 1;
@@ -676,7 +676,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       itemData,
       catacombsLevel,
       tamingLevel,
-      undefined,
+      wolfSlayerLevel,
       undefined,
       generalsMedallionDigits,
       undefined,
@@ -1324,7 +1324,15 @@ export async function collectDamageSources(
     thunderlordProc: null,
   };
 
-  await collectBaseStats(loadout, itemData, playerStats?.catacombsLevel, playerStats?.tamingLevel, playerStats?.generalsMedallionDigits, out);
+  await collectBaseStats(
+    loadout,
+    itemData,
+    playerStats?.catacombsLevel,
+    playerStats?.tamingLevel,
+    playerStats?.wolfSlayerLevel,
+    playerStats?.generalsMedallionDigits,
+    out,
+  );
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');
