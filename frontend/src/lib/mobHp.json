@@ -1,0 +1,1628 @@
+{
+ "Abyssal Miner": {
+  "hp": 2000000
+ },
+ "Agarimoo": {
+  "hp": 55000
+ },
+ "Alligator": {
+  "hp": 600000
+ },
+ "Angry Archaeologist": {
+  "dungeon": {
+   "master": {
+    "I": 1875000,
+    "II": 3000000,
+    "III": 6000000,
+    "IV": 6900000,
+    "V": 7800000,
+    "VI": 12000000,
+    "VII": 18000000
+   },
+   "normal": {
+    "I": 21000,
+    "II": 33000,
+    "III": 135000,
+    "IV": 240000,
+    "V": 320000,
+    "VI": 420000,
+    "VII": 900000
+   }
+  }
+ },
+ "Apostle": {
+  "dungeon": {
+   "master": {
+    "VII": 800000000
+   }
+  }
+ },
+ "Arachne": {
+  "tiers": [
+   {
+    "hp": 20000,
+    "label": "Lv300"
+   },
+   {
+    "hp": 100000,
+    "label": "Lv500"
+   }
+  ]
+ },
+ "Arachne's Keeper": {
+  "hp": 3000
+ },
+ "Ashfang": {
+  "hp": 50000000
+ },
+ "Atoll Croaker": {
+  "hp": 15000
+ },
+ "Atoned Champion": {
+  "hp": 600000
+ },
+ "Atoned Horror": {
+  "hp": 10000000
+ },
+ "Atoned Revenant": {
+  "hp": 2400000
+ },
+ "Automaton": {
+  "hp": 15000
+ },
+ "Bal": {
+  "hp": 200
+ },
+ "Banshee": {
+  "hp": 17500
+ },
+ "Barbarian Duke X": {
+  "hp": 70000000
+ },
+ "Bat": {
+  "hp": 6
+ },
+ "Bat Pi\u00f1ata": {
+  "hp": 5
+ },
+ "Bayou Sludge": {
+  "hp": 20000
+ },
+ "Beetle": {
+  "hp": 600
+ },
+ "Bezal": {
+  "hp": 1000000
+ },
+ "Bladesoul": {
+  "hp": 50000000
+ },
+ "Blaze": {
+  "hp": 250000
+ },
+ "Blue Jerry": {
+  "hp": 4
+ },
+ "Blue Ringed Octopus": {
+  "hp": 4000000
+ },
+ "Blue Shark": {
+  "hp": 25000
+ },
+ "Bogged": {
+  "hp": 3000
+ },
+ "Boss Corleone": {
+  "hp": 1000000
+ },
+ "Broodmother": {
+  "hp": 3000
+ },
+ "Burningsoul Demon": {
+  "hp": 50000000
+ },
+ "Butterfly": {
+  "hp": 100
+ },
+ "Carrot King": {
+  "hp": 32000
+ },
+ "Catfish": {
+  "hp": 26000
+ },
+ "Chicken": {
+  "hp": 50
+ },
+ "Chillblade": {
+  "hp": 400
+ },
+ "Chillshot": {
+  "hp": 400
+ },
+ "Cow": {
+  "hp": 50
+ },
+ "Crazy Witch": {
+  "tiers": [
+   {
+    "hp": 11,
+    "label": "Witch"
+   },
+   {
+    "hp": 1,
+    "label": "Bat"
+   }
+  ]
+ },
+ "Creeper": {
+  "hp": 80
+ },
+ "Cretan Bull": {
+  "tiers": [
+   {
+    "hp": 25000,
+    "label": "Uncommon"
+   },
+   {
+    "hp": 150000,
+    "label": "Rare"
+   },
+   {
+    "hp": 500000,
+    "label": "Epic"
+   },
+   {
+    "hp": 1500000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 3000000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Cricket": {
+  "hp": 600
+ },
+ "Crypt Dreadlord": {
+  "dungeon": {
+   "master": {
+    "I": 1050000,
+    "II": 2025000,
+    "III": 3300000,
+    "V": 6750000,
+    "VI": 10200000,
+    "VII": 20000000
+   },
+   "normal": {
+    "I": 25600,
+    "II": 39000,
+    "III": 64900,
+    "V": 202500,
+    "VI": 390000,
+    "VII": 840000
+   }
+  }
+ },
+ "Crypt Ghoul": {
+  "hp": 2000
+ },
+ "Crypt Lurker": {
+  "dungeon": {
+   "master": {
+    "I": 805000,
+    "II": 1500000,
+    "III": 2300000,
+    "IV": 3250000,
+    "V": 4350000,
+    "VI": 6400000,
+    "VII": 13000000
+   },
+   "normal": {
+    "I": 12800,
+    "II": 13800,
+    "III": 22000,
+    "IV": 49200,
+    "V": 92250,
+    "VI": 200000,
+    "VII": 420000
+   }
+  }
+ },
+ "Crypt Souleater": {
+  "dungeon": {
+   "master": {
+    "I": 1100000,
+    "II": 2100000,
+    "III": 5100000,
+    "V": 6900000,
+    "VI": 10400000,
+    "VII": 20000000
+   },
+   "normal": {
+    "I": 20000,
+    "II": 26400,
+    "III": 46750,
+    "V": 187500,
+    "VI": 375000,
+    "VII": 800000
+   }
+  }
+ },
+ "Dasher Spider": {
+  "tiers": [
+   {
+    "hp": 170,
+    "label": "Lv4"
+   },
+   {
+    "hp": 210,
+    "label": "Lv6"
+   }
+  ]
+ },
+ "Deep Sea Protector": {
+  "hp": 150000
+ },
+ "Deformed Revenant": {
+  "hp": 360000
+ },
+ "Dragonfly": {
+  "hp": 600
+ },
+ "Drowned Captain": {
+  "hp": 60000
+ },
+ "Dumpster Diver": {
+  "hp": 2500
+ },
+ "Earthworm": {
+  "hp": 600
+ },
+ "Emerald Slime": {
+  "hp": 80
+ },
+ "End Stone Protector": {
+  "hp": 5000000
+ },
+ "Enderman": {
+  "hp": 4
+ },
+ "Endermite": {
+  "tiers": [
+   {
+    "hp": 2000,
+    "label": "From End Stone"
+   },
+   {
+    "hp": 2300,
+    "label": "From Seers"
+   }
+  ]
+ },
+ "Ent": {
+  "hp": 25000
+ },
+ "Fels": {
+  "dungeon": {
+   "master": {
+    "V": 45000000,
+    "VI": 80000000,
+    "VII": 160000000
+   },
+   "normal": {
+    "V": 450000,
+    "VI": 700000,
+    "VII": 1500000
+   }
+  }
+ },
+ "Field Mouse": {
+  "hp": 600
+ },
+ "Fiery Scuttler": {
+  "hp": 10000000
+ },
+ "Fire Eel": {
+  "hp": 2000000
+ },
+ "Firefly": {
+  "hp": 600
+ },
+ "Fireproof Witch": {
+  "hp": 75000
+ },
+ "Flaming Spider": {
+  "hp": 1000000
+ },
+ "Flaming Worm": {
+  "hp": 100000
+ },
+ "Flare": {
+  "hp": 5000000
+ },
+ "Flare Demon": {
+  "hp": 9000000
+ },
+ "Flint Skeleton": {
+  "hp": 100
+ },
+ "Flipflopper": {
+  "hp": 500
+ },
+ "Fly": {
+  "hp": 600
+ },
+ "Fried Chicken": {
+  "hp": 65000
+ },
+ "Frog Man": {
+  "hp": 2500
+ },
+ "Frog Prince": {
+  "hp": 10000000
+ },
+ "Frosty": {
+  "hp": 250
+ },
+ "Frozen Adventurer": {
+  "dungeon": {
+   "master": {
+    "IV": 60000000,
+    "V": 66000000,
+    "VI": 134000000,
+    "VII": 160000000
+   },
+   "normal": {
+    "IV": 1100000,
+    "V": 1600000,
+    "VI": 2600000,
+    "VII": 6600000
+   }
+  }
+ },
+ "Frozen Steve": {
+  "hp": 1500
+ },
+ "Gaia Construct": {
+  "tiers": [
+   {
+    "hp": 175000,
+    "label": "Rare"
+   },
+   {
+    "hp": 650000,
+    "label": "Epic"
+   },
+   {
+    "hp": 1500000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 3500000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Ghast": {
+  "hp": 2000000
+ },
+ "Ghost": {
+  "hp": 1000000
+ },
+ "Glacite Bowman": {
+  "hp": 750000
+ },
+ "Glacite Caver": {
+  "hp": 800000
+ },
+ "Glacite Mage": {
+  "hp": 825000
+ },
+ "Glacite Mutt": {
+  "hp": 750000
+ },
+ "Glacite Walker": {
+  "hp": 888
+ },
+ "Goblin": {
+  "hp": 800
+ },
+ "Golden Ghoul": {
+  "hp": 45000
+ },
+ "Golden Jerry": {
+  "hp": 6
+ },
+ "Gravel Skeleton": {
+  "hp": 100
+ },
+ "Graveyard Zombie": {
+  "hp": 100
+ },
+ "Great White Shark": {
+  "hp": 1500000
+ },
+ "Green Jerry": {
+  "hp": 3
+ },
+ "Grim Reaper": {
+  "hp": 3000000
+ },
+ "Grunt": {
+  "hp": 15000
+ },
+ "Guardian Defender": {
+  "hp": 70000
+ },
+ "Harpy": {
+  "tiers": [
+   {
+    "hp": 200000,
+    "label": "Rare"
+   },
+   {
+    "hp": 750000,
+    "label": "Epic"
+   },
+   {
+    "hp": 2000000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 3750000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Headless Horseman": {
+  "hp": 3000000
+ },
+ "Howling Spirit": {
+  "hp": 7000
+ },
+ "Hydrospear": {
+  "hp": 6000
+ },
+ "Inferno Demonlord": {
+  "tiers": [
+   {
+    "hp": 2500000,
+    "label": "Tier I"
+   },
+   {
+    "hp": 10000000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 45000000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 150000000,
+    "label": "Tier IV"
+   }
+  ]
+ },
+ "Inkling": {
+  "hp": 6500
+ },
+ "Jumpin' Jack": {
+  "hp": 3500
+ },
+ "Kada Knight": {
+  "hp": 2000000
+ },
+ "Key Guardian": {
+  "hp": 250000
+ },
+ "Kindleheart Demon": {
+  "hp": 17500000
+ },
+ "King Midas": {
+  "dungeon": {
+   "normal": {
+    "III": 165000,
+    "IV": 480000,
+    "V": 1050000,
+    "VI": 2100000,
+    "VII": 4300000
+   }
+  }
+ },
+ "King Minos": {
+  "hp": 100000000
+ },
+ "Lapis Zombie": {
+  "hp": 200
+ },
+ "Lava Blaze": {
+  "hp": 400000
+ },
+ "Lava Flame": {
+  "hp": 1500000
+ },
+ "Lava Leech": {
+  "hp": 1000000
+ },
+ "Lava Pigman": {
+  "hp": 450000
+ },
+ "Littlefoot": {
+  "hp": 25000000
+ },
+ "Locust": {
+  "hp": 600
+ },
+ "Lonely Spider": {
+  "dungeon": {
+   "master": {
+    "I": 140000,
+    "II": 240000,
+    "III": 360000,
+    "V": 660000,
+    "VI": 960000,
+    "VII": 2000000
+   },
+   "normal": {
+    "I": 4400,
+    "II": 6300,
+    "III": 10175,
+    "V": 33750,
+    "VI": 60000,
+    "VII": 120000
+   }
+  }
+ },
+ "Lord Jawbus": {
+  "hp": 100000000
+ },
+ "Lost Adventurer": {
+  "dungeon": {
+   "master": {
+    "I": 14250000,
+    "II": 24000000,
+    "III": 48000000,
+    "IV": 54000000,
+    "V": 60000000,
+    "VI": 92000000,
+    "VII": 150000000
+   },
+   "normal": {
+    "I": 130000,
+    "II": 150000,
+    "III": 302500,
+    "IV": 660000,
+    "V": 1200000,
+    "VI": 2600000,
+    "VII": 6600000
+   }
+  }
+ },
+ "Lotus Guardian": {
+  "hp": 25000
+ },
+ "Lunar Moth": {
+  "hp": 600
+ },
+ "Mage Outlaw": {
+  "hp": 70000000
+ },
+ "Magma Boss": {
+  "hp": 200000000
+ },
+ "Magma Cube": {
+  "hp": 1000000
+ },
+ "Magma Cube Rider": {
+  "hp": 3000000
+ },
+ "Magma Pillar": {
+  "hp": 1250000
+ },
+ "Magma Slug": {
+  "hp": 500000
+ },
+ "Manta Ray": {
+  "hp": 500000
+ },
+ "Manticore": {
+  "hp": 125000000
+ },
+ "Matcho": {
+  "hp": 750000
+ },
+ "Mega Bat": {
+  "hp": 100
+ },
+ "Millennia-Aged Blaze": {
+  "hp": 30000000
+ },
+ "Mimic": {
+  "dungeon": {
+   "master": {
+    "VI": 150000000,
+    "VII": 180000000
+   },
+   "normal": {
+    "VI": 1500000,
+    "VII": 3000000
+   }
+  }
+ },
+ "Miner Skeleton": {
+  "tiers": [
+   {
+    "hp": 250,
+    "label": "Lv15"
+   },
+   {
+    "hp": 300,
+    "label": "Lv20"
+   }
+  ]
+ },
+ "Miner Zombie": {
+  "tiers": [
+   {
+    "hp": 250,
+    "label": "Lv15"
+   },
+   {
+    "hp": 300,
+    "label": "Lv20"
+   }
+  ]
+ },
+ "Minos Champion": {
+  "tiers": [
+   {
+    "hp": 2000000,
+    "label": "Epic"
+   },
+   {
+    "hp": 12500000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 25000000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Minos Hunter": {
+  "tiers": [
+   {
+    "hp": 4000,
+    "label": "Common"
+   },
+   {
+    "hp": 15000,
+    "label": "Uncommon"
+   },
+   {
+    "hp": 100000,
+    "label": "Rare"
+   },
+   {
+    "hp": 350000,
+    "label": "Epic"
+   },
+   {
+    "hp": 1000000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 1750000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Minos Inquisitor": {
+  "tiers": [
+   {
+    "hp": 50000000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 80000000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Minotaur": {
+  "tiers": [
+   {
+    "hp": 1500000,
+    "label": "Epic"
+   },
+   {
+    "hp": 8000000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 15500000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Mite": {
+  "hp": 600
+ },
+ "Mithril Grubber": {
+  "tiers": [
+   {
+    "hp": 6000,
+    "label": "Mithril Grubber"
+   },
+   {
+    "hp": 7500,
+    "label": "Medium Mithril Grubber"
+   },
+   {
+    "hp": 10000,
+    "label": "Large Mithril Grubber"
+   },
+   {
+    "hp": 15000,
+    "label": "Bloated Mithril Grubber"
+   }
+  ]
+ },
+ "Moogma": {
+  "hp": 750000
+ },
+ "Mosquito": {
+  "hp": 600
+ },
+ "Moth": {
+  "hp": 600
+ },
+ "Mushroom Bull": {
+  "hp": 2500000
+ },
+ "Mushroom Cow": {
+  "hp": 50
+ },
+ "Mutant Tarantula": {
+  "hp": 576000
+ },
+ "Mutated Blaze": {
+  "hp": 1500000
+ },
+ "Nessie": {
+  "hp": 2000000
+ },
+ "Nest Endermite": {
+  "hp": 4500
+ },
+ "Nightmare": {
+  "hp": 35000
+ },
+ "Nurse Shark": {
+  "hp": 2500
+ },
+ "Nutcracker": {
+  "hp": 4000000
+ },
+ "Oasis Rabbit": {
+  "hp": 6000
+ },
+ "Oasis Sheep": {
+  "hp": 6000
+ },
+ "Obsidian Defender": {
+  "hp": 10000
+ },
+ "Old Wolf": {
+  "hp": 15000
+ },
+ "Pack Enforcer": {
+  "hp": 45000
+ },
+ "Pack Spirit": {
+  "hp": 6000
+ },
+ "Phantom Fisher": {
+  "hp": 1000000
+ },
+ "Phantom Spirit": {
+  "hp": 10
+ },
+ "Pig": {
+  "hp": 50
+ },
+ "Plhlegblast": {
+  "hp": 500000000
+ },
+ "Poisoned Water Worm": {
+  "hp": 75000
+ },
+ "Powder Ghast": {
+  "hp": 100
+ },
+ "Praying Mantis": {
+  "hp": 600
+ },
+ "Puddle Jumper": {
+  "hp": 5
+ },
+ "Purple Jerry": {
+  "hp": 5
+ },
+ "Pyroclastic Worm": {
+  "hp": 1200000
+ },
+ "Quazii": {
+  "tiers": [
+   {
+    "hp": 2500000,
+    "label": "Tier I"
+   },
+   {
+    "hp": 10000000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 45000000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 150000000,
+    "label": "Tier IV"
+   }
+  ]
+ },
+ "Rabbit": {
+  "hp": 130
+ },
+ "Ragnarok": {
+  "hp": 125000000
+ },
+ "Rain Slime": {
+  "hp": 200
+ },
+ "Rat": {
+  "hp": 600
+ },
+ "Redstone Pigman": {
+  "hp": 250
+ },
+ "Redstone Warrior": {
+  "dungeon": {
+   "master": {
+    "I": 14250000,
+    "II": 24000000,
+    "III": 48000000,
+    "IV": 54000000,
+    "V": 60000000,
+    "VI": 92000000,
+    "VII": 150000000
+   }
+  }
+ },
+ "Revenant Champion": {
+  "hp": 90000
+ },
+ "Revenant Horror": {
+  "tiers": [
+   {
+    "hp": 500,
+    "label": "Tier I"
+   },
+   {
+    "hp": 20000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 400000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 1500000,
+    "label": "Tier IV"
+   },
+   {
+    "hp": 10000000,
+    "label": "Tier V"
+   }
+  ]
+ },
+ "Revenant Sycophant": {
+  "hp": 24000
+ },
+ "Rider of the Deep": {
+  "hp": 20000
+ },
+ "Scarecrow": {
+  "hp": 4500
+ },
+ "Scared Skeleton": {
+  "dungeon": {
+   "master": {
+    "I": 1800000,
+    "II": 3300000
+   },
+   "normal": {
+    "I": 17600,
+    "II": 22800
+   }
+  }
+ },
+ "Scary Jerry": {
+  "hp": 12
+ },
+ "Scatha": {
+  "hp": 10
+ },
+ "Sea Archer": {
+  "hp": 7000
+ },
+ "Sea Guardian": {
+  "hp": 5000
+ },
+ "Sea Leech": {
+  "hp": 60000
+ },
+ "Sea Walker": {
+  "hp": 100
+ },
+ "Sea Witch": {
+  "hp": 6000
+ },
+ "Seashine": {
+  "hp": 1000
+ },
+ "Seer": {
+  "hp": 9500
+ },
+ "Shadow Assassin": {
+  "dungeon": {
+   "master": {
+    "III": 55000000,
+    "IV": 75000000,
+    "VI": 84000000,
+    "VII": 140000000
+   },
+   "normal": {
+    "III": 605000,
+    "IV": 1200000,
+    "V": 2250000,
+    "VI": 4200000,
+    "VII": 10000000
+   }
+  }
+ },
+ "Sheep": {
+  "hp": 120
+ },
+ "Shiny Pig": {
+  "hp": 1000000000
+ },
+ "Siamese Lynxes": {
+  "tiers": [
+   {
+    "hp": 2500,
+    "label": "Common"
+   },
+   {
+    "hp": 12500,
+    "label": "Uncommon"
+   },
+   {
+    "hp": 75000,
+    "label": "Rare"
+   },
+   {
+    "hp": 250000,
+    "label": "Epic"
+   },
+   {
+    "hp": 750000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 1250000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Silverfish": {
+  "hp": 50
+ },
+ "Skeleton": {
+  "hp": 100
+ },
+ "Skeleton Grunt": {
+  "dungeon": {
+   "master": {
+    "I": 1300000,
+    "II": 2400000,
+    "III": 6000000
+   },
+   "normal": {
+    "I": 16000,
+    "II": 20400,
+    "III": 34100
+   }
+  }
+ },
+ "Skeleton Lord": {
+  "dungeon": {
+   "master": {
+    "VII": 120000000
+   },
+   "normal": {
+    "VII": 2000000
+   }
+  }
+ },
+ "Skeleton Master": {
+  "dungeon": {
+   "master": {
+    "II": 3450000,
+    "III": 5400000,
+    "IV": 8000000,
+    "V": 11100000,
+    "VI": 21000000,
+    "VII": 42000000
+   },
+   "normal": {
+    "II": 31200,
+    "III": 54450,
+    "IV": 108000,
+    "V": 210000,
+    "VI": 400000,
+    "VII": 900000
+   }
+  }
+ },
+ "Skeleton Soldier": {
+  "dungeon": {
+   "master": {
+    "I": 1600000,
+    "II": 3000000,
+    "III": 7200000,
+    "IV": 8400000,
+    "V": 9600000,
+    "VI": 14400000,
+    "VII": 28000000
+   },
+   "normal": {
+    "I": 22400,
+    "II": 31200,
+    "III": 49500,
+    "IV": 96000,
+    "V": 187500,
+    "VI": 360000,
+    "VII": 750000
+   }
+  }
+ },
+ "Skeletor": {
+  "dungeon": {
+   "master": {
+    "III": 6900000,
+    "IV": 7800000,
+    "V": 9000000,
+    "VI": 10200000
+   },
+   "normal": {
+    "III": 250000,
+    "IV": 500000,
+    "V": 700000,
+    "VI": 1000000
+   }
+  }
+ },
+ "Sludge": {
+  "hp": 5000
+ },
+ "Slug": {
+  "hp": 600
+ },
+ "Smoldering Blaze": {
+  "hp": 5500000
+ },
+ "Snapping Turtle": {
+  "hp": 35000
+ },
+ "Sneaky Creeper": {
+  "hp": 120
+ },
+ "Sniper": {
+  "dungeon": {
+   "master": {
+    "I": 3600000,
+    "II": 5700000,
+    "III": 8000000,
+    "IV": 10500000,
+    "V": 13200000,
+    "VI": 18400000,
+    "VII": 36000000
+   },
+   "normal": {
+    "I": 12000,
+    "II": 15600,
+    "III": 24750,
+    "IV": 42000,
+    "V": 75000,
+    "VI": 200000,
+    "VII": 500000
+   }
+  }
+ },
+ "Soul of the Alpha": {
+  "hp": 31150
+ },
+ "Special Zealot": {
+  "hp": 2000
+ },
+ "Sphinx": {
+  "tiers": [
+   {
+    "hp": 40000000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 65000000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Spider Jockey": {
+  "hp": 220
+ },
+ "Splitter Spider": {
+  "tiers": [
+   {
+    "hp": 220,
+    "label": "Lv4"
+   },
+   {
+    "hp": 180,
+    "label": "Lv2"
+   }
+  ]
+ },
+ "Squid": {
+  "hp": 50
+ },
+ "Star Sentry": {
+  "hp": 10
+ },
+ "Stranded Nymph": {
+  "tiers": [
+   {
+    "hp": 20000,
+    "label": "Uncommon"
+   },
+   {
+    "hp": 125000,
+    "label": "Rare"
+   },
+   {
+    "hp": 400000,
+    "label": "Epic"
+   },
+   {
+    "hp": 1250000,
+    "label": "Legendary"
+   },
+   {
+    "hp": 2500000,
+    "label": "Mythic"
+   }
+  ]
+ },
+ "Stridersurfer": {
+  "hp": 20000
+ },
+ "Super Archer": {
+  "dungeon": {
+   "master": {
+    "IV": 48000000,
+    "V": 60000000,
+    "VI": 100000000,
+    "VII": 200000000
+   },
+   "normal": {
+    "IV": 240000,
+    "V": 412500,
+    "VI": 750000,
+    "VII": 1600000
+   }
+  }
+ },
+ "Super Tank Zombie": {
+  "dungeon": {
+   "master": {
+    "IV": 180000,
+    "V": 300000,
+    "VI": 525000,
+    "VII": 1050000
+   },
+   "normal": {
+    "IV": 12000,
+    "V": 26250,
+    "VI": 45000,
+    "VII": 90000
+   }
+  }
+ },
+ "Sven Alpha": {
+  "hp": 480000
+ },
+ "Sven Follower": {
+  "hp": 120000
+ },
+ "Sven Packmaster": {
+  "tiers": [
+   {
+    "hp": 2000,
+    "label": "Tier I"
+   },
+   {
+    "hp": 40000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 750000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 2000000,
+    "label": "Tier IV"
+   }
+  ]
+ },
+ "Tadgang": {
+  "tiers": [
+   {
+    "hp": 1,
+    "label": "Liltad"
+   },
+   {
+    "hp": 5000,
+    "label": "Tadgang"
+   }
+  ]
+ },
+ "Tank Zombie": {
+  "dungeon": {
+   "master": {
+    "I": 60000,
+    "II": 105000,
+    "III": 160000
+   },
+   "normal": {
+    "I": 1440,
+    "II": 2100,
+    "III": 4400
+   }
+  }
+ },
+ "Tarantula Beast": {
+  "hp": 144000
+ },
+ "Tarantula Vermin": {
+  "hp": 54000
+ },
+ "Taurus": {
+  "hp": 3000000
+ },
+ "Tentacle": {
+  "hp": 5000000
+ },
+ "The Loch Emperor": {
+  "hp": 800000
+ },
+ "Thunder": {
+  "hp": 35000000
+ },
+ "Thyst": {
+  "hp": 5000
+ },
+ "Tidetot": {
+  "hp": 4000
+ },
+ "Tiger Shark": {
+  "hp": 250000
+ },
+ "Titanoboa": {
+  "hp": 45000000
+ },
+ "Trash Gobbler": {
+  "hp": 2000
+ },
+ "Treasure Hoarder": {
+  "hp": 22000
+ },
+ "Trick or Treater": {
+  "hp": 10
+ },
+ "Typhoeus": {
+  "tiers": [
+   {
+    "hp": 2500000,
+    "label": "Tier I"
+   },
+   {
+    "hp": 10000000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 45000000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 150000000,
+    "label": "Tier IV"
+   }
+  ]
+ },
+ "Undead Skeleton": {
+  "dungeon": {
+   "master": {
+    "I": 4500000,
+    "II": 5400000,
+    "III": 6300000,
+    "IV": 7500000,
+    "V": 8400000,
+    "VI": 12800000,
+    "VII": 10500000
+   },
+   "normal": {
+    "I": 50000,
+    "II": 100000,
+    "III": 150000,
+    "IV": 200000,
+    "V": 250000,
+    "VI": 360000,
+    "VII": 360000
+   }
+  }
+ },
+ "Vanquisher": {
+  "hp": 10000000
+ },
+ "Vittomite": {
+  "hp": 6500
+ },
+ "Voidcrazed Maniac": {
+  "hp": 52500000
+ },
+ "Voidgloom Seraph": {
+  "tiers": [
+   {
+    "hp": 300000,
+    "label": "Tier I"
+   },
+   {
+    "hp": 12000000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 50000000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 210000000,
+    "label": "Tier IV"
+   }
+  ]
+ },
+ "Voidling": {
+  "hp": 60000
+ },
+ "Voidling Devotee": {
+  "hp": 8400000
+ },
+ "Voidling Extremist": {
+  "hp": 8000000
+ },
+ "Voidling Fanatic": {
+  "hp": 750000
+ },
+ "Voidling Radical": {
+  "hp": 17500000
+ },
+ "Volcanic Snail": {
+  "hp": 100000
+ },
+ "Water Hydra": {
+  "hp": 500000
+ },
+ "Water Worm": {
+  "hp": 50000
+ },
+ "Weaver Spider": {
+  "hp": 160
+ },
+ "Werewolf": {
+  "hp": 50000
+ },
+ "Wetwing": {
+  "hp": 8000
+ },
+ "Wiki Tiki": {
+  "hp": 75000000
+ },
+ "Wither Gourd": {
+  "hp": 11
+ },
+ "Wither Guard": {
+  "dungeon": {
+   "master": {
+    "VII": 300000000
+   },
+   "normal": {
+    "VII": 3500000
+   }
+  }
+ },
+ "Wither Husk": {
+  "dungeon": {
+   "master": {
+    "VII": 500000000
+   }
+  }
+ },
+ "Wither Miner": {
+  "dungeon": {
+   "master": {
+    "VII": 300000000
+   },
+   "normal": {
+    "VII": 10000000
+   }
+  }
+ },
+ "Wither Skeleton": {
+  "hp": 600000
+ },
+ "Wither Spectre": {
+  "hp": 700000
+ },
+ "Withermancer": {
+  "dungeon": {
+   "master": {
+    "IV": 31250000,
+    "V": 48000000,
+    "VI": 88000000,
+    "VII": 150000000
+   },
+   "normal": {
+    "IV": 180000,
+    "V": 352500,
+    "VI": 600000,
+    "VII": 1250000
+   }
+  }
+ },
+ "Wolf": {
+  "hp": 250
+ },
+ "Worm": {
+  "hp": 5
+ },
+ "Wraith": {
+  "hp": 15
+ },
+ "Yeti": {
+  "hp": 2000000
+ },
+ "Yog": {
+  "hp": 35000
+ },
+ "Zealot": {
+  "tiers": [
+   {
+    "hp": 13000,
+    "label": "Regular"
+   },
+   {
+    "hp": 13000,
+    "label": "Ender Chest"
+   },
+   {
+    "hp": 2000,
+    "label": "Special"
+   }
+  ]
+ },
+ "Zealot Bruiser": {
+  "tiers": [
+   {
+    "hp": 65000,
+    "label": "Normal"
+   },
+   {
+    "hp": 2000,
+    "label": "Special"
+   }
+  ]
+ },
+ "Zombie": {
+  "hp": 100
+ },
+ "Zombie Commander": {
+  "dungeon": {
+   "master": {
+    "VI": 160000000,
+    "VII": 250000000
+   },
+   "normal": {
+    "VI": 1700000,
+    "VII": 3500000
+   }
+  }
+ },
+ "Zombie Grunt": {
+  "dungeon": {
+   "master": {
+    "I": 1600000,
+    "II": 3000000
+   },
+   "normal": {
+    "I": 24000,
+    "II": 32400
+   }
+  }
+ },
+ "Zombie Knight": {
+  "dungeon": {
+   "master": {
+    "III": 7000000,
+    "IV": 10000000,
+    "V": 13500000,
+    "VI": 20000000,
+    "VII": 40000000
+   },
+   "normal": {
+    "III": 93500,
+    "IV": 198000,
+    "V": 322500,
+    "VI": 580000,
+    "VII": 1280000
+   }
+  }
+ },
+ "Zombie Lord": {
+  "dungeon": {
+   "master": {
+    "VII": 300000000
+   },
+   "normal": {
+    "VII": 5000000
+   }
+  }
+ },
+ "Zombie Soldier": {
+  "dungeon": {
+   "master": {
+    "III": 6000000,
+    "IV": 8750000,
+    "V": 12000000,
+    "VI": 18000000,
+    "VII": 36000000
+   },
+   "normal": {
+    "III": 77000,
+    "IV": 156000,
+    "V": 240000,
+    "VI": 500000,
+    "VII": 1200000
+   }
+  }
+ },
+ "Zombie Villager": {
+  "hp": 120
+ },
+ "Zombuddy": {
+  "hp": 5
+ },
+ "gorF": {
+  "hp": 40000
+ }
+}
