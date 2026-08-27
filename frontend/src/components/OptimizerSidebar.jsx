@@ -516,7 +516,9 @@ export default function OptimizerSidebar() {
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20'} lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-auto`}
+      className={`relative flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 max-h-[60vh] overflow-y-auto ${
+        state.status === 'loading' || state.status === 'ok' ? 'min-h-[60vh]' : ''
+      } ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20'} lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-auto`}
       style={desktopStyle}
     >
       {isDesktop &&
