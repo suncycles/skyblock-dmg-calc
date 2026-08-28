@@ -67,7 +67,7 @@ import {
   getAttributeMaxLevel,
 } from './attributes';
 import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
-import { derivePetDisplayName, getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from './petData';
+import { derivePetDisplayName, getMaxPetLevel } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
 import { getApplicableReforges } from './reforgeData';
@@ -1055,11 +1055,14 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
   return results;
 }
 
-// Pet candidates default to max effectiveness — highest real rarity tier, max level, and (for
-// Golden Dragon specifically, harmless no-op for every other pet) maxed Legendary Treasure/
-// Shining Scales inputs (see petData.js's MAX_GOLDEN_DRAGON_BANK_COINS/
-// SHINING_SCALES_MAX_GOLD_COLLECTION) — user-specified, so a candidate pet's real ceiling is what's
-// compared, not its stats at 0/0.
+// Pet candidates default to max effectiveness — highest real rarity tier and max level — so a
+// candidate pet's real ceiling is what's compared, not its stats at level 1. Golden Dragon's
+// Legendary Treasure/Shining Scales inputs are the one exception: those scale off the account's
+// real bank balance/Gold Ingot collection (account-level facts, not a per-item investment the
+// player chooses to max), so a real Hypixel import's numbers are used instead of an assumed max —
+// stashed on the pet slot's own modifiers regardless of which pet is actually equipped (see
+// lib/hypixelImport.js), same real-data-over-assumption treatment this file gives everywhere else
+// (user-confirmed 2026-08-27). Falls back to 0/0 for a from-scratch build with no import.
 async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
   const progression = PET_PROGRESSION_BY_MODE[mode];
   if (!progression) return [];
@@ -1079,8 +1082,8 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
           ...emptyPetModifiers(),
           level: getMaxPetLevel(candidate.petId),
           petItem: loadout.pet?.modifiers?.petItem || null,
-          bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS,
-          goldCollection: SHINING_SCALES_MAX_GOLD_COLLECTION,
+          bankCoins: loadout.pet?.modifiers?.bankCoins || 0,
+          goldCollection: loadout.pet?.modifiers?.goldCollection || 0,
         },
       },
     };
