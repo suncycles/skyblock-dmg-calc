@@ -4,8 +4,10 @@
 
 import { VARIANT_TIERS, getEquippedVariantTier } from './armorVariants';
 
-// Final Destination's Vivacious Darkness set bonus: +30 Strength (unconditional) and +100%
-// damage against Ender-type mobs. The Soulflow-cost/sneaking gate is assumed always active.
+// Final Destination's Vivacious Darkness set bonus: +30 Strength, +20 Attack Speed (both
+// unconditional) and +100% damage against Ender-type mobs. The Soulflow-cost/sneaking gate is
+// assumed always active. Real lore also lists +10 Speed, a 1.25x Intelligence multiplier, and
+// +200 Ferocity against Endermen specifically — none of those are tracked anywhere in this app.
 export const FINAL_DESTINATION_SET = [
   'FINAL_DESTINATION_HELMET',
   'FINAL_DESTINATION_CHESTPLATE',
@@ -13,6 +15,7 @@ export const FINAL_DESTINATION_SET = [
   'FINAL_DESTINATION_BOOTS',
 ];
 export const FINAL_DESTINATION_STRENGTH = 30;
+export const FINAL_DESTINATION_ATTACK_SPEED = 20;
 export const FINAL_DESTINATION_ENDER_DAMAGE_PERCENT = 100;
 
 // Vanquished's 1.1x is an undocumented hidden bonus (not stated in-game) — Damage Sources

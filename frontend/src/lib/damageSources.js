@@ -22,6 +22,7 @@ import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
 import {
   FINAL_DESTINATION_SET,
   FINAL_DESTINATION_STRENGTH,
+  FINAL_DESTINATION_ATTACK_SPEED,
   FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
   VANQUISHED_SET,
   VANQUISHED_SET_MULTIPLIER,
@@ -1640,6 +1641,7 @@ export async function collectDamageSources(
   // Full-set bonuses, checked positionally against the exact 4 real pieces.
   if (hasFullSet(loadout, ARMOR_SLOTS, FINAL_DESTINATION_SET)) {
     addBaseStat(out, 'strength', FINAL_DESTINATION_STRENGTH, 'Final Destination (Full Set)');
+    addBaseStat(out, 'bonus_attack_speed', FINAL_DESTINATION_ATTACK_SPEED, 'Final Destination (Full Set)');
     out.additiveConditional.push({
       id: 'final-destination-set-ender',
       label: 'Final Destination (Full Set)',
