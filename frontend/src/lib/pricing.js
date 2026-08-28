@@ -109,8 +109,12 @@ export function lookupCandidateCost(result, itemData) {
       const step = findStep(result.apply, 'selectItem');
       // `item.id` here is the abstract Power's own id (e.g. "STRONG"), not a real catalog item —
       // evaluatePowerStoneCandidates already stashes the real physical stone's id as `iconId`
-      // (for icon rendering), so reuse that for pricing rather than adding a new field.
-      return step ? priceOf(itemPrices, step.item.iconId) : null;
+      // (for icon rendering), so reuse that for pricing rather than adding a new field. The price
+      // feed's entry for that id is a single unit, but unlocking the Power actually takes 9 of it
+      // (user-confirmed) — the real cost is 9x the per-unit market price.
+      if (!step) return null;
+      const unitPrice = priceOf(itemPrices, step.item.iconId);
+      return unitPrice != null ? unitPrice * 9 : null;
     }
     case 'Reforge': {
       const step = findStep(result.apply, 'applyReforge');
