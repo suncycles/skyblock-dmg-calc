@@ -713,6 +713,22 @@ export function BuildProvider({ children }) {
     return !!id && ARMOR_VARIANT_FAMILIES.some((family) => id.includes(family));
   }
 
+  // Which broad weapon family a real catalog `category` belongs to — enchants meaningfully differ
+  // across these (Sharpness/Critical are melee-only, a Bow's own enchants don't apply to a Sword,
+  // Wand's are Ability-focused), so a persisted-upgrades stash (see selectItem/removeSlot below)
+  // only carries across a weapon swap WITHIN one family, never across (user-specified 2026-08-29,
+  // bug report: Sharpness persisting onto a freshly-picked Bow). Real ids confirmed against
+  // worker/src/data/weapons.json's `category` field — SWORD/DUNGEON SWORD/DUNGEON LONGSWORD/
+  // GAUNTLET are all melee weapons; only 'weapon'-slot swaps ever check this (armor/equipment
+  // categories are already fixed per slot, so there's no cross-type case there).
+  function weaponTypeGroup(category) {
+    const c = (category || '').toUpperCase();
+    if (c.includes('BOW')) return 'bow';
+    if (c === 'WAND') return 'wand';
+    if (c.includes('SWORD') || c === 'GAUNTLET') return 'melee';
+    return null;
+  }
+
   // Equips `item` into `slot`, resetting modifiers to defaults — except Accessory, whose Magical
   // Power/Tuning carry over across Power Stone switches, and weapon/armor/equipment, which restore
   // whatever modifiers (recomb, enchants, gemstones, reforge, ...) were last seen in this slot
@@ -723,12 +739,27 @@ export function BuildProvider({ children }) {
   // here. Stars are handled separately below (isKuudraArmorId) and read straight off `prev[slot]`
   // — the item actually being replaced — rather than only the remove-then-repick stash, so a
   // direct swap (the common path, both from Hex and from a Recommended Upgrade) carries them too.
+  //
+  // EXCEPT when the weapon slot's swap crosses a real weapon family boundary (Sword/Longsword/
+  // Gauntlet <-> Bow <-> Wand — see weaponTypeGroup) — a persisted Sharpness/reforge/etc. from a
+  // Sword doesn't apply to a Bow at all in real Hypixel, so that carry-over (both the stash AND
+  // the direct-swap `prev[slot]` path) is skipped entirely and the new item starts fully clean,
+  // same as a genuinely fresh pick (user-confirmed 2026-08-29, bug report: Sharpness persisting
+  // onto a freshly-picked Bow).
   const selectItem = useCallback((slot, item) => {
     setLoadout((prev) => {
-      const stashed = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
+      const stashedRaw = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
+      // Normalizes the pre-2026-08-29 stash shape (a bare modifiers object) alongside the current
+      // one ({ modifiers, category }) — an old entry has no `category` to compare, so it's treated
+      // as same-family (permissive default: never worse than what already shipped).
+      const stashedEntry = stashedRaw ? (stashedRaw.modifiers ? stashedRaw : { modifiers: stashedRaw, category: null }) : null;
+      const prevCategory = prev[slot]?.item?.category ?? stashedEntry?.category ?? null;
+      const crossesWeaponType =
+        slot === 'weapon' && !!weaponTypeGroup(prevCategory) && weaponTypeGroup(prevCategory) !== weaponTypeGroup(item.category);
+      const stashed = crossesWeaponType ? null : stashedEntry?.modifiers;
       let gearModifiers = stashed ? { ...emptyModifiers(), ...stashed } : emptyModifiers();
       if (slot !== 'pet' && slot !== 'accessory') {
-        const carriedStars = prev[slot]?.modifiers?.stars ?? stashed?.stars ?? 0;
+        const carriedStars = crossesWeaponType ? 0 : (prev[slot]?.modifiers?.stars ?? stashed?.stars ?? 0);
         const maxStars = getMaxStarsForItem(item);
         gearModifiers.stars = isKuudraArmorId(item.id) ? 0 : Math.max(0, Math.min(maxStars, carriedStars));
         if (gearModifiers.stars < MASTER_STAR_MIN_BASE_STARS) gearModifiers.masterStars = 0;
@@ -840,7 +871,12 @@ export function BuildProvider({ children }) {
       // already carries over via its own `prev.accessory` read in selectItem (reachable without
       // going through remove first).
       if (slot !== 'pet' && slot !== 'accessory') {
-        lastGearModifiersRef.current = { ...lastGearModifiersRef.current, [slot]: prev[slot].modifiers };
+        // `category` rides along so selectItem can tell a same-family repick (Sword -> another
+        // Sword) apart from a cross-family one (Sword -> Bow) — see weaponTypeGroup above.
+        lastGearModifiersRef.current = {
+          ...lastGearModifiersRef.current,
+          [slot]: { modifiers: prev[slot].modifiers, category: prev[slot].item?.category ?? null },
+        };
         localStorage.setItem(LAST_GEAR_MODIFIERS_KEY, JSON.stringify(lastGearModifiersRef.current));
       }
       const next = { ...prev };
