@@ -22,6 +22,7 @@ import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../lib/armorSetBonuses';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { MOB_TYPE_SYMBOLS, STAT_SYMBOLS } from '../lib/damageSymbols';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
@@ -42,6 +43,11 @@ const panel =
 // few one-off panels below it) so the dense stat page reads as consistently-structured sections
 // instead of a pile of bolded labels at varying sizes.
 const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
+
+// Final Destination's Ender-only Strength/Attack Speed (see finalDamage.js's selectBaseStats) —
+// mirrored here so the (Base) Stats panel's displayed total/breakdown matches what Final Damage
+// actually used, same reason as isEnderTarget above.
+const FINAL_DESTINATION_BONUS_BY_KEY = { strength: FINAL_DESTINATION_STRENGTH, bonus_attack_speed: FINAL_DESTINATION_ATTACK_SPEED };
 
 // Which stat the Enrichments count currently applies to — see damageSources.js's Enrichments source line.
 const ENRICHMENT_TYPES = [
@@ -147,6 +153,11 @@ export default function DamageSources({ embedded = false }) {
   // selected mob" treatment as appliedToAnyMob below. Drives the (Base) Stats panel's Challenger's/
   // Mythos doubled-stat display, since that panel is one shared block, not per-mob.
   const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
+  // Same "applies to at least one selected mob" treatment, for Final Destination's Ender-only
+  // Strength/Attack Speed (see finalDamage.js's selectBaseStats — the real Final Damage number
+  // already reflects this per-mob; this just keeps the (Base) Stats panel's displayed total and
+  // source breakdown consistent with it rather than silently disagreeing).
+  const isEnderTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Ender'));
 
   useEffect(() => {
     const token = ++tokenRef.current;
@@ -422,6 +433,13 @@ export default function DamageSources({ embedded = false }) {
             mobResults.map((mobResult) => {
               const { name, types } = mobResult;
               const dps = computeDpsBreakdown(result, { name, types }, loadout, useDungeonizedStats, useMasterMode);
+              // Mage Beam fires alongside every melee hit (real mechanic, not Mage-Mode-specific
+              // in-game) — only added into this page's own Total DPS while Mage Mode is also
+              // toggled on, since that's when a staff/beam build's real damage output matters here
+              // (user-confirmed 2026-08-28). computeDpsBreakdown's own `total` deliberately excludes
+              // it, so every other DPS-mode consumer (Optimizer's Slayer/Diana/Dungeon-Archer
+              // metric, etc.) is unaffected.
+              const totalDps = dps.total + (mageMode ? dps.beam : 0);
               return (
                 <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                   <div className="flex items-center justify-between flex-wrap gap-1">
@@ -462,10 +480,21 @@ export default function DamageSources({ embedded = false }) {
                         <span className="text-right font-mono">{Math.round(dps.fireAspect).toLocaleString()}</span>
                         <span>Crimson Swipe DPS ({DPS_HITS_PER_SECOND.crimsonSwipe}/s)</span>
                         <span className="text-right font-mono">{Math.round(dps.crimsonSwipe).toLocaleString()}</span>
+                        {mageMode && (
+                          <>
+                            <span>Mage Beam DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
+                            <span className="text-right font-mono">{Math.round(dps.beam).toLocaleString()}</span>
+                          </>
+                        )}
                       </div>
+                      {mageMode && (
+                        <div className="text-[10px] italic text-neutral-600">
+                          Total DPS includes Mage Beam damage, since Mage Mode is on.
+                        </div>
+                      )}
                       <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
                         <span className="text-sm font-bold text-black">Total DPS</span>
-                        <span className="text-2xl font-mono font-bold text-black">{Math.round(dps.total).toLocaleString()}</span>
+                        <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
                       </div>
                       {(() => {
                         const appliedIds = [...(mobResult.finalDamage?.appliedIds || [])];
@@ -480,7 +509,7 @@ export default function DamageSources({ embedded = false }) {
                           <Suspense fallback={<div className="h-[204px]" />}>
                             <DpsByHitGraph
                               perStackVenomousDamage={dps.venomousProc?.finalDamage || 0}
-                              steadyOtherDps={dps.total - dps.venomous}
+                              steadyOtherDps={totalDps - dps.venomous}
                               meleeBoostDelta={meleeBoostDelta}
                               firstHitBoostCount={firstHitBoostCount}
                               hasVenomous={!!dps.venomousProc}
@@ -644,6 +673,8 @@ export default function DamageSources({ embedded = false }) {
                           {finalDamageWithFabledMax
                             ? `${finalDamage.finalDamage.toLocaleString()} ~ ${finalDamageWithFabledMax.finalDamage.toLocaleString()}`
                             : finalDamage.finalDamage.toLocaleString()}
+                          {result.overloadBonusPercent > 0 &&
+                            ` ☆ ${Math.floor(finalDamage.finalDamage * (1 + result.overloadBonusPercent / 100)).toLocaleString()}`}
                         </span>
                       </div>
                       {finalDamageWithoutVanquished && (
@@ -651,16 +682,6 @@ export default function DamageSources({ embedded = false }) {
                           <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
                           <span className="text-base font-mono text-neutral-700">
                             {finalDamageWithoutVanquished.finalDamage.toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      {result.overloadBonusPercent > 0 && (
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-xs text-neutral-700">
-                            Overload Damage (Mega Crit, +{result.overloadBonusPercent}%)
-                          </span>
-                          <span className="text-base font-mono text-neutral-700">
-                            {Math.floor(finalDamage.finalDamage * (1 + result.overloadBonusPercent / 100)).toLocaleString()}
                           </span>
                         </div>
                       )}
@@ -686,9 +707,8 @@ export default function DamageSources({ embedded = false }) {
                 empty=""
               >
                 {visibleStatKeys.map((key) => {
-                  const sources = result.baseStatSources[key];
                   const isExpanded = expandedStat === key;
-                  const displayed = !useDungeonizedStats
+                  const baseDisplayed = !useDungeonizedStats
                     ? isMythologicalTarget
                       ? result.mythologicalBaseStats[key]
                       : result.baseStats[key]
@@ -699,6 +719,20 @@ export default function DamageSources({ embedded = false }) {
                       : isMythologicalTarget
                         ? result.mythologicalDungeonizedBaseStats[key]
                         : result.dungeonizedBaseStats[key];
+                  const finalDestinationBonus =
+                    result.hasFinalDestinationFullSet && isEnderTarget ? FINAL_DESTINATION_BONUS_BY_KEY[key] || 0 : 0;
+                  const displayed = baseDisplayed + finalDestinationBonus;
+                  const sources = finalDestinationBonus
+                    ? [
+                        ...result.baseStatSources[key],
+                        {
+                          label: 'Final Destination (Full Set)',
+                          value: finalDestinationBonus,
+                          dungeonizedValue: finalDestinationBonus,
+                          masterDungeonizedValue: finalDestinationBonus,
+                        },
+                      ]
+                    : result.baseStatSources[key];
                   return (
                     <div key={key}>
                       <div

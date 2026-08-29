@@ -21,8 +21,6 @@ import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from './armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from './equipmentSlots';
 import {
   FINAL_DESTINATION_SET,
-  FINAL_DESTINATION_STRENGTH,
-  FINAL_DESTINATION_ATTACK_SPEED,
   FINAL_DESTINATION_ENDER_DAMAGE_PERCENT,
   VANQUISHED_SET,
   VANQUISHED_SET_MULTIPLIER,
@@ -1257,6 +1255,13 @@ function collectAttributeEntries(attributes, loadout, out) {
   addPercentStatBoost(out, 'strength', unlimitedPowerPercent, 'Unlimited Power', currentStatTotals(out, 'strength'));
   addPercentStatBoost(out, 'crit_damage', unlimitedEnergyPercent, 'Unlimited Energy', currentStatTotals(out, 'crit_damage'));
   addPercentStatBoost(out, 'intelligence', maximalTormentPercent, 'Unlimited Torment', currentStatTotals(out, 'intelligence'));
+
+  // Terminator's real lore states this outright: "Divides your Crit Chance by 4!" — a flat -75%
+  // reduction (x0.25) on the fully-summed Crit Chance, same final-stage multiplier treatment as
+  // Unlimited Power/Energy above (must run after every other Crit Chance source, including those).
+  if (loadout.weapon?.item?.id === 'TERMINATOR') {
+    addPercentStatBoost(out, 'crit_chance', -75, 'Terminator (Divides Crit Chance by 4)', currentStatTotals(out, 'crit_chance'));
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -1290,6 +1295,12 @@ export async function collectDamageSources(
     // known — added AFTER the statsMultiplier stage below already ran, so it's deliberately never
     // itself boosted by Superior Dragon/Unlimited Power/etc (user-specified 2026-08-26).
     bestiaryMaxedMobs,
+    // Stashed the same way — Final Destination's Vivacious Darkness set bonus (Strength/Attack
+    // Speed included, not just its +100% Ender damage line) only actually activates against
+    // Ender-type mobs in real gameplay (user-confirmed 2026-08-27), so it's applied in
+    // finalDamage.js's selectBaseStats once the specific target mob is known, same as the
+    // Bestiary Strength bonus above.
+    hasFinalDestinationFullSet: hasFullSet(loadout, ARMOR_SLOTS, FINAL_DESTINATION_SET),
     baseStats: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     baseStatSources: Object.fromEntries(TRACKED_STATS.map((key) => [key, []])),
     // Gear-only deltas (dungeonized/master total minus normal total, summed across equipped
@@ -1638,10 +1649,11 @@ export async function collectDamageSources(
     }
   }
 
-  // Full-set bonuses, checked positionally against the exact 4 real pieces.
+  // Full-set bonuses, checked positionally against the exact 4 real pieces. Final Destination's
+  // Strength/Attack Speed pieces are NOT applied here — the whole Vivacious Darkness bonus only
+  // activates against Ender-type mobs (see out.hasFinalDestinationFullSet's comment above), so
+  // those are applied in finalDamage.js's selectBaseStats instead, once the target mob is known.
   if (hasFullSet(loadout, ARMOR_SLOTS, FINAL_DESTINATION_SET)) {
-    addBaseStat(out, 'strength', FINAL_DESTINATION_STRENGTH, 'Final Destination (Full Set)');
-    addBaseStat(out, 'bonus_attack_speed', FINAL_DESTINATION_ATTACK_SPEED, 'Final Destination (Full Set)');
     out.additiveConditional.push({
       id: 'final-destination-set-ender',
       label: 'Final Destination (Full Set)',

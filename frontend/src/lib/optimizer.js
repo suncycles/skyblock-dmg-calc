@@ -552,6 +552,76 @@ function withCost(result, itemData) {
   return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost ? result.percentIncrease / cost : null };
 }
 
+// Drops a candidate when another real-cost option in the same mutually-exclusive group (same
+// slot's gear pick, same reforge slot, same gemstone socket, same enchant id on the same item,
+// same attribute, ...) is both cheaper (or equal) AND a bigger increase (or equal), strictly
+// better on at least one axis — i.e. never recommend something dominated by a real alternative for
+// the same choice (user-confirmed 2026-08-27). Candidates with no real cost ('?') never dominate
+// and are never dropped — an unconfirmed cost can't be shown to be strictly worse. `groupKeyFn`
+// defaults to "the whole list is one group", correct for an already slot-scoped list like
+// runOptimizer's `slots[slot]`; the mixed `otherResults` list needs per-category keys instead
+// (see dominanceGroupKey) since most of those categories aren't mutually exclusive with each other.
+function dropDominated(results, groupKeyFn = () => '_') {
+  const byGroup = new Map();
+  for (const r of results) {
+    if (typeof r.cost !== 'number') continue; // unpriced — can't dominate, can't be judged dominated
+    const key = groupKeyFn(r);
+    if (key == null) continue; // not a recognized mutually-exclusive group — leave alone
+    if (!byGroup.has(key)) byGroup.set(key, []);
+    byGroup.get(key).push(r);
+  }
+  const dominated = new Set();
+  for (const group of byGroup.values()) {
+    for (const a of group) {
+      const isDominated = group.some(
+        (b) => b !== a && b.cost <= a.cost && b.percentIncrease >= a.percentIncrease && (b.cost < a.cost || b.percentIncrease > a.percentIncrease),
+      );
+      if (isDominated) dominated.add(a);
+    }
+  }
+  return dominated.size ? results.filter((r) => !dominated.has(r)) : results;
+}
+
+// otherResults mixes categories with very different real-world mutual-exclusivity rules — most
+// aren't alternatives to each other at all (a player gets both a Sharpness upgrade AND a Critical
+// upgrade, both gemstone sockets, every attribute's own level), so grouping by category+slot alone
+// would wrongly hide a genuinely independent option. Returns null (never filtered) for anything not
+// explicitly a real single-choice group, including the Optimizer's own Accessory-related categories
+// (New Accessory/Accessory Upgrade/Recombobulate/Perfect Gemstones/Magical Power) — those aren't
+// evaluated here at all (see accessoryOptimizer.js), and whether two different real accessories are
+// truly alternatives to each other isn't as clear-cut as a single gear slot.
+function dominanceGroupKey(result) {
+  switch (result.category) {
+    case 'Gemstone': {
+      const step = findStep(result.apply, 'setGemstone');
+      return step ? `Gemstone:${step.slot}:${step.index}` : null;
+    }
+    case 'Enchant':
+    case 'Ultimate Enchant': {
+      const step = findStep(result.apply, 'applyEnchant');
+      return step ? `${result.category}:${step.slot}:${step.id}` : null;
+    }
+    case 'Attribute': {
+      const step = findStep(result.apply, 'setAttributeLevel');
+      return step ? `Attribute:${step.id}` : null;
+    }
+    case 'Power Stone': // one global Accessory Power selection at a time
+    case 'Pet Item': // one held pet item at a time
+      return result.category;
+    case 'Reforge':
+    case 'Stars':
+    case 'Master Stars':
+    case 'Full Set':
+      return `${result.category}:${result.slot}`;
+    default:
+      return null;
+  }
+}
+
+function findStep(apply, type) {
+  return (apply || []).find((s) => s.type === type);
+}
+
 function findTierIndex(progression, matches) {
   for (let i = 0; i < progression.length; i++) {
     if (progression[i].some(matches)) return i;
@@ -1731,13 +1801,16 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
-  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = slots[slot].map((r) => withCost(r, itemData));
+  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = dropDominated(slots[slot].map((r) => withCost(r, itemData)));
 
   return {
     baselineValue,
     bonusAttackSpeed: baselineSources.baseStats.bonus_attack_speed || 0,
     slots,
-    otherResults: otherResults.map((r) => withCost(r, itemData)),
+    otherResults: dropDominated(
+      otherResults.map((r) => withCost(r, itemData)),
+      dominanceGroupKey,
+    ),
   };
 }
 

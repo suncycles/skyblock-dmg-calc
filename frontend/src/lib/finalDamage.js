@@ -29,7 +29,7 @@ import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobT
 import { ABILITY_DAMAGE_TABLE } from './abilityDamage';
 import { getMobLocations } from './mobLocations';
 import { getBestiaryStrengthBonus } from './bestiaryStrength';
-import { hasFullSet, computeCrimsonSwipeInfo } from './armorSetBonuses';
+import { hasFullSet, computeCrimsonSwipeInfo, FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 import { computeMobDamageReduction, computeMobMagicResistance } from './mobDefenses';
 
@@ -116,7 +116,17 @@ function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob) {
   // collectBaseStats/collectAttributeEntries, well before this function is ever called), so it's
   // deliberately excluded from what those multipliers scale off of — user-specified 2026-08-26.
   const bestiaryBonus = getBestiaryStrengthBonus(mob?.name, sources.bestiaryMaxedMobs);
-  return bestiaryBonus ? { ...base, strength: (base.strength || 0) + bestiaryBonus } : base;
+  const withBestiary = bestiaryBonus ? { ...base, strength: (base.strength || 0) + bestiaryBonus } : base;
+  // Final Destination's Vivacious Darkness Strength/Attack Speed only activates against
+  // Ender-type mobs in real gameplay (user-confirmed 2026-08-27) — not just its +100% Ender
+  // damage line (damageSources.js's additiveConditional entry, gated the normal way).
+  const isEnder = !!mob?.types?.includes('Ender');
+  if (!sources.hasFinalDestinationFullSet || !isEnder) return withBestiary;
+  return {
+    ...withBestiary,
+    strength: (withBestiary.strength || 0) + FINAL_DESTINATION_STRENGTH,
+    bonus_attack_speed: (withBestiary.bonus_attack_speed || 0) + FINAL_DESTINATION_ATTACK_SPEED,
+  };
 }
 
 // `sources` is damageSources.js's collectDamageSources() result; `mob` is {name, types}.
@@ -139,6 +149,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
       bonusModifiers: 0,
       damageReductionPercent: 0,
       finalDamage: 0,
+      finalDamageNonCrit: 0,
       appliedIds: new Set(),
     };
   }
@@ -191,11 +202,11 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   // (DPS breakdown's procs, Mage Beam) automatically inherits it too, no separate application
   // needed there.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
-  const finalDamage = Math.floor(
-    (initialDamage * additiveMultiplier * weaponBonusMultiplier * multiplicativeMultiplier + bonusModifiers) *
-      (1 + baseStats.crit_damage / 100) *
-      (1 - damageReductionPercent / 100),
-  );
+  const preCritDamage = initialDamage * additiveMultiplier * weaponBonusMultiplier * multiplicativeMultiplier + bonusModifiers;
+  const finalDamage = Math.floor(preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100));
+  // Same formula as finalDamage, minus the Crit Damage factor — a non-critical hit's real damage.
+  // Stored for computeDpsBreakdown's crit-chance-weighted DPS below; not shown as its own panel.
+  const finalDamageNonCrit = Math.floor(preCritDamage * (1 - damageReductionPercent / 100));
 
   return {
     initialDamage,
@@ -207,6 +218,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
     bonusModifiers,
     damageReductionPercent,
     finalDamage,
+    finalDamageNonCrit,
     appliedIds,
   };
 }
@@ -464,6 +476,15 @@ export const DPS_HITS_PER_SECOND = {
   crimsonSwipe: 1,
 };
 
+// Duplex (Reiterate) ultimate enchant, bow-only: a guaranteed extra arrow dealing +4%/level of
+// the first arrow's damage — real lore, confirmed level 1-5: 4/8/12/16/20% (level 5 -> 1.2x DPS,
+// user-confirmed 2026-08-29). https://hypixelskyblock.minecraft.wiki/w/Duplex
+const DUPLEX_DAMAGE_PERCENT_PER_LEVEL = 4;
+function getDuplexLevel(loadout) {
+  const ultimate = loadout.weapon?.modifiers?.ultimateEnchantment;
+  return ultimate?.id?.toLowerCase() === 'ultimate_reiterate' ? ultimate.level || 0 : 0;
+}
+
 // `sources`/`mob` mirror computeFinalDamage's params (`useDungeonizedStats`/`useMasterMode` too);
 // everything DPS-mode needs — steady-state melee hit plus every proc — is derived here from
 // scratch rather than reusing a caller's already-computed melee-mode finalDamage/procs, since
@@ -474,7 +495,37 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
   const steadyFinalDamage = computeFinalDamage(sources, mob, useDungeonizedStats, useMasterMode, true);
   const meleeFinalDamage = steadyFinalDamage.finalDamage;
-  const melee = meleeFinalDamage * meleeHitsPerSecond;
+
+  // Crit-chance-weighted expected damage per arrow/hit: below 100% real Crit Chance, some hits
+  // don't crit at all (finalDamageNonCrit instead of finalDamage); with Overload equipped on a
+  // bow, any Crit Chance beyond 100% becomes a chance for that hit to be a guaranteed "Mega Crit"
+  // instead of a normal crit (user-confirmed formula, 2026-08-29: OverloadChance = FinalCritChance
+  // - 100, evaluated after every modifier including Terminator's divide-by-4 and Dungeon boosts).
+  const critChance = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob).crit_chance || 0;
+  const hasOverload = (sources.overloadBonusPercent || 0) > 0;
+  const critHitChance = Math.min(Math.max(critChance, 0), 100) / 100;
+  const megaCritChance = hasOverload ? Math.min(Math.max(0, critChance - 100), 100) / 100 : 0;
+  const normalCritChance = critHitChance - megaCritChance;
+  const nonCritChance = 1 - critHitChance;
+  const expectedArrowDamage =
+    nonCritChance * steadyFinalDamage.finalDamageNonCrit +
+    normalCritChance * meleeFinalDamage +
+    megaCritChance * meleeFinalDamage * (1 + (sources.overloadBonusPercent || 0) / 100);
+
+  // Duplex/Terminator: Terminator's real lore ("Shoots 3 arrows at once") means its volley is 3x
+  // the single-arrow expected damage. Duplex does not multiply all 3 arrows on Terminator — only
+  // one of the three gets the Duplex bonus, the other two are unmultiplied (user-confirmed
+  // 2026-08-29): arrow*(1+4%*level) + 2*arrow, instead of 3*arrow*(1+4%*level) elsewhere.
+  const duplexLevel = getDuplexLevel(loadout);
+  const isTerminator = loadout.weapon?.item?.id === 'TERMINATOR';
+  const duplexMultiplier = 1 + (DUPLEX_DAMAGE_PERCENT_PER_LEVEL * duplexLevel) / 100;
+  const bowVolleyDamage = isTerminator
+    ? duplexLevel > 0
+      ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
+      : expectedArrowDamage * 3
+    : expectedArrowDamage * duplexMultiplier;
+
+  const melee = bowVolleyDamage * meleeHitsPerSecond;
   const venomousProc = computeVenomousProcDamage(sources, mob, meleeFinalDamage);
   const thunderlordProc = computeEnchantProcDamage(meleeFinalDamage, sources.thunderlordProc);
   const fireAspectProc = computeEnchantProcDamage(meleeFinalDamage, sources.fireAspectProc);
@@ -487,18 +538,33 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   const thunderlord = (thunderlordProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.thunderlord;
   const fireAspect = (fireAspectProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.fireAspect;
   const crimsonSwipe = (crimsonSwipeProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.crimsonSwipe;
+  // Mage Beam fires alongside (not instead of) every melee hit (see computeMageStaffBeamDamage's
+  // own comment) — same real per-second rate as melee, since it's the same swing. Not folded into
+  // `total` here (every other caller of this function — the Optimizer's Slayer/Diana/Dungeon-
+  // Archer DPS metric, the by-hit graph, etc. — intentionally means melee-family DPS only, the
+  // Optimizer's own separate 'dungeon_mage_beam' mode already covers Beam-focused ranking).
+  // DamageSources.jsx's own DPS view adds this in on top of `total` when Mage Mode is also active
+  // (user-confirmed 2026-08-28), and notes as much on-screen.
+  const beamProc = computeMageStaffBeamDamage(sources, mob, meleeFinalDamage, useDungeonizedStats, useMasterMode);
+  const beam = beamProc.finalDamage * meleeHitsPerSecond;
   return {
     melee,
     venomous,
     thunderlord,
     fireAspect,
     crimsonSwipe,
+    beam,
     meleeHitsPerSecond,
     total: melee + venomous + thunderlord + fireAspect + crimsonSwipe,
     venomousProc,
+    beamProc,
     // Steady-state per-hit melee damage (excludes First Strike/Triple Strike) — exposed so
     // DamageSources.jsx's by-hit graph can compare it against the opening-hit(s)' real (boosted)
     // per-hit value to plot the DPS dip once those enchants stop applying.
     meleeFinalDamage,
+    // Crit-chance/Overload/Duplex breakdown behind `melee` above — exposed for display/debugging.
+    nonCritChance,
+    megaCritChance,
+    duplexLevel,
   };
 }
