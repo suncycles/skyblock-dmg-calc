@@ -213,11 +213,21 @@ const MISSING_CATEGORY_ENCHANTS = {
   BOOTS: ['ultimate_habanero_tactics'],
 };
 
-// Same {enchants: {CATEGORY: [ids]}} shape as itemData.enchants, patched with MISSING_CATEGORY_ENCHANTS.
+// The inverse of MISSING_CATEGORY_ENCHANTS above — enchants NEU-REPO's per-category lists WRONGLY
+// include. User-confirmed 2026-08-29: Chimera cannot actually be applied to a Bow in-game, despite
+// NEU-REPO's own BOW category list including 'ultimate_chimera'.
+const EXCLUDED_CATEGORY_ENCHANTS = {
+  BOW: ['ultimate_chimera'],
+};
+
+// Same {enchants: {CATEGORY: [ids]}} shape as itemData.enchants, patched with
+// MISSING_CATEGORY_ENCHANTS/EXCLUDED_CATEGORY_ENCHANTS.
 export function getCategoryEnchantIds(enchantsMeta, category) {
   const base = (enchantsMeta && enchantsMeta.enchants && enchantsMeta.enchants[category]) || [];
   const missing = (MISSING_CATEGORY_ENCHANTS[category] || []).filter((id) => !base.includes(id));
-  return missing.length > 0 ? [...base, ...missing] : base;
+  const combined = missing.length > 0 ? [...base, ...missing] : base;
+  const excluded = EXCLUDED_CATEGORY_ENCHANTS[category];
+  return excluded ? combined.filter((id) => !excluded.includes(id)) : combined;
 }
 
 // Enchant ids whose real display name titleCaseEnchantId's default rule gets wrong.

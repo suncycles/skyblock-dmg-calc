@@ -31,7 +31,7 @@
 //   option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
-import { computeAbilityDamage, computeDpsBreakdown, computeMageStaffBeamDamage } from './finalDamage';
+import { computeAbilityDamage, computeDpsBreakdown } from './finalDamage';
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import {
@@ -798,8 +798,10 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
 
   if (modeConfig.metric === 'beam') {
-    const beam = computeMageStaffBeamDamage(sources, mob, dps.meleeFinalDamage, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
-    return { value: beam.finalDamage, sources };
+    // dps.beamProc is already computed off the crit-chance-weighted expected hit damage (see
+    // computeDpsBreakdown) — reused here rather than recomputed from dps.meleeFinalDamage (which
+    // assumes a guaranteed crit), so this metric reflects real Crit Chance/Overload too.
+    return { value: dps.beamProc.finalDamage, sources };
   }
 
   return { value: dps.total, sources };
@@ -1530,16 +1532,25 @@ function hasFabledReforgeEquipped(loadout) {
   return ['weapon', ...EQUIPMENT_SLOTS].some((slot) => loadout[slot]?.modifiers?.reforge === FABLED_REFORGE_NAME);
 }
 
-async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob) {
+// Dungeon/Archer only (user-specified 2026-08-29, "for ease of computation" — brute-forcing the
+// full ~130-entry real reforge catalog across all 4 equipment slots on top of Dungeon/Archer's own
+// already-large 26-bow weapon pool got slow): equipment reforges (not weapon — that stays fully
+// brute-forced) narrow to just these 4 real reforges.
+const DUNGEON_ARCHER_EQUIPMENT_REFORGE_NAMES = new Set(['Blended', 'Waxed', 'Menacing', 'Strengthened']);
+
+async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const results = [];
   for (const slot of ['weapon', ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item) continue;
     const currentName = equipped.modifiers.reforge || null;
-    const applicable = [
+    let applicable = [
       ...getApplicableReforges(itemData.reforges, equipped.item),
       ...getApplicableReforges(itemData.reforgeStones, equipped.item),
     ];
+    if (mode === 'dungeon_archer' && slot !== 'weapon') {
+      applicable = applicable.filter((r) => DUNGEON_ARCHER_EQUIPMENT_REFORGE_NAMES.has(r.name));
+    }
     for (const reforge of applicable) {
       if (reforge.name === currentName) continue;
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: reforge.name } } };
@@ -1828,7 +1839,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
-    evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
     evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
