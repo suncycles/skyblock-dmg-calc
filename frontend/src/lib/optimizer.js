@@ -7,10 +7,10 @@
 // Two kinds of candidates:
 // - Curated progression lists (weapons, armor pieces, equipment, pets) — most of the catalog is
 //   either irrelevant or has no modeled damage effect in this calculator, so these are
-//   hand-authored worst-to-best tier lists, confirmed with the user. Slayer and Mage (including
-//   Dungeon/Mage Beam and Dungeon/Mage Ability, which share Mage's curated gear) have one;
-//   Dungeon-Archer only surfaces the brute-forced categories below until provided. Tiers are
-//   ordered worst -> best; multiple entries in one tier are sidegrades — every sidegrade is
+//   hand-authored worst-to-best tier lists, confirmed with the user. Slayer, Mage (including
+//   Dungeon/Mage Beam and Dungeon/Mage Ability, which share Mage's curated gear), and Dungeon/
+//   Archer all have one — Dungeon/Archer's own weapon chain is the one exception noted below (a
+//   flat brute-forced list of every real Bow, not a hand-ordered tier list). Tiers are
 //   always evaluated (even the ones matching the player's current tier), since one may
 //   numerically beat another despite being nominally "equal". Every tier from the player's
 //   current position onward is walked and every genuine improvement offered — except real
@@ -76,16 +76,15 @@ import { getSpecialConfig } from './specialWeapons';
 import { countGemstoneSlots, getAllowedGemsForSlotType } from './gemstones';
 import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
-// `disabled` (user-specified 2026-08-27, temporary): only Slayer/Diana are selectable for now —
-// the other 4 stay visible but inert until their own curated progressions get the same real
-// vetting Slayer/Diana already have.
+// All 6 modes now have their own real, user-vetted curated progression (see below) — re-enabled
+// 2026-08-29 (previously gated `disabled: true` pending that vetting).
 export const OPTIMIZER_MODES = [
   { id: 'slayer', label: 'Slayer', icon: '/images/manual/slayer.webp' },
   { id: 'diana', label: 'Diana', icon: '/images/manual/diana.webp' },
-  { id: 'mage', label: 'Mage', disabled: true },
-  { id: 'dungeon_archer', label: 'Dungeon / Archer', disabled: true },
-  { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam', disabled: true },
-  { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability', disabled: true },
+  { id: 'mage', label: 'Mage' },
+  { id: 'dungeon_archer', label: 'Dungeon / Archer' },
+  { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam' },
+  { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability' },
 ];
 
 // Shared between OptimizerSidebar.jsx (the embedded Landing panel) and Optimizer.jsx (the
@@ -371,6 +370,74 @@ const SLAYER_MOB_TYPE_TO_WEAPON_CHAINS = {
   Animal: ['wolf'],
 };
 
+// Dungeon/Archer weapon progression (user-specified 2026-08-29: "only recommend Bows"). Unlike
+// every other weapon chain in this file, there's no hand-authored worst-to-best order here — every
+// real Bow-category weapon (confirmed against worker/src/data/weapons.json, 26 total) sits in one
+// flat sidegrade tier instead, and real computed DPS decides the ranking, the same "no clear
+// universal best, always compare all" treatment SLAYER_PET_PROGRESSION already gets below. This is
+// expected to converge on Terminator (its real "3 arrows at once" + Duplex + Overload mechanics
+// give it very high real DPS, confirmed live this session) without hardcoding that as an assumed
+// endpoint — flag if a different bow should outrank it once real numbers are checked.
+const DUNGEON_ARCHER_WEAPON_PROGRESSION = {
+  bow: [
+    [
+      { id: 'BOW' },
+      { id: 'MIRRORED_BOW' },
+      { id: 'DECENT_BOW' },
+      { id: 'PRISMARINE_BOW' },
+      { id: 'SAVANA_BOW' },
+      { id: 'WITHER_BOW' },
+      { id: 'ARTISANAL_SHORTBOW' },
+      { id: 'ENDER_BOW' },
+      { id: 'BINGBOW' },
+      { id: 'DRAGON_SHORTBOW' },
+      { id: 'END_STONE_BOW' },
+      { id: 'EXPLOSIVE_BOW' },
+      { id: 'HURRICANE_BOW' },
+      { id: 'JUJU_SHORTBOW' },
+      { id: 'MAGMA_BOW' },
+      { id: 'SCORPION_BOW' },
+      { id: 'SLIME_BOW' },
+      { id: 'SOULS_REBOUND' },
+      { id: 'SPIDER_QUEENS_STINGER' },
+      { id: 'STARRED_SPIDER_QUEENS_STINGER' },
+      { id: 'SULPHUR_BOW' },
+      { id: 'VENOMS_TOUCH' },
+      { id: 'STARRED_VENOMS_TOUCH' },
+      { id: 'MOSQUITO_BOW' },
+      { id: 'RUNAANS_BOW' },
+      { id: 'TERMINATOR' },
+    ],
+  ],
+};
+
+// Dungeon/Archer armor (user-specified 2026-08-29): the only 4 real families in scope are Shadow
+// Assassin -> Necron's Armor (POWER_WITHER_*, same real prefix Slayer's otherArmorProgression uses
+// above) on every slot including helmet (unlike Slayer, which only uses this prefix on chest/legs/
+// boots — Slayer's own helmet chain is Crimson-only), plus Frozen Blaze as a sidegrade at the very
+// top ONLY while a Blaze pet is equipped (user-specified conditional; see evaluateItemSlotCandidates'
+// `requiresPetId` check). No Kuudra family, no Diamond/Gold boss Heads (user-confirmed 2026-08-29:
+// real lore shows Heads carry no Crit Damage and no gemstone slots at all, so this DPS-only
+// optimizer would never genuinely rank one above Necron's Helmet's own +30% Crit Damage + 2 gem
+// slots — skipped until there's a real reason, e.g. modeling Catacombs Floor VII's 2x stats effect,
+// for this calculator to prefer them). Starred Shadow Assassin inserted as its own real
+// intermediate tier (strictly better than base, same item family, real id) — flag if that ordering
+// relative to Necron's Armor is wrong.
+function dungeonArcherArmorProgression(slot) {
+  const suffix = slot.toUpperCase();
+  return [
+    [{ id: `SHADOW_ASSASSIN_${suffix}` }],
+    [{ id: `STARRED_SHADOW_ASSASSIN_${suffix}` }],
+    [{ id: `POWER_WITHER_${suffix}` }, { id: `FROZEN_BLAZE_${suffix}`, requiresPetId: 'BLAZE' }],
+  ];
+}
+const DUNGEON_ARCHER_ARMOR_PROGRESSION = Object.fromEntries(ARMOR_SLOTS.map((slot) => [slot, dungeonArcherArmorProgression(slot)]));
+
+// Ender/Golden Dragon only (user-specified 2026-08-29) — both explicitly named, no ordering
+// preference given between them, so a flat sidegrade tier like Slayer/Mage's own "no clear
+// universal best" pet lists.
+const DUNGEON_ARCHER_PET_PROGRESSION = [[{ petId: 'ENDER_DRAGON' }, { petId: 'GOLDEN_DRAGON' }]];
+
 // Mage progression (user-specified, 2026-08-22) — armor/equipment/pet shared by Mage, Dungeon/
 // Mage Beam, and Dungeon/Mage Ability (same curated gear; differ only in which damage number they
 // optimize, via MODE_CONFIG). Weapons are the exception: Dungeon/Mage Beam has its own distinct
@@ -506,9 +573,12 @@ const ARMOR_PROGRESSION_BY_MODE = {
   slayer: SLAYER_ARMOR_PROGRESSION,
   diana: DIANA_ARMOR_PROGRESSION,
   mage: MAGE_ARMOR_PROGRESSION,
+  dungeon_archer: DUNGEON_ARCHER_ARMOR_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_ARMOR_PROGRESSION,
   dungeon_mage_ability: MAGE_ABILITY_ARMOR_PROGRESSION,
 };
+// No dungeon_archer entry (user didn't specify curated equipment picks) — necklace/cloak/belt/
+// gloves fall through to "no equipment suggestions" for this mode, same as Mage's own cloak/gloves.
 const EQUIPMENT_PROGRESSION_BY_MODE = {
   slayer: SLAYER_EQUIPMENT_PROGRESSION,
   diana: DIANA_EQUIPMENT_PROGRESSION,
@@ -520,6 +590,7 @@ const PET_PROGRESSION_BY_MODE = {
   slayer: SLAYER_PET_PROGRESSION,
   diana: DIANA_PET_PROGRESSION,
   mage: MAGE_PET_PROGRESSION,
+  dungeon_archer: DUNGEON_ARCHER_PET_PROGRESSION,
   dungeon_mage_beam: MAGE_PET_PROGRESSION,
   dungeon_mage_ability: MAGE_PET_PROGRESSION,
 };
@@ -527,6 +598,7 @@ const WEAPON_PROGRESSION_BY_MODE = {
   slayer: SLAYER_WEAPON_PROGRESSION,
   diana: DIANA_WEAPON_PROGRESSION,
   mage: MAGE_WEAPON_PROGRESSION,
+  dungeon_archer: DUNGEON_ARCHER_WEAPON_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_WEAPON_PROGRESSION,
   dungeon_mage_ability: MAGE_WEAPON_PROGRESSION,
 };
@@ -843,6 +915,9 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         (c) => c.id === currentId,
         baselineValue,
         async (candidate) => {
+          // Frozen Blaze (Dungeon/Archer) is only a real sidegrade while a Blaze pet is equipped
+          // (user-specified 2026-08-29) — any candidate can carry this gate, not just Frozen Blaze.
+          if (candidate.requiresPetId && loadout.pet?.item?.petId !== candidate.requiresPetId) return null;
           const resolved = resolveGearSummary({ id: candidate.id }, itemData);
           if (!resolved) return null; // catalog lookup failed — skip rather than guess
           const modifiers = emptyModifiers();
