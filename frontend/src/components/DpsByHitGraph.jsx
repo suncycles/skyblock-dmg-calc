@@ -48,9 +48,11 @@ export default function DpsByHitGraph({ perStackVenomousDamage, steadyOtherDps, 
 
   return (
     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-      <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
-        {hasVenomous ? `Total DPS by Hit (1-${MAX_VENOMOUS_STACKS})` : 'Total DPS by Hit (no Venomous equipped)'}
-      </span>
+      {/* One neutral title regardless of what's equipped — used to single out "(no Venomous
+          equipped)" specifically, which over-called-out one enchant among several that can shape
+          this line (Venomous stacks, First Strike/Triple Strike's opening-hit boost) (user-specified
+          2026-08-29). */}
+      <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">Total DPS by Hit (1-{MAX_VENOMOUS_STACKS})</span>
       <ResponsiveContainer width="100%" height={180}>
         <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid stroke={GRAPH_GRID_COLOR} vertical={false} />

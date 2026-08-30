@@ -472,15 +472,34 @@ export default function DamageSources({ embedded = false }) {
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
                         <span>Melee DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
                         <span className="text-right font-mono">{Math.round(dps.melee).toLocaleString()}</span>
-                        <span>Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)</span>
-                        <span className="text-right font-mono">{Math.round(dps.venomous).toLocaleString()}</span>
-                        <span>Thunderlord DPS ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
-                        <span className="text-right font-mono">{Math.round(dps.thunderlord).toLocaleString()}</span>
-                        <span>Fire Aspect DPS ({DPS_HITS_PER_SECOND.fireAspect}/s)</span>
-                        <span className="text-right font-mono">{Math.round(dps.fireAspect).toLocaleString()}</span>
-                        <span>Crimson Swipe DPS ({DPS_HITS_PER_SECOND.crimsonSwipe}/s)</span>
-                        <span className="text-right font-mono">{Math.round(dps.crimsonSwipe).toLocaleString()}</span>
-                        {mageMode && (
+                        {/* Proc rows are only shown when they're actually contributing — most loadouts
+                            don't have Venomous/Thunderlord/Fire Aspect/Crimson Swipe active, and a wall
+                            of "0" rows was just clutter (user-specified 2026-08-29). */}
+                        {dps.venomous > 0 && (
+                          <>
+                            <span>Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)</span>
+                            <span className="text-right font-mono">{Math.round(dps.venomous).toLocaleString()}</span>
+                          </>
+                        )}
+                        {dps.thunderlord > 0 && (
+                          <>
+                            <span>Thunderlord DPS ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
+                            <span className="text-right font-mono">{Math.round(dps.thunderlord).toLocaleString()}</span>
+                          </>
+                        )}
+                        {dps.fireAspect > 0 && (
+                          <>
+                            <span>Fire Aspect DPS ({DPS_HITS_PER_SECOND.fireAspect}/s)</span>
+                            <span className="text-right font-mono">{Math.round(dps.fireAspect).toLocaleString()}</span>
+                          </>
+                        )}
+                        {dps.crimsonSwipe > 0 && (
+                          <>
+                            <span>Crimson Swipe DPS ({DPS_HITS_PER_SECOND.crimsonSwipe}/s)</span>
+                            <span className="text-right font-mono">{Math.round(dps.crimsonSwipe).toLocaleString()}</span>
+                          </>
+                        )}
+                        {mageMode && dps.beam > 0 && (
                           <>
                             <span>Mage Beam DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
                             <span className="text-right font-mono">{Math.round(dps.beam).toLocaleString()}</span>

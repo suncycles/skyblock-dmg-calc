@@ -526,11 +526,15 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     : expectedArrowDamage * duplexMultiplier;
 
   const melee = bowVolleyDamage * meleeHitsPerSecond;
-  const venomousProc = computeVenomousProcDamage(sources, mob, meleeFinalDamage);
-  const thunderlordProc = computeEnchantProcDamage(meleeFinalDamage, sources.thunderlordProc);
-  const fireAspectProc = computeEnchantProcDamage(meleeFinalDamage, sources.fireAspectProc);
+  // Every proc below scales off "a normal hit's damage" (not the bow-specific 3-arrow/Duplex
+  // volley above) — now the crit-chance-weighted expectedArrowDamage rather than the old
+  // always-crit meleeFinalDamage, so every real DPS number reflects real Crit Chance/Overload
+  // (user-specified 2026-08-29: "For ALL dps calculation - crit chance math should be factored in").
+  const venomousProc = computeVenomousProcDamage(sources, mob, expectedArrowDamage);
+  const thunderlordProc = computeEnchantProcDamage(expectedArrowDamage, sources.thunderlordProc);
+  const fireAspectProc = computeEnchantProcDamage(expectedArrowDamage, sources.fireAspectProc);
   const crimsonSwipeProc = computeCrimsonSwipeDamage(
-    meleeFinalDamage,
+    expectedArrowDamage,
     computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS),
     steadyFinalDamage.additivePercent,
   );
@@ -545,7 +549,7 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   // Optimizer's own separate 'dungeon_mage_beam' mode already covers Beam-focused ranking).
   // DamageSources.jsx's own DPS view adds this in on top of `total` when Mage Mode is also active
   // (user-confirmed 2026-08-28), and notes as much on-screen.
-  const beamProc = computeMageStaffBeamDamage(sources, mob, meleeFinalDamage, useDungeonizedStats, useMasterMode);
+  const beamProc = computeMageStaffBeamDamage(sources, mob, expectedArrowDamage, useDungeonizedStats, useMasterMode);
   const beam = beamProc.finalDamage * meleeHitsPerSecond;
   return {
     melee,

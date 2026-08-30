@@ -154,6 +154,7 @@ function UpgradeRow({ result, onSwapIn }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
   const isGemstone = result.category === 'Gemstone';
+  const isMasterStar = result.category === 'Master Stars';
   const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
     <button
@@ -165,6 +166,10 @@ function UpgradeRow({ result, onSwapIn }) {
       {isGemstone ? (
         <div className="relative shrink-0 w-5 h-5">
           <img src={getGemstoneIcon(result.gem, result.tier)} alt="" className="w-5 h-5 pixelated" />
+        </div>
+      ) : isMasterStar ? (
+        <div className="relative shrink-0 w-5 h-5">
+          <img src="/images/manual/master_star.webp" alt="" className="w-5 h-5 pixelated" />
         </div>
       ) : result.itemId || result.material ? (
         <div className="relative shrink-0 w-5 h-5">
