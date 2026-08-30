@@ -315,6 +315,19 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   };
 }
 
+// Dungeon Mob Armor drops (Shadow Assassin, Necron's/Power Wither, Skeleton Master, boss Heads,
+// etc.) roll real stats that scale with the specific mob variant/Gear Score of that individual
+// drop — the bundled catalog's lore is just one static snapshot (whatever Gear Score NEU-REPO's
+// source item file happened to have), so it can't be trusted as "the" stat total for an owned
+// copy. Every real one of these tags itself with a "Gear Score:" lore line, so that's the signal
+// used below to swap in the account's own real per-instance lore instead — same "read the
+// account's own live numbers" approach as David's Cloak/Midas' Sword/Crown of Avarice already get,
+// just keyed off a generic lore marker instead of a hand-picked item id list since there are 100+
+// real ids with this mechanic. Confirmed real, e.g. Sammui's own Skeleton Master Chestplate.
+function hasGearScoreLine(lore) {
+  return Array.isArray(lore) && lore.some((l) => l.replace(/§./g, '').trim().startsWith('Gear Score:'));
+}
+
 // Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
 // into the {id, name, material, category, tier, lore, color, gemstone_slots} shape both the loadout
 // and the Review screen's candidate rows (icon/name) need — null if the id doesn't match anything
@@ -329,13 +342,16 @@ export function resolveGearSummary(summary, itemData) {
   if (!summary) return null;
   const item = findGearItem(itemData, summary.id);
   if (!item) return null;
+  // Optimizer candidate resolution passes a bare `{id}` with no real `.lore` — falls back to the
+  // catalog snapshot correctly (there's no owned copy to read from for a hypothetical candidate).
+  const lore = hasGearScoreLine(item.lore) && Array.isArray(summary.lore) && summary.lore.length ? summary.lore : item.lore || [];
   return {
     id: item.id,
     name: item.name,
     material: item.material,
     category: item.category,
     tier: item.tier,
-    lore: item.lore || [],
+    lore,
     color: item.color,
     gemstone_slots: item.gemstone_slots || null,
   };
