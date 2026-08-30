@@ -872,6 +872,18 @@ function clipGemstonesToSlots(gemstones, resolved) {
   return gemstones.slice(0, slotCount);
 }
 
+// Dungeon-mode candidates (Dungeon/Archer, Dungeon/Mage Beam, Dungeon/Mage Ability) are compared
+// with their real Dungeonize Catacombs Boost applied — same "assume real best-case" treatment
+// stars/rarity/gemstones already get elsewhere in this file (user-specified 2026-08-30). Without
+// this, a brand-new candidate item (built fresh via emptyModifiers()) defaults to
+// dungeonized:false and silently loses its whole Catacombs Boost total even though
+// modeConfig.useDungeonizedStats is on for the mode (see lib/itemTooltip.js's `if
+// (modifiers.dungeonized)` gate) — understating every armor/weapon/full-set swap's true value.
+function withDungeonizedIfRelevant(modifiers, modeConfig) {
+  if (modeConfig.useDungeonizedStats) modifiers.dungeonized = true;
+  return modifiers;
+}
+
 async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category) {
   if (!progressionBySlot) return [];
   const baselineInfernalPieces = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
@@ -922,7 +934,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (candidate.requiresPetId && loadout.pet?.item?.petId !== candidate.requiresPetId) return null;
           const resolved = resolveGearSummary({ id: candidate.id }, itemData);
           if (!resolved) return null; // catalog lookup failed — skip rather than guess
-          const modifiers = emptyModifiers();
+          const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
           if (candidate.special != null) modifiers.special = candidate.special;
           if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
           if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
@@ -955,6 +967,10 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           // the RANKED VALUE above still needs the max-stars assumption, so a Kuudra tier-up isn't
           // hidden behind a misleadingly small 0-star comparison (see the big comment above).
           const apply = [{ type: 'selectItem', slot, item: resolved }];
+          // Keeps the real applied outcome matching what the RANKED VALUE above assumed (see
+          // withDungeonizedIfRelevant) — without this, clicking the suggestion would land a
+          // non-dungeonized item even though its value was ranked as if it were.
+          if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
           if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
           if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
@@ -1065,7 +1081,7 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
         break;
       }
       const currentModifiers = loadout[slot]?.modifiers;
-      const modifiers = emptyModifiers();
+      const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
       if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
       if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
       // Clipped to the candidate's own real slot count (see clipGemstonesToSlots) — a candidate
@@ -1074,6 +1090,9 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
       candidateLoadout[slot] = { item: resolved, modifiers };
       apply.push({ type: 'selectItem', slot, item: resolved });
+      // Keeps the real applied outcome matching what the RANKED VALUE above assumed (see
+      // withDungeonizedIfRelevant).
+      if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
       if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
       if (modifiers.gemstones.length) {
         modifiers.gemstones.forEach((g, index) => {
@@ -1140,7 +1159,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       // so it's read from build.combinedMythologicalBestiaryTiers (the account's real, independently
       // -derived value, see worker/src/index.js's computeCombinedMythologicalBestiaryTiers) instead,
       // capped at the item's own real max the same way the static values above already are.
-      const modifiers = emptyModifiers();
+      const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
       const reforgeName = candidate.forcedReforge || currentModifiers?.reforge;
       if (reforgeName) modifiers.reforge = reforgeName;
       const bestiaryTiersConfig = getSpecialConfig(candidate.id);
@@ -1168,6 +1187,9 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       // max-stars assumption, for the same "don't hide a real upgrade behind a 0-star comparison"
       // reason evaluateItemSlotCandidates does.
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
+      // Keeps the real applied outcome matching what the RANKED VALUE above assumed (see
+      // withDungeonizedIfRelevant).
+      if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot: 'weapon', value: true });
       if (reforgeName) apply.push({ type: 'applyReforge', slot: 'weapon', name: reforgeName });
       if (specialValue != null) apply.push({ type: 'setSpecialValue', slot: 'weapon', value: specialValue });
       if (modifiers.gemstones.length) {
@@ -1925,6 +1947,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setStarCount':
         build.setStarCount(step.slot, step.count, false);
+        break;
+      case 'setDungeonized':
+        build.setDungeonized(step.slot, step.value);
         break;
       case 'setMasterStarCount':
         build.setMasterStars(step.slot, step.count, false);
