@@ -7,8 +7,6 @@ import { getPowerById } from './accessoryPowers';
 import { ATTRIBUTE_IDS } from './attributes';
 import { getMaxStarsForItem, MAX_MASTER_STARS } from './starring';
 import { getSpecialConfig } from './specialWeapons';
-import { mergeStatIntoBase } from './statLines';
-import { STAT_LABELS } from './reforgeData';
 
 /* Hypixel API "import my current gear" — hits the shared Worker's /api/hypixel/import (which
    holds the API key server-side, does the gzip+NBT decode, and computes pet level/attribute
@@ -330,36 +328,29 @@ function hasGearScoreLine(lore) {
   return Array.isArray(lore) && lore.some((l) => l.replace(/§./g, '').trim().startsWith('Gear Score:'));
 }
 
-// Hypixel's own real lore for one of these items already carries its reforge (§9) and Hot Potato
-// Book (§e) bonuses as a "(+X)" annotation next to each stat line's pristine base number, rather
-// than merged into it — e.g. real lore confirmed 2026-08-30: "Strength: §c+35 §9(+35) §8(+202.65)"
-// (35 pristine, +35 from the real Ancient reforge, +202.65 the real Dungeonize Catacombs Boost
-// total). This app's own reforge/books code (lib/reforges.js/lib/books.js) uses the identical
-// color convention but merges the bonus INTO the base number first — which is what
-// sumStatFromTooltipLines (lib/dungeonize.js) actually expects, since it deliberately EXCLUDES
-// those colors from its own sum on the assumption their amount is "already reflected" in the
-// base. Left as real Hypixel provides it, a live item's reforge bonus would silently be dropped
-// from every stat total instead of double-counted. Folds it in here — reusing statLines.js's
-// existing mergeStatIntoBase rather than reimplementing its number formatting — so the result is
-// shaped exactly like this app's own catalog+modifiers pipeline would have produced. Dungeonize's
-// own §8/§q annotation is deliberately left untouched: it's already the exact standalone-total
-// format sumDungeonizedStatFromTooltipLines expects, a real per-account Catacombs Boost Hypixel
-// computed server-side, not something to fold into anything else.
-const LIVE_LORE_MERGE_COLOR = { reforge: '9', books: 'e' };
-function extractLiveLoreAnnotationBonuses(lore) {
-  const bonuses = {};
-  for (const line of lore) {
-    const plain = line.replace(/§./g, '');
-    const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
-    if (!labelMatch) continue;
-    const statKey = Object.keys(STAT_LABELS).find((k) => STAT_LABELS[k].label === labelMatch[2]);
-    if (!statKey) continue;
-    for (const color of Object.values(LIVE_LORE_MERGE_COLOR)) {
-      const match = new RegExp(`§${color}\\(([+-]?[\\d.,]+)%?\\)`).exec(line);
-      if (match) bonuses[statKey] = (bonuses[statKey] || 0) + parseFloat(match[1].replace(/,/g, ''));
-    }
-  }
-  return bonuses;
+// Hypixel's own real lore for one of these items already shows each stat's pristine base number
+// — its reforge/books/Dungeonize/gemstone bonuses are shown as separate "(+X)" annotations next
+// to that base rather than merged into it, using the identical color convention this app's own
+// tooltip pipeline (lib/reforges.js/lib/books.js/lib/dungeonize.js/lib/gemstones.js) synthesizes
+// for catalog items — confirmed 2026-08-30 by checking a real "Strength: +35 §9(+35) §8(+202.65)"
+// line against this app's own Ancient reforge table (getReforgeStatBonus('Ancient', 'MYTHIC')
+// .strength === 35, an exact match) and Ancient's real Crit Damage formula (also an exact match
+// against a separate real line's "(+44%)"). So the leading number is already the item's real
+// pristine base, and this app's own pipeline — driven by the real modifiers.reforge/books/
+// dungeonized/stars already imported below — reproduces the exact same real total from it. Only
+// the pre-existing annotations need stripping (not the base number), so re-running that pipeline
+// doesn't double them: sumStatFromTooltipLines (lib/dungeonize.js) reads a stray "(+X)" from any
+// color it doesn't recognize as ITS OWN annotation as genuinely additive, and the pipeline would
+// otherwise also append a second, freshly-computed one right next to Hypixel's real one.
+// 'd' is Hypixel's OWN real gemstone-bonus annotation color (confirmed live 2026-08-30 — a real
+// socketed-gem "(+32)" Strength line on a 2-slot item) — distinct from 'p', this app's own
+// synthetic Gemstones color (lib/gemstones.js's GEMSTONE_COLOR — see specialWeapons.js's own note
+// on the mismatch). Both need stripping: 'd' because it's Hypixel's, 'p' in case this ever runs
+// on already-app-processed lore.
+const ANNOTATION_COLORS = ['9', 'e', '8', 'q', 'p', 'd']; // reforge, books, Dungeonize (±Master), gemstone (ours), gemstone (Hypixel's)
+const STRIP_LIVE_LORE_ANNOTATIONS_RE = new RegExp(` §(?:${ANNOTATION_COLORS.join('|')})\\([+-]?[\\d.,]+%?\\)`, 'g');
+function stripLiveLoreAnnotations(lore) {
+  return lore.map((line) => line.replace(STRIP_LIVE_LORE_ANNOTATIONS_RE, ''));
 }
 
 // Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
@@ -379,9 +370,7 @@ export function resolveGearSummary(summary, itemData) {
   // Optimizer candidate resolution passes a bare `{id}` with no real `.lore` — falls back to the
   // catalog snapshot correctly (there's no owned copy to read from for a hypothetical candidate).
   const isLiveLore = hasGearScoreLine(item.lore) && Array.isArray(summary.lore) && summary.lore.length > 0;
-  // Folds Hypixel's own real reforge/books annotations into each line's base number (see
-  // extractLiveLoreAnnotationBonuses) — leaves Dungeonize's §8/§q annotation untouched.
-  const lore = isLiveLore ? mergeStatIntoBase(summary.lore, extractLiveLoreAnnotationBonuses(summary.lore), -1) : item.lore || [];
+  const lore = isLiveLore ? stripLiveLoreAnnotations(summary.lore) : item.lore || [];
   return {
     id: item.id,
     name: item.name,
@@ -389,10 +378,6 @@ export function resolveGearSummary(summary, itemData) {
     category: item.category,
     tier: item.tier,
     lore,
-    // Tells lib/itemTooltip.js's buildFullItemTooltipLines to skip its own reforge/gemstone/star/
-    // enchant/Dungeonize math entirely — `lore` above is already the item's real final state, and
-    // re-applying those layers on top double-counts every one of them (see that function's comment).
-    liveLore: isLiveLore,
     color: item.color,
     gemstone_slots: item.gemstone_slots || null,
   };

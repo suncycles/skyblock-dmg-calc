@@ -105,80 +105,74 @@ export async function buildFullItemTooltipLines(
   const displayTier = modifiers.recombobulated ? bumpRarity(baseTier) : baseTier;
   const gearType = getGearType(item.category);
 
-  let lore = normalizeAttackSpeedLabel(item.lore);
   // Real per-account items whose lore was swapped in wholesale (hypixelImport.js's
-  // resolveGearSummary, for Gear Score-scaled Dungeon Mob Armor drops) are already the item's
-  // true FINAL state — Hypixel bakes reforge/gemstone/star/enchant/Dungeonize bonuses directly
-  // into the displayed numbers server-side. Re-running this app's own "layer modifiers on top of
-  // a pristine catalog base" pipeline below on that lore would double-apply every one of those
-  // (confirmed real bug, 2026-08-30: reforge bonus and Dungeonize both applying twice) rather than
-  // compute anything new, since there's no way to recover the item's pristine pre-modifier base
-  // from a live snapshot to correctly re-derive it from. `modifiers` (reforge name, dungeonized,
-  // gemstones, etc.) are still tracked normally elsewhere in the app (pickers, apply-cost lookups,
-  // the title line below) — only this function's STAT-MATH layering is skipped, since the raw
-  // lore already IS the correct math.
-  if (!item.liveLore) {
-    lore = applyGemstonesToLore(lore, modifiers.gemstones, displayTier);
-    // Reforge could be a free blacksmith one or a stone-exclusive one — check both maps.
-    const reforge = modifiers.reforge
-      ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
-      : null;
-    lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel);
-    lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled);
-    lore = applySpecialToLore(lore, item.id, modifiers.special);
-    // Stars/Wither Blade/Daedalus Taming bonuses merge directly into the item's own base stats.
-    // starBonus is captured (not discarded) — Dungeonize below needs to subtract this same delta
-    // back out of the fully-merged total to get the Catacombs Boost base (see lib/dungeonize.js).
-    const starBonus = computeStarBonuses(item.lore, modifiers.stars);
-    lore = mergeStatIntoBase(lore, starBonus, lore.indexOf(''));
-    lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
-    lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
-    lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
-    lore = mergeStatIntoBase(lore, chimeraBonus, lore.indexOf(''));
-    lore = mergeStatIntoBase(lore, manticoreClawBonus, lore.indexOf(''));
+  // resolveGearSummary, for Gear Score-scaled Dungeon Mob Armor drops) already have their real
+  // reforge/books/Dungeonize/gemstone annotations stripped back to a pristine base at that point
+  // (see resolveGearSummary's own comment — Hypixel's real lore already separates the pristine
+  // base from those bonuses, same as this app's own catalog+modifiers convention), so this
+  // pipeline runs unconditionally here and correctly recomputes the real total from the real
+  // modifiers (reforge name, books, dungeonized, stars, ...) that import already populated —
+  // letting the item's reforge (etc.) actually be changed afterward instead of frozen.
+  let lore = applyGemstonesToLore(normalizeAttackSpeedLabel(item.lore), modifiers.gemstones, displayTier);
+  // Reforge could be a free blacksmith one or a stone-exclusive one — check both maps.
+  const reforge = modifiers.reforge
+    ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
+    : null;
+  lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel);
+  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled);
+  lore = applySpecialToLore(lore, item.id, modifiers.special);
+  // Stars/Wither Blade/Daedalus Taming bonuses merge directly into the item's own base stats.
+  // starBonus is captured (not discarded) — Dungeonize below needs to subtract this same delta
+  // back out of the fully-merged total to get the Catacombs Boost base (see lib/dungeonize.js).
+  const starBonus = computeStarBonuses(item.lore, modifiers.stars);
+  lore = mergeStatIntoBase(lore, starBonus, lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, chimeraBonus, lore.indexOf(''));
+  lore = mergeStatIntoBase(lore, manticoreClawBonus, lore.indexOf(''));
 
-    // Enchant stat bonuses also merge into the base stat, no separate annotation.
-    const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
-    lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
+  // Enchant stat bonuses also merge into the base stat, no separate annotation.
+  const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
+  lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
 
-    // Challenger's/Mythos Armor+Equipment's doubled stats against a Mythological target — see
-    // armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS (the same real-lore-vs-reinterpreted-
-    // condition note lives there; damageSources.js's collectBaseStats is the other, separate
-    // consumer that feeds the actual damage calc). Doubling = merging another full copy of
-    // everything settled onto the item so far (base + reforge + gemstones + stars + enchants),
-    // read straight off the lore built up to this point — same "fully-settled total" damageSources.js
-    // already computes via sumStatFromTooltipLines on this same function's output.
-    if (isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id)) {
-      const mythologicalBonus = {};
-      for (const [statKey, meta] of Object.entries(STAT_LABELS)) {
-        const current = sumStatFromTooltipLines(lore, meta.label);
-        if (current) mythologicalBonus[statKey] = current;
-      }
-      lore = mergeStatIntoBase(lore, mythologicalBonus, lore.indexOf(''));
+  // Challenger's/Mythos Armor+Equipment's doubled stats against a Mythological target — see
+  // armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS (the same real-lore-vs-reinterpreted-
+  // condition note lives there; damageSources.js's collectBaseStats is the other, separate
+  // consumer that feeds the actual damage calc). Doubling = merging another full copy of
+  // everything settled onto the item so far (base + reforge + gemstones + stars + enchants),
+  // read straight off the lore built up to this point — same "fully-settled total" damageSources.js
+  // already computes via sumStatFromTooltipLines on this same function's output.
+  if (isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id)) {
+    const mythologicalBonus = {};
+    for (const [statKey, meta] of Object.entries(STAT_LABELS)) {
+      const current = sumStatFromTooltipLines(lore, meta.label);
+      if (current) mythologicalBonus[statKey] = current;
     }
-
-    // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has —
-    // curve[catacombsLevel] + Catacombs Stars (10%/star) + General's Medallion digits, applied to
-    // everything merged above EXCEPT starBonus (the Overworld 2%/star mechanic — see
-    // lib/dungeonize.js). A dark-blue second annotation adds Master Stars (5%/star) on top, shown
-    // only when the item actually has Master Stars — never present without Dungeonize being on.
-    if (modifiers.dungeonized) {
-      lore = applyDungeonizeToLore(
-        lore,
-        catacombsLevel,
-        modifiers.dungeonizeOldCurve,
-        starBonus,
-        modifiers.stars,
-        modifiers.masterStars,
-        generalsMedallionDigits,
-      );
-    }
-
-    lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
-    if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);
-    if (modifiers.recombobulated) lore = applyRecombToLore(lore, baseTier);
-    lore = applyFabledToLore(lore, modifiers.reforge);
+    lore = mergeStatIntoBase(lore, mythologicalBonus, lore.indexOf(''));
   }
+
+  // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has —
+  // curve[catacombsLevel] + Catacombs Stars (10%/star) + General's Medallion digits, applied to
+  // everything merged above EXCEPT starBonus (the Overworld 2%/star mechanic — see
+  // lib/dungeonize.js). A dark-blue second annotation adds Master Stars (5%/star) on top, shown
+  // only when the item actually has Master Stars — never present without Dungeonize being on.
+  if (modifiers.dungeonized) {
+    lore = applyDungeonizeToLore(
+      lore,
+      catacombsLevel,
+      modifiers.dungeonizeOldCurve,
+      starBonus,
+      modifiers.stars,
+      modifiers.masterStars,
+      generalsMedallionDigits,
+    );
+  }
+
+  lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
+  if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);
+  if (modifiers.recombobulated) lore = applyRecombToLore(lore, baseTier);
+  lore = applyFabledToLore(lore, modifiers.reforge);
 
   const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';
   const starSuffix = buildStarSuffix(modifiers.stars) + buildMasterStarSuffix(modifiers.masterStars);
