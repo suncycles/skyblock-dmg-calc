@@ -38,8 +38,12 @@ export function applyFabledToLore(lore, reforgeName) {
   return [...lore.slice(0, cut), ...explainer, ...lore.slice(cut)];
 }
 
-export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel) {
-  if (!reforge) return lore;
+// The real stat bonus a given reforge grants on a given item — every name-specific override
+// (Ancient/Withered/Loving) lives here so both applyReforgeToLore and anything else that needs to
+// know "what does this reforge actually give" (lib/hypixelImport.js, recovering a live-imported
+// item's pristine pre-reforge base — see its own comment) share one answer.
+export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel) {
+  if (!reforge) return {};
   const bonus = { ...getReforgeStatBonus(reforge, itemTier) };
 
   if (reforgeName === ANCIENT_REFORGE_NAME) {
@@ -59,6 +63,12 @@ export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertB
   // instead of just summing with it. Stripped here so it isn't double-counted as a base stat.
   if (reforgeName === LOVING_REFORGE_NAME) delete bonus.ability_damage;
 
+  return bonus;
+}
+
+export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel) {
+  if (!reforge) return lore;
+  const bonus = computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel);
   if (Object.keys(bonus).length === 0) return lore;
   // Merged into the item's own base stat number, annotated with the delta on top for visibility.
   const merged = mergeStatIntoBase(lore, bonus, insertBeforeLineIdx);

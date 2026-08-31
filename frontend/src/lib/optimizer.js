@@ -1501,15 +1501,7 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
   const results = [];
   for (const slot of ARMOR_SLOTS) {
     const equipped = loadout[slot];
-    // A live-imported item (hypixelImport.js's Gear Score override) has its real reforge bonus
-    // baked directly into its stat lines with no formula to reverse — swapping `modifiers.reforge`
-    // can't change those numbers, but reforge-specific mechanics keyed off the name directly
-    // (Renowned's final-multiplier stack, damageSources.js's RENOWNED_REFORGE_NAME) still fire for
-    // whatever name the candidate sets. That combo (old real reforge's stats + new reforge's
-    // separate perk) isn't a real achievable state — confirmed real bug 2026-08-30 (Ancient
-    // Necron's Leggings "upgraded" to Renowned kept Ancient's stats and gained Renowned's stack).
-    // Skipped rather than guessed at what the item would really look like reforged differently.
-    if (!equipped?.item || equipped.item.liveLore) continue;
+    if (!equipped?.item) continue;
     const currentName = equipped.modifiers.reforge || null;
     const currentIndex = findTierIndex(ARMOR_REFORGE_PROGRESSION, (c) => c.name === currentName);
     const evaluated = await evaluateTieredProgression(
@@ -1572,10 +1564,7 @@ async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, bu
   const results = [];
   for (const slot of ['weapon', ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
-    // See evaluateArmorReforgeCandidates' comment — a live-imported item's real reforge bonus is
-    // baked into its stat lines with no way to swap it, so a reforge candidate here can't be
-    // trusted for one.
-    if (!equipped?.item || equipped.item.liveLore) continue;
+    if (!equipped?.item) continue;
     const currentName = equipped.modifiers.reforge || null;
     let applicable = [
       ...getApplicableReforges(itemData.reforges, equipped.item),
