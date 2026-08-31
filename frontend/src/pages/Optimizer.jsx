@@ -73,54 +73,64 @@ function compareResults(a, b, sortBy) {
 // brute-forced categories (Enchant/Reforge/Stars/...) alike — now that they all rank together in
 // one list instead of two separate sections. Shows an icon when the candidate is a real catalog
 // item (`itemId` set); brute-forced categories without one just show the category/slot label.
-function UpgradeRow({ result, onSwapIn }) {
+function UpgradeRow({ result, onSwapIn, onSkip }) {
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
   const isGemstone = result.category === 'Gemstone';
   const isMasterStar = result.category === 'Master Stars';
   const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
-    <button
-      type="button"
-      onClick={() => onSwapIn(result)}
-      title="Click to equip this upgrade"
-      className="w-full flex items-center gap-2 px-3 py-2 bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 cursor-pointer text-left transition-colors"
-    >
-      {isGemstone ? (
-        <div className="relative shrink-0 w-6 h-6">
-          <img src={getGemstoneIcon(result.gem, result.tier)} alt="" className="w-6 h-6 pixelated" />
-        </div>
-      ) : isMasterStar ? (
-        <div className="relative shrink-0 w-6 h-6">
-          <img src="/images/manual/master_star.webp" alt="" className="w-6 h-6 pixelated" />
-        </div>
-      ) : result.itemId || result.material ? (
-        <div className="relative shrink-0 w-6 h-6">
-          <WeaponIcon id={result.itemId} material={result.material} alt="" className="w-6 h-6 pixelated" />
-          {badge && (
-            <span className="absolute -bottom-0.5 -right-0.5 text-[7px] font-bold text-white bg-black/80 leading-none px-[2px] rounded-[1px]">
-              {badge}
-            </span>
-          )}
-        </div>
-      ) : (
-        isEnchant && (
+    <div className="w-full flex items-stretch bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 transition-colors">
+      <button
+        type="button"
+        onClick={() => onSwapIn(result)}
+        title="Click to equip this upgrade"
+        className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 cursor-pointer text-left"
+      >
+        {isGemstone ? (
           <div className="relative shrink-0 w-6 h-6">
-            <img src={ENCHANTED_BOOK_ICON} alt="" className="w-6 h-6 pixelated" />
+            <img src={getGemstoneIcon(result.gem, result.tier)} alt="" className="w-6 h-6 pixelated" />
           </div>
-        )
-      )}
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
-          {result.category} — {SLOT_LABELS[result.slot] || result.slot}
-        </span>
-        <span className="text-[13px] text-black truncate">{result.label}</span>
-        <span className="text-[10px] text-neutral-700">
-          Cost: {formatCoinsShort(result.cost)} coins{coinsPerPercent && ` · ${coinsPerPercent} coins/%`}
-        </span>
-      </div>
-      <span className="text-sm font-mono font-bold text-green-500 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
-    </button>
+        ) : isMasterStar ? (
+          <div className="relative shrink-0 w-6 h-6">
+            <img src="/images/manual/master_star.webp" alt="" className="w-6 h-6 pixelated" />
+          </div>
+        ) : result.itemId || result.material ? (
+          <div className="relative shrink-0 w-6 h-6">
+            <WeaponIcon id={result.itemId} material={result.material} alt="" className="w-6 h-6 pixelated" />
+            {badge && (
+              <span className="absolute -bottom-0.5 -right-0.5 text-[7px] font-bold text-white bg-black/80 leading-none px-[2px] rounded-[1px]">
+                {badge}
+              </span>
+            )}
+          </div>
+        ) : (
+          isEnchant && (
+            <div className="relative shrink-0 w-6 h-6">
+              <img src={ENCHANTED_BOOK_ICON} alt="" className="w-6 h-6 pixelated" />
+            </div>
+          )
+        )}
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
+            {result.category} — {SLOT_LABELS[result.slot] || result.slot}
+          </span>
+          <span className="text-[13px] text-black truncate">{result.label}</span>
+          <span className="text-[10px] text-neutral-700">
+            Cost: {formatCoinsShort(result.cost)} coins{coinsPerPercent && ` · ${coinsPerPercent} coins/%`}
+          </span>
+        </div>
+        <span className="text-sm font-mono font-bold text-green-500 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onSkip(result)}
+        title="Skip — hide this suggestion for now"
+        className="shrink-0 px-2.5 flex items-center justify-center text-neutral-700 hover:text-black hover:bg-black/15 cursor-pointer border-l border-black/20"
+      >
+        ✕
+      </button>
+    </div>
   );
 }
 
@@ -218,6 +228,13 @@ export default function Optimizer() {
   // coin-efficiency first) so the player's most coin-efficient sources of damage lead by default;
   // "increase" is available via the toggle for raw %DPS ranking.
   const [sortBy, setSortBy] = useState('ratio');
+  // "Skip" (UpgradeRow's ✕) just hides a suggestion from view for the rest of this visit — it
+  // doesn't change anything about the loadout or the candidate itself, so a plain key set (not
+  // persisted, and never touched by the optimizer re-running) is enough; the same suggestion
+  // reappears on a fresh page load or once it's no longer computed at all. Keyed by
+  // category/slot/label since results have no stable id of their own across recomputes.
+  const [skippedKeys, setSkippedKeys] = useState(() => new Set());
+  const resultKey = (r) => `${r.category}:${r.slot}:${r.label}`;
   const slotResults = OPTIMIZER_GEAR_SLOTS.flatMap((slot) => state.slots[slot] || []);
   // maxBudget of 0 means "no limit" (default, unset). A real-priced candidate over budget is
   // dropped; unpriced ('?') candidates always stay — their real cost might be free (a
@@ -225,6 +242,7 @@ export default function Optimizer() {
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
   const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
     .filter(withinBudget)
+    .filter((r) => !skippedKeys.has(resultKey(r)))
     .sort((a, b) => compareResults(a, b, sortBy));
 
   return (
@@ -346,7 +364,14 @@ export default function Optimizer() {
               </div>
             </div>
             {combinedResults.length > 0 ? (
-              combinedResults.map((r, i) => <UpgradeRow key={i} result={r} onSwapIn={(res) => applyOptimizerResult(build, res)} />)
+              combinedResults.map((r) => (
+                <UpgradeRow
+                  key={resultKey(r)}
+                  result={r}
+                  onSwapIn={(res) => applyOptimizerResult(build, res)}
+                  onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
+                />
+              ))
             ) : (
               <div className="px-3 py-2 text-xs text-neutral-600 italic">
                 {build.maxBudget ? 'No upgrades available within budget.' : 'No upgrades available.'}
