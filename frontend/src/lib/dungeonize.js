@@ -116,6 +116,12 @@ export function sumMasterDungeonizedStatFromTooltipLines(finalLines, label) {
 // star count) is the item's Overworld 2%/star contribution already folded into `lore`'s leading
 // number — subtracted back out so the Catacombs Boost percentage applies to everything EXCEPT
 // that old mechanic, per this feature's spec.
+// Stat keys using the Ability Damage stat's own Catacombs Stats Boost formula (Stars(10%) +
+// General's Medallion digits(1%) + Master Stars(5%) — no Catacombs Level curve term) instead of
+// the general one every other stat gets — user-confirmed 2026-08-30: Bonus Attack Speed and Crit
+// Chance both follow this same curve-less behavior, same as the Ability Damage stat already did.
+const ABILITY_STYLE_BOOST_STAT_KEYS = new Set(['ability_damage', 'bonus_attack_speed', 'crit_chance']);
+
 export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, starBonus, stars, masterStars, generalsMedallionDigits) {
   if (!lore) return lore;
   const { withoutMaster, withMaster } = computeCatacombsBoostPercent(catacombsLevel, useOldCurve, stars, generalsMedallionDigits, masterStars);
@@ -126,8 +132,9 @@ export function applyDungeonizeToLore(lore, catacombsLevel, useOldCurve, starBon
     if (!labelMatch) return line;
     const statKey = Object.keys(STAT_LABELS).find((k) => STAT_LABELS[k].label === labelMatch[2]);
     if (!statKey) return line;
-    const { withoutMaster: statWithoutMaster, withMaster: statWithMaster } =
-      statKey === 'ability_damage' ? abilityBoost : { withoutMaster, withMaster };
+    const { withoutMaster: statWithoutMaster, withMaster: statWithMaster } = ABILITY_STYLE_BOOST_STAT_KEYS.has(statKey)
+      ? abilityBoost
+      : { withoutMaster, withMaster };
     const total = sumStatFromTooltipLines(lore, labelMatch[2]);
     if (!total) return line;
     const catacombsBase = total - (starBonus?.[statKey] || 0);
