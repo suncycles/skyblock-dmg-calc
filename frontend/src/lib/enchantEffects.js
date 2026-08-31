@@ -214,10 +214,11 @@ const MISSING_CATEGORY_ENCHANTS = {
 };
 
 // The inverse of MISSING_CATEGORY_ENCHANTS above — enchants NEU-REPO's per-category lists WRONGLY
-// include. User-confirmed 2026-08-29: Chimera cannot actually be applied to a Bow in-game, despite
-// NEU-REPO's own BOW category list including 'ultimate_chimera'.
+// include. User-confirmed: neither Chimera (2026-08-29) nor Swarm (2026-08-30) can actually be
+// applied to a Bow in-game, despite NEU-REPO's own BOW category list including both
+// 'ultimate_chimera' and 'ultimate_swarm'.
 const EXCLUDED_CATEGORY_ENCHANTS = {
-  BOW: ['ultimate_chimera'],
+  BOW: ['ultimate_chimera', 'ultimate_swarm'],
 };
 
 // Same {enchants: {CATEGORY: [ids]}} shape as itemData.enchants, patched with
