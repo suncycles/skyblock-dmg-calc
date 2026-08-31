@@ -31,10 +31,20 @@ export default function ReforgesPicker({ blacksmith }) {
   const reforgeSource = blacksmith ? itemData.reforges : itemData.reforgeStones;
   const noun = blacksmith ? 'blacksmith reforges' : 'reforge stones';
 
+  // A live-imported item (hypixelImport.js's Gear Score override — Necron's, Shadow Assassin,
+  // Skeleton Master, etc.) has its real reforge bonus baked directly into its stat lines with no
+  // formula to reverse, so picking a different reforge here can't actually change those numbers —
+  // but reforge-specific mechanics keyed off the name directly (Renowned's final-multiplier stack,
+  // damageSources.js's RENOWNED_REFORGE_NAME) would still fire for whatever gets picked, landing a
+  // combo (old real reforge's stats + new reforge's separate perk) that isn't a real achievable
+  // state (confirmed real bug 2026-08-30, same one the Optimizer's own reforge suggestions had —
+  // see lib/optimizer.js's evaluateArmorReforgeCandidates/evaluateWeaponAndEquipmentReforgeCandidates).
+  const isLiveLore = !!weapon?.liveLore;
+
   const applicable = useMemo(() => {
-    if (!weapon) return [];
+    if (!weapon || isLiveLore) return [];
     return getApplicableReforges(reforgeSource, weapon);
-  }, [reforgeSource, weapon]);
+  }, [reforgeSource, weapon, isLiveLore]);
 
   const totalPages = Math.max(1, Math.ceil(applicable.length / PAGE_SIZE));
   const pageReforges = applicable.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -82,9 +92,11 @@ export default function ReforgesPicker({ blacksmith }) {
 
   const contextText = !weapon
     ? `No weapon selected — go back and pick one to see applicable ${noun}.`
-    : applicable.length === 0
-      ? `Reforging: ${weapon.name} — no applicable ${noun} found.`
-      : `Reforging: ${weapon.name} (${applicable.length} ${noun} available)`;
+    : isLiveLore
+      ? `${weapon.name} was imported from your real account — its reforge (${current || 'none'}) is fixed to what Hypixel reports and can't be changed here.`
+      : applicable.length === 0
+        ? `Reforging: ${weapon.name} — no applicable ${noun} found.`
+        : `Reforging: ${weapon.name} (${applicable.length} ${noun} available)`;
 
   const cells = [];
   for (let row = 0; row < 6; row++) {
@@ -133,13 +145,13 @@ export default function ReforgesPicker({ blacksmith }) {
             <img src={SLOT_TEXTURES.filler} alt="" className={slotFillImg} />
           </div>,
         );
-      } else if (isNavRow && col === 1 && !blacksmith) {
+      } else if (isNavRow && col === 1 && !blacksmith && !isLiveLore) {
         cells.push(
           <div key={key} className={navSlot} title="Blacksmith" onClick={() => navigate(`/reforges/${slot}/blacksmith`)}>
             <img src={ANVIL_ICON} alt="Blacksmith" className={iconImg} />
           </div>,
         );
-      } else if (isNavRow && col === 2 && current) {
+      } else if (isNavRow && col === 2 && current && !isLiveLore) {
         cells.push(
           <div key={key} className={navSlot} title="Remove Reforge" onClick={() => handleSelect(null)}>
             <img src="/images/manual/trash.webp" alt="Remove" className={iconImg} />

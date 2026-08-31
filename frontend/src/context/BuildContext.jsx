@@ -1029,11 +1029,22 @@ export function BuildProvider({ children }) {
   // `reforgeMeta` (the selected reforge's own {itemTypes, requiredRarities, ...} entry, passed by
   // ReforgesPicker.jsx) lets Edit All check real applicability per OTHER piece before copying a
   // reforge onto it — clearing (name === null) or an origin-only call (no meta) always applies.
+  // Root-cause guard (2026-08-30): an item can only ever really have ONE reforge, but a
+  // live-imported item's real reforge bonus is baked directly into its stat lines with no formula
+  // to reverse (lib/hypixelImport.js's Gear Score override — Necron's, Shadow Assassin, Skeleton
+  // Master, etc.) — this is the single place `modifiers.reforge` ever changes (Optimizer swap-ins,
+  // Edit All broadcasts, and the manual Reforges picker — lib/optimizer.js's
+  // applyOptimizerResult/ReforgesPicker.jsx — all funnel through here), so guarding it here instead
+  // of at every caller is what actually keeps "one real reforge" true instead of letting the
+  // tracked name drift from the item's real baked-in stats (confirmed real bug: an already-fixed
+  // instance let Renowned's separate final-multiplier perk stack on top of the item's still-real
+  // Ancient stats).
   const applyReforge = useCallback(
     (slot, name, respectEditAll = true, reforgeMeta = null) => {
       updateSlotModifiers(
         slot,
         (modifiers, item) => {
+          if (item?.liveLore) return modifiers;
           if (name != null && reforgeMeta && item && !isReforgeApplicable(reforgeMeta, item)) return modifiers;
           return { ...modifiers, reforge: name };
         },
