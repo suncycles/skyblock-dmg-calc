@@ -126,6 +126,20 @@ export function lookupCandidateCost(result, itemData) {
       const step = findStep(result.apply, 'applyEnchant');
       return step ? enchantPrice(itemPrices, step.id, step.level) : null;
     }
+    case 'Enchant Set': {
+      // The One-For-All-alternative bundle (lib/optimizer.js's evaluateCheapestOneForAllAlternative)
+      // — several applyEnchant steps at once, same "sum every piece, any unpriced one makes the
+      // whole total unknown" treatment as Full Set above.
+      const steps = (result.apply || []).filter((s) => s.type === 'applyEnchant');
+      if (steps.length === 0) return null;
+      let total = 0;
+      for (const step of steps) {
+        const price = enchantPrice(itemPrices, step.id, step.level);
+        if (price == null) return null;
+        total += price;
+      }
+      return total;
+    }
     case 'Power Stone': {
       const step = findStep(result.apply, 'selectItem');
       // `item.id` here is the abstract Power's own id (e.g. "STRONG"), not a real catalog item —

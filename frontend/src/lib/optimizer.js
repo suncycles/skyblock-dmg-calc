@@ -48,7 +48,7 @@ import {
   INFERNAL_CRIMSON_MAX_STACKS,
 } from './armorSetBonuses';
 import { resolveGearSummary } from './hypixelImport';
-import { lookupCandidateCost } from './pricing';
+import { lookupCandidateCost, enchantPrice } from './pricing';
 import { emptyModifiers, emptyPetModifiers } from './defaultModifiers';
 import {
   fetchEnchantLevels,
@@ -686,6 +686,7 @@ function dominanceGroupKey(result) {
     case 'Stars':
     case 'Master Stars':
     case 'Full Set':
+    case 'Enchant Set':
       return `${result.category}:${result.slot}`;
     default:
       return null;
@@ -1431,6 +1432,116 @@ async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build
   return results;
 }
 
+// One For All's flat +500% weapon damage often beats any SINGLE enchant swap (see the bug fix
+// above — that's exactly why the incremental evaluators above can never beat it: going from "One
+// For All only" to "One For All removed, one enchant added" is always a loss on that one step,
+// even when a FULL enchant loadout would genuinely win). This finds the CHEAPEST such full loadout
+// via a greedy accumulation, user-specified 2026-09-02:
+//  1. Rank every real, individually-priced enchant applicable to this weapon (hex enchants + every
+//     non-OFA ultimate) by its own standalone %DPS-per-coin, measured from a shared bare/no-enchant
+//     baseline. This ranking is computed once up front, not re-evaluated mid-walk — a reasonable
+//     heuristic ordering since most of these land in the same additive-%-damage bucket, but never
+//     load-bearing for correctness (see step 2).
+//  2. Add them cheapest/most-efficient-first, resolving each addition's real "Conflicts:" lore
+//     against what's already picked (lib/enchantEffects.js's computeConflictingEntries, using each
+//     CANDIDATE ENCHANT'S OWN lore this time — unlike the weapon-lore mismatch left alone in the
+//     sibling functions above, a separate pre-existing issue out of scope here) and re-verifying the
+//     REAL cumulative total against the actual pipeline after every addition — never assumed
+//     additive, since some enchants land in a multiplicative bucket in this app's formula.
+//  3. Stop the instant the cumulative total first crosses One For All's own real baseline value —
+//     nothing further is added, keeping the result the cheapest crossing found, not the biggest.
+// Not a guaranteed-cheapest search ("minimize cost subject to reaching a target" is NP-hard in the
+// worst case) but a very close practical approximation with this few real candidates (~35-45 for a
+// typical weapon category). Only runs when One For All is the weapon's CURRENT ultimate (nothing to
+// beat otherwise) and only for the 'dps' metric (One For All's bonus doesn't feed Ability
+// Damage/Beam at all, so every other mode would just burn the full search for a guaranteed no-op).
+async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, modeConfig, mob, baselineValue) {
+  const weapon = loadout.weapon;
+  if (!weapon || modeConfig.metric !== 'dps') return [];
+  if ((weapon.modifiers.ultimateEnchantment?.id || '').toLowerCase() !== 'ultimate_one_for_all') return [];
+
+  const category = resolveEnchantCategory(weapon.item.category);
+  const allIds = getCategoryEnchantIds(itemData.enchants, category);
+  const itemPrices = itemData.costs?.itemPrices || {};
+
+  // Bare reference: no ultimate, no hex enchants — every candidate's standalone contribution is
+  // measured against this same fixed point, so they can be ranked on a common basis.
+  const bareModifiers = { ...weapon.modifiers, ultimateEnchantment: null, hexEnchantments: [] };
+  const bareValue = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: bareModifiers } }, itemData, build, modeConfig, mob);
+
+  const candidates = [];
+  for (const id of allIds) {
+    if (id.toLowerCase() === 'ultimate_one_for_all') continue;
+    // User-specified, 2026-08-25 (evaluateUltimateEnchantCandidates above): never recommend Combo —
+    // its real value depends on a per-fight kill streak this app has no realistic fixed assumption
+    // for. Same reasoning applies here.
+    if (id.toLowerCase() === 'ultimate_combo') continue;
+    const levels = await fetchEnchantLevels(id, itemData.enchants);
+    if (levels.length === 0) continue;
+    const maxLevel = Math.max(...levels.map((l) => l.level));
+    const levelData = levels.find((l) => l.level === maxLevel);
+    const cost = enchantPrice(itemPrices, id, maxLevel);
+    if (!cost) continue; // unpriced — can't be part of a "cheapest" claim
+    const isUltimate = isUltimateEnchant(id);
+    const testModifiers = {
+      ...bareModifiers,
+      ultimateEnchantment: isUltimate ? { id, level: maxLevel, maxLevel } : null,
+      hexEnchantments: isUltimate ? [] : [{ id, level: maxLevel, maxLevel }],
+    };
+    const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
+    const marginal = value - bareValue;
+    if (marginal <= 0) continue;
+    candidates.push({ id, level: maxLevel, maxLevel, cost, isUltimate, lore: levelData.lore, efficiency: marginal / cost });
+  }
+  candidates.sort((a, b) => b.efficiency - a.efficiency);
+
+  let currentModifiers = bareModifiers;
+  let currentValue = bareValue;
+  for (const c of candidates) {
+    if (currentValue > baselineValue) break;
+    const removeIds = computeConflictingEntries(c.id, c.lore, currentModifiers).map((e) => e.id);
+    const nextHex = c.isUltimate
+      ? currentModifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id))
+      : [...currentModifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id)), { id: c.id, level: c.level, maxLevel: c.maxLevel }];
+    const nextUltimate = c.isUltimate
+      ? { id: c.id, level: c.level, maxLevel: c.maxLevel }
+      : currentModifiers.ultimateEnchantment && removeIds.includes(currentModifiers.ultimateEnchantment.id)
+        ? null
+        : currentModifiers.ultimateEnchantment;
+    const nextModifiers = { ...currentModifiers, hexEnchantments: nextHex, ultimateEnchantment: nextUltimate };
+    const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: nextModifiers } }, itemData, build, modeConfig, mob);
+    currentModifiers = nextModifiers;
+    currentValue = value;
+  }
+
+  if (currentValue <= baselineValue) return []; // exhausted every real candidate — nothing beats it here
+
+  // Reconstructed fresh from the FINAL winning state (not the walk's history) so a mid-walk
+  // conflict removal (an earlier pick later kicked out by a better one) can never leave a stale,
+  // no-longer-equipped entry in the result — only the first step needs to clear One For All itself,
+  // every other final pick is already guaranteed mutually non-conflicting by construction above.
+  const finalEntries = [...(currentModifiers.ultimateEnchantment ? [currentModifiers.ultimateEnchantment] : []), ...currentModifiers.hexEnchantments];
+  const labels = finalEntries.map((e) => `${titleCaseEnchantId(e.id)} ${toRoman(e.level)}`);
+  const applySteps = finalEntries.map((e, i) => ({
+    type: 'applyEnchant',
+    slot: 'weapon',
+    id: e.id,
+    level: e.level,
+    maxLevel: e.maxLevel,
+    removeIds: i === 0 ? ['ultimate_one_for_all'] : [],
+  }));
+
+  return [
+    {
+      category: 'Enchant Set',
+      slot: 'weapon',
+      label: `Re-enchant instead of One For All (${labels.length}): ${labels.join(', ')}`,
+      value: currentValue,
+      apply: applySteps,
+    },
+  ];
+}
+
 // Brute-forces every real ultimate enchant applicable to the weapon's category (at its own real
 // max level) as a full alternative to whichever ultimate is currently equipped. Removes whatever
 // computeConflictingEntries says the real item would lose — same conflict resolution the Hex
@@ -2005,6 +2116,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     pets,
     enchants,
     missingTypeBaneEnchants,
+    cheapestOneForAllAlternative,
     ultimates,
     armorUltimates,
     equipmentUltimates,
@@ -2035,6 +2147,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateCheapestOneForAllAlternative(loadout, itemData, build, modeConfig, mob, baselineValue),
     evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
@@ -2076,6 +2189,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ...withPercent([
       ...enchants,
       ...missingTypeBaneEnchants,
+      ...cheapestOneForAllAlternative,
       ...ultimates,
       ...armorUltimates,
       ...equipmentUltimates,
