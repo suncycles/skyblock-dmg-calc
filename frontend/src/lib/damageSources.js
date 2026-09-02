@@ -852,13 +852,19 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
 // ---------------------------------------------------------------------
 // Enchants: parses each applied enchant's real per-level lore for a %-damage bonus, either
-// conditional (Smite-style) or not. Giant Killer's per-missing-HP rate gets its capped value;
-// anything else of that shape (e.g. Execute) has no fixed value and goes to situational.
-// "dealt" is optional and "bow " is an allowed prefix — Power V's real lore is "Increases bow
-// damage by 40%," which has neither "dealt" nor a "to <target>" clause.
+// conditional (Smite-style) or not. Giant Killer/Titan Killer's per-target-stat rate gets their
+// capped value; anything else of that shape (e.g. Execute/Prosecute) has no fixed value and goes
+// to situational. "dealt" is optional and "bow " is an allowed prefix — Power V's real lore is
+// "Increases bow damage by 40%," which has neither "dealt" nor a "to <target>" clause.
 const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+|bow\s+)?damage(?:\s+dealt)?(?:\s+to\s+(.+?))?\s+by\s+\+?([\d.]+)%/i;
+// Two real phrasings for "rate scales with a target's stat": Execute/Prosecute/Giant Killer say
+// "for each percent of <stat>"; Titan Killer says "for every 100 <stat>" instead — same shape,
+// different wording, so both are matched via alternation rather than a second regex (bug fix
+// 2026-09-02: Titan Killer's real wording didn't match the "each percent of" branch at all, so it
+// fell through to PERCENT_TO_TARGET_RE above and got parsed as a flat, uncapped rate — see the
+// giant_killer/titan_killer special-case below for why that matters).
 const PER_TARGET_STAT_RE =
-  /Increases\s+damage\s+dealt\s+by\s+\+?([\d.]+)%\s+for\s+each\s+(?:percent|%)\s+of\s+(.+?)(?:,?\s+up\s+to\s+\+?([\d.]+)%)?\.?\s*$/i;
+  /Increases\s+damage\s+dealt\s+by\s+\+?([\d.]+)%\s+for\s+(?:each\s+(?:percent|%)\s+of|every\s+\d+)\s+(.+?)(?:,?\s+up\s+to\s+\+?([\d.]+)%)?\.?\s*$/i;
 
 // One For All: fixed +500% weapon damage, hardcoded since its lore phrasing doesn't match the generic regexes.
 const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
@@ -960,6 +966,12 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
       } else if (key === 'giant_killer' && cap != null) {
         out.additiveNonConditional.push({ id, label: name, source, value: cap, abilityEligible: true });
       } else {
+        // Titan Killer lands here (not the giant_killer branch above) — real value depends on the
+        // target's own defense, which this app tracks for precisely zero mobs right now (no mob has
+        // a modeled defense stat at all, unlike Giant Killer's missing-HP basis), so assuming its
+        // cap would be a real number this app can't back up rather than a stand-in for a genuinely
+        // untracked-but-nonzero stat. Contributes nothing until real per-mob defense values exist
+        // (user-specified 2026-09-02, correcting the earlier same-as-Giant-Killer treatment).
         out.situational.push({ id, label: name, source, note: text, formula: { kind: 'per-target-stat', basis, ratePerLevel, cap } });
       }
       continue;
