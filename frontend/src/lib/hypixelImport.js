@@ -303,13 +303,19 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     artOfWar: !!summary.artOfWar,
     stars,
     masterStars,
-    // Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source —
-    // a dungeonized weapon can sit at 0-5 base stars same as a normal one, so Master Stars alone
-    // miss it, and only a fixed set of armor pieces that are ALWAYS dungeon drops get a "DUNGEON "
-    // category prefix baked into the catalog (see lib/armorSlots.js); neither signal covers e.g. a
-    // dungeonized Terminator/Flaming Flay. Both older signals kept as a fallback for summaries
-    // built before this field existed (e.g. a saved/shared loadout code).
-    dungeonized: !!summary.dungeonized || masterStars > 0 || (item.category || '').includes('DUNGEON'),
+    // Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source
+    // for "is THIS specific copy dungeonized" — always a real boolean here (nbt.js's unconditional
+    // `!!ea.dungeon_item`), never merely absent. masterStars > 0 is a safe OR alongside it (Master
+    // Stars can only be applied to an already-dungeonized item, a real game-mechanic guarantee).
+    // Bug fix 2026-09-02: this used to also OR in `item.category.includes('DUNGEON')` as a
+    // "legacy fallback" — but that category prefix just marks catalog gear that's ELIGIBLE to be
+    // Dungeonized (confirmed: 188 real ids across weapons/armor/equipment, e.g. Bonzo Staff,
+    // Astraea — ordinary player-buyable weapons, not an "always drops pre-dungeonized" mob-armor
+    // subset), not that a given imported copy actually IS. It was silently overriding a real,
+    // correct `summary.dungeonized: false` to `true` for most owned dungeon-catalog gear, inflating
+    // every one of those items' stats with the Catacombs Boost annotation even with a fresh,
+    // never-Dungeonized copy.
+    dungeonized: !!summary.dungeonized || masterStars > 0,
     ...davidsCloak,
     ...coinSpecial,
   };
@@ -353,6 +359,39 @@ function stripLiveLoreAnnotations(lore) {
   return lore.map((line) => line.replace(STRIP_LIVE_LORE_ANNOTATIONS_RE, ''));
 }
 
+// Hypixel's own real per-account lore for a Gear-Score item (see isLiveLore below) already bakes
+// its rendered Enchantments paragraph in as plain text — no header, just comma-joined
+// "Name RomanNumeral" entries wrapped over a few lines, right after the stat block's first blank
+// line (confirmed live 2026-09-02 against sammui's Astraea/armor, e.g.
+// "§d§l§d§lUltimate Wise V, §9Bane of Arthropods VII, §9Champion X"). This app's own tooltip
+// pipeline (itemTooltip.js's insertEnchantLines) splices its OWN freshly-synthesized enchant list
+// in at that exact same first-blank-line anchor, built from the parsed summary.enchantments — so
+// leaving Hypixel's real paragraph in place doubles it (and the two lists can even disagree, since
+// a couple of real ids display under a different name than this app's own id->name table — Drain/
+// Gravity/Pyroclasm showed up in Astraea's raw text with no matching summary.enchantments key).
+// Content-checked (every comma-separated entry must look like "Name RomanNumeral") rather than
+// blindly deleting whatever sits right after the blank line — an item with zero enchants has its
+// ability text sitting there instead, and this must leave that alone.
+const ROMAN_NUMERAL_RE = /^(?=[MDCLXVI])M*(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})$/;
+function looksLikeEnchantListLine(line) {
+  const plain = line.replace(/§./g, '').trim();
+  if (!plain) return false;
+  return plain.split(', ').every((entry) => {
+    const m = /^(.+)\s+([IVXLCDM]+)$/.exec(entry);
+    return !!m && ROMAN_NUMERAL_RE.test(m[2]);
+  });
+}
+function stripLiveEnchantListBlock(lore) {
+  const blankIdx = lore.indexOf('');
+  if (blankIdx === -1) return lore;
+  let endIdx = blankIdx + 1;
+  while (endIdx < lore.length && lore[endIdx] !== '' && looksLikeEnchantListLine(lore[endIdx])) endIdx++;
+  // Nothing enchant-shaped there (no enchants), or the block never reached a closing blank line
+  // (not actually a self-contained enchant paragraph) — leave the lore untouched either way.
+  if (endIdx === blankIdx + 1 || lore[endIdx] !== '') return lore;
+  return [...lore.slice(0, blankIdx + 1), ...lore.slice(endIdx + 1)];
+}
+
 // Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
 // into the {id, name, material, category, tier, lore, color, gemstone_slots} shape both the loadout
 // and the Review screen's candidate rows (icon/name) need — null if the id doesn't match anything
@@ -370,7 +409,7 @@ export function resolveGearSummary(summary, itemData) {
   // Optimizer candidate resolution passes a bare `{id}` with no real `.lore` — falls back to the
   // catalog snapshot correctly (there's no owned copy to read from for a hypothetical candidate).
   const isLiveLore = hasGearScoreLine(item.lore) && Array.isArray(summary.lore) && summary.lore.length > 0;
-  const lore = isLiveLore ? stripLiveLoreAnnotations(summary.lore) : item.lore || [];
+  const lore = isLiveLore ? stripLiveEnchantListBlock(stripLiveLoreAnnotations(summary.lore)) : item.lore || [];
   return {
     id: item.id,
     name: item.name,
