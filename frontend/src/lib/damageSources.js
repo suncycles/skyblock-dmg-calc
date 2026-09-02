@@ -539,7 +539,7 @@ const BLAZETEKK_HAM_RADIO_BLUERTOOTH_DAMAGE = 4;
 // computeBasePetStats alone, because this file's own copy still had the bug. Do not reintroduce a
 // local reimplementation here; if the scope of "base stats" ever needs to change again, change it
 // in computeBasePetStats and this call picks it up for free.
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, generalsMedallionDigits, out) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, generalsMedallionDigits, out, maxedCollectionsCount) {
   let basePetStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
   out.firstPounceFactor = 1;
@@ -683,6 +683,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       generalsMedallionDigits,
       undefined,
       potatoBookDoubled,
+      undefined,
+      maxedCollectionsCount,
     );
     for (const statKey of TRACKED_STATS) {
       const label = STAT_LABELS[statKey].label;
@@ -760,6 +762,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
         generalsMedallionDigits,
         undefined,
         potatoBookDoubled,
+        undefined,
+        maxedCollectionsCount,
       );
       const chimeraLabel = `${slotLabel} (Chimera)`;
       for (const statKey of TRACKED_STATS) {
@@ -789,6 +793,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
         generalsMedallionDigits,
         manticoreBonus,
         potatoBookDoubled,
+        undefined,
+        maxedCollectionsCount,
       );
       const manticoreLabel = `${slotLabel} (Manticore Claw)`;
       for (const statKey of TRACKED_STATS) {
@@ -944,6 +950,10 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
       if (key === 'execute' || key === 'prosecute') {
         const hpBasis = key === 'execute' ? 100 - mobHpPercent : mobHpPercent;
         const value = Math.round(ratePerLevel * hpBasis * 100) / 100;
+        // Stashed unconditionally (not just when value > 0) so finalDamage.js's
+        // simulateHitByHit can recompute this at any hit's real, dynamically-tracked mob HP% —
+        // independent of the (Base) Stats panel's static Mob HP% slider this `value` was baked at.
+        out.executeProsecuteRate = { id, label: name, source, type: key, ratePerLevel };
         if (value > 0) {
           out.additiveNonConditional.push({ id, label: `${name} (at ${mobHpPercent}% HP)`, source, value, abilityEligible: true });
         }
@@ -1281,6 +1291,7 @@ export async function collectDamageSources(
   blazeCrimsonIsle = false,
   bestiaryMaxedMobs = null,
   godPotionMixin = 'none',
+  maxedCollectionsCount = 0,
 ) {
   const out = {
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
@@ -1342,6 +1353,7 @@ export async function collectDamageSources(
     venomousProc: null,
     fireAspectProc: null,
     thunderlordProc: null,
+    executeProsecuteRate: null,
   };
 
   await collectBaseStats(
@@ -1352,6 +1364,7 @@ export async function collectDamageSources(
     playerStats?.wolfSlayerLevel,
     playerStats?.generalsMedallionDigits,
     out,
+    maxedCollectionsCount,
   );
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');

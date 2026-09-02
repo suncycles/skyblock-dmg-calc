@@ -6,6 +6,7 @@ import {
   fetchHypixelImport,
   mapHypixelImportToLoadout,
   resolveGearSummary,
+  buildWeaponInventoryList,
   HypixelImportError,
 } from '../lib/hypixelImport';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
@@ -151,6 +152,8 @@ export default function HypixelImport() {
     importHypixelPlayerStats,
     importHypixelBestiaryMaxedMobs,
     importHypixelCombinedMythologicalBestiaryTiers,
+    importHypixelMaxedCollectionsCount,
+    importHypixelWeaponList,
   } = useBuild();
   const { itemData } = useItemData();
   const [username, setUsername] = useState(location.state?.username || '');
@@ -232,7 +235,7 @@ export default function HypixelImport() {
     const weaponIndex = typeof weaponChoice === 'number' ? weaponChoice : null;
     const petIndex = typeof petChoice === 'number' ? petChoice : null;
     const excludedSlots = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => !includedSlots.has(slot)));
-    const { loadout, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers } = await mapHypixelImportToLoadout(
+    const { loadout, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers, maxedCollectionsCount } = await mapHypixelImportToLoadout(
       rawImport,
       itemData,
       {
@@ -252,6 +255,8 @@ export default function HypixelImport() {
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
     importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
+    importHypixelMaxedCollectionsCount(maxedCollectionsCount);
+    importHypixelWeaponList(await buildWeaponInventoryList(rawImport, itemData));
     navigate('/');
   }
 

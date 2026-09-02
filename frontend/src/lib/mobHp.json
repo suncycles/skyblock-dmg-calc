@@ -49,6 +49,9 @@
    }
   ]
  },
+ "Arachne's Brood": {
+  "hp": 20000
+ },
  "Arachne's Keeper": {
   "hp": 3000
  },
@@ -82,7 +85,7 @@
  "Bat": {
   "hp": 6
  },
- "Bat Pi\u00f1ata": {
+ "Bat Piñata": {
   "hp": 5
  },
  "Bayou Sludge": {
@@ -112,6 +115,16 @@
  "Bogged": {
   "hp": 3000
  },
+ "Bonzo": {
+  "dungeon": {
+   "master": {
+    "I": 200000000
+   },
+   "normal": {
+    "I": 250000
+   }
+  }
+ },
  "Boss Corleone": {
   "hp": 1000000
  },
@@ -130,14 +143,23 @@
  "Catfish": {
   "hp": 26000
  },
+ "Cellar Spider": {
+  "hp": 9500000
+ },
  "Chicken": {
   "hp": 50
+ },
+ "Chill": {
+  "hp": 400
  },
  "Chillblade": {
   "hp": 400
  },
  "Chillshot": {
   "hp": 400
+ },
+ "Conjoined Brood": {
+  "hp": 20000000
  },
  "Cow": {
   "hp": 50
@@ -249,6 +271,16 @@
    }
   }
  },
+ "Crypt Undead": {
+  "dungeon": {
+   "normal": {
+    "I": 512578
+   },
+   "master": {
+    "I": 9112500
+   }
+  }
+ },
  "Dasher Spider": {
   "tiers": [
    {
@@ -267,6 +299,9 @@
  "Deformed Revenant": {
   "hp": 360000
  },
+ "Diamond Goblin": {
+  "hp": 5
+ },
  "Dragonfly": {
   "hp": 600
  },
@@ -284,6 +319,9 @@
  },
  "End Stone Protector": {
   "hp": 5000000
+ },
+ "Ender Dragon": {
+  "hp": 15000000
  },
  "Enderman": {
   "hp": 4
@@ -431,8 +469,31 @@
  "Golden Ghoul": {
   "hp": 45000
  },
+ "Golden Goblin": {
+  "hp": 3
+ },
  "Golden Jerry": {
   "hp": 6
+ },
+ "Goldor": {
+  "dungeon": {
+   "master": {
+    "VII": 1200000000
+   },
+   "normal": {
+    "VII": 750000000
+   }
+  }
+ },
+ "Golem": {
+  "dungeon": {
+   "normal": {
+    "VI": 20000000
+   },
+   "master": {
+    "VI": 300000000
+   }
+  }
  },
  "Gravel Skeleton": {
   "hp": 100
@@ -448,6 +509,9 @@
  },
  "Grim Reaper": {
   "hp": 3000000
+ },
+ "Grinch": {
+  "hp": 3
  },
  "Grunt": {
   "hp": 15000
@@ -551,6 +615,16 @@
  "Littlefoot": {
   "hp": 25000000
  },
+ "Livid": {
+  "dungeon": {
+   "master": {
+    "V": 600000000
+   },
+   "normal": {
+    "V": 7000000
+   }
+  }
+ },
  "Locust": {
   "hp": 600
  },
@@ -631,6 +705,16 @@
  },
  "Matcho": {
   "hp": 750000
+ },
+ "Maxor": {
+  "dungeon": {
+   "master": {
+    "VII": 800000000
+   },
+   "normal": {
+    "VII": 100000000
+   }
+  }
  },
  "Mega Bat": {
   "hp": 100
@@ -790,6 +874,16 @@
  "Mutated Blaze": {
   "hp": 1500000
  },
+ "Necron": {
+  "dungeon": {
+   "master": {
+    "VII": 1400000000
+   },
+   "normal": {
+    "VII": 1000000000
+   }
+  }
+ },
  "Nessie": {
   "hp": 2000000
  },
@@ -813,6 +907,9 @@
  },
  "Obsidian Defender": {
   "hp": 10000
+ },
+ "Old Dragon": {
+  "hp": 15000000
  },
  "Old Wolf": {
   "hp": 15000
@@ -843,6 +940,9 @@
  },
  "Praying Mantis": {
   "hp": 600
+ },
+ "Protector Dragon": {
+  "hp": 15000000
  },
  "Puddle Jumper": {
   "hp": 5
@@ -901,6 +1001,9 @@
    }
   }
  },
+ "Reindrake": {
+  "hp": 2500
+ },
  "Revenant Champion": {
   "hp": 90000
  },
@@ -934,6 +1037,16 @@
  "Rider of the Deep": {
   "hp": 20000
  },
+ "Sadan": {
+  "dungeon": {
+   "master": {
+    "VI": 800000000
+   },
+   "normal": {
+    "VI": 40000000
+   }
+  }
+ },
  "Scarecrow": {
   "hp": 4500
  },
@@ -946,6 +1059,16 @@
    "normal": {
     "I": 17600,
     "II": 22800
+   }
+  }
+ },
+ "Scarf": {
+  "dungeon": {
+   "master": {
+    "II": 375000000
+   },
+   "normal": {
+    "II": 1000000
    }
   }
  },
@@ -1115,6 +1238,9 @@
    }
   }
  },
+ "Slime": {
+  "hp": 80
+ },
  "Sludge": {
   "hp": 5000
  },
@@ -1170,8 +1296,21 @@
    }
   ]
  },
+ "Spider": {
+  "hp": 849
+ },
  "Spider Jockey": {
   "hp": 220
+ },
+ "Spirit Bear": {
+  "dungeon": {
+   "master": {
+    "IV": 180000000
+   },
+   "normal": {
+    "IV": 5000000
+   }
+  }
  },
  "Splitter Spider": {
   "tiers": [
@@ -1190,6 +1329,16 @@
  },
  "Star Sentry": {
   "hp": 10
+ },
+ "Storm": {
+  "dungeon": {
+   "master": {
+    "VII": 1000000000
+   },
+   "normal": {
+    "VII": 400000000
+   }
+  }
  },
  "Stranded Nymph": {
   "tiers": [
@@ -1217,6 +1366,9 @@
  },
  "Stridersurfer": {
   "hp": 20000
+ },
+ "Strong Dragon": {
+  "hp": 15000000
  },
  "Super Archer": {
   "dungeon": {
@@ -1249,6 +1401,9 @@
     "VII": 90000
    }
   }
+ },
+ "Superior Dragon": {
+  "hp": 15000000
  },
  "Sven Alpha": {
   "hp": 480000
@@ -1305,6 +1460,30 @@
  "Tarantula Beast": {
   "hp": 144000
  },
+ "Tarantula Broodfather": {
+  "tiers": [
+   {
+    "hp": 1000,
+    "label": "Tier I"
+   },
+   {
+    "hp": 30000,
+    "label": "Tier II"
+   },
+   {
+    "hp": 900000,
+    "label": "Tier III"
+   },
+   {
+    "hp": 2400000,
+    "label": "Tier IV"
+   },
+   {
+    "hp": 10000000,
+    "label": "Tier V"
+   }
+  ]
+ },
  "Tarantula Vermin": {
   "hp": 54000
  },
@@ -1314,8 +1493,31 @@
  "Tentacle": {
   "hp": 5000000
  },
+ "Terracotta": {
+  "dungeon": {
+   "normal": {
+    "VI": 14000000
+   },
+   "master": {
+    "VI": 250000000
+   }
+  }
+ },
  "The Loch Emperor": {
   "hp": 800000
+ },
+ "The Professor": {
+  "dungeon": {
+   "master": {
+    "III": 600000000
+   },
+   "normal": {
+    "III": 3000000
+   }
+  }
+ },
+ "The Watcher": {
+  "hp": 0
  },
  "Thunder": {
   "hp": 35000000
@@ -1328,6 +1530,9 @@
  },
  "Tiger Shark": {
   "hp": 250000
+ },
+ "Timestalk Clone": {
+  "hp": 20
  },
  "Titanoboa": {
   "hp": 45000000
@@ -1361,6 +1566,28 @@
    }
   ]
  },
+ "Undead": {
+  "dungeon": {
+   "normal": {
+    "I": 14000,
+    "II": 17000,
+    "III": 32000,
+    "IV": 41000,
+    "V": 60000,
+    "VI": 75000,
+    "VII": 250000
+   },
+   "master": {
+    "I": 800000,
+    "II": 900000,
+    "III": 1000000,
+    "IV": 1500000,
+    "V": 2000000,
+    "VI": 3000000,
+    "VII": 6000000
+   }
+  }
+ },
  "Undead Skeleton": {
   "dungeon": {
    "master": {
@@ -1382,6 +1609,9 @@
     "VII": 360000
    }
   }
+ },
+ "Unstable Dragon": {
+  "hp": 15000000
  },
  "Vanquisher": {
   "hp": 10000000
@@ -1430,6 +1660,9 @@
  "Volcanic Snail": {
   "hp": 100000
  },
+ "Voracious Spider": {
+  "hp": 510
+ },
  "Water Hydra": {
   "hp": 500000
  },
@@ -1447,6 +1680,12 @@
  },
  "Wiki Tiki": {
   "hp": 75000000
+ },
+ "Wise Dragon": {
+  "hp": 15000000
+ },
+ "Witch": {
+  "hp": 1061
  },
  "Wither Gourd": {
   "hp": 11
@@ -1514,6 +1753,9 @@
  },
  "Yog": {
   "hp": 35000
+ },
+ "Young Dragon": {
+  "hp": 15000000
  },
  "Zealot": {
   "tiers": [

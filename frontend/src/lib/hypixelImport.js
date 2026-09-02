@@ -383,6 +383,24 @@ export function resolveGearSummary(summary, itemData) {
   };
 }
 
+// Resolves EVERY real weapon in the account's inventory (not just whichever index the Review
+// step's picker ends up choosing) into full {item, modifiers, location} entries — same per-item
+// resolution mapHypixelImportToLoadout already does for its own single chosen weapon, just run
+// across the whole `raw.weapons` list. Feeds BuildContext's importHypixelWeaponList, the easy-
+// access weapon list next to the Weapon slot (user-specified 2026-09-01) — skips any entry that
+// fails to resolve against the current catalog rather than guessing at it.
+export async function buildWeaponInventoryList(raw, itemData) {
+  const reforgeLookup = buildReforgeNameLookup(itemData);
+  const entries = await Promise.all(
+    (raw.weapons || []).map(async (summary) => {
+      const item = resolveGearSummary(summary, itemData);
+      if (!item) return null;
+      return { item, modifiers: await buildItemModifiers(item, summary, itemData, reforgeLookup), location: summary.location };
+    }),
+  );
+  return entries.filter(Boolean);
+}
+
 // Maps the Worker's raw decoded response onto {loadout, skipped, attributes, playerStats}:
 // `loadout` is ready to merge straight into BuildContext (same {item, modifiers} shape as every
 // other slot-setter), `skipped` lists any item/power id that didn't resolve against the current
@@ -533,5 +551,11 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   const combinedMythologicalBestiaryTiers =
     typeof raw.combinedMythologicalBestiaryTiers === 'number' ? raw.combinedMythologicalBestiaryTiers : 0;
 
-  return { loadout, skipped, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers };
+  // "The One" enchant's real per-collection Health/Strength scaling input (worker/src/index.js's
+  // computeMaxedCollectionsCount) — same "top-level, independent of any owned item" treatment as
+  // combinedMythologicalBestiaryTiers above, since The One's own lore bakes in whichever account's
+  // real count happened to be scraped for NEU-REPO's static catalog snapshot, not this player's.
+  const maxedCollectionsCount = typeof raw.maxedCollectionsCount === 'number' ? raw.maxedCollectionsCount : 0;
+
+  return { loadout, skipped, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers, maxedCollectionsCount };
 }

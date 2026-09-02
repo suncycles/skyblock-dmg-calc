@@ -1,8 +1,21 @@
 /* Real per-level enchant effect text, sourced directly from NEU-REPO's enchanted-book item
-   files (items/{ID};{level}.json). Fetched directly from raw.githubusercontent.com rather
-   than through the worker, since these are small on-demand lookups. */
+   files (items/{ID};{level}.json). Primary source is the Worker's own daily-refreshed cache
+   (enchantsMeta.levelData — see worker/src/index.js's buildEnchantLevelData/resolveEnchantLevelData,
+   merged into the same `enchants` object /api/items already returns), so a real page load never
+   blocks on live raw.githubusercontent.com requests at all (user-specified 2026-09-01). Falls back
+   to fetching directly from raw.githubusercontent.com only when the server cache is missing an id
+   (a brand-new enchant added since the last daily refresh, or the Worker's own refresh degraded to
+   stale/empty) — same probing this always did before it moved server-side. */
 
 const NEU_ITEMS_BASE = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items';
+// Safety ceiling only, never the primary probe target — see probeLevels below. NEU-REPO's own
+// enchants.json ships a max_xp_table_levels map, but it's the enchant TABLE's cap (obtainable via
+// Bookshelves alone), not the real achievable max: verified live 2026-09-01 that
+// max_xp_table_levels.power = 5 while POWER;7.json (and SHARPNESS;7.json) both return 200 OK —
+// Skyblock's anvil-combining mechanic pushes some enchants past their table cap. Trusting the field
+// as a hard ceiling would silently truncate real, in-game-obtainable levels (e.g. a real Power VII
+// weapon showing as Power V) — used below only as a head start, always extended further if the top
+// of that range actually succeeds.
 const MAX_PROBE_LEVEL = 10;
 
 const levelsCache = new Map(); // enchantId -> Promise<Array<{level, lore}>>
@@ -44,11 +57,39 @@ async function fetchLevel(fileId, level) {
   }
 }
 
-async function probeLevels(fileId) {
-  const results = await Promise.all(
-    Array.from({ length: MAX_PROBE_LEVEL }, (_, i) => fetchLevel(fileId, i + 1)),
-  );
-  return results.filter(Boolean);
+// Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then
+// both cases, rather than assuming one.
+function lookupMaxTableLevel(enchantsMeta, fileId) {
+  const table = enchantsMeta?.max_xp_table_levels;
+  if (!table) return 0;
+  return table[fileId] ?? table[fileId.toLowerCase()] ?? table[fileId.toUpperCase()] ?? 0;
+}
+
+// Starts the probe at the enchant table's own known max instead of always guessing 10 — most
+// enchants cap exactly there, eliminating every guaranteed-404 request beyond it on a cold cache
+// (recommendation #5, user-specified 2026-09-01). That max understates a handful of real enchants
+// (Power/Sharpness reach VII in Skyblock — see MAX_PROBE_LEVEL's comment), so this never treats it
+// as a hard ceiling: it keeps probing one level past the last real success, so a level beyond the
+// table max still gets found, just at the cost of one request per extra level instead of a blind
+// batch of 10 up front.
+async function probeLevels(fileId, enchantsMeta) {
+  let level = Math.max(lookupMaxTableLevel(enchantsMeta, fileId), 1);
+  const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchLevel(fileId, i + 1)));
+  while (results.length > 0 && results[results.length - 1] && level < MAX_PROBE_LEVEL) {
+    level += 1;
+    results.push(await fetchLevel(fileId, level));
+  }
+  const found = results.filter(Boolean);
+  if (found.length > 0) return found;
+  // The head-start above assumes real levels start at 1 and go up — true for every normal
+  // combinable enchant, but not for a rare one dropped pre-leveled directly from a boss with no
+  // lower levels at all: "The One" (ultimate_the_one) only has real data at ULTIMATE_THE_ONE;4 and
+  // ;5 — levels 1-3 flat-out don't exist (verified live 2026-09-01), so starting the probe at 1
+  // finds nothing and gives up before ever trying 4. Falls back to a full blind sweep of every
+  // level up to the ceiling only when the head start found nothing at all, so this never costs
+  // extra requests for the common (starts-at-1) case.
+  const fullSweep = await Promise.all(Array.from({ length: MAX_PROBE_LEVEL }, (_, i) => fetchLevel(fileId, i + 1)));
+  return fullSweep.filter(Boolean);
 }
 
 // Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").
@@ -99,8 +140,14 @@ function buildVenomousLevels() {
   });
 }
 
-// Fetches every existing level (1-10, probed) for an enchant with its real lore. Cached per enchant id.
+// Fetches every existing level for an enchant with its real lore. Cached per enchant id. Checks
+// the Worker's server-side cache first (instant, no network) before falling back to live probing.
 export function fetchEnchantLevels(id, enchantsMeta) {
+  if (id.toLowerCase() === 'venomous') return Promise.resolve(buildVenomousLevels());
+
+  const serverLevels = enchantsMeta?.levelData?.[id.toLowerCase()];
+  if (serverLevels) return Promise.resolve(serverLevels);
+
   if (levelsCache.has(id)) return levelsCache.get(id);
 
   const persisted = loadPersistedLevels(id);
@@ -111,11 +158,10 @@ export function fetchEnchantLevels(id, enchantsMeta) {
   }
 
   const promise = (async () => {
-    if (id.toLowerCase() === 'venomous') return buildVenomousLevels();
-    let levels = await probeLevels(id.toUpperCase());
+    let levels = await probeLevels(id.toUpperCase(), enchantsMeta);
     if (levels.length === 0) {
       const altFileId = resolveAlternateFileId(enchantsMeta, id);
-      if (altFileId) levels = await probeLevels(altFileId);
+      if (altFileId) levels = await probeLevels(altFileId, enchantsMeta);
     }
     savePersistedLevels(id, levels);
     return levels;

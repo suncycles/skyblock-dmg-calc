@@ -11,6 +11,7 @@ import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS } from '../lib/equipmentSlots';
 import { countGemstoneSlots, getAllowedGemsForSlotType } from '../lib/gemstones';
 import { isReforgeApplicable } from '../lib/reforgeData';
+import { useItemData } from './ItemDataContext';
 import { getSpecialConfig } from '../lib/specialWeapons';
 import { MOB_LOCATIONS } from '../lib/mobLocations';
 import { GOD_POTION_MIXINS } from '../lib/godPotion';
@@ -30,6 +31,7 @@ const DPS_MODE_KEY = 'hexDpsMode';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
+const MOB_HP_SELECTIONS_KEY = 'hexMobHpSelections';
 const INFERNAL_CRIMSON_STACKS_KEY = 'hexInfernalCrimsonStacks';
 const SWARM_MOBS_KEY = 'hexSwarmMobs';
 const COMBO_KILLS_KEY = 'hexComboKills';
@@ -41,6 +43,8 @@ const EDIT_ALL_ARMOR_KEY = 'hexEditAllArmor';
 const EDIT_ALL_EQUIPMENT_KEY = 'hexEditAllEquipment';
 const BESTIARY_MAXED_MOBS_KEY = 'hexBestiaryMaxedMobs';
 const COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY = 'hexCombinedMythologicalBestiaryTiers';
+const MAXED_COLLECTIONS_COUNT_KEY = 'hexMaxedCollectionsCount';
+const IMPORTED_WEAPONS_KEY = 'hexImportedWeapons';
 
 export const MAX_SWARM_MOBS = 10;
 export const MAX_COMBO_KILLS = 10;
@@ -116,6 +120,22 @@ function loadInitialMobHpPercent() {
   return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 100;
 }
 
+// Loads the per-mob Floor/Tier picks used to disambiguate a mob with more than one possible
+// starting HP (a Catacombs trash mob spawning on several floors, or a Slayer/Mythological boss
+// with several tiers — see lib/mobHp.js's getFloorOptions/getTierOptions/resolveStartingHp).
+// Keyed by mob name; a mob whose HP is already unambiguous never gets an entry here.
+function loadInitialMobHpSelections() {
+  const stored = localStorage.getItem(MOB_HP_SELECTIONS_KEY);
+  if (!stored) return {};
+  try {
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (err) {
+    console.error('Failed to parse saved mob HP selections:', err);
+    return {};
+  }
+}
+
 // Loads the Infernal Crimson combo-stack count (1-10, default 10 — assume max stacks maintained,
 // same "compare at real ceiling" treatment as everything else defaulted to max) — only
 // shown/applied once 2+ Infernal Crimson pieces are equipped, see lib/armorSetBonuses.js.
@@ -165,6 +185,21 @@ function loadInitialBestiaryMaxedMobs() {
   }
 }
 
+// Every real weapon lib/hypixelImport.js's buildWeaponInventoryList found in the imported
+// account's inventory (not just whichever one got equipped) — {item, modifiers, location} entries,
+// same shape as loadout.weapon. Import-only, no manual editing UI, same reasoning as
+// loadInitialBestiaryMaxedMobs above.
+function loadInitialImportedWeapons() {
+  try {
+    const stored = localStorage.getItem(IMPORTED_WEAPONS_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error('Failed to parse saved imported weapons:', err);
+    return [];
+  }
+}
+
 // Daedalus Blade/Starred Daedalus Blade's real "Combined Mythological Bestiary Tiers" ability
 // input (worker/src/index.js's computeCombinedMythologicalBestiaryTiers) — independent of whichever
 // weapon is actually equipped, so the Optimizer's Diana weapon progression (lib/optimizer.js) can
@@ -173,6 +208,16 @@ function loadInitialBestiaryMaxedMobs() {
 // lib/hypixelImport.js's parseLabeledNumberFromLore), unaffected by this.
 function loadInitialCombinedMythologicalBestiaryTiers() {
   const stored = localStorage.getItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY);
+  const parsed = stored != null ? Number(stored) : 0;
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+// "The One" enchant's real per-collection Health/Strength scaling input (worker/src/index.js's
+// computeMaxedCollectionsCount) — same "independent of any one owned item" treatment as Combined
+// Mythological Bestiary Tiers above, so the Optimizer can evaluate applying/leveling The One on a
+// Necklace the player doesn't have it equipped on yet.
+function loadInitialMaxedCollectionsCount() {
+  const stored = localStorage.getItem(MAXED_COLLECTIONS_COUNT_KEY);
   const parsed = stored != null ? Number(stored) : 0;
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
@@ -313,6 +358,11 @@ function loadInitialLastGearModifiers() {
 const MAX_LOADOUT_HISTORY = 50;
 
 export function BuildProvider({ children }) {
+  // BuildProvider is nested inside ItemDataProvider (see App.jsx), so this is safe — used by
+  // selectItem below to validate a carried-over reforge against the real catalog rather than
+  // needing every caller to pass it in (unlike applyReforge's Edit-All broadcast, which gets
+  // reforgeMeta from ReforgesPicker.jsx since that's the only other consumer).
+  const { itemData } = useItemData();
   const [loadout, setLoadoutRaw] = useState(loadInitial);
   // Past/future loadout snapshots for Undo/Redo. Refs (not state) since they only ever need to be
   // read at render time alongside a `loadout` change that's already triggering a re-render — every
@@ -378,21 +428,36 @@ export function BuildProvider({ children }) {
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
+  const [mobHpSelections, setMobHpSelectionsState] = useState(loadInitialMobHpSelections);
   const [infernalCrimsonStacks, setInfernalCrimsonStacksState] = useState(loadInitialInfernalCrimsonStacks);
   const [swarmMobs, setSwarmMobsState] = useState(loadInitialSwarmMobs);
   const [comboKills, setComboKillsState] = useState(loadInitialComboKills);
   const [legionPlayers, setLegionPlayersState] = useState(loadInitialLegionPlayers);
   const [blazeCrimsonIsle, setBlazeCrimsonIsleState] = useState(loadInitialBlazeCrimsonIsle);
   const [bestiaryMaxedMobs, setBestiaryMaxedMobsState] = useState(loadInitialBestiaryMaxedMobs);
+  const [importedWeapons, setImportedWeaponsState] = useState(loadInitialImportedWeapons);
   const [combinedMythologicalBestiaryTiers, setCombinedMythologicalBestiaryTiersState] = useState(
     loadInitialCombinedMythologicalBestiaryTiers,
   );
+  const [maxedCollectionsCount, setMaxedCollectionsCountState] = useState(loadInitialMaxedCollectionsCount);
   const [maxBudget, setMaxBudgetState] = useState(loadInitialMaxBudget);
 
   const setMobHpPercent = useCallback((value) => {
     const clamped = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
     setMobHpPercentState(clamped);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(clamped));
+  }, []);
+
+  // value=null/'' clears the pick for that mob (back to "no selection" — the DPS-by-hit graph's
+  // fallback to the static Mob HP% slider) rather than storing an empty entry.
+  const setMobHpSelection = useCallback((mobName, value) => {
+    setMobHpSelectionsState((prev) => {
+      const next = { ...prev };
+      if (value) next[mobName] = value;
+      else delete next[mobName];
+      localStorage.setItem(MOB_HP_SELECTIONS_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const setInfernalCrimsonStacks = useCallback((value) => {
@@ -769,6 +834,17 @@ export function BuildProvider({ children }) {
         gearModifiers.gemstones = (gearModifiers.gemstones || []).slice(0, slotCount);
         gearModifiers.gemstoneSlotsUnlocked = (gearModifiers.gemstoneSlotsUnlocked || []).slice(0, slotCount);
       }
+      // A carried-over reforge can be item-exclusive to the item being replaced (e.g. Gilded ->
+      // Midas Sword only, matched by item.id rather than category/rarity — see reforgeData.js's
+      // isReforgeApplicable) — same real mismatch as the gemstone clip above, just for reforges
+      // instead of gem slots (user-specified 2026-08-31, bug report: Gilded carrying onto a
+      // different sword). Looked up from whichever real table (blacksmith or stone) actually has
+      // this name; a lookup miss (itemData not loaded yet, or a genuinely unknown name) carries
+      // over as before rather than guessing it's invalid.
+      if (gearModifiers.reforge) {
+        const reforgeMeta = itemData.reforges?.[gearModifiers.reforge] || itemData.reforgeStones?.[gearModifiers.reforge];
+        if (reforgeMeta && !isReforgeApplicable(reforgeMeta, item)) gearModifiers.reforge = null;
+      }
       if (slot !== 'pet' && slot !== 'accessory') {
         const carriedStars = crossesWeaponType ? 0 : (prev[slot]?.modifiers?.stars ?? stashed?.stars ?? 0);
         const maxStars = getMaxStarsForItem(item);
@@ -817,7 +893,7 @@ export function BuildProvider({ children }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-  }, []);
+  }, [itemData]);
 
   // Merges a Hypixel-import gear patch (see lib/hypixelImport.js) into the current loadout —
   // only the slots present in `patch` are touched (already-full {item, modifiers} entries, not
@@ -863,12 +939,42 @@ export function BuildProvider({ children }) {
     localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(next));
   }, []);
 
+  // Same full-replacement treatment — the account's real weapon inventory as of THIS import, not
+  // an accumulation across multiple imports (a weapon sold/moved since the last import shouldn't
+  // linger in the easy-access list). See lib/hypixelImport.js's buildWeaponInventoryList.
+  const importHypixelWeaponList = useCallback((entries) => {
+    const next = Array.isArray(entries) ? entries : [];
+    setImportedWeaponsState(next);
+    localStorage.setItem(IMPORTED_WEAPONS_KEY, JSON.stringify(next));
+  }, []);
+
+  // Equips one entry from the imported-weapons list directly — its own real {item, modifiers} as
+  // imported, not selectItem's "carry over the previous weapon's modifiers" treatment (a real
+  // account weapon already has its own real reforge/enchants/stars baked in; carrying the
+  // previously-equipped weapon's modifiers onto it would silently overwrite them with unrelated
+  // data). Same direct-patch shape as importHypixelLoadout above.
+  const equipImportedWeapon = useCallback((entry) => {
+    if (!entry) return;
+    setLoadout((prev) => {
+      const next = { ...prev, weapon: { item: entry.item, modifiers: entry.modifiers } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // Same full-replacement treatment as importHypixelBestiaryMaxedMobs above — a fresh import is a
   // complete, authoritative recomputation from real kill data, not a patch.
   const importHypixelCombinedMythologicalBestiaryTiers = useCallback((value) => {
     const next = Number.isFinite(value) ? Math.max(0, value) : 0;
     setCombinedMythologicalBestiaryTiersState(next);
     localStorage.setItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY, String(next));
+  }, []);
+
+  // Same full-replacement treatment as the two imports above.
+  const importHypixelMaxedCollectionsCount = useCallback((value) => {
+    const next = Number.isFinite(value) ? Math.max(0, value) : 0;
+    setMaxedCollectionsCountState(next);
+    localStorage.setItem(MAXED_COLLECTIONS_COUNT_KEY, String(next));
   }, []);
 
   // Fully unequips a slot, dropping its key from the loadout entirely.
@@ -1338,6 +1444,13 @@ export function BuildProvider({ children }) {
     setMobHpPercentState(clampedMobHp);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(clampedMobHp));
 
+    const nextMobHpSelections =
+      state.mobHpSelections && typeof state.mobHpSelections === 'object' && !Array.isArray(state.mobHpSelections)
+        ? state.mobHpSelections
+        : {};
+    setMobHpSelectionsState(nextMobHpSelections);
+    localStorage.setItem(MOB_HP_SELECTIONS_KEY, JSON.stringify(nextMobHpSelections));
+
     const clampedStacks = Math.max(
       1,
       Math.min(INFERNAL_CRIMSON_MAX_STACKS, Math.round(Number(state.infernalCrimsonStacks) || INFERNAL_CRIMSON_MAX_STACKS)),
@@ -1367,6 +1480,10 @@ export function BuildProvider({ children }) {
     const nextCombinedMythologicalBestiaryTiers = Math.max(0, Number(state.combinedMythologicalBestiaryTiers) || 0);
     setCombinedMythologicalBestiaryTiersState(nextCombinedMythologicalBestiaryTiers);
     localStorage.setItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY, String(nextCombinedMythologicalBestiaryTiers));
+
+    const nextMaxedCollectionsCount = Math.max(0, Number(state.maxedCollectionsCount) || 0);
+    setMaxedCollectionsCountState(nextMaxedCollectionsCount);
+    localStorage.setItem(MAXED_COLLECTIONS_COUNT_KEY, String(nextMaxedCollectionsCount));
   }, []);
 
   return (
@@ -1414,6 +1531,8 @@ export function BuildProvider({ children }) {
         setMiscStat,
         mobHpPercent,
         setMobHpPercent,
+        mobHpSelections,
+        setMobHpSelection,
         infernalCrimsonStacks,
         setInfernalCrimsonStacks,
         swarmMobs,
@@ -1426,6 +1545,8 @@ export function BuildProvider({ children }) {
         toggleBlazeCrimsonIsle,
         bestiaryMaxedMobs,
         combinedMythologicalBestiaryTiers,
+        maxedCollectionsCount,
+        importedWeapons,
         maxBudget,
         setMaxBudget,
         selectItem,
@@ -1434,6 +1555,9 @@ export function BuildProvider({ children }) {
         importHypixelPlayerStats,
         importHypixelBestiaryMaxedMobs,
         importHypixelCombinedMythologicalBestiaryTiers,
+        importHypixelMaxedCollectionsCount,
+        importHypixelWeaponList,
+        equipImportedWeapon,
         removeSlot,
         applyEnchant,
         applyGemstone,

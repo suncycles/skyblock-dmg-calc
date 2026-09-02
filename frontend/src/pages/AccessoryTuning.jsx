@@ -35,8 +35,8 @@ export default function AccessoryTuning() {
         useMasterMode: build.useMasterMode,
         metric: build.mageMode ? 'ability' : 'dps',
       };
-      const optimal = await computeOptimalTuningForMp(loadout, itemData, build, modeConfig, { name: mobName, types: mobTypes }, loadout.accessory.modifiers.magicalPower);
-      setAccessoryTuning(optimal);
+      const { allocation } = await computeOptimalTuningForMp(loadout, itemData, build, modeConfig, { name: mobName, types: mobTypes }, loadout.accessory.modifiers.magicalPower);
+      setAccessoryTuning(allocation);
     } finally {
       setAutoSpending(false);
     }

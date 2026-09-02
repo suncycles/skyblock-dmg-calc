@@ -31,7 +31,9 @@
 //   option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
-import { computeAbilityDamage, computeDpsBreakdown } from './finalDamage';
+import { computeAbilityDamage, computeDpsBreakdown, simulateHitByHit, MAX_VENOMOUS_STACKS } from './finalDamage';
+import { resolveStartingHp } from './mobHp';
+import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import {
@@ -771,7 +773,41 @@ async function evaluateTieredProgression(
 // Runs the full damage-source pipeline for one candidate loadout and reduces it to the mode's
 // single damage number (melee Total DPS, or Ability Damage) plus the raw sources (needed once,
 // for the baseline call, to also read Bonus Attack Speed).
+//
+// The 'dps' metric's number is a real fight AVERAGE, not a single-point-in-time snapshot, when the
+// target mob has a confirmed starting HP (lib/mobHp.js's resolveStartingHp) — user-specified
+// 2026-08-31: ranking upgrades off a fixed-HP% DPS number effectively compared everything against
+// "first hit" conditions (mobHpPercent defaults to 100), which misprices any Execute/Prosecute-
+// carrying loadout since those ramp hit-by-hit as the mob's real HP drains (see
+// lib/finalDamage.js's simulateHitByHit, built for DamageSources.jsx's hit-by-hit graph — reused
+// here rather than re-derived). `sources` is built at mobHpPercent=100 in that case (not
+// build.mobHpPercent) so First Strike/Triple Strike's opening-hit-only entry is actually present
+// for the simulation's own per-hit gating — same reason DamageSources.jsx's own resultAt100 call
+// exists. Capped at the same 40-hit window the DPS-by-hit graph shows (not the full 10,000-hit
+// kill-search cap) — this runs per candidate, possibly hundreds of times per Optimizer pass, and
+// "average DPS across the fight's first 40 hits" is plenty representative for ranking purposes
+// without paying for the full-length simulation on every one of them. Mobs without a confirmed HP
+// (docs/mob-hp-followups.md) fall back to the prior fixed-mobHpPercent DPS number unchanged.
+// Ability/Beam metrics are untouched — scoped to 'dps' per the request.
+//
+// Also triggers on Venomous (user-specified 2026-09-01), for the same reason: computeDpsBreakdown
+// below prices Venomous at a permanent single active stack (computeVenomousProcDamage's own
+// return is the N=1 value), which is really "Venomous DPS on the very first hit," not its real
+// average across a fight where stacks build up to MAX_VENOMOUS_STACKS — only the real simulation
+// (which ramps `activeStacks` hit-by-hit) prices it correctly.
 export async function computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob) {
+  const startingHp =
+    modeConfig.metric === 'dps'
+      ? resolveStartingHp(mob?.name, modeConfig.useMasterMode, build.mobHpSelections?.[mob?.name])
+      : null;
+  const mobHpPercent = startingHp ? 100 : build.mobHpPercent;
+  // Same auto-derivation as DamageSources.jsx — an Infernal/Magmatic target mob turns Blaze pet's
+  // Crimson Isle bonus on regardless of the manual toggle, so every candidate this feeds (pet
+  // swaps included) gets compared with it correctly applied instead of silently missing it
+  // whenever the manual toggle happens to be off (user-specified 2026-09-01).
+  const isCrimsonIsleTarget = !!mob?.types && (mob.types.includes('Infernal') || mob.types.includes('Magmatic'));
+  const blazeCrimsonIsle = build.blazeCrimsonIsle || isCrimsonIsleTarget;
+
   const sources = await collectDamageSources(
     loadout,
     itemData,
@@ -779,15 +815,16 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     build.godPotionActive,
     build.attributes,
     build.miscStats,
-    build.mobHpPercent,
+    mobHpPercent,
     build.infernalCrimsonStacks,
     modeConfig.useDungeonizedStats,
     build.swarmMobs,
     build.comboKills,
     build.legionPlayers,
-    build.blazeCrimsonIsle,
+    blazeCrimsonIsle,
     build.bestiaryMaxedMobs,
     build.godPotionMixin,
+    build.maxedCollectionsCount,
   );
 
   if (modeConfig.metric === 'ability') {
@@ -795,15 +832,43 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     return { value: ability ? ability.finalDamage : 0, sources };
   }
 
-  const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
-
   if (modeConfig.metric === 'beam') {
     // dps.beamProc is already computed off the crit-chance-weighted expected hit damage (see
     // computeDpsBreakdown) — reused here rather than recomputed from dps.meleeFinalDamage (which
     // assumes a guaranteed crit), so this metric reflects real Crit Chance/Overload too.
+    const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
     return { value: dps.beamProc.finalDamage, sources };
   }
 
+  // Only worth the real hit-by-hit simulation below when something actually varies hit-to-hit —
+  // Execute/Prosecute (value depends on the mob's real remaining HP%) or Venomous (active stacks
+  // ramp up hit-by-hit, see the comment above). Without either equipped, buildHitSources returns
+  // the exact same sources every iteration, so the "average across the fight" is mathematically
+  // identical to steady-state computeDpsBreakdown's single number — running 40 full iterations to
+  // re-derive an already-known answer is pure waste. This check is what keeps the (still
+  // relatively rare) 40x-per-candidate cost from applying to every Optimizer pass — without it, a
+  // real pass against a tanky mob with a large Magical Power tuning budget (accessoryOptimizer.js's
+  // per-point hill-climb calls computeModeDamage hundreds of times on its own) hung for minutes
+  // even after capping the simulation's own search length (bug caught 2026-09-01 testing the
+  // Blaze/Crimson-Isle change below).
+  if (startingHp && (sources.executeProsecuteRate || sources.venomousProc)) {
+    const sim = simulateHitByHit(
+      sources,
+      mob,
+      loadout,
+      startingHp,
+      100,
+      modeConfig.useDungeonizedStats,
+      modeConfig.useMasterMode,
+      MAX_VENOMOUS_STACKS,
+      MAX_VENOMOUS_STACKS,
+    );
+    const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
+    const elapsedSeconds = sim.totalHits != null ? sim.timeToKillSeconds : sim.hits.length / sim.meleeHitsPerSecond;
+    return { value: elapsedSeconds > 0 ? totalDealt / elapsedSeconds : 0, sources };
+  }
+
+  const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
   return { value: dps.total, sources };
 }
 
@@ -1032,10 +1097,11 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
 // loses whatever real Kuudra-family set bonus (e.g. Infernal Crimson's stacking damage) the
 // swapped-out piece was contributing (user-confirmed 2026-08-27). So each is its own single
 // candidate that swaps every slot in the set at once, carrying over each existing slot's own
-// reforge/ultimate enchant the same way evaluateItemSlotCandidates does. Runs unconditionally
-// (not gated on a mode's curated progression) — Mythos'/Challenger's doubling ability itself is
-// already mode-independent (only cares whether the selected target mob is Mythological-typed, see
-// finalDamage.js's selectBaseStats), same as Vanquished/Final Destination not being mode-specific.
+// reforge/ultimate enchant the same way evaluateItemSlotCandidates does. Vanquished/Final
+// Destination are Slayer-only rewards (user-specified 2026-09-01) — like Mythos/Challenger's being
+// Diana-only, they're real gear this app shouldn't suggest outside the content that actually drops
+// it, even though their own doubling/bonus condition (a specific boss, Ender-type mobs) happens to
+// be mode-independent on its own.
 const FULL_SET_CANDIDATES = [
   {
     category: 'Full Set',
@@ -1043,6 +1109,7 @@ const FULL_SET_CANDIDATES = [
     slots: EQUIPMENT_SLOTS,
     idsBySlot: { necklace: 'VANQUISHED_MAGMA_NECKLACE', cloak: 'VANQUISHED_GHAST_CLOAK', belt: 'VANQUISHED_BLAZE_BELT', gloves: 'VANQUISHED_GLOWSTONE_GAUNTLET' },
     setIds: VANQUISHED_SET,
+    slayerOnly: true,
   },
   {
     category: 'Full Set',
@@ -1050,6 +1117,7 @@ const FULL_SET_CANDIDATES = [
     slots: ARMOR_SLOTS,
     idsBySlot: { helmet: 'FINAL_DESTINATION_HELMET', chestplate: 'FINAL_DESTINATION_CHESTPLATE', leggings: 'FINAL_DESTINATION_LEGGINGS', boots: 'FINAL_DESTINATION_BOOTS' },
     setIds: FINAL_DESTINATION_SET,
+    slayerOnly: true,
   },
   {
     category: 'Full Set',
@@ -1057,6 +1125,7 @@ const FULL_SET_CANDIDATES = [
     slots: ARMOR_SLOTS,
     idsBySlot: { helmet: 'CHALLENGER_HELMET', chestplate: 'CHALLENGER_CHESTPLATE', leggings: 'CHALLENGER_LEGGINGS', boots: 'CHALLENGER_BOOTS' },
     setIds: CHALLENGER_ARMOR_SET,
+    dianaOnly: true,
   },
   {
     category: 'Full Set',
@@ -1064,12 +1133,22 @@ const FULL_SET_CANDIDATES = [
     slots: ARMOR_SLOTS,
     idsBySlot: { helmet: 'MYTHOS_HELMET', chestplate: 'MYTHOS_CHESTPLATE', leggings: 'MYTHOS_LEGGINGS', boots: 'MYTHOS_BOOTS' },
     setIds: MYTHOS_ARMOR_SET,
+    dianaOnly: true,
   },
 ];
 
-async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob) {
+// `mode` (the raw mode id, not modeConfig — 'diana' and 'slayer' resolve to an IDENTICAL
+// modeConfig, {useDungeonizedStats: false, metric: 'dps'}, so only the raw id can tell them apart)
+// restricts each set above to its own real source content — despite their bonus condition itself
+// being mode-independent (Challenger's/Mythos only cares whether the target mob is
+// Mythological-typed; Vanquished/Final Destination care about a specific boss / Ender-type mobs),
+// none of these are real upgrades to suggest outside the mode a player would actually be farming
+// them in (user-specified 2026-09-01).
+async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const results = [];
   for (const set of FULL_SET_CANDIDATES) {
+    if (set.dianaOnly && mode !== 'diana') continue;
+    if (set.slayerOnly && mode !== 'slayer') continue;
     if (hasFullSet(loadout, set.slots, set.setIds)) continue; // already wearing it — nothing to suggest
     const candidateLoadout = { ...loadout };
     const apply = [];
@@ -1298,6 +1377,47 @@ async function evaluateEnchantCandidates(loadout, itemData, build, modeConfig, m
   return results;
 }
 
+// Recommends a real type-bane enchant (Smite/Ender Slayer/Bane of Arthropods/Smoldering/Cubism/
+// Impaling/Arcane — mobTypes.js's ENCHANT_ID_MOB_TYPES) that isn't currently on the weapon at all
+// but whose real mob-type condition matches the target — e.g. suggesting Ender Slayer against an
+// Ender-type mob when no type-bane enchant is equipped (user-specified 2026-08-31).
+// evaluateEnchantCandidates above deliberately never proposes an enchant that isn't already
+// equipped (real Hex enchant-slot availability isn't modeled anywhere in this app) — this is a
+// narrow, explicit exception scoped to exactly these 7 enchants: missing an obviously-correct type
+// match is a bigger real cost than the same slot-availability uncertainty every other Optimizer
+// assumption already accepts (Swarm's nearby-mob-count guess, God Potion, etc.). Recommends at the
+// enchant's own real max level, same convention evaluateUltimateEnchantCandidates below already
+// uses for "swap in something not currently equipped."
+async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
+  const weapon = loadout.weapon;
+  if (!weapon || !mob?.types?.length) return [];
+  const category = resolveEnchantCategory(weapon.item.category);
+  const categoryIds = new Set(getCategoryEnchantIds(itemData.enchants, category).map((id) => id.toLowerCase()));
+  const equippedIds = new Set((weapon.modifiers.hexEnchantments || []).map((e) => e.id.toLowerCase()));
+  const results = [];
+  for (const [id, types] of Object.entries(ENCHANT_ID_MOB_TYPES)) {
+    if (equippedIds.has(id) || !categoryIds.has(id) || !types.some((t) => mob.types.includes(t))) continue;
+    const levels = await fetchEnchantLevels(id, itemData.enchants);
+    if (levels.length === 0) continue;
+    const maxLevel = Math.max(...levels.map((l) => l.level));
+    const removeIds = computeConflictingEntries(id, weapon.item.lore, weapon.modifiers).map((e) => e.id);
+    const newEnchants = [
+      ...(weapon.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
+      { id, level: maxLevel },
+    ];
+    const candidateLoadout = { ...loadout, weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants } } };
+    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    results.push({
+      category: 'Enchant',
+      slot: 'weapon',
+      label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
+      value,
+      apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
+    });
+  }
+  return results;
+}
+
 // Brute-forces every real ultimate enchant applicable to the weapon's category (at its own real
 // max level) as a full alternative to whichever ultimate is currently equipped. Removes whatever
 // computeConflictingEntries says the real item would lose — same conflict resolution the Hex
@@ -1343,6 +1463,50 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
       value,
       apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
     });
+  }
+  return results;
+}
+
+// Same brute-force as evaluateUltimateEnchantCandidates above, for equipment (Necklace/Cloak/Belt/
+// Gloves) instead of the weapon — a real, previously-unmodeled gap (this Optimizer had no
+// equipment-slot Ultimate Enchant recommendation path at all until "The One" needed one, which
+// only ever applies to Necklace per its own real category-list membership — see
+// enchantEffects.js's DISPLAY_NAME_OVERRIDES comment history — so this generalizes to every real
+// equipment ultimate enchant rather than special-casing just that one, user-specified 2026-09-01).
+async function evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
+  const results = [];
+  for (const slot of EQUIPMENT_SLOTS) {
+    const equipped = loadout[slot];
+    if (!equipped?.item) continue;
+    const category = resolveEnchantCategory(equipped.item.category);
+    const ids = getCategoryEnchantIds(itemData.enchants, category).filter(isUltimateEnchant);
+    const currentId = equipped.modifiers.ultimateEnchantment?.id?.toLowerCase() || null;
+    for (const id of ids) {
+      if (id.toLowerCase() === currentId) continue;
+      const levels = await fetchEnchantLevels(id, itemData.enchants);
+      if (levels.length === 0) continue;
+      const maxLevel = Math.max(...levels.map((l) => l.level));
+      const removeIds = computeConflictingEntries(id, equipped.item.lore, equipped.modifiers).map((e) => e.id);
+      const candidateLoadout = {
+        ...loadout,
+        [slot]: {
+          ...equipped,
+          modifiers: {
+            ...equipped.modifiers,
+            ultimateEnchantment: { id, level: maxLevel, maxLevel },
+            hexEnchantments: (equipped.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
+          },
+        },
+      };
+      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      results.push({
+        category: 'Ultimate Enchant',
+        slot,
+        label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
+        value,
+        apply: [{ type: 'applyEnchant', slot, id, level: maxLevel, maxLevel, removeIds }],
+      });
+    }
   }
   return results;
 }
@@ -1827,8 +1991,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     equipment,
     pets,
     enchants,
+    missingTypeBaneEnchants,
     ultimates,
     armorUltimates,
+    equipmentUltimates,
     powers,
     stars,
     masterStars,
@@ -1855,8 +2021,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ),
     evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
+    evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
@@ -1864,7 +2032,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
     evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
   ]);
@@ -1894,8 +2062,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   const otherResults = [
     ...withPercent([
       ...enchants,
+      ...missingTypeBaneEnchants,
       ...ultimates,
       ...armorUltimates,
+      ...equipmentUltimates,
       ...powers,
       ...stars,
       ...masterStars,

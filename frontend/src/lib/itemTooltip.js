@@ -41,15 +41,31 @@ function insertEnchantLines(lore, enchantLines) {
   return [...lore.slice(0, blankIdx + 1), ...enchantLines, '', ...lore.slice(blankIdx + 1)];
 }
 
+// "The One" (ultimate_the_one): real lore is "Grants +0.5/+1 Health and +0.1/+0.2 Strength per
+// maxed out collection" at levels 4/5 (user-confirmed 2026-09-01 — these are its only two real
+// levels; NEU-REPO has no item file at all for 1-3, see enchantEffects.js's probeLevels comment).
+// The generic parseEnchantStatBonus below can't handle this — it only matches a single fixed
+// number per stat, not a rate scaled by a live account counter — so it's special-cased here the
+// same way Venomous/Fire Aspect/etc. are special-cased in damageSources.js's collectEnchantEntries.
+const THE_ONE_RATE_PER_LEVEL = { 4: { health: 0.5, strength: 0.1 }, 5: { health: 1, strength: 0.2 } };
+function computeTheOneStatBonus(level, maxedCollectionsCount) {
+  const rates = THE_ONE_RATE_PER_LEVEL[level];
+  if (!rates) return null;
+  return { health: rates.health * maxedCollectionsCount, strength: rates.strength * maxedCollectionsCount };
+}
+
 // Sums every applied enchant's own flat/percent stat bonus (Critical's +Crit Damage%, etc.).
 // Enchants with no parseable flat bonus contribute nothing rather than erroring.
-async function computeEnchantStatBonuses(modifiers, enchantsMeta) {
+async function computeEnchantStatBonuses(modifiers, enchantsMeta, maxedCollectionsCount) {
   const entries = [...(modifiers.hexEnchantments || [])];
   if (modifiers.ultimateEnchantment) entries.push(modifiers.ultimateEnchantment);
   if (entries.length === 0) return {};
 
   const perEnchant = await Promise.all(
     entries.map(async (entry) => {
+      if (entry.id.toLowerCase() === 'ultimate_the_one') {
+        return computeTheOneStatBonus(entry.level, maxedCollectionsCount || 0);
+      }
       const levels = await fetchEnchantLevels(entry.id, enchantsMeta);
       const levelData = levels.find((l) => l.level === entry.level);
       return levelData ? parseEnchantStatBonus(extractDescriptionLines(levelData.lore)) : null;
@@ -98,6 +114,7 @@ export async function buildFullItemTooltipLines(
   manticoreClawBonus,
   potatoBookDoubled,
   isMythologicalTarget,
+  maxedCollectionsCount,
 ) {
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
@@ -133,7 +150,7 @@ export async function buildFullItemTooltipLines(
   lore = mergeStatIntoBase(lore, manticoreClawBonus, lore.indexOf(''));
 
   // Enchant stat bonuses also merge into the base stat, no separate annotation.
-  const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants);
+  const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants, maxedCollectionsCount);
   lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
 
   // Challenger's/Mythos Armor+Equipment's doubled stats against a Mythological target — see

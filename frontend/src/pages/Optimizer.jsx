@@ -185,6 +185,7 @@ export default function Optimizer() {
     build.godPotionActive,
     build.godPotionMixin,
     build.mobHpPercent,
+    build.mobHpSelections,
     build.infernalCrimsonStacks,
     build.swarmMobs,
     build.comboKills,

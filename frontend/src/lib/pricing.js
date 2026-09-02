@@ -57,6 +57,27 @@ function findStep(apply, type) {
   return (apply || []).find((s) => s.type === type);
 }
 
+// A few enchants' top level isn't sold as a normal enchanted book at all — it's applied by
+// consuming one specific, single-use special item instead, so there's no
+// `ENCHANTMENT_<name>_<level>` price entry for it (confirmed: pricesV2.json has no
+// ENCHANTMENT_ENDER_SLAYER_7/SMITE_7/VENOMOUS_7 despite Ender Slayer 7 and Smite 7 being real,
+// obtainable levels — Venomous 7 has no NEU-REPO item file at all, but is still a real level, see
+// enchantEffects.js's hardcoded VENOMOUS_LEVELS). User-confirmed 2026-09-01.
+const SPECIAL_ENCHANT_LEVEL_ITEMS = {
+  ender_slayer: { 7: 'ENDSTONE_IDOL' },
+  smite: { 7: 'SEVERED_HAND' },
+  venomous: { 7: 'FATEFUL_STINGER' },
+};
+
+// Real coin price for one enchant at one level — the single source of truth both this file's own
+// Enchant/Ultimate Enchant candidate pricing below and loadoutCost.js's Setup Cost breakdown call
+// through, so the special-item exceptions above only ever need handling in one place.
+export function enchantPrice(itemPrices, id, level) {
+  const specialItemId = SPECIAL_ENCHANT_LEVEL_ITEMS[id.toLowerCase()]?.[level];
+  if (specialItemId) return priceOf(itemPrices, specialItemId);
+  return priceOf(itemPrices, `ENCHANTMENT_${id.toUpperCase()}_${level}`);
+}
+
 export function lookupCandidateCost(result, itemData) {
   const costs = itemData?.costs;
   if (!costs) return null;
@@ -103,7 +124,7 @@ export function lookupCandidateCost(result, itemData) {
     case 'Enchant':
     case 'Ultimate Enchant': {
       const step = findStep(result.apply, 'applyEnchant');
-      return step ? priceOf(itemPrices, `ENCHANTMENT_${step.id.toUpperCase()}_${step.level}`) : null;
+      return step ? enchantPrice(itemPrices, step.id, step.level) : null;
     }
     case 'Power Stone': {
       const step = findStep(result.apply, 'selectItem');
@@ -135,7 +156,13 @@ export function lookupCandidateCost(result, itemData) {
     }
     case 'Master Stars': {
       const step = findStep(result.apply, 'setMasterStarCount');
-      return step ? masterStarCost(step.count, itemPrices) : null;
+      // Each candidate is a single incremental step (evaluateMasterStarsCandidates always offers
+      // "current + 1"), so its real cost is just that ONE star's own item price — not
+      // masterStarCost's cumulative 1..count total (the right shape for loadoutCost.js's Setup
+      // Cost, "total spent so far", but double-counts already-owned stars here). Bug: a player at
+      // Master Star 4 upgrading to 5 was shown the full 1-5 cumulative (~237M) instead of just the
+      // 5th star's own price (~114M) — user-confirmed 2026-09-01.
+      return step ? priceOf(itemPrices, MASTER_STAR_ITEM_IDS[step.count - 1]) : null;
     }
     case 'Gemstone': {
       const step = findStep(result.apply, 'setGemstone');

@@ -8,8 +8,10 @@ import {
   computeAbilityDamage,
   computeMageStaffBeamDamage,
   computeDpsBreakdown,
+  simulateHitByHit,
   DPS_HITS_PER_SECOND,
 } from '../lib/finalDamage';
+import { resolveStartingHp, getFloorOptions, getTierOptions } from '../lib/mobHp';
 import { ABILITY_DAMAGE_TABLE } from '../lib/abilityDamage';
 import {
   VANQUISHED_SET_ID,
@@ -35,7 +37,7 @@ import { useConfirmDialog } from '../context/ConfirmDialogContext';
 // recharts (+ its d3 submodules) is a genuinely heavy dependency used only by this one chart —
 // dynamically imported so it's fetched/parsed only when DPS mode is actually toggled on, not on
 // every visit to this page (the far more common case is the plain Final Damage view).
-const DpsByHitGraph = lazy(() => import('../components/DpsByHitGraph'));
+const HitSimulationGraph = lazy(() => import('../components/HitSimulationGraph'));
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -97,6 +99,8 @@ export default function DamageSources({ embedded = false }) {
     setMiscStat,
     mobHpPercent,
     setMobHpPercent,
+    mobHpSelections,
+    setMobHpSelection,
     infernalCrimsonStacks,
     setInfernalCrimsonStacks,
     swarmMobs,
@@ -108,6 +112,7 @@ export default function DamageSources({ embedded = false }) {
     blazeCrimsonIsle,
     toggleBlazeCrimsonIsle,
     bestiaryMaxedMobs,
+    maxedCollectionsCount,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
     setAccessoryEnrichmentType,
@@ -158,29 +163,50 @@ export default function DamageSources({ embedded = false }) {
   // already reflects this per-mob; this just keeps the (Base) Stats panel's displayed total and
   // source breakdown consistent with it rather than silently disagreeing).
   const isEnderTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Ender'));
+  // Blaze pet's "In Crimson Isle" bonus (BLAZE_CRIMSON_ISLE_PERCENT) is real-life gated on the
+  // player's actual location, which this app doesn't model — but Infernal/Magmatic-typed mobs are
+  // only ever fought there, so targeting one is a real, non-guessed signal to turn the bonus on
+  // automatically rather than relying on the player to remember the manual checkbox (user-specified
+  // 2026-09-01). OR'd with the manual toggle rather than replacing it — a manual "on" still counts
+  // for non-Infernal/Magmatic targets fought on Crimson Isle for other reasons.
+  const isCrimsonIsleTarget = targetMobs.some((name) => {
+    const types = MOB_TYPES[name] || [];
+    return types.includes('Infernal') || types.includes('Magmatic');
+  });
+  const effectiveBlazeCrimsonIsle = blazeCrimsonIsle || isCrimsonIsleTarget;
 
   useEffect(() => {
-    const token = ++tokenRef.current;
     setResult(null);
-    collectDamageSources(
-      loadout,
-      itemData,
-      playerStats,
-      godPotionActive,
-      attributes,
-      miscStats,
-      mobHpPercent,
-      infernalCrimsonStacks,
-      useDungeonizedStats,
-      swarmMobs,
-      comboKills,
-      legionPlayers,
-      blazeCrimsonIsle,
-      bestiaryMaxedMobs,
-      godPotionMixin,
-    ).then((r) => {
-      if (tokenRef.current === token) setResult(r);
-    });
+    // Debounced like Optimizer.jsx's own recompute effect — this fires on every keystroke of a
+    // free-typed stat/attribute field (this effect's deps include several), so an undebounced call
+    // queues up a full collectDamageSources pass per keystroke instead of one after typing settles
+    // (user-specified 2026-09-02, following a performance audit). The 200ms cleanup below also
+    // means React StrictMode's dev-only mount→cleanup→mount double-invoke cancels the first
+    // timeout before it ever fires, instead of running the real pipeline twice on every mount.
+    const handle = setTimeout(() => {
+      const token = ++tokenRef.current;
+      collectDamageSources(
+        loadout,
+        itemData,
+        playerStats,
+        godPotionActive,
+        attributes,
+        miscStats,
+        mobHpPercent,
+        infernalCrimsonStacks,
+        useDungeonizedStats,
+        swarmMobs,
+        comboKills,
+        legionPlayers,
+        effectiveBlazeCrimsonIsle,
+        bestiaryMaxedMobs,
+        godPotionMixin,
+        maxedCollectionsCount,
+      ).then((r) => {
+        if (tokenRef.current === token) setResult(r);
+      });
+    }, 200);
+    return () => clearTimeout(handle);
   }, [
     loadout,
     itemData,
@@ -196,7 +222,61 @@ export default function DamageSources({ embedded = false }) {
     bestiaryMaxedMobs,
     comboKills,
     legionPlayers,
+    effectiveBlazeCrimsonIsle,
+    maxedCollectionsCount,
+  ]);
+
+  // A second sources object, fixed at mobHpPercent=100 regardless of the (Base) Stats panel's own
+  // slider — only fetched in DPS mode, where the hit-by-hit graph needs First Strike/Triple
+  // Strike's opening-hit-only entry to actually be present (collectEnchantEntries only includes
+  // it when mobHpPercent===100) so simulateHitByHit can gate it per-hit itself, independent of
+  // whatever % the slider happens to be showing right now.
+  const [resultAt100, setResultAt100] = useState(null);
+  const tokenAt100Ref = useRef(0);
+  useEffect(() => {
+    if (!dpsMode) return;
+    // Same 200ms debounce as the main result effect above, same reason.
+    const handle = setTimeout(() => {
+      const token = ++tokenAt100Ref.current;
+      collectDamageSources(
+        loadout,
+        itemData,
+        playerStats,
+        godPotionActive,
+        attributes,
+        miscStats,
+        100,
+        infernalCrimsonStacks,
+        useDungeonizedStats,
+        swarmMobs,
+        comboKills,
+        legionPlayers,
+        blazeCrimsonIsle,
+        bestiaryMaxedMobs,
+        godPotionMixin,
+        maxedCollectionsCount,
+      ).then((r) => {
+        if (tokenAt100Ref.current === token) setResultAt100(r);
+      });
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [
+    dpsMode,
+    loadout,
+    itemData,
+    playerStats,
+    godPotionActive,
+    godPotionMixin,
+    attributes,
+    miscStats,
+    infernalCrimsonStacks,
+    useDungeonizedStats,
+    swarmMobs,
+    bestiaryMaxedMobs,
+    comboKills,
+    legionPlayers,
     blazeCrimsonIsle,
+    maxedCollectionsCount,
   ]);
 
   // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than
@@ -433,13 +513,55 @@ export default function DamageSources({ embedded = false }) {
             mobResults.map((mobResult) => {
               const { name, types } = mobResult;
               const dps = computeDpsBreakdown(result, { name, types }, loadout, useDungeonizedStats, useMasterMode);
+
+              // A mob with more than one possible starting HP (a Catacombs trash mob spawning on
+              // several floors, or a Slayer/Mythological boss with several tiers) can't resolve a
+              // real number without knowing which — this picker supplies that choice (persisted
+              // per-mob in BuildContext, so Optimizer's own resolveStartingHp call for the same mob
+              // sees it too). A mob with only one floor/tier (or a flat HP) never shows one;
+              // there's nothing to pick. Computed here (not just inside the graph below) so the
+              // real fight simulation is available to the Total DPS headline too.
+              let pickerOptions = null;
+              let isFloorPicker = false;
+              let selection = '';
+              let sim = null;
+              if (types) {
+                const floorOptions = getFloorOptions(name, useMasterMode);
+                const tierOptions = getTierOptions(name);
+                isFloorPicker = !!(floorOptions && floorOptions.length > 1);
+                pickerOptions = isFloorPicker
+                  ? floorOptions.map((f) => ({ value: f, label: `Floor ${f}` }))
+                  : tierOptions && tierOptions.length > 1
+                    ? tierOptions.map((t) => ({ value: t.label, label: t.label }))
+                    : null;
+                selection = mobHpSelections[name] || '';
+                const startingHp = resolveStartingHp(name, useMasterMode, selection);
+                const simSources = startingHp ? resultAt100 : result;
+                if (simSources) {
+                  sim = simulateHitByHit(simSources, { name, types }, loadout, startingHp, mobHpPercent, useDungeonizedStats, useMasterMode);
+                }
+              }
+
+              // Once a real starting HP is known, Total DPS shows the true average across the whole
+              // simulated fight (Venomous stacking up, Execute/Prosecute ramping with real draining
+              // HP%, First Strike/Triple Strike's opening bonus) instead of a fixed-snapshot number
+              // — same reason lib/optimizer.js's ranking metric switched to this (user-specified
+              // 2026-09-01): computeDpsBreakdown prices Venomous at a permanent single stack, i.e.
+              // literal first-hit conditions, understating it by up to 40x once stacks build.
+              let totalDps = dps.total;
+              if (sim?.hasRealHp) {
+                const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
+                const elapsedSeconds = sim.totalHits != null ? sim.timeToKillSeconds : sim.hits.length / sim.meleeHitsPerSecond;
+                if (elapsedSeconds > 0) totalDps = totalDealt / elapsedSeconds;
+              }
               // Mage Beam fires alongside every melee hit (real mechanic, not Mage-Mode-specific
               // in-game) — only added into this page's own Total DPS while Mage Mode is also
               // toggled on, since that's when a staff/beam build's real damage output matters here
               // (user-confirmed 2026-08-28). computeDpsBreakdown's own `total` deliberately excludes
               // it, so every other DPS-mode consumer (Optimizer's Slayer/Diana/Dungeon-Archer
-              // metric, etc.) is unaffected.
-              const totalDps = dps.total + (mageMode ? dps.beam : 0);
+              // metric, etc.) is unaffected. Beam isn't part of the hit-by-hit simulation above (it
+              // doesn't ramp with HP%/stacks), so it's still added as its own steady figure either way.
+              totalDps += mageMode ? dps.beam : 0;
               return (
                 <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                   <div className="flex items-center justify-between flex-wrap gap-1">
@@ -470,8 +592,19 @@ export default function DamageSources({ embedded = false }) {
                   ) : (
                     <>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
-                        <span>Melee DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
-                        <span className="text-right font-mono">{Math.round(dps.melee).toLocaleString()}</span>
+                        {/* Melee vs Arrow are mutually exclusive labels for the same DPS source — a
+                            real loadout only ever has one weapon equipped, never both at once
+                            (user-specified 2026-09-01). Duplex isn't a separate hit, just a
+                            multiplier on this same volley, so its bonus is shown as its own line
+                            broken back out of `melee` rather than double-counted. */}
+                        <span>{dps.isBowWeapon ? 'Arrow' : 'Melee'} DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
+                        <span className="text-right font-mono">{Math.round(dps.melee - dps.duplexBonusDps).toLocaleString()}</span>
+                        {dps.duplexLevel > 0 && (
+                          <>
+                            <span>Duplex DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
+                            <span className="text-right font-mono">{Math.round(dps.duplexBonusDps).toLocaleString()}</span>
+                          </>
+                        )}
                         {/* Proc rows are only shown when they're actually contributing — most loadouts
                             don't have Venomous/Thunderlord/Fire Aspect/Crimson Swipe active, and a wall
                             of "0" rows was just clutter (user-specified 2026-08-29). */}
@@ -511,31 +644,51 @@ export default function DamageSources({ embedded = false }) {
                           Total DPS includes Mage Beam damage, since Mage Mode is on.
                         </div>
                       )}
+                      {sim?.hasRealHp && (
+                        <div className="text-[10px] italic text-neutral-600">
+                          Total DPS is the real fight average (Venomous/Execute-Prosecute ramp up over
+                          the fight) — the per-source lines above are a first-hit snapshot, so they
+                          won't sum to this exactly.
+                        </div>
+                      )}
                       <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
                         <span className="text-sm font-bold text-black">Total DPS</span>
                         <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
                       </div>
-                      {(() => {
-                        const appliedIds = [...(mobResult.finalDamage?.appliedIds || [])];
-                        const hasFirstStrike = appliedIds.some((id) => id.toLowerCase().endsWith('-first_strike'));
-                        const hasTripleStrike = appliedIds.some((id) => id.toLowerCase().endsWith('-triple_strike'));
-                        // Real weapons can't carry both (different enchant categories) — if data
-                        // somehow has both, Triple Strike's longer 3-hit window wins.
-                        const firstHitBoostCount = hasTripleStrike ? 3 : hasFirstStrike ? 1 : 0;
-                        const boostedMeleeFinalDamage = mobResult.finalDamage?.finalDamage || 0;
-                        const meleeBoostDelta = (boostedMeleeFinalDamage - dps.meleeFinalDamage) * dps.meleeHitsPerSecond;
-                        return (
-                          <Suspense fallback={<div className="h-[204px]" />}>
-                            <DpsByHitGraph
-                              perStackVenomousDamage={dps.venomousProc?.finalDamage || 0}
-                              steadyOtherDps={totalDps - dps.venomous}
-                              meleeBoostDelta={meleeBoostDelta}
-                              firstHitBoostCount={firstHitBoostCount}
-                              hasVenomous={!!dps.venomousProc}
-                            />
-                          </Suspense>
-                        );
-                      })()}
+                      {pickerOptions && (
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <label htmlFor={`mob-hp-select-${name}`} className="font-bold text-neutral-700 uppercase tracking-wide">
+                            {isFloorPicker ? 'Floor' : 'Tier'}
+                          </label>
+                          <select
+                            id={`mob-hp-select-${name}`}
+                            value={selection}
+                            onChange={(e) => setMobHpSelection(name, e.target.value)}
+                            className="px-1.5 py-0.5 bg-black text-white text-[11px] cursor-pointer border-2 border-neutral-700"
+                          >
+                            <option value="">Pick to use real HP</option>
+                            {pickerOptions.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {sim && (
+                        <Suspense fallback={<div className="h-[224px]" />}>
+                          <HitSimulationGraph
+                            hits={sim.hits}
+                            hasRealHp={sim.hasRealHp}
+                            mobName={name}
+                            totalHits={sim.totalHits}
+                            timeToKillSeconds={sim.timeToKillSeconds}
+                            exceededSimCap={sim.exceededSimCap}
+                            maxDps={sim.maxDps}
+                            minDps={sim.minDps}
+                          />
+                        </Suspense>
+                      )}
                     </>
                   )}
                 </div>
@@ -899,15 +1052,23 @@ export default function DamageSources({ embedded = false }) {
                 </label>
               )}
               {hasBlazePet && (
-                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="blaze-crimson-isle">
+                <label
+                  className="flex items-start gap-1.5 text-[12px] leading-tight text-black"
+                  htmlFor="blaze-crimson-isle"
+                  title={isCrimsonIsleTarget ? 'Turned on automatically — target is Infernal/Magmatic' : undefined}
+                >
                   <input
                     id="blaze-crimson-isle"
                     type="checkbox"
-                    checked={blazeCrimsonIsle}
+                    checked={effectiveBlazeCrimsonIsle}
+                    disabled={isCrimsonIsleTarget}
                     onChange={toggleBlazeCrimsonIsle}
-                    className="mt-0.5 shrink-0"
+                    className="mt-0.5 shrink-0 disabled:opacity-70"
                   />
-                  <span>In Crimson Isle</span>
+                  <span>
+                    In Crimson Isle
+                    {isCrimsonIsleTarget && <span className="text-neutral-600 italic"> (auto)</span>}
+                  </span>
                 </label>
               )}
               <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="mob-hp-percent">
