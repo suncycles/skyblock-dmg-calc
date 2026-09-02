@@ -14,8 +14,11 @@ import { applyDungeonizeToLore, sumStatFromTooltipLines } from './dungeonize';
 import { STAT_LABELS } from './reforgeData';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
 
-// Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants alphabetically, gold if maxed else grey.
-function buildAppliedEnchantLines(modifiers) {
+// Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants
+// alphabetically, gold if maxed else grey. Exported (only for
+// scripts/verify-dungeon-and-enchant-behavior.mjs's own use) so "the imported enchant list is
+// always OUR OWN rendering, never Hypixel's raw imported text" can be regression-tested directly.
+export function buildAppliedEnchantLines(modifiers) {
   if (!modifiers) return [];
   const entries = [];
   if (modifiers.ultimateEnchantment) {
@@ -33,8 +36,9 @@ function buildAppliedEnchantLines(modifiers) {
   });
 }
 
-// Splices applied-enchant lines in at the first blank line, matching where real tooltips show them.
-function insertEnchantLines(lore, enchantLines) {
+// Splices applied-enchant lines in at the first blank line, matching where real tooltips show
+// them. Exported for the same regression-test reason as buildAppliedEnchantLines above.
+export function insertEnchantLines(lore, enchantLines) {
   if (enchantLines.length === 0) return lore;
   const blankIdx = lore.indexOf('');
   if (blankIdx === -1) return [...lore, '', ...enchantLines];

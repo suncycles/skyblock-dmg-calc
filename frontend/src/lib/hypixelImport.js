@@ -281,6 +281,24 @@ const SPECIAL_LORE_LABELS = {
   bestiary: /Bestiary Tiers:/i,
 };
 
+// Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source for
+// "is THIS specific copy dungeonized" — always a real boolean here (nbt.js's unconditional
+// `!!ea.dungeon_item`), never merely absent. masterStars > 0 is a safe OR alongside it (Master
+// Stars can only be applied to an already-dungeonized item, a real game-mechanic guarantee).
+// Bug fix 2026-09-02: this used to also OR in `item.category.includes('DUNGEON')` as a "legacy
+// fallback" — but that category prefix just marks catalog gear that's ELIGIBLE to be Dungeonized
+// (confirmed: 188 real ids across weapons/armor/equipment, e.g. Bonzo Staff, Astraea — ordinary
+// player-buyable weapons, not an "always drops pre-dungeonized" mob-armor subset), not that a
+// given imported copy actually IS. It was silently overriding a real, correct
+// `summary.dungeonized: false` to `true` for most owned dungeon-catalog gear, inflating every one
+// of those items' stats with the Catacombs Boost annotation (2%/star -> 10%/star) even with a
+// fresh, never-Dungeonized copy. Extracted to its own function (rather than inlined in
+// buildItemModifiers below) so scripts/verify-dungeon-and-enchant-behavior.mjs can regression-test
+// this exact expression directly.
+export function resolveDungeonizedFlag(summary, masterStars) {
+  return !!summary.dungeonized || masterStars > 0;
+}
+
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   const { hexEnchantments, ultimateEnchantment } = await buildEnchantEntries(summary.enchantments, itemData);
   const { stars, masterStars } = splitRawStars(item, summary.stars || 0);
@@ -303,19 +321,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     artOfWar: !!summary.artOfWar,
     stars,
     masterStars,
-    // Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source
-    // for "is THIS specific copy dungeonized" — always a real boolean here (nbt.js's unconditional
-    // `!!ea.dungeon_item`), never merely absent. masterStars > 0 is a safe OR alongside it (Master
-    // Stars can only be applied to an already-dungeonized item, a real game-mechanic guarantee).
-    // Bug fix 2026-09-02: this used to also OR in `item.category.includes('DUNGEON')` as a
-    // "legacy fallback" — but that category prefix just marks catalog gear that's ELIGIBLE to be
-    // Dungeonized (confirmed: 188 real ids across weapons/armor/equipment, e.g. Bonzo Staff,
-    // Astraea — ordinary player-buyable weapons, not an "always drops pre-dungeonized" mob-armor
-    // subset), not that a given imported copy actually IS. It was silently overriding a real,
-    // correct `summary.dungeonized: false` to `true` for most owned dungeon-catalog gear, inflating
-    // every one of those items' stats with the Catacombs Boost annotation even with a fresh,
-    // never-Dungeonized copy.
-    dungeonized: !!summary.dungeonized || masterStars > 0,
+    dungeonized: resolveDungeonizedFlag(summary, masterStars),
     ...davidsCloak,
     ...coinSpecial,
   };

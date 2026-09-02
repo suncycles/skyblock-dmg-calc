@@ -110,8 +110,10 @@ export function conditionMatchesMob(condition, mob) {
 // instead (Challenger's/Mythos Armor+Equipment's doubled stats — see damageSources.js's
 // MYTHOLOGICAL_STAT_DOUBLE_IDS). `mob` is optional so callers with no specific mob in scope
 // (there currently are none, but this keeps the function safe if that ever changes) just fall
-// back to the non-mythological totals.
-function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob) {
+// back to the non-mythological totals. Exported (only for scripts/verify-dungeon-and-enchant-
+// behavior.mjs's own use) so the useDungeonizedStats/useMasterMode gating below — a spot that's
+// already regressed once this session — can be regression-tested directly.
+export function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob) {
   const isMythological = !!mob?.types?.includes('Mythological');
   // Master Stars' own stat bonus is gated behind `useMasterMode` on purpose — a player not
   // toggled into Master Mode Catacombs doesn't care about Master-Mode-relevant upgrades, Master
