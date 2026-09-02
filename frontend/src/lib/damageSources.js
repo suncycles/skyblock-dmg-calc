@@ -311,14 +311,13 @@ const SLAYER_TIER_BONUSES = {
 
   RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
   TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
+  // Scorpion Foil used to be excluded from this table — its own +250% was a real in-game bug,
+  // applied as a flat additive % (stacked with Strength/enchants/etc.) instead of the weapon-bonus
+  // multiplicative treatment every other Slayer-tier weapon gets. User-confirmed 2026-09-02: fixed
+  // in-game to the intended 1+250/100 = 3.5x multiplier, same as its tier-mates here.
+  SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
-
-// Scorpion Foil: real in-game bug — its own +250% is applied as a flat additive % (stacked with
-// Strength/enchants/etc. via AdditiveMultiplier) instead of the weapon-bonus multiplicative
-// treatment every other Slayer-tier weapon gets (which would be 1+250/100 = 3.5x). Kept out of
-// SLAYER_TIER_BONUSES so it doesn't get pushed to weaponBonusConditional like its tier-mates.
-const SCORPION_FOIL_ARTHROPOD_DAMAGE_PERCENT = 250;
 
 // Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) — its own damage multiplier.
 const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
@@ -1547,16 +1546,6 @@ export async function collectDamageSources(
         source: slotLabel,
         value: seaCreatureMultiplier,
         condition: 'Sea Creatures',
-      });
-    }
-
-    if (equipped.item.id === 'SCORPION_FOIL') {
-      out.additiveConditional.push({
-        id: 'scorpion-foil-arthropod-damage',
-        label: `${itemLabel} (against Arthropods)`,
-        source: slotLabel,
-        value: SCORPION_FOIL_ARTHROPOD_DAMAGE_PERCENT,
-        condition: 'Arthropod',
       });
     }
 
