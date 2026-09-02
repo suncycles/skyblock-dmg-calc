@@ -127,26 +127,32 @@ export async function buildFullItemTooltipLines(
   const gearType = getGearType(item.category);
 
   // Real per-account items whose lore was swapped in wholesale (hypixelImport.js's
-  // resolveGearSummary, for Gear Score-scaled Dungeon Mob Armor drops) already have their real
-  // reforge/books/Dungeonize/gemstone annotations stripped back to a pristine base at that point
-  // (see resolveGearSummary's own comment — Hypixel's real lore already separates the pristine
-  // base from those bonuses, same as this app's own catalog+modifiers convention), so this
-  // pipeline runs unconditionally here and correctly recomputes the real total from the real
-  // modifiers (reforge name, books, dungeonized, stars, ...) that import already populated —
-  // letting the item's reforge (etc.) actually be changed afterward instead of frozen.
-  let lore = applyGemstonesToLore(normalizeAttackSpeedLabel(item.lore), modifiers.gemstones, displayTier);
+  // resolveGearSummary, for Gear Score-scaled items — armor and weapons both, e.g. Astraea) carry
+  // `item.liveLore: true`. Bug fix 2026-09-02: this used to assume Hypixel's real leading number
+  // was a pristine base still needing reforge/books/gemstones/Stars layered on (same as a catalog
+  // item) — disproved against sammui's real Necron's Leggings: the real leading "Strength: +111"
+  // already IS the final total (matches the user's own in-game reading exactly), with its real
+  // "(+35)"/"(+32)" reforge/gemstone annotations shown purely as an informational breakdown, not
+  // amounts still to add. Re-merging them on top inflated it to +189.1. `skipMerge` below makes
+  // gemstones/reforge/books/Stars annotate-only for a live-lore item instead of merging (Wither
+  // Blade/Daedalus Taming/Wolf Slayer/Chimera/Manticore/enchant stat bonuses are left as unconditional
+  // merges — they're dynamic, account-progress-driven bonuses this app must let the user vary via
+  // the Levels page, not a fixed part of the item's stored real lore, and no live item has yet
+  // shown evidence they're double-counted the same way).
+  const skipMerge = !!item.liveLore;
+  let lore = applyGemstonesToLore(normalizeAttackSpeedLabel(item.lore), modifiers.gemstones, displayTier, skipMerge);
   // Reforge could be a free blacksmith one or a stone-exclusive one — check both maps.
   const reforge = modifiers.reforge
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
     : null;
-  lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel);
-  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled);
+  lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel, skipMerge);
+  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled, skipMerge);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
   // Stars/Wither Blade/Daedalus Taming bonuses merge directly into the item's own base stats.
   // starBonus is captured (not discarded) — Dungeonize below needs to subtract this same delta
   // back out of the fully-merged total to get the Catacombs Boost base (see lib/dungeonize.js).
   const starBonus = computeStarBonuses(item.lore, modifiers.stars);
-  lore = mergeStatIntoBase(lore, starBonus, lore.indexOf(''));
+  if (!skipMerge) lore = mergeStatIntoBase(lore, starBonus, lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
   lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));

@@ -66,11 +66,14 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
   return bonus;
 }
 
-export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel) {
+// `skipMerge` (live-lore imported items only — see hypixelImport.js's resolveGearSummary): the
+// leading number is already Hypixel's real, final total including this item's real reforge bonus,
+// so only the informational "(+X)" annotation should be (re-)added, not another merge on top.
+export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel, skipMerge = false) {
   if (!reforge) return lore;
   const bonus = computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel);
   if (Object.keys(bonus).length === 0) return lore;
   // Merged into the item's own base stat number, annotated with the delta on top for visibility.
-  const merged = mergeStatIntoBase(lore, bonus, insertBeforeLineIdx);
+  const merged = skipMerge ? lore : mergeStatIntoBase(lore, bonus, insertBeforeLineIdx);
   return annotateStatLines(merged, bonus, REFORGE_COLOR, insertBeforeLineIdx);
 }

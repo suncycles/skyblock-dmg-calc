@@ -63,8 +63,11 @@ export const GEMSTONE_COLOR = 'p';
 // (a socketed gemstone is a permanent part of the item's stats), echoed alongside as a pink
 // "(+X)" annotation. Also adds a brand-new stat line for a stat the item doesn't already show
 // (most weapons have no pristine Health/Defense/True Defense line). `gemstones` is a sparse
-// array indexed by slot position, entries are {gem, tier} or null/undefined.
-export function applyGemstonesToLore(lore, gemstones, itemRarity) {
+// array indexed by slot position, entries are {gem, tier} or null/undefined. `skipMerge`
+// (live-lore imported items only — see hypixelImport.js's resolveGearSummary): the leading number
+// is already Hypixel's real, final total including this item's real gemstone bonus, so only the
+// informational "(+X)" annotation should be (re-)added, not another merge on top.
+export function applyGemstonesToLore(lore, gemstones, itemRarity, skipMerge = false) {
   if (!lore || !gemstones || gemstones.every((g) => !g)) return lore;
 
   const totals = {}; // statLabel -> accumulated boost
@@ -101,7 +104,8 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity) {
     if (!numMatch) return line;
     matchedLabels.add(labelMatch[2]);
     const bonus = totals[labelMatch[2]];
-    const merged = Math.round((parseFloat(numMatch[2]) + bonus) * 10) / 10;
+    const base = parseFloat(numMatch[2]);
+    const merged = skipMerge ? base : Math.round((base + bonus) * 10) / 10;
     const sign = merged >= 0 ? '+' : '';
     const gemId = findGemIdByStatLabel(labelMatch[2]);
     return `${numMatch[1]}${sign}${merged}${line.slice(numMatch[0].length)} §${GEMSTONE_COLOR}(${formatGemstoneBoost(gemId, bonus)})`;

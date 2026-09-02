@@ -283,20 +283,23 @@ const SPECIAL_LORE_LABELS = {
 
 // Hypixel's own `ExtraAttributes.dungeon_item` flag (see nbt.js) is the authoritative source for
 // "is THIS specific copy dungeonized" — always a real boolean here (nbt.js's unconditional
-// `!!ea.dungeon_item`), never merely absent. masterStars > 0 is a safe OR alongside it (Master
-// Stars can only be applied to an already-dungeonized item, a real game-mechanic guarantee).
-// Bug fix 2026-09-02: this used to also OR in `item.category.includes('DUNGEON')` as a "legacy
-// fallback" — but that category prefix just marks catalog gear that's ELIGIBLE to be Dungeonized
-// (confirmed: 188 real ids across weapons/armor/equipment, e.g. Bonzo Staff, Astraea — ordinary
-// player-buyable weapons, not an "always drops pre-dungeonized" mob-armor subset), not that a
-// given imported copy actually IS. It was silently overriding a real, correct
-// `summary.dungeonized: false` to `true` for most owned dungeon-catalog gear, inflating every one
-// of those items' stats with the Catacombs Boost annotation (2%/star -> 10%/star) even with a
-// fresh, never-Dungeonized copy. Extracted to its own function (rather than inlined in
-// buildItemModifiers below) so scripts/verify-dungeon-and-enchant-behavior.mjs can regression-test
-// this exact expression directly.
-export function resolveDungeonizedFlag(summary, masterStars) {
-  return !!summary.dungeonized || masterStars > 0;
+// `!!ea.dungeon_item`), never merely absent, and the ONLY signal trusted here.
+// Bug fix 2026-09-02 (round 1): this used to also OR in `item.category.includes('DUNGEON')` as a
+// "legacy fallback" — but that category prefix just marks catalog gear that's ELIGIBLE to be
+// Dungeonized (confirmed: 188 real ids across weapons/armor/equipment, e.g. Bonzo Staff, Astraea —
+// ordinary player-buyable weapons, not an "always drops pre-dungeonized" mob-armor subset), not
+// that a given imported copy actually IS.
+// Bug fix 2026-09-02 (round 2): this also used to OR in `masterStars > 0`, on the assumption
+// "Master Stars can only be applied to an already-dungeonized item" — disproved against sammui's
+// real Necron's Leggings (4 real Master Stars, but `summary.dungeonized: false`, and the user
+// confirmed the correct display is the plain, non-Catacombs-boosted total). That assumption was
+// never actually confirmed with real game data — exactly the kind of guessed mechanic CLAUDE.md
+// warns against — so it's dropped rather than re-guessed at differently. Extracted to its own
+// function (rather than inlined in buildItemModifiers below) so
+// scripts/verify-dungeon-and-enchant-behavior.mjs can regression-test this exact expression
+// directly.
+export function resolveDungeonizedFlag(summary) {
+  return !!summary.dungeonized;
 }
 
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
@@ -321,7 +324,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     artOfWar: !!summary.artOfWar,
     stars,
     masterStars,
-    dungeonized: resolveDungeonizedFlag(summary, masterStars),
+    dungeonized: resolveDungeonizedFlag(summary),
     ...davidsCloak,
     ...coinSpecial,
   };
@@ -425,6 +428,14 @@ export function resolveGearSummary(summary, itemData) {
     lore,
     color: item.color,
     gemstone_slots: item.gemstone_slots || null,
+    // Bug fix 2026-09-02: a live-lore item's leading stat number is Hypixel's own REAL, ALREADY-
+    // FINAL total — it already has this specific copy's real reforge/books/gemstones/Stars baked
+    // in (confirmed against sammui's real Necron's Leggings: Strength shows "+111" with a real
+    // "(+35)" reforge / "(+32)" gemstone annotation next to it — 111 IS the correct final number,
+    // not a pristine base still needing those layered on). itemTooltip.js's shared merge pipeline
+    // (mergeStatIntoBase, built for catalog items whose leading number genuinely IS pristine) must
+    // NOT re-add those same bonuses on top of it — this flag tells it to annotate-only instead.
+    liveLore: isLiveLore,
   };
 }
 
