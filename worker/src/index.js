@@ -106,9 +106,9 @@ const PRICED_EXTRA_IDS = [
   // consuming one specific, single-use special item instead (same "consumable unlocks a tier"
   // mechanic as Master Stars above), so there's no ENCHANTMENT_<name>_<level> price entry for it —
   // the item itself has the real price (see lib/pricing.js's SPECIAL_ENCHANT_LEVEL_ITEMS).
-  // User-confirmed 2026-09-01: Ender Slayer 7 <- End Stone Idol, Smite 7 <- Severed Hand,
-  // Venomous 7 <- Fateful Stinger.
-  "ENDSTONE_IDOL", "SEVERED_HAND", "FATEFUL_STINGER",
+  // User-confirmed 2026-09-01/2026-09-02: Ender Slayer 7 <- End Stone Idol, Smite 7 <- Severed Hand,
+  // Venomous 7 <- Fateful Stinger, Bane of Arthropods 7 <- Ensnared Snail.
+  "ENDSTONE_IDOL", "SEVERED_HAND", "FATEFUL_STINGER", "ENSNARED_SNAIL",
 ];
 
 // The 6 real combat gemstones (frontend/src/lib/gemstoneData.js's GEMSTONE_IDS) x 5 real tiers
