@@ -1405,7 +1405,20 @@ async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build
       ...(weapon.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
       { id, level: maxLevel },
     ];
-    const candidateLoadout = { ...loadout, weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants } } };
+    // computeConflictingEntries includes One For All's own id in removeIds when it's the current
+    // ultimate (see its "both directions" comment) — filtering hexEnchantments alone doesn't clear
+    // it, so the evaluated candidate kept One For All's +500% AND the new bane enchant's bonus at
+    // once, an impossible combination in-game (One For All zeroes every other enchant), which
+    // silently priced this as a real DPS increase (bug report 2026-09-02). Same
+    // ultimateEnchantment-clearing evaluateUltimateEnchantCandidates already does for its own swaps.
+    const ultimateEnchantment =
+      weapon.modifiers.ultimateEnchantment && removeIds.includes(weapon.modifiers.ultimateEnchantment.id)
+        ? null
+        : weapon.modifiers.ultimateEnchantment;
+    const candidateLoadout = {
+      ...loadout,
+      weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants, ultimateEnchantment } },
+    };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Enchant',
