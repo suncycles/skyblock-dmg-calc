@@ -92,7 +92,7 @@ function useCurrentBuildState(build) {
 // slots pointing at the same loadout (including two both left on 'current') share one
 // computation instead of duplicating it. Per-key tokens guard against a stale async resolution
 // (e.g. rapid selection changes) overwriting a newer one.
-function useLoadoutResults(selections, itemData, currentState, savedLoadouts) {
+function useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget) {
   const [resultsByKey, setResultsByKey] = useState({});
   const tokensRef = useRef({});
 
@@ -133,9 +133,13 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts) {
           state.swarmMobs,
           state.comboKills,
           state.legionPlayers,
-          state.blazeCrimsonIsle,
+          // Same auto-derivation as DamageSources.jsx/optimizer.js — an Infernal/Magmatic target
+          // turns Blaze pet's Crimson Isle bonus on for every compared side, not just whichever
+          // side happens to have the manual toggle saved as on (user-specified 2026-09-01).
+          state.blazeCrimsonIsle || isCrimsonIsleTarget,
           state.bestiaryMaxedMobs,
           state.godPotionMixin,
+          state.maxedCollectionsCount,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));
@@ -144,7 +148,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts) {
     return () => {
       cancelled = true;
     };
-  }, [selections, itemData, currentState, savedLoadouts]);
+  }, [selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget]);
 
   return selections.map((s) => resultsByKey[s] || { state: null, result: null, missing: false });
 }
@@ -275,8 +279,16 @@ function DpsResultCard({ label, r }) {
       {r.status === 'ok' && (
         <>
           <div className="grid grid-cols-2 gap-x-2 text-[11px] text-neutral-700">
-            <span>Melee ({round1(r.dps.meleeHitsPerSecond)}/s)</span>
-            <span className="text-right font-mono">{Math.round(r.dps.melee).toLocaleString()}</span>
+            {/* Mutually exclusive labels for the same source, same reasoning as DamageSources.jsx —
+                a loadout only ever has one weapon equipped (user-specified 2026-09-01). */}
+            <span>{r.dps.isBowWeapon ? 'Arrow' : 'Melee'} ({round1(r.dps.meleeHitsPerSecond)}/s)</span>
+            <span className="text-right font-mono">{Math.round(r.dps.melee - r.dps.duplexBonusDps).toLocaleString()}</span>
+            {r.dps.duplexLevel > 0 && (
+              <>
+                <span>Duplex ({round1(r.dps.meleeHitsPerSecond)}/s)</span>
+                <span className="text-right font-mono">{Math.round(r.dps.duplexBonusDps).toLocaleString()}</span>
+              </>
+            )}
             <span>Venomous ({DPS_HITS_PER_SECOND.venomous}/s)</span>
             <span className="text-right font-mono">{Math.round(r.dps.venomous).toLocaleString()}</span>
             <span>Thunderlord ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
@@ -326,8 +338,14 @@ export default function Compare() {
     setSelections(selections.filter((_, i) => i !== index));
   }
 
+  const targetMobs = build.targetMobs;
+  const isCrimsonIsleTarget = targetMobs.some((name) => {
+    const types = MOB_TYPES[name] || [];
+    return types.includes('Infernal') || types.includes('Magmatic');
+  });
+
   const currentState = useCurrentBuildState(build);
-  const sides = useLoadoutResults(selections, itemData, currentState, savedLoadouts);
+  const sides = useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true, itemDataLoading);
   const currentHelmetName = build.loadout.helmet?.item?.name;
   const currentHelmetPreview = currentHelmetName ? formatItemName(currentHelmetName) : '';
@@ -339,7 +357,6 @@ export default function Compare() {
 
   const labels = selections.map(sideLabel);
   const slotLetters = selections.map((_, i) => String.fromCharCode(65 + i));
-  const targetMobs = build.targetMobs;
   // Same "applies to at least one selected mob" treatment as DamageSources.jsx — the (Base) Stats
   // panel below is one shared block per loadout side, not per-mob.
   const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));

@@ -8,7 +8,10 @@
    to pick up NEU-REPO updates. Enchant and reforge data are small and fetched live here instead.
    Real coin prices (see `costs` in the response, resolveCosts()) are a separate, much
    shorter-lived cache layered on top — sourced from SkyHelperBot/Prices' community-maintained
-   pricesV2.json, refreshed independently of the 6h item-catalog TTL below.
+   pricesV2.json, refreshed independently of the 6h item-catalog TTL below. Real per-level enchant
+   lore (see `enchants.levelData`, resolveEnchantLevelData()) is a third, much LONGER-lived cache —
+   refreshes ~daily rather than every 6h, since it's expensive to build (probes ~145 enchant ids
+   against NEU-REPO's raw item files) and essentially static content.
 
    Routes:
      GET  /api/items            -> returns cached data (+ real coin costs), refreshing first if stale
@@ -62,9 +65,22 @@ const NEU_LEVELING_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 const HYPIXEL_SKILLS_URL = "https://api.hypixel.net/v2/resources/skyblock/skills";
 // Real per-mob Bestiary tier-cap/kill-threshold data, for computeBestiaryMaxedMobs below.
 const NEU_BESTIARY_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/bestiary.json";
+// Real per-collection max-tier amount thresholds (NEU-REPO has no equivalent constants file —
+// checked live 2026-09-01, constants/collections.json 404s), for computeMaxedCollectionsCount
+// below — "The One" enchant's real bonus scales with the account's count of maxed collections.
+const HYPIXEL_COLLECTIONS_URL = "https://api.hypixel.net/v2/resources/skyblock/collections";
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// Per-level enchant lore (items/{ID};{level}.json) is far more static than the main catalog above
+// and expensive to probe (up to ~10 raw.githubusercontent.com requests per enchant) — cached
+// separately with its own much longer TTL rather than folded into the 6h cycle, so it only actually
+// refreshes "once a day or so" per user direction 2026-09-01, with the same POST /api/refresh
+// manual-refresh escape hatch as everything else here. See buildEnchantLevelData/
+// resolveEnchantLevelData below, and frontend/src/lib/enchantEffects.js for what this replaces.
+const ENCHANT_LEVELS_CACHE_KEY = "enchant_levels_data";
+const ENCHANT_LEVELS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // ~1 day
 
 // Real coin prices — a separate, much-shorter-lived cache than the item catalog above: prices
 // move constantly, catalog data (stats/lore) doesn't. Community-maintained, refreshed by an
@@ -86,6 +102,13 @@ const PRICED_EXTRA_IDS = [
   // time to apply each Master Star level, flat cost same for every item (unlike base Stars' Essence
   // costs, which vary per item). User-confirmed source: pricesV2.json.
   "FIRST_MASTER_STAR", "SECOND_MASTER_STAR", "THIRD_MASTER_STAR", "FOURTH_MASTER_STAR", "FIFTH_MASTER_STAR",
+  // A few enchants' top level isn't sold as a normal enchanted book at all — it's applied by
+  // consuming one specific, single-use special item instead (same "consumable unlocks a tier"
+  // mechanic as Master Stars above), so there's no ENCHANTMENT_<name>_<level> price entry for it —
+  // the item itself has the real price (see lib/pricing.js's SPECIAL_ENCHANT_LEVEL_ITEMS).
+  // User-confirmed 2026-09-01: Ender Slayer 7 <- End Stone Idol, Smite 7 <- Severed Hand,
+  // Venomous 7 <- Fateful Stinger.
+  "ENDSTONE_IDOL", "SEVERED_HAND", "FATEFUL_STINGER",
 ];
 
 // The 6 real combat gemstones (frontend/src/lib/gemstoneData.js's GEMSTONE_IDS) x 5 real tiers
@@ -136,7 +159,7 @@ const CORS_HEADERS = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
@@ -144,7 +167,7 @@ export default {
     }
 
     if (url.pathname === "/api/items" && request.method === "GET") {
-      return handleGetItems(env);
+      return handleGetItems(env, ctx);
     }
 
     if (url.pathname === "/api/refresh" && request.method === "POST") {
@@ -172,24 +195,24 @@ export default {
 // payload on every hard reload/new tab within a browsing session.
 const ITEMS_RESPONSE_CACHE_HEADERS = { "Cache-Control": "public, max-age=1800" };
 
-async function handleGetItems(env) {
+async function handleGetItems(env, ctx) {
   const cached = await env.CACHE.get(CACHE_KEY, "json");
 
   if (cached && Date.now() - cached.lastFetched < CACHE_TTL_MS) {
-    const costs = await resolveCosts(env, cached);
-    return jsonResponse({ ...cached, costs }, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants, false, ctx)]);
+    return jsonResponse(withExtras(cached, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
   }
 
   try {
     const fresh = await buildFreshData();
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    const costs = await resolveCosts(env, fresh);
-    return jsonResponse({ ...fresh, costs }, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, fresh), resolveEnchantLevelData(env, fresh.enchants, false, ctx)]);
+    return jsonResponse(withExtras(fresh, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
   } catch (err) {
     console.error("handleGetItems: buildFreshData failed:", err);
     if (cached) {
-      const costs = await resolveCosts(env, cached);
-      return jsonResponse({ ...cached, costs }, 200, ITEMS_RESPONSE_CACHE_HEADERS);
+      const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants, false, ctx)]);
+      return jsonResponse(withExtras(cached, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
     }
     return jsonResponse({ error: "Failed to fetch item data", detail: String(err) }, 502);
   }
@@ -199,8 +222,8 @@ async function handleRefresh(env) {
   try {
     const fresh = await buildFreshData();
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    const costs = await resolveCosts(env, fresh, true);
-    return jsonResponse({ ...fresh, costs });
+    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, fresh, true), resolveEnchantLevelData(env, fresh.enchants, true)]);
+    return jsonResponse(withExtras(fresh, costs, enchantLevelData));
   } catch (err) {
     console.error("handleRefresh: buildFreshData failed:", err);
     return jsonResponse({ error: "Failed to refresh item data", detail: String(err) }, 502);
@@ -277,6 +300,155 @@ async function buildFreshData() {
 async function fetchPetNums() {
   const res = await fetch(NEU_PETNUMS_URL);
   return res.json();
+}
+
+// Same NEU-REPO item-file source frontend/src/lib/enchantEffects.js's client-side probe used
+// before this moved server-side — kept identical here so a page falling back to a live client-side
+// probe (a brand-new enchant this cache hasn't picked up yet) resolves the exact same data shape.
+const NEU_ITEMS_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items";
+// Safety ceiling only, never the primary probe target — see probeEnchantLevels below.
+// max_xp_table_levels understates a handful of real enchants (Power/Sharpness reach VII in
+// Skyblock via anvil-combining despite a table cap of 5 — verified live 2026-09-01), so it's a head
+// start, never a hard cap.
+const MAX_ENCHANT_PROBE_LEVEL = 10;
+// How many enchant ids to probe at once — bounds peak concurrent raw.githubusercontent.com
+// requests (each enchant's own probe can itself fire several in parallel) rather than firing all
+// ~145 ids' worth at once in a single burst.
+const ENCHANT_PROBE_CONCURRENCY = 10;
+
+async function fetchEnchantLevel(fileId, level) {
+  const url = `${NEU_ITEMS_BASE}/${encodeURIComponent(`${fileId};${level}`)}.json`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { level, lore: data.lore || [] };
+  } catch {
+    return null;
+  }
+}
+
+// Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then both cases.
+function lookupMaxTableLevel(enchantsMeta, fileId) {
+  const table = enchantsMeta?.max_xp_table_levels;
+  if (!table) return 0;
+  return table[fileId] ?? table[fileId.toLowerCase()] ?? table[fileId.toUpperCase()] ?? 0;
+}
+
+// Starts at the enchant table's own known max instead of guessing 10, then keeps probing one level
+// past the last real success (so a level beyond the table max, like Power VII, still gets found) —
+// see MAX_ENCHANT_PROBE_LEVEL's comment.
+async function probeEnchantLevels(fileId, enchantsMeta) {
+  let level = Math.max(lookupMaxTableLevel(enchantsMeta, fileId), 1);
+  const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchEnchantLevel(fileId, i + 1)));
+  while (results.length > 0 && results[results.length - 1] && level < MAX_ENCHANT_PROBE_LEVEL) {
+    level += 1;
+    results.push(await fetchEnchantLevel(fileId, level));
+  }
+  const found = results.filter(Boolean);
+  if (found.length > 0) return found;
+  // The head-start above assumes real levels start at 1 — not true for a rare enchant dropped
+  // pre-leveled directly from a boss with no lower levels at all: "The One" only has real data at
+  // ULTIMATE_THE_ONE;4/;5 (levels 1-3 don't exist — verified live 2026-09-01), so starting at 1
+  // finds nothing and gives up before ever trying 4. Falls back to a full sweep only when the head
+  // start found nothing, so this never costs extra requests for the common starts-at-1 case.
+  const fullSweep = await Promise.all(Array.from({ length: MAX_ENCHANT_PROBE_LEVEL }, (_, i) => fetchEnchantLevel(fileId, i + 1)));
+  return fullSweep.filter(Boolean);
+}
+
+// Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").
+function resolveAlternateEnchantFileId(enchantsMeta, id) {
+  const mapItem = enchantsMeta?.enchant_mapping_item || [];
+  const mapId = enchantsMeta?.enchant_mapping_id || [];
+  const key = id.toLowerCase();
+  for (let i = 0; i < mapId.length; i++) {
+    if (mapId[i].toLowerCase() === key) return mapItem[i].toUpperCase();
+    if (mapItem[i].toLowerCase() === key) return mapId[i].toUpperCase();
+  }
+  return null;
+}
+
+// Runs `fn` over `items` with at most `limit` in flight at once, preserving result order.
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+// Every real weapon/armor/equipment enchant id across enchantsMeta's own category lists (dedup'd —
+// most ids appear in several categories), probed for its real per-level lore. Venomous is skipped
+// entirely — its real numbers are hardcoded client-side (NEU-REPO's own data is stale post-
+// rebalance), so it's never looked up here or on the client either.
+async function buildEnchantLevelData(enchantsMeta) {
+  const ids = new Set();
+  for (const list of Object.values(enchantsMeta.enchants || {})) {
+    for (const id of list) if (id.toLowerCase() !== "venomous") ids.add(id);
+  }
+  const idList = [...ids];
+  const perId = await mapWithConcurrency(idList, ENCHANT_PROBE_CONCURRENCY, async (id) => {
+    let levels = await probeEnchantLevels(id.toUpperCase(), enchantsMeta);
+    if (levels.length === 0) {
+      const altFileId = resolveAlternateEnchantFileId(enchantsMeta, id);
+      if (altFileId) levels = await probeEnchantLevels(altFileId, enchantsMeta);
+    }
+    return levels;
+  });
+  const levelData = {};
+  idList.forEach((id, i) => {
+    if (perId[i].length > 0) levelData[id.toLowerCase()] = perId[i];
+  });
+  return levelData;
+}
+
+// Same staleness-check/force-refresh/stale-fallback shape as resolveCosts below, its own KV
+// key/TTL (see ENCHANT_LEVELS_CACHE_KEY/ENCHANT_LEVELS_CACHE_TTL_MS) since this refreshes far less
+// often. A build failure (partial GitHub outage, etc.) falls back to whatever's still cached rather
+// than failing the whole /api/items response over it.
+//
+// Unlike resolveCosts, a full rebuild here genuinely takes several seconds (probing ~145 enchant
+// ids against raw.githubusercontent.com, measured ~13s) — too slow to block an ordinary page load
+// on. A lazy (non-forced) stale hit kicks the rebuild off in the background via `ctx.waitUntil` and
+// serves whatever's cached right now instead (possibly stale, possibly `{}` on a cold KV) so this
+// request stays fast; the client already falls back to live per-id probing for any id missing from
+// what it gets (see enchantEffects.js's fetchEnchantLevels), so a temporarily stale/incomplete
+// response here just means a bit more of that fallback until the background rebuild lands for the
+// NEXT request. `force` (POST /api/refresh) is a deliberate action that wants to see the real
+// result, so that path still blocks on the actual rebuild, same as every other cache here.
+async function resolveEnchantLevelData(env, enchantsMeta, force = false, ctx = null) {
+  const cachedRaw = await env.CACHE.get(ENCHANT_LEVELS_CACHE_KEY, "json");
+  const isStale = !cachedRaw || Date.now() - cachedRaw.lastFetched >= ENCHANT_LEVELS_CACHE_TTL_MS;
+  if (!force && !isStale) return cachedRaw.levelData;
+
+  const rebuild = async () => {
+    try {
+      const levelData = await buildEnchantLevelData(enchantsMeta);
+      await env.CACHE.put(ENCHANT_LEVELS_CACHE_KEY, JSON.stringify({ levelData, lastFetched: Date.now() }));
+      return levelData;
+    } catch (err) {
+      console.error("resolveEnchantLevelData: build failed:", err);
+      return cachedRaw ? cachedRaw.levelData : {};
+    }
+  };
+
+  if (!force && ctx) {
+    ctx.waitUntil(rebuild());
+    return cachedRaw ? cachedRaw.levelData : {};
+  }
+  return rebuild();
+}
+
+// Merges the two independently-cached extras (real coin costs, real enchant level lore) into a
+// catalog object right before it goes out — factored out since handleGetItems needs this on all
+// three of its return paths and handleRefresh needs it too.
+function withExtras(catalog, costs, enchantLevelData) {
+  return { ...catalog, enchants: { ...catalog.enchants, levelData: enchantLevelData }, costs };
 }
 
 async function fetchAttributeShards() {
@@ -838,6 +1010,34 @@ function computeBestiaryMaxedMobs(bestiary, kills) {
   return maxed;
 }
 
+async function fetchCollections() {
+  const res = await fetch(HYPIXEL_COLLECTIONS_URL);
+  return res.json();
+}
+
+// Real count of collections the account has reached the final tier on — "The One" enchant's own
+// real bonus (see frontend/src/lib/enchantEffects.js's probeLevels comment: real lore is
+// "Grants +0.5/1 Health and +0.1/0.2 Strength per maxed out collection") scales with this number.
+// `collectionsResource` is Hypixel's own /v2/resources/skyblock/collections response (real max-tier
+// amountRequired per item, across all 6 categories); `playerCollections` is member.collection (a
+// flat {itemId: totalAmount} map — null/absent if the account has the Collections API setting
+// turned off, same "either is null" caveat as goldCollection above). A collection counts as maxed
+// once the account's total amount reaches its own last tier's amountRequired.
+function computeMaxedCollectionsCount(collectionsResource, playerCollections) {
+  if (!playerCollections) return null;
+  const categories = collectionsResource?.collections || {};
+  let count = 0;
+  for (const category of Object.values(categories)) {
+    for (const [itemId, meta] of Object.entries(category.items || {})) {
+      const tiers = meta.tiers || [];
+      if (tiers.length === 0) continue;
+      const maxAmount = tiers[tiers.length - 1].amountRequired;
+      if ((playerCollections[itemId] || 0) >= maxAmount) count++;
+    }
+  }
+  return count;
+}
+
 // Daedalus Blade/Starred Daedalus Blade's own real "Combined Mythological Bestiary Tiers" stat
 // (frontend/src/lib/specialWeapons.js's SPECIAL_WEAPON_CONFIG, kind: 'bestiary') — the SUM of each
 // Mythological-family mob's CURRENT Bestiary tier (0..its own real max, 15 or 20), not a maxed/
@@ -1157,7 +1357,7 @@ async function handleHypixelImport(url, env) {
     const backpackContents = member.inventory?.backpack_contents || {};
     const backpackIds = Object.keys(backpackContents).sort((a, b) => Number(a) - Number(b));
 
-    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling, skillsResource, bestiary] =
+    const [armorItems, equipmentItems, invItems, enderChestItems, backpackItemLists, talismanBagItems, attributeShards, leveling, skillsResource, bestiary, collectionsResource] =
       await Promise.all([
         member.inventory?.inv_armor?.data ? decodeInventoryB64(member.inventory.inv_armor.data) : [],
         member.inventory?.equipment_contents?.data ? decodeInventoryB64(member.inventory.equipment_contents.data) : [],
@@ -1175,6 +1375,7 @@ async function handleHypixelImport(url, env) {
         fetch(NEU_LEVELING_URL).then((r) => r.json()),
         fetch(HYPIXEL_SKILLS_URL).then((r) => r.json()),
         fetchBestiary(),
+        fetchCollections(),
       ]);
 
     const armorResult = {};
@@ -1330,6 +1531,10 @@ async function handleHypixelImport(url, env) {
     // Daedalus Blade/Starred Daedalus Blade's real Bestiary-Tiers ability input — see
     // computeCombinedMythologicalBestiaryTiers above.
     const combinedMythologicalBestiaryTiers = computeCombinedMythologicalBestiaryTiers(bestiary, member.bestiary?.kills);
+    // "The One" enchant's real per-collection Health/Strength scaling input — see
+    // computeMaxedCollectionsCount above. null (not 0) when the account has Collections API off,
+    // same "either is null" treatment as goldCollection/bank above.
+    const maxedCollectionsCount = computeMaxedCollectionsCount(collectionsResource, member.collection);
 
     return jsonResponse({
       profile: { profile_id: profile.profile_id, cute_name: profile.cute_name },
@@ -1349,6 +1554,7 @@ async function handleHypixelImport(url, env) {
       goldCollection,
       bestiaryMaxedMobs,
       combinedMythologicalBestiaryTiers,
+      maxedCollectionsCount,
     });
   } catch (err) {
     console.error("handleHypixelImport: failed to decode inventory data:", err);

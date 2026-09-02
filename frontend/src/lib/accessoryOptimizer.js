@@ -26,7 +26,7 @@
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { bumpRarity, canRecombobulate } from './recombobulator';
-import { computeModeDamage, getModeConfig, withOptimizerSwarmMobs } from './optimizer';
+import { computeModeDamage, computeModeDamageAndSources, getModeConfig, withOptimizerSwarmMobs } from './optimizer';
 import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
 import { cheapestPerfectGemstonePrice } from './pricing';
@@ -242,6 +242,28 @@ const CATEGORY_LABELS = {
   generic: 'Magical Power (generic)',
 };
 
+// Full result cache, keyed by itemData reference (a WeakMap outer layer means an itemData refresh
+// — a new object reference — naturally drops every entry tied to the old catalog with no manual
+// invalidation) then by a JSON digest of every other input that can change the real output. Nothing
+// about the ~2,000-call search below needs to happen again if the player revisits this exact
+// loadout/build/mode/mob/candidate-set — which happens routinely, since Optimizer.jsx and
+// OptimizerSidebar.jsx both call this independently for the same account on the same page load
+// (user-specified 2026-09-01, recommendation #3). Capped at a handful of entries since a real
+// session only ever revisits a couple of loadouts, not to bound unrelated memory growth.
+const accessoryEvalCache = new WeakMap();
+const ACCESSORY_EVAL_CACHE_MAX_ENTRIES = 8;
+
+function accessoryEvalCacheKey(loadout, build, mode, mob, candidates) {
+  return JSON.stringify({
+    loadout,
+    build,
+    mode,
+    mobName: mob?.name,
+    mobTypes: mob?.types,
+    candidates: candidates.map((c) => `${c.kind}:${c.id}:${c.mpGain}:${c.fromId || ''}:${c.rarity || ''}`),
+  });
+}
+
 // Runs every candidate from buildAccessoryCandidates through the real damage pipeline, varying
 // Magical Power on top of the player's current loadout/mode/mob — same "one change at a time
 // against baseline" evaluation lib/optimizer.js's other candidates use. Both the baseline and
@@ -252,6 +274,22 @@ const CATEGORY_LABELS = {
 // allocation (a full from-scratch search per candidate would mean tens of thousands of real
 // pipeline evaluations across ~90 candidates — this keeps it to a few hundred).
 export async function evaluateAccessoryCandidates(loadout, itemData, build, mode, mob, candidates) {
+  let innerCache = accessoryEvalCache.get(itemData);
+  if (!innerCache) {
+    innerCache = new Map();
+    accessoryEvalCache.set(itemData, innerCache);
+  }
+  const cacheKey = accessoryEvalCacheKey(loadout, build, mode, mob, candidates);
+  if (innerCache.has(cacheKey)) return innerCache.get(cacheKey);
+
+  const result = await evaluateAccessoryCandidatesUncached(loadout, itemData, build, mode, mob, candidates);
+
+  innerCache.set(cacheKey, result);
+  if (innerCache.size > ACCESSORY_EVAL_CACHE_MAX_ENTRIES) innerCache.delete(innerCache.keys().next().value);
+  return result;
+}
+
+async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mode, mob, candidates) {
   build = withOptimizerSwarmMobs(build, mode);
   const modeConfig = getModeConfig(mode, build.useMasterMode);
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
@@ -261,9 +299,14 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
   // below either way, since it's added equally to both the current and candidate totals.
   const currentPoints = computeTotalTuningPoints(currentMp, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
 
-  const baselineTuning = await computeOptimalTuning(loadout, itemData, build, modeConfig, mob, currentPoints);
+  const { allocation: baselineTuning, nextStat: baselineNextStat } = await computeOptimalTuning(loadout, itemData, build, modeConfig, mob, currentPoints);
   const tunedLoadout = { ...loadout, accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, tuning: baselineTuning } } };
-  const baselineValue = await computeModeDamage(tunedLoadout, itemData, build, modeConfig, mob);
+  // Reuses the same evaluation topUpTuning below needs (real Crit Chance and whether an Overload
+  // bow is equipped) — computeModeDamageAndSources costs nothing extra over computeModeDamage since
+  // baselineValue has to be computed here either way.
+  const { value: baselineValue, sources: tunedSources } = await computeModeDamageAndSources(tunedLoadout, itemData, build, modeConfig, mob);
+  const tunedCritChance = tunedSources.baseStats.crit_chance || 0;
+  const hasOverload = (tunedSources.overloadBonusPercent || 0) > 0;
 
   const results = [];
   for (const candidate of candidates) {
@@ -274,7 +317,7 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
       build.attributes?.echo_of_echoes,
     );
     const extraPoints = newPoints - currentPoints;
-    const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints) : baselineTuning;
+    const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints, tunedCritChance, hasOverload, baselineNextStat) : baselineTuning;
     // A brand-new accessory (not yet owned) carries its own real innate stat line (Shark Tooth
     // Necklace's Strength, Red Claw's Crit Damage, ...) on top of its Magical Power contribution —
     // see worker/src/index.js's ACCESSORY_INNATE_STATS_BY_ID, additive onto whatever the account's
@@ -338,15 +381,37 @@ export async function evaluateAccessoryCandidates(loadout, itemData, build, mode
   return { baselineValue, currentMp, results };
 }
 
-// One quick round (not a full multi-round search) — tries adding all `extraPoints` to each
-// damage-relevant Tuning stat on top of an already-optimal `baseTuning`, keeps whichever wins.
-// Accurate for the small deltas (0-2 points is typical) most single-accessory MP gains produce;
-// only a full computeOptimalTuning re-run would be exact for a large jump, which isn't worth the
-// extra evaluations for a ranked list where relative ordering, not exact numbers, is the point.
-async function topUpTuning(loadout, itemData, build, modeConfig, mob, baseTuning, extraPoints) {
+// For the small deltas (0-2 points is typical) a single accessory's MP gain produces, `nextStat`
+// (computeOptimalTuning's own last-round marginal-value winner, a free byproduct of the baseline
+// search the caller already ran) is reused directly instead of re-testing every stat from scratch —
+// on a smooth multiplicative formula, the winning stat essentially never flips over 1-2 more points
+// (user-specified 2026-09-01, recommendation #2). A larger jump (a big generic MP-sweep candidate,
+// or the baseline search never having run at all — `nextStat` null, e.g. currentPoints was 0) falls
+// back to the original one-quick-round re-test across every damage-relevant stat, since the
+// marginal ranking gets less reliable extrapolated over many points.
+const TOP_UP_DIRECT_THRESHOLD = 2;
+
+// `tunedCritChance`/`hasOverload` come from the baseline evaluation the caller already ran (see
+// evaluateAccessoryCandidates) — same formula-verified exclusions as computeOptimalTuning
+// (tuningOptimizer.js): Ability Damage only reads Intelligence, the 'dps' metric never reads
+// Intelligence, and a Crit Chance already at/past its real cap (100%, or 200% with Overload) can't
+// gain from more of it.
+async function topUpTuning(loadout, itemData, build, modeConfig, mob, baseTuning, extraPoints, tunedCritChance, hasOverload, nextStat) {
+  if (modeConfig.metric === 'ability') {
+    return { ...baseTuning, intelligence: (baseTuning.intelligence || 0) + extraPoints };
+  }
+  const critChanceCapped = tunedCritChance >= (hasOverload ? 200 : 100);
+  if (nextStat && extraPoints <= TOP_UP_DIRECT_THRESHOLD && !(nextStat === 'crit_chance' && critChanceCapped)) {
+    return { ...baseTuning, [nextStat]: (baseTuning[nextStat] || 0) + extraPoints };
+  }
+  const stats = TUNING_TOP_UP_STATS.filter((stat) => {
+    if (stat === 'intelligence' && modeConfig.metric !== 'beam') return false;
+    if (stat === 'crit_chance' && critChanceCapped) return false;
+    return true;
+  });
   let bestTuning = baseTuning;
   let bestValue = -Infinity;
-  for (const stat of TUNING_TOP_UP_STATS) {
+  for (const stat of stats) {
     const candidateTuning = { ...baseTuning, [stat]: (baseTuning[stat] || 0) + extraPoints };
     const candidateLoadout = { ...loadout, accessory: { ...loadout.accessory, modifiers: { ...loadout.accessory.modifiers, tuning: candidateTuning } } };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);

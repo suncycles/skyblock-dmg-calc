@@ -44,6 +44,7 @@ const TargetMobPicker = lazy(() => import('./pages/TargetMobPicker'));
 const Attributes = lazy(() => import('./pages/Attributes'));
 const LoadoutLoader = lazy(() => import('./pages/LoadoutLoader'));
 const HypixelImport = lazy(() => import('./pages/HypixelImport'));
+const ImportShortcut = lazy(() => import('./pages/ImportShortcut'));
 const Credits = lazy(() => import('./pages/Credits'));
 const Resources = lazy(() => import('./pages/Resources'));
 const Tutorial = lazy(() => import('./pages/Tutorial'));
@@ -106,6 +107,7 @@ export default function App() {
                     <Route path="/attributes" element={<Attributes />} />
                     <Route path="/loadout/:code" element={<LoadoutLoader />} />
                     <Route path="/hypixel-import" element={<HypixelImport />} />
+                    <Route path="/import/:username" element={<ImportShortcut />} />
                     <Route path="/credits" element={<Credits />} />
                     <Route path="/guides" element={<ComingSoon title="Guides" />} />
                     <Route path="/tutorial" element={<Tutorial />} />

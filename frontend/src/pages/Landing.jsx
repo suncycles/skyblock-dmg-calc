@@ -98,6 +98,8 @@ export default function Landing() {
     comboKills,
     legionPlayers,
     blazeCrimsonIsle,
+    importedWeapons,
+    equipImportedWeapon,
     loadFullState,
   } = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
@@ -283,6 +285,32 @@ export default function Landing() {
     const lines = await buildFullItemTooltipLines(
       equipped.item,
       equipped.modifiers,
+      itemData,
+      playerStats.catacombsLevel,
+      playerStats.tamingLevel,
+      playerStats.wolfSlayerLevel,
+      chimeraBonus,
+      playerStats.generalsMedallionDigits,
+      manticoreClawBonus,
+      potatoBookDoubled,
+      isMythologicalTarget,
+    );
+    if (hoverTokenRef.current === token) showTooltip(lines, anchor);
+  }
+
+  // Same per-item tooltip build as handleWeaponHover, just against an imported-weapons-list entry
+  // instead of the equipped weapon — the easy-access list next to the Weapon slot (user-specified
+  // 2026-09-01).
+  async function handleImportedWeaponHover(entry, e) {
+    const anchor = e.currentTarget;
+    const token = ++hoverTokenRef.current;
+    const petStats = computeBasePetStats(loadout, itemData);
+    const chimeraBonus = computeItemChimeraBonus(entry, petStats);
+    const manticoreClawBonus = computeManticoreClawBonus(entry, petStats);
+    const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
+    const lines = await buildFullItemTooltipLines(
+      entry.item,
+      entry.modifiers,
       itemData,
       playerStats.catacombsLevel,
       playerStats.tamingLevel,
@@ -633,6 +661,67 @@ export default function Landing() {
         );
         continue;
       }
+
+      // Column E, rows 1-4 (immediately right of Weapon): the easy-access imported-weapons list —
+      // every real weapon lib/hypixelImport.js's buildWeaponInventoryList found in the account's
+      // inventory on the last Hypixel import, not just whichever one got equipped, so swapping
+      // between real owned weapons doesn't need a full re-import each time (user-specified
+      // 2026-09-01). One spanning tile (same row-span-4 treatment as the Target Mob block below)
+      // holding a small scrollable icon grid — a name+level row per weapon (like the Weapon
+      // candidate list on the Review Import screen) doesn't fit a 1-column-wide cell.
+      if (col === 4 && row === 1) {
+        cells.push(
+          <div key={key} className={`${slotBase} relative row-span-4 p-1`}>
+            {importedWeapons.length === 0 ? (
+              <div
+                className="w-full h-full flex items-center justify-center cursor-pointer hover:brightness-110"
+                onClick={() => navigate('/hypixel-import')}
+                title="Import from Hypixel to fill this list"
+              >
+                <span className="text-[9px] font-bold text-white/70 text-center px-1 leading-tight">
+                  Import to
+                  <br />
+                  fill
+                </span>
+              </div>
+            ) : (
+              <div className="w-full h-full overflow-y-auto grid grid-cols-2 gap-0.5 content-start">
+                {importedWeapons.map((entry, i) => {
+                  const equipped = loadout.weapon?.item?.id === entry.item.id;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      title={`${formatItemName(entry.item.name)}${equipped ? ' (equipped)' : ''}`}
+                      className={`relative flex items-center justify-center aspect-square border-2 outline outline-1 outline-black cursor-pointer hover:brightness-110 ${
+                        equipped
+                          ? 'bg-green-500/70 border-t-green-300 border-l-green-300 border-b-green-800 border-r-green-800'
+                          : 'bg-[#8b8b8b] border-t-[#c9c9c9] border-l-[#c9c9c9] border-b-[#4a4a4a] border-r-[#4a4a4a]'
+                      }`}
+                      onClick={() => equipImportedWeapon(entry)}
+                      onMouseEnter={guardHover((e) => handleImportedWeaponHover(entry, e))}
+                      onMouseLeave={guardHover(hideTooltip)}
+                    >
+                      <WeaponIcon
+                        id={entry.item.id}
+                        material={entry.item.material}
+                        alt={entry.item.name}
+                        className="w-[75%] h-[75%] object-contain pixelated"
+                        style={{ filter: rarityGlowFilter(getDisplayTier(entry.item, entry.modifiers)) }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5 pointer-events-none">
+              Weapons
+            </span>
+          </div>,
+        );
+        continue;
+      }
+      if (col === 4 && row >= 2 && row <= 4) continue;
 
       // Columns F/G/H, rows 1-4: Target Mob — one tile spanning the full 3x4 block, filled with
       // the real mob-model renders of every selected mob (overlapping when there's more than one).

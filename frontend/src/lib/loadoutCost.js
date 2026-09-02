@@ -4,7 +4,7 @@
 
 import { ARMOR_SLOTS } from './armorSlots';
 import { EQUIPMENT_SLOTS } from './equipmentSlots';
-import { priceOf, masterStarCost } from './pricing';
+import { priceOf, masterStarCost, enchantPrice } from './pricing';
 
 // Sums an equipped gear slot's base item + every priced modifier currently applied to it (reforge,
 // stars, gemstones, ultimate/normal enchants, Recombobulator) — "what it costs to replicate this
@@ -30,10 +30,10 @@ function gearSlotCost(slot, itemPrices, reforgeCosts, starCosts, recombobulatorC
     if (g) add(priceOf(itemPrices, `${g.tier.toUpperCase()}_${g.gem}_GEM`));
   }
   if (modifiers.ultimateEnchantment) {
-    add(priceOf(itemPrices, `ENCHANTMENT_${modifiers.ultimateEnchantment.id.toUpperCase()}_${modifiers.ultimateEnchantment.level}`));
+    add(enchantPrice(itemPrices, modifiers.ultimateEnchantment.id, modifiers.ultimateEnchantment.level));
   }
   for (const e of modifiers.hexEnchantments || []) {
-    add(priceOf(itemPrices, `ENCHANTMENT_${e.id.toUpperCase()}_${e.level}`));
+    add(enchantPrice(itemPrices, e.id, e.level));
   }
 
   return known ? total : null;
