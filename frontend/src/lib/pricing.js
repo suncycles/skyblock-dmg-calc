@@ -60,13 +60,14 @@ function findStep(apply, type) {
 // A few enchants' top level isn't sold as a normal enchanted book at all — it's applied by
 // consuming one specific, single-use special item instead, so there's no
 // `ENCHANTMENT_<name>_<level>` price entry for it (confirmed: pricesV2.json has no
-// ENCHANTMENT_ENDER_SLAYER_7/SMITE_7/VENOMOUS_7 despite Ender Slayer 7 and Smite 7 being real,
-// obtainable levels — Venomous 7 has no NEU-REPO item file at all, but is still a real level, see
-// enchantEffects.js's hardcoded VENOMOUS_LEVELS). User-confirmed 2026-09-01.
+// ENCHANTMENT_ENDER_SLAYER_7/SMITE_7/VENOMOUS_7/BANE_OF_ARTHROPODS_7 despite each being a real,
+// obtainable level — Venomous 7 has no NEU-REPO item file at all, but is still a real level, see
+// enchantEffects.js's hardcoded VENOMOUS_LEVELS). User-confirmed 2026-09-01/2026-09-02.
 const SPECIAL_ENCHANT_LEVEL_ITEMS = {
   ender_slayer: { 7: 'ENDSTONE_IDOL' },
   smite: { 7: 'SEVERED_HAND' },
   venomous: { 7: 'FATEFUL_STINGER' },
+  bane_of_arthropods: { 7: 'ENSNARED_SNAIL' },
 };
 
 // Real coin price for one enchant at one level — the single source of truth both this file's own
@@ -128,14 +129,15 @@ export function lookupCandidateCost(result, itemData) {
     }
     case 'Enchant Set': {
       // The One-For-All-alternative bundle (lib/optimizer.js's evaluateCheapestOneForAllAlternative)
-      // — several applyEnchant steps at once, same "sum every piece, any unpriced one makes the
-      // whole total unknown" treatment as Full Set above.
+      // — several applyEnchant steps at once. Unlike Full Set above, an unpriced step here doesn't
+      // make the whole total unknown — the evaluator itself already treats a level with no real
+      // market price as free (0 coins, not excluded — user-specified 2026-09-02), so the total
+      // shown here needs to match that same semantics rather than falling back to '?'.
       const steps = (result.apply || []).filter((s) => s.type === 'applyEnchant');
       if (steps.length === 0) return null;
       let total = 0;
       for (const step of steps) {
-        const price = enchantPrice(itemPrices, step.id, step.level);
-        if (price == null) return null;
+        const price = enchantPrice(itemPrices, step.id, step.level) ?? 0;
         total += price;
       }
       return total;

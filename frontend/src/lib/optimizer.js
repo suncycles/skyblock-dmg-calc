@@ -622,8 +622,14 @@ export function hasCuratedData(mode) {
 function withCost(result, itemData) {
   if (!result) return result;
   const cost = lookupCandidateCost(result, itemData);
-  const hasRealCost = typeof cost === 'number' && cost > 0;
-  return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost ? result.percentIncrease / cost : null };
+  // A cost of exactly 0 reads as "unknown, not '?' confirmed unpriced" everywhere else in this
+  // file (a real 0 never otherwise occurs — every other category's lookup returns either a real
+  // positive price or null) — except 'Enchant Set', where 0 is a real, confirmed answer (every
+  // level in the set resolved to a real, no-market-price tier — see
+  // evaluateCheapestOneForAllAlternative's "unpriced = free" treatment, user-specified 2026-09-02),
+  // not an unresolved unknown, so it's allowed through here rather than masked as '?'.
+  const hasRealCost = typeof cost === 'number' && (cost > 0 || (cost === 0 && result.category === 'Enchant Set'));
+  return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost && cost > 0 ? result.percentIncrease / cost : hasRealCost ? Infinity : null };
 }
 
 // Drops a candidate when another real-cost option in the same mutually-exclusive group (same
@@ -1383,12 +1389,14 @@ async function evaluateEnchantCandidates(loadout, itemData, build, modeConfig, m
 // but whose real mob-type condition matches the target — e.g. suggesting Ender Slayer against an
 // Ender-type mob when no type-bane enchant is equipped (user-specified 2026-08-31).
 // evaluateEnchantCandidates above deliberately never proposes an enchant that isn't already
-// equipped (real Hex enchant-slot availability isn't modeled anywhere in this app) — this is a
-// narrow, explicit exception scoped to exactly these 7 enchants: missing an obviously-correct type
-// match is a bigger real cost than the same slot-availability uncertainty every other Optimizer
-// assumption already accepts (Swarm's nearby-mob-count guess, God Potion, etc.). Recommends at the
-// enchant's own real max level, same convention evaluateUltimateEnchantCandidates below already
-// uses for "swap in something not currently equipped."
+// equipped (real Hex enchant-slot availability isn't modeled anywhere in this app) — this used to
+// be a narrow, explicit exception scoped to exactly these 7 enchants; evaluateMissingEnchantCandidates
+// below now covers every other real, currently-unequipped hex enchant the same way (user-specified
+// 2026-09-02, following a bug report that a plain missing Sharpness went unrecommended) — this one
+// stays a separate function since its type-matching (only the ONE bane relevant to the target) is
+// real logic the generic version below doesn't need. Recommends at the enchant's own real max
+// level, same convention evaluateUltimateEnchantCandidates below already uses for "swap in
+// something not currently equipped."
 async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
   const weapon = loadout.weapon;
   if (!weapon || !mob?.types?.length) return [];
@@ -1412,6 +1420,61 @@ async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build
     // once, an impossible combination in-game (One For All zeroes every other enchant), which
     // silently priced this as a real DPS increase (bug report 2026-09-02). Same
     // ultimateEnchantment-clearing evaluateUltimateEnchantCandidates already does for its own swaps.
+    const ultimateEnchantment =
+      weapon.modifiers.ultimateEnchantment && removeIds.includes(weapon.modifiers.ultimateEnchantment.id)
+        ? null
+        : weapon.modifiers.ultimateEnchantment;
+    const candidateLoadout = {
+      ...loadout,
+      weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants, ultimateEnchantment } },
+    };
+    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    results.push({
+      category: 'Enchant',
+      slot: 'weapon',
+      label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
+      value,
+      apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
+    });
+  }
+  return results;
+}
+
+// Recommends any other real, currently-unequipped hex enchant applicable to the weapon's category
+// — Sharpness, Critical, Vicious, Thunderlord, whatever's actually missing — not just the 7 real
+// type-bane ones evaluateMissingTypeBaneEnchantCandidates above already covers (excluded here to
+// avoid a duplicate recommendation for the same enchant). No hardcoded "these are the good ones"
+// list (per this app's own "don't guess game data" convention): every real candidate is tested
+// empirically against the actual pipeline, so a genuinely irrelevant one (Looting, Experience, …)
+// naturally computes a real value equal to baseline and gets filtered out downstream by the normal
+// percentIncrease>0 check, same as everything else in this file. Real "Conflicts:" lore resolved
+// the same way the bane evaluator above does (a missing Critical might mean removing an already-
+// equipped Vicious, say) — including One For All's own removal when it's the current ultimate,
+// though that's rarely a real win on a single addition (see evaluateCheapestOneForAllAlternative
+// below for the one that actually can be, by adding several at once).
+async function evaluateMissingEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
+  const weapon = loadout.weapon;
+  if (!weapon) return [];
+  const category = resolveEnchantCategory(weapon.item.category);
+  const equippedIds = new Set((weapon.modifiers.hexEnchantments || []).map((e) => e.id.toLowerCase()));
+  const baneIds = new Set(Object.keys(ENCHANT_ID_MOB_TYPES));
+  const candidateIds = getCategoryEnchantIds(itemData.enchants, category).filter(
+    (id) => !isUltimateEnchant(id) && !equippedIds.has(id.toLowerCase()) && !baneIds.has(id.toLowerCase()),
+  );
+
+  const results = [];
+  for (const id of candidateIds) {
+    const levels = await fetchEnchantLevels(id, itemData.enchants);
+    if (levels.length === 0) continue;
+    const maxLevel = Math.max(...levels.map((l) => l.level));
+    const levelData = levels.find((l) => l.level === maxLevel);
+    const removeIds = computeConflictingEntries(id, levelData.lore, weapon.modifiers).map((e) => e.id);
+    const newEnchants = [
+      ...(weapon.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
+      { id, level: maxLevel },
+    ];
+    // Same One For All clearing as the bane evaluator above — removeIds includes its id when it's
+    // the current ultimate, but filtering hexEnchantments alone doesn't clear the ultimate slot.
     const ultimateEnchantment =
       weapon.modifiers.ultimateEnchantment && removeIds.includes(weapon.modifiers.ultimateEnchantment.id)
         ? null
@@ -1469,7 +1532,28 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
   const bareModifiers = { ...weapon.modifiers, ultimateEnchantment: null, hexEnchantments: [] };
   const bareValue = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: bareModifiers } }, itemData, build, modeConfig, mob);
 
-  const candidates = [];
+  // Applies one pick (a specific id+level, hex or ultimate) against `modifiers`, resolving real
+  // "Conflicts:" lore the same way every other evaluator in this file does — and, critically,
+  // stripping any EXISTING entry for this same id first (`e.id !== pick.id`), not just the
+  // lore-declared conflicts, since a paid upgrade REPLACES this id's own earlier free pick rather
+  // than stacking with it (bug fix 2026-09-02 — see the phase 2/3 split below for why this matters).
+  function applyPick(modifiers, pick) {
+    const removeIds = computeConflictingEntries(pick.id, pick.lore, modifiers).map((e) => e.id);
+    const hexEnchantments = pick.isUltimate
+      ? modifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id))
+      : [...modifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id) && e.id !== pick.id), { id: pick.id, level: pick.level, maxLevel: pick.maxLevel }];
+    const ultimateEnchantment = pick.isUltimate
+      ? { id: pick.id, level: pick.level, maxLevel: pick.maxLevel }
+      : modifiers.ultimateEnchantment && removeIds.includes(modifiers.ultimateEnchantment.id)
+        ? null
+        : modifiers.ultimateEnchantment;
+    return { ...modifiers, hexEnchantments, ultimateEnchantment };
+  }
+
+  // Phase 1: every real level of every real id, tested once against the bare baseline — not just
+  // max level (bug report 2026-09-02: Sharpness VII prices at ~131M vs VI's ~1M for barely more
+  // damage, so only-ever-testing-max meant this evaluator could never even see VI as an option).
+  const perIdLevels = new Map();
   for (const id of allIds) {
     if (id.toLowerCase() === 'ultimate_one_for_all') continue;
     // User-specified, 2026-08-25 (evaluateUltimateEnchantCandidates above): never recommend Combo —
@@ -1479,39 +1563,112 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
     const levels = await fetchEnchantLevels(id, itemData.enchants);
     if (levels.length === 0) continue;
     const maxLevel = Math.max(...levels.map((l) => l.level));
-    const levelData = levels.find((l) => l.level === maxLevel);
-    const cost = enchantPrice(itemPrices, id, maxLevel);
-    if (!cost) continue; // unpriced — can't be part of a "cheapest" claim
     const isUltimate = isUltimateEnchant(id);
-    const testModifiers = {
-      ...bareModifiers,
-      ultimateEnchantment: isUltimate ? { id, level: maxLevel, maxLevel } : null,
-      hexEnchantments: isUltimate ? [] : [{ id, level: maxLevel, maxLevel }],
-    };
-    const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
-    const marginal = value - bareValue;
-    if (marginal <= 0) continue;
-    candidates.push({ id, level: maxLevel, maxLevel, cost, isUltimate, lore: levelData.lore, efficiency: marginal / cost });
-  }
-  candidates.sort((a, b) => b.efficiency - a.efficiency);
 
+    // A level with no real market price (pricesV2.json has no ENCHANTMENT_<id>_<level> entry —
+    // common at low levels, e.g. Sharpness I-V) is treated as free rather than excluded outright
+    // (user-specified 2026-09-02): it's cheap/common enough to have never been tracked as its own
+    // market item, not evidence it's unobtainable. Real per-level effects only ever grow with
+    // level, so a lower free level can never beat a higher one — only the highest free level is
+    // ever worth testing (user-specified 2026-09-02: "only ever consider the highest free tier"),
+    // skipping a real pipeline call for every free tier below it. Every real PAID level still gets
+    // its own test, since cost and value both genuinely vary level to level there.
+    const priced = levels.map((l) => ({ ...l, cost: enchantPrice(itemPrices, id, l.level) }));
+    const freeLevels = priced.filter((l) => l.cost == null);
+    const highestFree = freeLevels.length > 0 ? freeLevels.reduce((a, b) => (b.level > a.level ? b : a)) : null;
+    const testLevels = [...(highestFree ? [highestFree] : []), ...priced.filter((l) => l.cost != null)];
+
+    const results = [];
+    for (const levelData of testLevels) {
+      const level = levelData.level;
+      const testModifiers = {
+        ...bareModifiers,
+        ultimateEnchantment: isUltimate ? { id, level, maxLevel } : null,
+        hexEnchantments: isUltimate ? [] : [{ id, level, maxLevel }],
+      };
+      const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
+      const marginal = value - bareValue;
+      if (marginal <= 0) continue;
+      results.push({ id, level, maxLevel, cost: levelData.cost, marginal, lore: levelData.lore, isUltimate });
+    }
+    if (results.length > 0) perIdLevels.set(id, results);
+  }
+
+  // Phase 2: every id's one free-tier pick (if it has real positive value) is taken unconditionally
+  // — real conflicts resolved and each addition re-verified against the actual pipeline — since
+  // there's never a reason to skip a real, no-cost damage gain. This runs BEFORE the paid
+  // efficiency ranking specifically so a free level can never look "infinitely efficient" and
+  // silently crowd out a real, worthwhile paid upgrade of the exact same enchant (the actual bug:
+  // ranking free and paid levels together on raw marginal/cost put every id's free level — even a
+  // barely-there Sharpness I — ahead of every id's real max-value paid level, so the walk quietly
+  // filled up on tiny free picks and never got anywhere near what paying for Sharpness VI or
+  // Critical VI/VII would have bought).
   let currentModifiers = bareModifiers;
   let currentValue = bareValue;
-  for (const c of candidates) {
+  for (const [id, results] of perIdLevels) {
+    const free = results.find((r) => r.cost == null);
+    if (!free) continue;
+    currentModifiers = applyPick(currentModifiers, free);
+    currentValue = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: currentModifiers } }, itemData, build, modeConfig, mob);
+  }
+
+  // Phase 3: real, priced levels compete on cost-efficiency exactly as before, but now measured as
+  // the INCREMENTAL value over whatever this same id's own free tier already gave for free in phase
+  // 2 — not the raw from-bare marginal — since equipping a paid level of an enchant REPLACES that
+  // id's free pick (applyPick above) rather than stacking with it; only one level of any given
+  // enchant is ever active at once.
+  const paidCandidates = [];
+  for (const [id, results] of perIdLevels) {
+    const freeMarginal = Math.max(0, ...results.filter((r) => r.cost == null).map((r) => r.marginal));
+    let best = null;
+    for (const r of results) {
+      if (r.cost == null) continue;
+      const incremental = r.marginal - freeMarginal;
+      if (incremental <= 0) continue; // this paid level isn't even better than what's already free
+      const efficiency = incremental / r.cost;
+      if (!best || efficiency > best.efficiency) best = { ...r, efficiency };
+    }
+    if (best) paidCandidates.push(best);
+  }
+  paidCandidates.sort((a, b) => b.efficiency - a.efficiency);
+
+  for (const c of paidCandidates) {
     if (currentValue > baselineValue) break;
-    const removeIds = computeConflictingEntries(c.id, c.lore, currentModifiers).map((e) => e.id);
-    const nextHex = c.isUltimate
-      ? currentModifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id))
-      : [...currentModifiers.hexEnchantments.filter((e) => !removeIds.includes(e.id)), { id: c.id, level: c.level, maxLevel: c.maxLevel }];
-    const nextUltimate = c.isUltimate
-      ? { id: c.id, level: c.level, maxLevel: c.maxLevel }
-      : currentModifiers.ultimateEnchantment && removeIds.includes(currentModifiers.ultimateEnchantment.id)
-        ? null
-        : currentModifiers.ultimateEnchantment;
-    const nextModifiers = { ...currentModifiers, hexEnchantments: nextHex, ultimateEnchantment: nextUltimate };
-    const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: nextModifiers } }, itemData, build, modeConfig, mob);
-    currentModifiers = nextModifiers;
-    currentValue = value;
+    currentModifiers = applyPick(currentModifiers, c);
+    currentValue = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: currentModifiers } }, itemData, build, modeConfig, mob);
+  }
+
+  // Phase 4: each id was collapsed to a single best-efficiency level above, so a real further
+  // upgrade of an id already picked (Sharpness VII after VI, say) never got a second look — usually
+  // fine (phase 2+3 alone reach the target in the common case), but occasionally leaves the walk
+  // just short even though a real, if less individually-efficient, next step of something already
+  // equipped would close the gap. Keeps offering each picked id's next real level up — tested
+  // directly against the actual current state (not a static bare-derived estimate, so any real
+  // interaction with everything else already picked is correctly reflected) — repeating until the
+  // threshold is crossed or no id has any further real upgrade left.
+  let progressed = currentValue <= baselineValue;
+  while (currentValue <= baselineValue && progressed) {
+    progressed = false;
+    let bestUpgrade = null;
+    for (const [id, results] of perIdLevels) {
+      const currentEntry =
+        currentModifiers.ultimateEnchantment?.id === id ? currentModifiers.ultimateEnchantment : currentModifiers.hexEnchantments.find((e) => e.id === id);
+      const currentLevel = currentEntry?.level ?? 0;
+      for (const r of results) {
+        if (r.level <= currentLevel || r.cost == null) continue; // not a further upgrade, or already covered as free
+        const testModifiers = applyPick(currentModifiers, r);
+        const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
+        const gain = value - currentValue;
+        if (gain <= 0) continue;
+        const efficiency = gain / r.cost;
+        if (!bestUpgrade || efficiency > bestUpgrade.efficiency) bestUpgrade = { testModifiers, value, efficiency };
+      }
+    }
+    if (bestUpgrade) {
+      currentModifiers = bestUpgrade.testModifiers;
+      currentValue = bestUpgrade.value;
+      progressed = true;
+    }
   }
 
   if (currentValue <= baselineValue) return []; // exhausted every real candidate — nothing beats it here
@@ -2116,6 +2273,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     pets,
     enchants,
     missingTypeBaneEnchants,
+    missingEnchants,
     cheapestOneForAllAlternative,
     ultimates,
     armorUltimates,
@@ -2147,6 +2305,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateMissingEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateCheapestOneForAllAlternative(loadout, itemData, build, modeConfig, mob, baselineValue),
     evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
@@ -2189,6 +2348,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ...withPercent([
       ...enchants,
       ...missingTypeBaneEnchants,
+      ...missingEnchants,
       ...cheapestOneForAllAlternative,
       ...ultimates,
       ...armorUltimates,
