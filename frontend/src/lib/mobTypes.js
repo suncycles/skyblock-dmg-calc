@@ -340,6 +340,12 @@ export const MOB_TYPES = {
   'Wiki Tiki': ['Aquatic', 'Construct', 'Elusive'],
   'Wise Dragon': ['Airborne', 'Arcane', 'Ender'],
   'Witch': ['Arcane', 'Humanoid'],
+  // User-renamed from the wiki's real name "Apex Dragon" — the secret post-Necron chase boss on
+  // Master Mode Floor VII (2026-09-03). Not in MOB_TYPES/mobLocations.js before this; type tags
+  // are this app's own inference (Airborne/Arcane matching the Ender Dragon family it borrows its
+  // icon from, Wither/Boss matching its fellow F7 bosses Maxor/Storm/Goldor/Necron) — not
+  // individually user-confirmed, flag if wrong.
+  'Wither Dragon': ['Airborne', 'Wither', 'Arcane', 'Boss'],
   'Wither Gourd': ['Shielded', 'Spooky'],
   'Wither Guard': ['Skeletal', 'Wither'],
   'Wither Husk': [],

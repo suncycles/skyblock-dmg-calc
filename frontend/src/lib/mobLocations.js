@@ -295,6 +295,7 @@ export const MOB_LOCATIONS = {
   'Wiki Tiki': ['Sea Creatures - Water'],
   'Wise Dragon': ['The End'],
   'Witch': ['Private Island'],
+  'Wither Dragon': ['The Catacombs'],
   'Wither Gourd': ['Spooky Festival'],
   'Wither Guard': ['The Catacombs'],
   'Wither Husk': ['The Catacombs'],

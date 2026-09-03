@@ -1687,6 +1687,13 @@
  "Witch": {
   "hp": 1061
  },
+ "Wither Dragon": {
+  "dungeon": {
+   "master": {
+    "VII": 1000000000
+   }
+  }
+ },
  "Wither Gourd": {
   "hp": 11
  },
