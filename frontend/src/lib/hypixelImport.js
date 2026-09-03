@@ -7,6 +7,7 @@ import { getPowerById } from './accessoryPowers';
 import { ATTRIBUTE_IDS } from './attributes';
 import { getMaxStarsForItem, MAX_MASTER_STARS } from './starring';
 import { getSpecialConfig } from './specialWeapons';
+import { isTieredArmorStatItem } from './tieredArmorStats';
 
 /* Hypixel API "import my current gear" — hits the shared Worker's /api/hypixel/import (which
    holds the API key server-side, does the gzip+NBT decode, and computes pet level/attribute
@@ -294,12 +295,18 @@ const SPECIAL_LORE_LABELS = {
 // real Necron's Leggings (4 real Master Stars, but `summary.dungeonized: false`, and the user
 // confirmed the correct display is the plain, non-Catacombs-boosted total). That assumption was
 // never actually confirmed with real game data — exactly the kind of guessed mechanic CLAUDE.md
-// warns against — so it's dropped rather than re-guessed at differently. Extracted to its own
-// function (rather than inlined in buildItemModifiers below) so
-// scripts/verify-dungeon-and-enchant-behavior.mjs can regression-test this exact expression
-// directly.
+// warns against — so it's dropped rather than re-guessed at differently.
+// Bug fix 2026-09-03: `dungeon_item` alone still under-covers the Gear-Score tiered-stat family
+// (Skeleton Master/Zombie Knight — see tieredArmorStats.js) — confirmed live against sammui's real
+// Skeleton Master Chestplate: its full decoded NBT has no `dungeon_item` key at all, yet its real
+// Hypixel-rendered lore unambiguously shows a Catacombs Boost annotation. Unlike Necron's Leggings
+// (player-crafted, upgradeable, genuinely can exist un-dungeonized), these items are exclusively
+// mob drops from a dungeon Floor with no non-dungeon-obtainable variant, so a real copy is always
+// dungeonized regardless of that NBT flag. Extracted to its own function (rather than inlined in
+// buildItemModifiers below) so scripts/verify-dungeon-and-enchant-behavior.mjs can
+// regression-test this exact expression directly.
 export function resolveDungeonizedFlag(summary) {
-  return !!summary.dungeonized;
+  return !!summary.dungeonized || isTieredArmorStatItem(summary.id);
 }
 
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {

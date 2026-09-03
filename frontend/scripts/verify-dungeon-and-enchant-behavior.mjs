@@ -110,8 +110,12 @@ try {
   // fresh/un-dungeonized item's stats with the 10%/star Catacombs Boost even with the Dungeon
   // toggle off.
   await check('per-item dungeonized flag trusts only the real NBT flag', () => {
-    assert.equal(hypixelImport.resolveDungeonizedFlag({ dungeonized: false }), false, 'a real, un-dungeonized copy must resolve to false');
-    assert.equal(hypixelImport.resolveDungeonizedFlag({ dungeonized: true }), true, 'a real dungeonized copy must resolve to true');
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', dungeonized: false }), false, 'a real, un-dungeonized copy must resolve to false');
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', dungeonized: true }), true, 'a real dungeonized copy must resolve to true');
+    // Gear-Score tiered-stat items (mob-drop-only, no non-dungeon variant) are always dungeonized
+    // even when the real per-copy NBT has no `dungeon_item` key at all — see the 2026-09-03 fix
+    // comment above resolveDungeonizedFlag.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SKELETON_MASTER_CHESTPLATE', dungeonized: false }), true, 'a tiered-stat item must resolve dungeonized even without the NBT flag');
   });
 
   // Real, live-captured Necron's Leggings lore (sammui, 2026-09-02) — used below to pin down that
@@ -250,6 +254,62 @@ try {
     // completely unaffected by this mechanic — regression guard against an always-on tiered lookup.
     const manualTotals = await itemStatTotals.computeItemStatTotals(catalogItem, { ...modifiers, itemTier: null, baseStatBoostPercentage: 0 }, itemData, { catacombsLevel: 0 });
     assert.notEqual(manualTotals.health.nonDungeonStarred, 92.4, 'a manually-built item must NOT get the real per-copy tiered total');
+  });
+
+  // 11. Bug fix 2026-09-03: the tiered pristine must be CEIL'd, not left as a raw float — Hypixel's
+  // own displayed base stat is always a whole number even when tiered_stats[i] x pieceBoost isn't
+  // (e.g. 45 x 1.5 = 67.5). Missing this produced a small-but-real ~0.5 drift on every downstream
+  // total (Crit Damage 119.3 vs the real 119.8) that looked like a rounding-order mystery until the
+  // user pinned the exact formula.
+  await check('Gear-Score tiered pristine is ceil()d, not a raw float', () => {
+    assert.equal(tieredArmorStats.computeTieredPristineStat('SKELETON_MASTER_CHESTPLATE', 'crit_damage', 10, 50), 68, 'ceil(45 x 1.5 = 67.5) must be 68');
+  });
+
+  // 12. End-to-end pin against sammui's real, live-verified Skeleton Master Chestplate (2026-09-03):
+  // Ancient reforge (+1 Crit Damage/Catacombs level, real Catacombs level 45), 5 base Stars + 5
+  // Master Stars, General's Medallion 4 digits — the user-supplied formula
+  // "[ceil(BASE x pieceBoost) + reforgebonus] x totalboost" reproduces Hypixel's own real displayed
+  // Crit Damage EXACTLY: 119.8% out of a dungeon (5-star display), 665.57% inside a non-master
+  // dungeon (this app rounds to 1 decimal vs Hypixel's 2, hence 665.6).
+  await check('Gear-Score tiered item reproduces real Crit Damage exactly (119.8 / 665.6)', async () => {
+    const catalogItem = {
+      id: 'SKELETON_MASTER_CHESTPLATE',
+      tier: 'EPIC',
+      category: 'DUNGEON CHESTPLATE',
+      lore: ['§7Gear Score: §d142', '§7Crit Damage: §9+22', '', '§6§lEPIC DUNGEON CHESTPLATE'],
+    };
+    const itemData = {
+      weapons: [], armor: [catalogItem], equipment: [],
+      reforges: { Ancient: { reforgeStats: { MYTHIC: {} } } },
+      reforgeStones: {}, enchants: {},
+    };
+    const modifiers = {
+      ...BARE_MODIFIERS,
+      stars: 5,
+      masterStars: 5,
+      dungeonized: true, // resolveDungeonizedFlag's real job (checked separately above); computeItemStatTotals just trusts it
+      reforge: 'Ancient',
+      recombobulated: true,
+      itemTier: 10,
+      baseStatBoostPercentage: 50,
+    };
+    const totals = await itemStatTotals.computeItemStatTotals(catalogItem, modifiers, itemData, { catacombsLevel: 45, generalsMedallionDigits: 4 });
+    assert.equal(totals.crit_damage.nonDungeonStarred, 119.8, `expected the real 119.8, got ${totals.crit_damage.nonDungeonStarred}`);
+    assert.equal(totals.crit_damage.dungeonStarred, 665.6, `expected the real 665.57 (rounded to 665.6), got ${totals.crit_damage.dungeonStarred}`);
+
+    // Bug fix 2026-09-03 (round 2): the catalog's own bundled lore for this item already has a
+    // real "Crit Damage: +22" line (Hypixel's tier-1 tiered_stats baseline) — itemTooltip.js's
+    // leading-number merge used to subtract computeItemStatTotals' own (tiered-overridden)
+    // pristine from the final total and add that delta onto whatever's in the TEXT, silently
+    // assuming the two matched. They don't for a tiered item, which under-counted the rendered
+    // total by (68 - 22) = 46 (real bug: Skeleton Master Chestplate rendered "73.8%" instead of
+    // "119.8%" in the live app, even though computeItemStatTotals itself was already correct).
+    const tooltipLines = await itemTooltip.buildFullItemTooltipLines(catalogItem, modifiers, itemData, 45, 0, 0, undefined, 4, undefined, false, false, 0);
+    const critDamageLine = tooltipLines.find((l) => l.replace(/§./g, '').startsWith('Crit Damage:'));
+    assert.ok(critDamageLine, 'rendered tooltip must have a Crit Damage line');
+    const afterLabel = critDamageLine.replace(/§./g, '').slice('Crit Damage:'.length);
+    const leading = parseFloat(/^\s*([+-]?[\d.]+)/.exec(afterLabel)[1]);
+    assert.equal(leading, 119.8, `rendered Crit Damage leading number must be the real 119.8, got ${leading} (line: ${critDamageLine})`);
   });
 } finally {
   await server.close();

@@ -12,6 +12,7 @@ import { applyDungeonizeToLore } from './dungeonize';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
 import { computeItemStatTotals, normalizeAttackSpeedLabel } from './itemStatTotals';
 import { MAX_BASE_STAT_BOOST_PERCENTAGE } from './tieredArmorStats';
+import { parseBaseStatValue } from './starring';
 
 // Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants
 // alphabetically, gold if maxed else grey. Exported (only for
@@ -92,7 +93,16 @@ export async function buildFullItemTooltipLines(
   const finalValues = {};
   for (const [statKey, t] of Object.entries(totals)) {
     const finalValue = isMythological ? t.mythologicalNonDungeonStarred : t.nonDungeonStarred;
-    if (finalValue !== t.pristine) finalValues[statKey] = finalValue - t.pristine;
+    // mergeStatIntoBase ADDS this delta onto whatever number is literally printed in the lore
+    // text below — that's the catalog's raw baseline, NOT necessarily t.pristine. The two match
+    // for an ordinary item (computeItemStatTotals' own pristine IS a parse of this same text), but
+    // diverge for a Gear-Score tiered-stat item (lib/tieredArmorStats.js): its bundled catalog
+    // lore permanently shows the tier-1 tiered_stats value while t.pristine is the real per-copy
+    // tiered value, so subtracting t.pristine here under-counted the real total by exactly that
+    // gap (bug found live 2026-09-03: Skeleton Master Chestplate showed Crit Damage 73.8% instead
+    // of the real 119.8%, off by the tier-1/tier-10 pristine difference).
+    const textPristine = parseBaseStatValue(lore, statKey) || 0;
+    if (finalValue !== textPristine) finalValues[statKey] = finalValue - textPristine;
   }
   lore = mergeStatIntoBase(lore, finalValues, lore.indexOf(''));
 

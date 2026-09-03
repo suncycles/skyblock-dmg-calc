@@ -79,11 +79,27 @@ const TIERED_ARMOR_STAT_TABLES = {
 // item/stat isn't a tiered exception, or the real per-copy itemTier isn't known (manually-built
 // items, or any other real item) — callers fall back to the catalog's own pristine lore value in
 // that case (see lib/itemStatTotals.js).
+// Real formula user-confirmed 2026-09-03 against sammui's Skeleton Master Chestplate (CEIL is the
+// piece missing before: tiered_stats.CRITICAL_DAMAGE[9]=45 x 1.5 = 67.5, and the real item shows
+// exactly ceil(67.5)=68 as its pristine — reproducing the real 119.8%/665.57% Crit Damage totals
+// exactly through the existing hiddenBase/Star/Catacombs-Boost pipeline unmodified).
 export function computeTieredPristineStat(itemId, statKey, itemTier, baseStatBoostPercentage) {
   const table = TIERED_ARMOR_STAT_TABLES[itemId];
   if (!table || !itemTier) return null;
   const hypixelKey = Object.keys(HYPIXEL_STAT_KEY_MAP).find((k) => HYPIXEL_STAT_KEY_MAP[k] === statKey);
   const tiered = hypixelKey ? table[hypixelKey]?.[itemTier - 1] : undefined;
   if (tiered == null) return null;
-  return tiered * (1 + (baseStatBoostPercentage || 0) / 100);
+  return Math.ceil(tiered * (1 + (baseStatBoostPercentage || 0) / 100));
+}
+
+// Whether an item id is one of the Gear-Score tiered-stat exceptions above — used by
+// lib/hypixelImport.js's resolveDungeonizedFlag: these items are exclusively mob drops from a
+// dungeon Floor with no non-dungeon-obtainable variant (unlike e.g. Bonzo Staff, buyable and
+// optionally converted via a Dungeonizer), so a real copy is always dungeonized even when its
+// `ExtraAttributes.dungeon_item` flag is absent — confirmed live 2026-09-03: sammui's real
+// Skeleton Master Chestplate's full decoded NBT has no `dungeon_item` key at all (only
+// `dungeon_skill_req`), yet Hypixel's own rendered lore unambiguously shows a real Catacombs Boost
+// annotation matching this app's formula exactly.
+export function isTieredArmorStatItem(itemId) {
+  return Object.prototype.hasOwnProperty.call(TIERED_ARMOR_STAT_TABLES, itemId);
 }
