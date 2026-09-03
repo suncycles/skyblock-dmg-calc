@@ -330,77 +330,6 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
   };
 }
 
-// Dungeon Mob Armor drops (Shadow Assassin, Necron's/Power Wither, Skeleton Master, boss Heads,
-// etc.) roll real stats that scale with the specific mob variant/Gear Score of that individual
-// drop — the bundled catalog's lore is just one static snapshot (whatever Gear Score NEU-REPO's
-// source item file happened to have), so it can't be trusted as "the" stat total for an owned
-// copy. Every real one of these tags itself with a "Gear Score:" lore line, so that's the signal
-// used below to swap in the account's own real per-instance lore instead — same "read the
-// account's own live numbers" approach as David's Cloak/Midas' Sword/Crown of Avarice already get,
-// just keyed off a generic lore marker instead of a hand-picked item id list since there are 100+
-// real ids with this mechanic. Confirmed real, e.g. Sammui's own Skeleton Master Chestplate.
-function hasGearScoreLine(lore) {
-  return Array.isArray(lore) && lore.some((l) => l.replace(/§./g, '').trim().startsWith('Gear Score:'));
-}
-
-// Hypixel's own real lore for one of these items already shows each stat's pristine base number
-// — its reforge/books/Dungeonize/gemstone bonuses are shown as separate "(+X)" annotations next
-// to that base rather than merged into it, using the identical color convention this app's own
-// tooltip pipeline (lib/reforges.js/lib/books.js/lib/dungeonize.js/lib/gemstones.js) synthesizes
-// for catalog items — confirmed 2026-08-30 by checking a real "Strength: +35 §9(+35) §8(+202.65)"
-// line against this app's own Ancient reforge table (getReforgeStatBonus('Ancient', 'MYTHIC')
-// .strength === 35, an exact match) and Ancient's real Crit Damage formula (also an exact match
-// against a separate real line's "(+44%)"). So the leading number is already the item's real
-// pristine base, and this app's own pipeline — driven by the real modifiers.reforge/books/
-// dungeonized/stars already imported below — reproduces the exact same real total from it. Only
-// the pre-existing annotations need stripping (not the base number), so re-running that pipeline
-// doesn't double them: sumStatFromTooltipLines (lib/dungeonize.js) reads a stray "(+X)" from any
-// color it doesn't recognize as ITS OWN annotation as genuinely additive, and the pipeline would
-// otherwise also append a second, freshly-computed one right next to Hypixel's real one.
-// 'd' is Hypixel's OWN real gemstone-bonus annotation color (confirmed live 2026-08-30 — a real
-// socketed-gem "(+32)" Strength line on a 2-slot item) — distinct from 'p', this app's own
-// synthetic Gemstones color (lib/gemstones.js's GEMSTONE_COLOR — see specialWeapons.js's own note
-// on the mismatch). Both need stripping: 'd' because it's Hypixel's, 'p' in case this ever runs
-// on already-app-processed lore.
-const ANNOTATION_COLORS = ['9', 'e', '8', 'q', 'p', 'd']; // reforge, books, Dungeonize (±Master), gemstone (ours), gemstone (Hypixel's)
-const STRIP_LIVE_LORE_ANNOTATIONS_RE = new RegExp(` §(?:${ANNOTATION_COLORS.join('|')})\\([+-]?[\\d.,]+%?\\)`, 'g');
-function stripLiveLoreAnnotations(lore) {
-  return lore.map((line) => line.replace(STRIP_LIVE_LORE_ANNOTATIONS_RE, ''));
-}
-
-// Hypixel's own real per-account lore for a Gear-Score item (see isLiveLore below) already bakes
-// its rendered Enchantments paragraph in as plain text — no header, just comma-joined
-// "Name RomanNumeral" entries wrapped over a few lines, right after the stat block's first blank
-// line (confirmed live 2026-09-02 against sammui's Astraea/armor, e.g.
-// "§d§l§d§lUltimate Wise V, §9Bane of Arthropods VII, §9Champion X"). This app's own tooltip
-// pipeline (itemTooltip.js's insertEnchantLines) splices its OWN freshly-synthesized enchant list
-// in at that exact same first-blank-line anchor, built from the parsed summary.enchantments — so
-// leaving Hypixel's real paragraph in place doubles it (and the two lists can even disagree, since
-// a couple of real ids display under a different name than this app's own id->name table — Drain/
-// Gravity/Pyroclasm showed up in Astraea's raw text with no matching summary.enchantments key).
-// Content-checked (every comma-separated entry must look like "Name RomanNumeral") rather than
-// blindly deleting whatever sits right after the blank line — an item with zero enchants has its
-// ability text sitting there instead, and this must leave that alone.
-const ROMAN_NUMERAL_RE = /^(?=[MDCLXVI])M*(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})$/;
-function looksLikeEnchantListLine(line) {
-  const plain = line.replace(/§./g, '').trim();
-  if (!plain) return false;
-  return plain.split(', ').every((entry) => {
-    const m = /^(.+)\s+([IVXLCDM]+)$/.exec(entry);
-    return !!m && ROMAN_NUMERAL_RE.test(m[2]);
-  });
-}
-function stripLiveEnchantListBlock(lore) {
-  const blankIdx = lore.indexOf('');
-  if (blankIdx === -1) return lore;
-  let endIdx = blankIdx + 1;
-  while (endIdx < lore.length && lore[endIdx] !== '' && looksLikeEnchantListLine(lore[endIdx])) endIdx++;
-  // Nothing enchant-shaped there (no enchants), or the block never reached a closing blank line
-  // (not actually a self-contained enchant paragraph) — leave the lore untouched either way.
-  if (endIdx === blankIdx + 1 || lore[endIdx] !== '') return lore;
-  return [...lore.slice(0, blankIdx + 1), ...lore.slice(endIdx + 1)];
-}
-
 // Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
 // into the {id, name, material, category, tier, lore, color, gemstone_slots} shape both the loadout
 // and the Review screen's candidate rows (icon/name) need — null if the id doesn't match anything
@@ -411,31 +340,31 @@ function stripLiveEnchantListBlock(lore) {
 // item into the loadout — a real import via this function, an Optimizer-suggested swap (also via
 // this function, see optimizer.js), or a bare manual pick straight off itemData.armor/weapons —
 // exposes it under the identical key with no translation to keep in sync.
+//
+// Design decision 2026-09-02: always returns the catalog's OWN pristine `item.lore`, never
+// Hypixel's real per-account lore (`summary.lore`) — an imported item is rebuilt entirely from
+// this catalog base plus the real modifiers below (reforge name, gemstones, stars, enchants, ...)
+// through this app's own formula pipeline (lib/itemStatTotals.js), exactly like a manually-built
+// item, with zero special-casing. An earlier version of this function swapped in `summary.lore`
+// for Gear-Score-scaled items (armor and weapons both) to more closely match the player's real
+// in-game numbers, and stripped/re-parsed it accordingly — that machinery is gone: user-confirmed
+// (2026-09-02) tradeoff is that this app has no Gear Score scaling formula, so a Gear-Score item's
+// Health/Defense/True Defense (and any other Gear-Score-scaled stat) will show the catalog's
+// un-scaled baseline rather than the player's real in-game number. `Item Gear Score` itself is not
+// displayed or used anywhere.
 export function resolveGearSummary(summary, itemData) {
   if (!summary) return null;
   const item = findGearItem(itemData, summary.id);
   if (!item) return null;
-  // Optimizer candidate resolution passes a bare `{id}` with no real `.lore` — falls back to the
-  // catalog snapshot correctly (there's no owned copy to read from for a hypothetical candidate).
-  const isLiveLore = hasGearScoreLine(item.lore) && Array.isArray(summary.lore) && summary.lore.length > 0;
-  const lore = isLiveLore ? stripLiveEnchantListBlock(stripLiveLoreAnnotations(summary.lore)) : item.lore || [];
   return {
     id: item.id,
     name: item.name,
     material: item.material,
     category: item.category,
     tier: item.tier,
-    lore,
+    lore: item.lore || [],
     color: item.color,
     gemstone_slots: item.gemstone_slots || null,
-    // Bug fix 2026-09-02: a live-lore item's leading stat number is Hypixel's own REAL, ALREADY-
-    // FINAL total — it already has this specific copy's real reforge/books/gemstones/Stars baked
-    // in (confirmed against sammui's real Necron's Leggings: Strength shows "+111" with a real
-    // "(+35)" reforge / "(+32)" gemstone annotation next to it — 111 IS the correct final number,
-    // not a pristine base still needing those layered on). itemTooltip.js's shared merge pipeline
-    // (mergeStatIntoBase, built for catalog items whose leading number genuinely IS pristine) must
-    // NOT re-add those same bonuses on top of it — this flag tells it to annotate-only instead.
-    liveLore: isLiveLore,
   };
 }
 

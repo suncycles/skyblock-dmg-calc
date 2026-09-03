@@ -1,11 +1,6 @@
 import { STAT_LABELS } from './reforgeData';
-import { buildFullItemTooltipLines } from './itemTooltip';
-import {
-  sumStatFromTooltipLines,
-  sumDungeonizedStatFromTooltipLines,
-  sumMasterDungeonizedStatFromTooltipLines,
-  computeCatacombsBoostPercent,
-} from './dungeonize';
+import { computeItemStatTotals } from './itemStatTotals';
+import { computeCatacombsBoostPercent } from './dungeonize';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import {
   IMPLOSION_BELT_ID,
@@ -370,14 +365,11 @@ function cleanTargetText(raw) {
 }
 
 // ---------------------------------------------------------------------
-// Base stats: reuses buildFullItemTooltipLines (the single source of truth for an item's
-// tooltip) rather than re-deriving numbers from gemstones/reforges/books/statLines/starring
-// separately. sumStatFromTooltipLines (imported from lib/dungeonize.js, the canonical
-// implementation) reads the settled current total, excluding Reforge/Books/Gemstone/
-// Dungeonize/Master Star annotations — each of those echoes an amount already reflected
-// elsewhere rather than adding on top, so folding them in here would double-count. In
-// particular, Dungeonize's dark-grey annotation must stay excluded from this "normal" total:
-// it's a standalone replacement total (see dungeonizeDelta below), not an addition, and must
+// Base stats: reuses computeItemStatTotals (lib/itemStatTotals.js, the single canonical per-item
+// stat computation — also what the tooltip renderer consumes) rather than re-deriving numbers
+// from gemstones/reforges/books/statLines/starring separately, or parsing them back out of
+// rendered tooltip text. `nonDungeonStarred` is the "normal" total (dungeonStarred/masterStarred
+// equal it whenever the item's own modifiers.dungeonized is false) — dungeonStarred/masterStarred
 // only ever reach display via dungeonizedBaseStats when "Toggle Dungeon Stats" is on.
 
 // Chimera enchant and Manticore Claw gloves both copy a cut of the active pet's stat spread onto
@@ -671,34 +663,25 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     const equipped = loadout[slot];
     if (!equipped) continue;
     const slotLabel = SLOT_LABELS[slot];
-    const lines = await buildFullItemTooltipLines(
-      equipped.item,
-      equipped.modifiers,
-      itemData,
+    const totals = await computeItemStatTotals(equipped.item, equipped.modifiers, itemData, {
       catacombsLevel,
       tamingLevel,
       wolfSlayerLevel,
-      undefined,
       generalsMedallionDigits,
-      undefined,
       potatoBookDoubled,
-      undefined,
       maxedCollectionsCount,
-    );
+    });
     for (const statKey of TRACKED_STATS) {
-      const label = STAT_LABELS[statKey].label;
-      const normal = sumStatFromTooltipLines(lines, label);
-      // Falls back to `normal` itself when the item isn't dungeonized, so the toggle never
-      // leaves a stat missing — see lib/dungeonize.js's own fallback behavior.
-      const dungeonized = sumDungeonizedStatFromTooltipLines(lines, label);
-      const masterDungeonized = sumMasterDungeonizedStatFromTooltipLines(lines, label);
-      addBaseStat(out, statKey, normal, slotLabel, dungeonized, masterDungeonized);
-      out.dungeonizeDelta[statKey] += dungeonized - normal;
-      out.masterDungeonizeDelta[statKey] += masterDungeonized - normal;
+      const t = totals[statKey];
+      // dungeonStarred/masterStarred fall back to nonDungeonStarred itself when the item isn't
+      // dungeonized, so the toggle never leaves a stat missing — see lib/itemStatTotals.js.
+      addBaseStat(out, statKey, t.nonDungeonStarred, slotLabel, t.dungeonStarred, t.masterStarred);
+      out.dungeonizeDelta[statKey] += t.dungeonStarred - t.nonDungeonStarred;
+      out.masterDungeonizeDelta[statKey] += t.masterStarred - t.nonDungeonStarred;
       if (MYTHOLOGICAL_STAT_DOUBLE_IDS.has(equipped.item.id)) {
-        out.mythologicalDelta[statKey] += normal;
-        out.mythologicalDungeonizeDelta[statKey] += dungeonized;
-        out.mythologicalMasterDungeonizeDelta[statKey] += masterDungeonized;
+        out.mythologicalDelta[statKey] += t.nonDungeonStarred;
+        out.mythologicalDungeonizeDelta[statKey] += t.dungeonStarred;
+        out.mythologicalMasterDungeonizeDelta[statKey] += t.masterStarred;
       }
     }
     // Mage Mode's fixed "Base Ability Damage" constant (lib/abilityDamage.js's ABILITY_DAMAGE_TABLE,
@@ -742,37 +725,30 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
     // Chimera (ultimate enchant, any slot) and Manticore Claw (Gloves-slot item) both copy a cut
     // of the active pet's stat spread onto this item's own displayed lore — computed via a second
-    // buildFullItemTooltipLines call (with the bonus merged in) and diffed against `lines` above,
-    // so the isolated delta picks up this item's own Catacombs Stats Boost exactly like its real
-    // stats do (applyDungeonizeToLore scales the merged line, not just the item's native total).
-    // Each bonus gets its own isolated call rather than combining both into one, so an item with
-    // both applied at once (unusual, but not prevented by the data model) still attributes each
-    // to its own separate breakdown line instead of a lumped, ambiguous delta.
+    // computeItemStatTotals call (with the bonus included) and diffed against `totals` above, so
+    // the isolated delta picks up this item's own Catacombs Stats Boost exactly like its real
+    // stats do. Each bonus gets its own isolated call rather than combining both into one, so an
+    // item with both applied at once (unusual, but not prevented by the data model) still
+    // attributes each to its own separate breakdown line instead of a lumped, ambiguous delta.
     const chimeraBonus = computeItemChimeraBonus(equipped, basePetStats);
     if (chimeraBonus) {
-      const chimeraLines = await buildFullItemTooltipLines(
-        equipped.item,
-        equipped.modifiers,
-        itemData,
+      const chimeraTotals = await computeItemStatTotals(equipped.item, equipped.modifiers, itemData, {
         catacombsLevel,
         tamingLevel,
         wolfSlayerLevel,
         chimeraBonus,
         generalsMedallionDigits,
-        undefined,
         potatoBookDoubled,
-        undefined,
         maxedCollectionsCount,
-      );
+      });
       const chimeraLabel = `${slotLabel} (Chimera)`;
       for (const statKey of TRACKED_STATS) {
-        const label = STAT_LABELS[statKey].label;
-        const delta = sumStatFromTooltipLines(chimeraLines, label) - sumStatFromTooltipLines(lines, label);
+        const t = totals[statKey];
+        const ct = chimeraTotals[statKey];
+        const delta = ct.nonDungeonStarred - t.nonDungeonStarred;
         if (!delta) continue;
-        const dungeonizedDelta =
-          sumDungeonizedStatFromTooltipLines(chimeraLines, label) - sumDungeonizedStatFromTooltipLines(lines, label);
-        const masterDungeonizedDelta =
-          sumMasterDungeonizedStatFromTooltipLines(chimeraLines, label) - sumMasterDungeonizedStatFromTooltipLines(lines, label);
+        const dungeonizedDelta = ct.dungeonStarred - t.dungeonStarred;
+        const masterDungeonizedDelta = ct.masterStarred - t.masterStarred;
         addBaseStat(out, statKey, delta, chimeraLabel, dungeonizedDelta, masterDungeonizedDelta);
         out.dungeonizeDelta[statKey] += dungeonizedDelta - delta;
         out.masterDungeonizeDelta[statKey] += masterDungeonizedDelta - delta;
@@ -781,29 +757,23 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
     const manticoreBonus = computeManticoreClawBonus(equipped, basePetStats);
     if (manticoreBonus) {
-      const manticoreLines = await buildFullItemTooltipLines(
-        equipped.item,
-        equipped.modifiers,
-        itemData,
+      const manticoreTotals = await computeItemStatTotals(equipped.item, equipped.modifiers, itemData, {
         catacombsLevel,
         tamingLevel,
         wolfSlayerLevel,
-        undefined,
         generalsMedallionDigits,
-        manticoreBonus,
+        manticoreClawBonus: manticoreBonus,
         potatoBookDoubled,
-        undefined,
         maxedCollectionsCount,
-      );
+      });
       const manticoreLabel = `${slotLabel} (Manticore Claw)`;
       for (const statKey of TRACKED_STATS) {
-        const label = STAT_LABELS[statKey].label;
-        const delta = sumStatFromTooltipLines(manticoreLines, label) - sumStatFromTooltipLines(lines, label);
+        const t = totals[statKey];
+        const mt = manticoreTotals[statKey];
+        const delta = mt.nonDungeonStarred - t.nonDungeonStarred;
         if (!delta) continue;
-        const dungeonizedDelta =
-          sumDungeonizedStatFromTooltipLines(manticoreLines, label) - sumDungeonizedStatFromTooltipLines(lines, label);
-        const masterDungeonizedDelta =
-          sumMasterDungeonizedStatFromTooltipLines(manticoreLines, label) - sumMasterDungeonizedStatFromTooltipLines(lines, label);
+        const dungeonizedDelta = mt.dungeonStarred - t.dungeonStarred;
+        const masterDungeonizedDelta = mt.masterStarred - t.masterStarred;
         addBaseStat(out, statKey, delta, manticoreLabel, dungeonizedDelta, masterDungeonizedDelta);
         out.dungeonizeDelta[statKey] += dungeonizedDelta - delta;
         out.masterDungeonizeDelta[statKey] += masterDungeonizedDelta - delta;

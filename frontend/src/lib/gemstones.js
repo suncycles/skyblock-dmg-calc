@@ -1,5 +1,6 @@
 import { rarityColorCode } from './mcText';
 import { GEMSTONES, GEMSTONE_IDS, TIER_TO_RARITY, getGemstoneBoost, formatGemstoneBoost } from './gemstoneData';
+import { STAT_LABELS, statKeyForLabel } from './reforgeData';
 
 // Real per-slot type restrictions (item.gemstone_slots' own slot_type, see
 // worker/scripts/build-item-data.mjs — Hypixel's resources API, not in NEU-REPO). Confirmed live:
@@ -58,26 +59,38 @@ function findGemIdByStatLabel(statLabel) {
 // gemstone's annotation stays pink without colliding with 'd', the code Enchant stat bonuses use.
 export const GEMSTONE_COLOR = 'p';
 
-// Rebuilds an item's lore with applied gemstones reflected: the "Gemstones:" line's brackets
-// recolor per-slot, and every boosted stat merges directly into the item's own base number
-// (a socketed gemstone is a permanent part of the item's stats), echoed alongside as a pink
-// "(+X)" annotation. Also adds a brand-new stat line for a stat the item doesn't already show
-// (most weapons have no pristine Health/Defense/True Defense line). `gemstones` is a sparse
-// array indexed by slot position, entries are {gem, tier} or null/undefined. `skipMerge`
-// (live-lore imported items only — see hypixelImport.js's resolveGearSummary): the leading number
-// is already Hypixel's real, final total including this item's real gemstone bonus, so only the
-// informational "(+X)" annotation should be (re-)added, not another merge on top.
-export function applyGemstonesToLore(lore, gemstones, itemRarity, skipMerge = false) {
-  if (!lore || !gemstones || gemstones.every((g) => !g)) return lore;
-
-  const totals = {}; // statLabel -> accumulated boost
-  gemstones.forEach((entry) => {
+// {statKey: delta} for every stat a socketed gemstone boosts — the calc-facing counterpart of
+// applyGemstonesToLore's own label-keyed annotation logic below, shared by lib/itemStatTotals.js
+// so the hidden-base computation and the tooltip annotation are always summing the same numbers.
+export function computeGemstoneStatBonuses(gemstones, itemRarity) {
+  const bonuses = {};
+  (gemstones || []).forEach((entry) => {
     if (!entry) return;
     const gem = GEMSTONES[entry.gem];
     if (!gem) return;
+    const statKey = statKeyForLabel(gem.statLabel);
+    if (!statKey) return;
     const boost = getGemstoneBoost(entry.gem, entry.tier, itemRarity);
-    totals[gem.statLabel] = (totals[gem.statLabel] || 0) + boost;
+    bonuses[statKey] = (bonuses[statKey] || 0) + boost;
   });
+  return bonuses;
+}
+
+// Rebuilds an item's lore with applied gemstones reflected: the "Gemstones:" line's brackets
+// recolor per-slot, and every boosted stat gets a pink "(+X)" annotation (a socketed gemstone is
+// a permanent part of the item's stats — the leading number itself is set once, elsewhere, from
+// lib/itemStatTotals.js's computed hidden base, not merged here). Also adds a brand-new stat line
+// for a stat the item doesn't already show (most weapons have no pristine Health/Defense/True
+// Defense line). `gemstones` is a sparse array indexed by slot position, entries are {gem, tier}
+// or null/undefined.
+export function applyGemstonesToLore(lore, gemstones, itemRarity) {
+  if (!lore || !gemstones || gemstones.every((g) => !g)) return lore;
+
+  const statBonuses = computeGemstoneStatBonuses(gemstones, itemRarity);
+  const totals = {}; // statLabel -> accumulated boost
+  for (const [statKey, boost] of Object.entries(statBonuses)) {
+    totals[STAT_LABELS[statKey].label] = boost;
+  }
 
   const gemstoneLineIdx = lore.findIndex((line) => line.includes('Gemstones:'));
   const matchedLabels = new Set();
@@ -99,16 +112,10 @@ export function applyGemstonesToLore(lore, gemstones, itemRarity, skipMerge = fa
     const plain = line.replace(/§./g, '');
     const labelMatch = /^(\s*)([A-Za-z ]+):\s/.exec(plain);
     if (!labelMatch || totals[labelMatch[2]] === undefined) return line;
-    // Captures just the base number after "Label: ", separately from any trailing "%" or annotation.
-    const numMatch = /^(.*?:\s*§.)([+-]?[\d.]+)/.exec(line);
-    if (!numMatch) return line;
     matchedLabels.add(labelMatch[2]);
     const bonus = totals[labelMatch[2]];
-    const base = parseFloat(numMatch[2]);
-    const merged = skipMerge ? base : Math.round((base + bonus) * 10) / 10;
-    const sign = merged >= 0 ? '+' : '';
     const gemId = findGemIdByStatLabel(labelMatch[2]);
-    return `${numMatch[1]}${sign}${merged}${line.slice(numMatch[0].length)} §${GEMSTONE_COLOR}(${formatGemstoneBoost(gemId, bonus)})`;
+    return `${line} §${GEMSTONE_COLOR}(${formatGemstoneBoost(gemId, bonus)})`;
   });
 
   const newLines = Object.keys(totals)

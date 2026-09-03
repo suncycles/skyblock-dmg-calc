@@ -1,14 +1,13 @@
 #!/usr/bin/env node
-// Regression guard for behaviors that have already broken once (fixed 2026-09-02, see
-// lib/hypixelImport.js's git history): item Stars must stay at a flat 2%/star out of a dungeon
-// and jump to a separate 10%/star Catacombs Boost total inside one; Master Stars must stay an
-// independent, additive-only term that only ever applies while Master Mode is on; an imported
-// item's own dungeonized flag must trust only Hypixel's real per-item NBT flag; a live-lore
-// (Gear-Score) item's real, already-final stat total must not be re-inflated by re-merging its own
-// real Stars/reforge/gemstones/books bonuses on top; and an imported item's displayed enchant list
-// must always come from this app's own parsing of summary.enchantments — never Hypixel's raw,
-// pre-rendered lore text (which duplicated it before the fix). Plain assert-based check, no test
-// framework — run with `npm run verify`.
+// Regression guard for behaviors that have already broken once (fixed 2026-09-02, see git log):
+// item Stars must stay at a flat 2%/star out of a dungeon and jump to a separate 10%/star
+// Catacombs Boost total inside one; Master Stars must stay an independent, additive-only term
+// that only ever applies while Master Mode is on; an imported item's own dungeonized flag must
+// trust only Hypixel's real per-item NBT flag; every stat number the tooltip displays must come
+// from lib/itemStatTotals.js's single computed source, never re-derived by parsing rendered lore
+// text; and an imported item's displayed enchant list must always come from this app's own
+// parsing of summary.enchantments. Plain assert-based check, no test framework — run with
+// `npm run verify`.
 //
 // Uses Vite's own module graph (ssrLoadModule) rather than plain `node script.js`, since lib/*.js
 // files use extensionless relative imports that only Vite's resolver (not Node's ESM loader)
@@ -27,6 +26,24 @@ async function check(name, fn) {
   }
 }
 
+// Minimal, self-contained itemData for the synthetic-item checks below — no real catalog lookup
+// needed since these items are passed in directly, not resolved by id.
+const EMPTY_ITEM_DATA = { weapons: [], armor: [], equipment: [], reforges: {}, reforgeStones: {}, enchants: {} };
+const BARE_MODIFIERS = {
+  stars: 0,
+  masterStars: 0,
+  dungeonized: false,
+  reforge: null,
+  recombobulated: false,
+  books: 0,
+  artOfWar: false,
+  artOfPeace: false,
+  gemstones: [],
+  hexEnchantments: [],
+  ultimateEnchantment: null,
+  special: null,
+};
+
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 try {
   const starring = await server.ssrLoadModule('/src/lib/starring.js');
@@ -34,6 +51,7 @@ try {
   const finalDamage = await server.ssrLoadModule('/src/lib/finalDamage.js');
   const hypixelImport = await server.ssrLoadModule('/src/lib/hypixelImport.js');
   const itemTooltip = await server.ssrLoadModule('/src/lib/itemTooltip.js');
+  const itemStatTotals = await server.ssrLoadModule('/src/lib/itemStatTotals.js');
 
   // 1. Item stars, Dungeon toggle OFF: flat 2%/star of the item's own pristine base stat.
   await check('stars out of a dungeon = 2%/star', () => {
@@ -82,23 +100,18 @@ try {
 
   // 4. An item's own `modifiers.dungeonized` flag must come ONLY from Hypixel's real per-item
   // ExtraAttributes.dungeon_item flag — never inferred from the catalog's "DUNGEON" category
-  // prefix (marks gear ELIGIBLE to be Dungeonized, not that this owned copy actually is — fixed
-  // 2026-09-02 round 1) and never from masterStars>0 either (disproved against sammui's real
-  // Necron's Leggings: 4 real Master Stars alongside a real `dungeonized: false` — fixed 2026-09-02
-  // round 2). Both were unverified assumptions that inflated a fresh/un-dungeonized item's stats
-  // with the 10%/star Catacombs Boost even with the Dungeon toggle off.
+  // prefix (marks gear ELIGIBLE to be Dungeonized, not that this owned copy actually is) and never
+  // from masterStars>0 either (disproved against sammui's real Necron's Leggings: 4 real Master
+  // Stars alongside a real `dungeonized: false`). Both were unverified assumptions that inflated a
+  // fresh/un-dungeonized item's stats with the 10%/star Catacombs Boost even with the Dungeon
+  // toggle off.
   await check('per-item dungeonized flag trusts only the real NBT flag', () => {
     assert.equal(hypixelImport.resolveDungeonizedFlag({ dungeonized: false }), false, 'a real, un-dungeonized copy must resolve to false');
     assert.equal(hypixelImport.resolveDungeonizedFlag({ dungeonized: true }), true, 'a real dungeonized copy must resolve to true');
   });
 
-  // 4b. A live-lore item's leading stat number is Hypixel's own REAL, ALREADY-FINAL total — it
-  // must NOT be re-inflated by re-merging Stars/reforge/gemstones/books on top (the exact
-  // regression fixed 2026-09-02: sammui's real Necron's Leggings showed Strength +111/Crit Damage
-  // +78% in-game and via the raw API, but the app displayed +189.1/+130.8 — this app's own
-  // pipeline was re-adding the item's real reforge(+35)/gemstone(+32)/Stars(+11.1) bonuses on top
-  // of a number that already included them). Fixture: sammui's real, live-captured Necron's
-  // Leggings lore (2026-09-02).
+  // Real, live-captured Necron's Leggings lore (sammui, 2026-09-02) — used below to pin down that
+  // an imported item's real per-account lore is now ignored entirely for stat purposes.
   const REAL_NECRONS_LEGGINGS_LORE = [
     '§7Gear Score: §d1068 §8(5000)',
     '§7Health: §c+410 §e(+60) §9(+7) §8(+2,279.43)',
@@ -113,146 +126,74 @@ try {
     '§d§l§d§lLegion V, §9Growth VI, §9Protection VI',
     '§9Rejuvenate V, §9Smarty Pants V',
     '',
-    '§7Reduces the damage you take from',
-    '§7withers by §c10%§7.',
-    '',
-    '§6Full Set Bonus: Witherborn §7(1/4)',
-    '§7Spawns a wither minion every §e30',
-    '§e§7seconds up to a maximum §a1 §7wither.',
-    '§7Your withers will travel to and',
-    '§7explode on nearby enemies.',
-    '',
-    '§9Ancient Bonus',
-    '§7Grants §a+1 §9 Crit Damage §7per',
-    '§7§cCatacombs §7level.',
-    '',
-    '§8✿ Black Ice Dyed',
-    '§d§l§ka§r §d§lMYTHIC DUNGEON LEGGINGS §d§l§ka',
   ];
 
-  await check('live-lore item stats are not re-inflated by Stars/reforge/gemstones/books', async () => {
-    const itemData = {
-      weapons: [],
-      armor: [{ id: 'POWER_WITHER_LEGGINGS', category: 'DUNGEON LEGGINGS', tier: 'LEGENDARY', lore: ['§7Gear Score: §d574'] }],
-      equipment: [],
-      reforges: {},
-      reforgeStones: { Ancient: { nbtModifier: 'ancient', stats: {} } },
-      enchants: {},
-    };
-    const item = hypixelImport.resolveGearSummary({ id: 'POWER_WITHER_LEGGINGS', lore: REAL_NECRONS_LEGGINGS_LORE }, itemData);
-    assert.equal(item.liveLore, true, 'a Gear-Score item with real per-account lore must be tagged liveLore');
-
-    const modifiers = {
-      stars: 5,
-      masterStars: 4,
-      dungeonized: false,
-      reforge: 'Ancient',
-      recombobulated: false,
-      books: 0,
-      artOfWar: false,
-      artOfPeace: false,
-      gemstones: [],
-      hexEnchantments: [],
-      ultimateEnchantment: null,
-      special: null,
-    };
-    const lines = await itemTooltip.buildFullItemTooltipLines(item, modifiers, itemData, 0, 0, 0, undefined, 0, undefined, false, false, 0);
-    const strength = dungeonize.sumStatFromTooltipLines(lines, 'Strength');
-    const critDamage = dungeonize.sumStatFromTooltipLines(lines, 'Crit Damage');
-    assert.equal(strength, 111, `Strength must stay at Hypixel's real final total of 111, got ${strength}`);
-    assert.equal(critDamage, 78, `Crit Damage must stay at Hypixel's real final total of 78, got ${critDamage}`);
+  // 5. Design decision 2026-09-02: an imported item is rebuilt entirely from the catalog's own
+  // pristine lore plus this app's own formula pipeline — resolveGearSummary must always return the
+  // catalog's lore, ignoring summary.lore (Hypixel's real per-account lore) completely. The
+  // accepted consequence (user-confirmed) is that Gear-Score-scaled stats on an imported item show
+  // the catalog's un-scaled baseline rather than the player's real in-game number — pinned here as
+  // documented, expected behavior rather than something that could silently regress unnoticed.
+  await check('resolveGearSummary always returns catalog lore, ignoring summary.lore', () => {
+    const catalogLore = ['§7Gear Score: §d574', '§7Strength: §c+40'];
+    const itemData = { weapons: [], armor: [{ id: 'POWER_WITHER_LEGGINGS', category: 'DUNGEON LEGGINGS', tier: 'LEGENDARY', lore: catalogLore }], equipment: [] };
+    const resolved = hypixelImport.resolveGearSummary({ id: 'POWER_WITHER_LEGGINGS', lore: REAL_NECRONS_LEGGINGS_LORE }, itemData);
+    assert.ok(resolved, 'should resolve a real catalog id');
+    assert.deepEqual(resolved.lore, catalogLore, "must return the catalog's own lore unconditionally, never summary.lore");
+    assert.ok(!('liveLore' in resolved), 'no liveLore flag — the live-lore swap mechanism is gone');
   });
 
-  // Real, live-captured Astraea lore (sammui, 2026-09-02) — carries the exact raw enchant-list
-  // paragraph ("§d§l§d§lUltimate Wise V, §9Bane of Arthropods VII, ..." through "..., §9Venomous VI")
-  // that duplicated the tooltip's enchant list before the fix.
-  const REAL_ASTRAEA_LORE = [
-    '§7Gear Score: §d1785 §8(5000)',
-    '§7Defense: §a+365 §8(+2,002.6)',
-    '§7True Defense: §f+22 §8(+30.8)',
-    '§7Damage: §c+372 §e(+30) §8(+2,032.05)',
-    '§7Strength: §c+250 §e(+30) §6[+5] §9(+50) §8(+1,384.15)',
-    '§7Crit Damage: §9+70% §8(+412.3%)',
-    '§7Attack Speed: §e+7% §9(+7%) §8(+10.78%)',
-    '§7Ferocity: §c+33 §8(+46.2)',
-    '§7Intelligence: §b+210 §9(+125) §d(+30) §8(+1,207.45)',
-    '§7Magic Find: §b+6 §8(+9.24)',
-    '§7Gemstones: §8[§8☤§8] §6[§b⚔§6]',
-    '',
-    '§d§l§d§lUltimate Wise V, §9Bane of Arthropods VII, §9Champion X',
-    '§9Critical VI, §9Cubism V, §9Divine Gift III',
-    '§9Drain IV, §9Ender Slayer VI, §9Experience V',
-    '§9Giant Killer VII, §9Gravity VI, §9Impaling V',
-    '§9Lethality VI, §9Looting V, §9Luck VII',
-    '§9Prosecute VI, §9Pyroclasm V, §9Scavenger V',
-    '§9Smite VII, §9Smoldering IV, §9Thunderlord VII',
-    '§9Triple-Strike IV, §9Vampirism VI, §9Venomous VI',
-    '',
-    '§7Deals §c+50% §7damage to §8 Wither §7mobs.',
-    '§7Grants §c+1 §c Damage §7and §a+2 §a',
-    '§aDefense §7per §cCatacombs §7level.',
-    '',
-    '§aScroll Abilities:',
-    '§6Ability: Wither Impact  §e§lRIGHT CLICK',
-    '§7Teleport §a10 blocks§7 ahead of you',
-    '§7dealing §c26,503 §7damage to nearby',
-    '§7enemies. Also reduces your damage',
-    '§7taken and grants an absorption',
-    '§7shield for §e5 seconds§7.',
-    '§8Mana Cost: §3§b135',
-    '',
-    '§fKills: §685,040',
-    '',
-    '§7§cThis item has unused Gemstones! Visit',
-    '§c§aGeo §cto remove them!',
-    '',
-    '§8§l* §8Co-op Soulbound §8§l*',
-    '§d§l§ka§r §d§lMYTHIC DUNGEON SWORD §d§l§ka',
-  ];
-
-  // 5. Enchants: Hypixel's own raw, pre-rendered enchant-list paragraph (baked into a Gear-Score
-  // item's real per-account lore) must never survive resolveGearSummary — the app's own
-  // synthesized list (built from summary.enchantments) is the only source that may ever reach the
-  // tooltip.
-  await check('Hypixel raw enchant-list paragraph is stripped from live-lore items', () => {
-    const itemData = { weapons: [{ id: 'ASTRAEA', lore: ['§7Gear Score: §d985'] }], armor: [], equipment: [] };
-    const resolved = hypixelImport.resolveGearSummary({ id: 'ASTRAEA', lore: REAL_ASTRAEA_LORE }, itemData);
-    assert.ok(resolved, 'resolveGearSummary should resolve a real catalog id');
-    const KNOWN_RAW_LINE = '§9Critical VI, §9Cubism V, §9Divine Gift III';
-    assert.ok(
-      !resolved.lore.includes(KNOWN_RAW_LINE),
-      "raw Hypixel enchant text leaked through — enchants must be parsed via our own implementation, not imported raw text",
-    );
-    // Must not over-strip: the real ability text right after the (now-removed) enchant block has to survive.
-    assert.ok(
-      resolved.lore.some((l) => l.includes('Deals') && l.includes('Wither')),
-      'ability text after the enchant block should survive stripping',
-    );
+  // 6. The core new architecture: hiddenBase -> the three shown tiers, computed directly (not
+  // parsed from any rendered text). Hand-computed synthetic numbers so the formula itself is
+  // pinned exactly: pristine=100, 0 reforge/gems/books, 5 Stars, Catacombs Level 0.
+  await check('computeItemStatTotals: hidden base -> three shown tiers', async () => {
+    const item = { id: 'TEST_SWORD', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100'] };
+    const modifiers = { ...BARE_MODIFIERS, stars: 5, dungeonized: true };
+    const totals = await itemStatTotals.computeItemStatTotals(item, modifiers, EMPTY_ITEM_DATA, { catacombsLevel: 0 });
+    const t = totals.damage;
+    assert.equal(t.pristine, 100);
+    assert.equal(t.hiddenBase, 100, 'no reforge/gems/books -> hiddenBase equals pristine');
+    assert.equal(t.nonDungeonStarred, 110, '5 Stars x 2% x pristine(100) = +10 -> 110');
+    // Catacombs Level 0 curve = 10%, +10%/star x 5 Stars = 50% -> 60% total boost on hiddenBase.
+    assert.equal(t.dungeonStarred, 160, 'hiddenBase(100) x 1.60 = 160');
   });
 
-  // 5b. Safety net: an item with zero real enchants has its ability text sitting in that same
-  // position — must be left alone, not mistaken for an enchant paragraph and stripped.
-  await check('an item with zero enchants keeps its ability text (no over-stripping)', () => {
-    const itemData = { weapons: [{ id: 'ASTRAEA', lore: ['§7Gear Score: §d500'] }], armor: [], equipment: [] };
-    const noEnchantLore = [
-      '§7Gear Score: §d500',
-      '§7Damage: §c+100',
-      '',
-      '§7Deals extra damage to zombies and',
-      '§7similar undead creatures nearby.',
-      '',
-      '§8This item can be reforged!',
-    ];
-    const resolved = hypixelImport.resolveGearSummary({ id: 'ASTRAEA', lore: noEnchantLore }, itemData);
-    assert.ok(
-      resolved.lore.includes('§7Deals extra damage to zombies and'),
-      'ability text must be untouched when the item has no enchants to strip',
-    );
+  // 7. Text is a RENDER of computed numbers, never a source parsed back into numbers — the
+  // tooltip's leading number for a stat must exactly equal computeItemStatTotals's own
+  // nonDungeonStarred for that same stat.
+  await check('tooltip leading number matches computeItemStatTotals exactly', async () => {
+    const item = { id: 'TEST_SWORD', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100', '§7Strength: §c+50'] };
+    const modifiers = { ...BARE_MODIFIERS, stars: 5 };
+    const totals = await itemStatTotals.computeItemStatTotals(item, modifiers, EMPTY_ITEM_DATA, { catacombsLevel: 0 });
+    const lines = await itemTooltip.buildFullItemTooltipLines(item, modifiers, EMPTY_ITEM_DATA, 0, 0, 0, undefined, 0, undefined, false, false, 0);
+    for (const [statKey, label] of [['damage', 'Damage'], ['strength', 'Strength']]) {
+      const line = lines.find((l) => l.replace(/§./g, '').startsWith(`${label}:`));
+      assert.ok(line, `tooltip must have a ${label} line`);
+      const afterLabel = line.replace(/§./g, '').slice(label.length + 1);
+      const leading = parseFloat(/^\s*([+-]?[\d.]+)/.exec(afterLabel)[1]);
+      assert.equal(leading, totals[statKey].nonDungeonStarred, `${label} leading number must equal computeItemStatTotals's nonDungeonStarred`);
+    }
   });
 
-  // 6. Positive check: the SYNTHESIZED list (our own implementation) is what actually determines
-  // display content, sourced from summary.enchantments via this app's own id->display-name table —
-  // and each enchant appears exactly once in a final, assembled tooltip.
+  // 8. Same consistency check for the Dungeonize dark-grey/dark-blue annotations — they must
+  // exactly equal the already-computed dungeonStarred/masterStarred, never re-derived.
+  await check('Dungeonize annotations match computed dungeonStarred/masterStarred', async () => {
+    const item = { id: 'TEST_SWORD', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100'] };
+    const modifiers = { ...BARE_MODIFIERS, stars: 5, masterStars: 3, dungeonized: true };
+    const totals = await itemStatTotals.computeItemStatTotals(item, modifiers, EMPTY_ITEM_DATA, { catacombsLevel: 0 });
+    const lines = await itemTooltip.buildFullItemTooltipLines(item, modifiers, EMPTY_ITEM_DATA, 0, 0, 0, undefined, 0, undefined, false, false, 0);
+    const line = lines.find((l) => l.replace(/§./g, '').startsWith('Damage:'));
+    const noMaster = /§8\(([+-]?[\d.]+)\)/.exec(line);
+    const withMaster = /§q\(([+-]?[\d.]+)\)/.exec(line);
+    assert.ok(noMaster, 'dark-grey Catacombs Boost annotation must be present');
+    assert.ok(withMaster, 'dark-blue Master Star annotation must be present (masterStars > 0)');
+    assert.equal(parseFloat(noMaster[1]), totals.damage.dungeonStarred, 'dark-grey annotation must equal computed dungeonStarred');
+    assert.equal(parseFloat(withMaster[1]), totals.damage.masterStarred, 'dark-blue annotation must equal computed masterStarred');
+  });
+
+  // 9. Positive check: the SYNTHESIZED enchant list (our own implementation) is what actually
+  // determines display content, sourced from summary.enchantments via this app's own
+  // id->display-name table — and each enchant appears exactly once in a final, assembled tooltip.
   await check('displayed enchant list is built from our own parsing, exactly once', () => {
     const modifiers = {
       ultimateEnchantment: { id: 'ultimate_wise', level: 5, maxLevel: 5 },
