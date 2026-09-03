@@ -5,9 +5,10 @@
 // that only ever applies while Master Mode is on; an imported item's own dungeonized flag must
 // trust only Hypixel's real per-item NBT flag; every stat number the tooltip displays must come
 // from lib/itemStatTotals.js's single computed source, never re-derived by parsing rendered lore
-// text; and an imported item's displayed enchant list must always come from this app's own
-// parsing of summary.enchantments. Plain assert-based check, no test framework — run with
-// `npm run verify`.
+// text; an imported item's displayed enchant list must always come from this app's own parsing of
+// summary.enchantments; and Gear-Score tiered stats (Skeleton Master/Zombie Knight families) must
+// replace the catalog pristine value and independently bump rarity. Plain assert-based check, no
+// test framework — run with `npm run verify`.
 //
 // Uses Vite's own module graph (ssrLoadModule) rather than plain `node script.js`, since lib/*.js
 // files use extensionless relative imports that only Vite's resolver (not Node's ESM loader)
@@ -42,6 +43,8 @@ const BARE_MODIFIERS = {
   hexEnchantments: [],
   ultimateEnchantment: null,
   special: null,
+  itemTier: null,
+  baseStatBoostPercentage: 0,
 };
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
@@ -52,6 +55,7 @@ try {
   const hypixelImport = await server.ssrLoadModule('/src/lib/hypixelImport.js');
   const itemTooltip = await server.ssrLoadModule('/src/lib/itemTooltip.js');
   const itemStatTotals = await server.ssrLoadModule('/src/lib/itemStatTotals.js');
+  const tieredArmorStats = await server.ssrLoadModule('/src/lib/tieredArmorStats.js');
 
   // 1. Item stars, Dungeon toggle OFF: flat 2%/star of the item's own pristine base stat.
   await check('stars out of a dungeon = 2%/star', () => {
@@ -211,6 +215,41 @@ try {
     const finalLore = itemTooltip.insertEnchantLines(baseLore, lines);
     const criticalOccurrences = finalLore.filter((l) => l.includes('Critical VI')).length;
     assert.equal(criticalOccurrences, 1, 'each enchant must appear exactly once in the final tooltip');
+  });
+
+  // 10. Gear-Score tiered stats (Skeleton Master / Zombie Knight families only — user-confirmed
+  // 2026-09-03): a real per-copy item_tier + baseStatBoostPercentage replaces the catalog's
+  // pristine value entirely for the stats Hypixel's own tiered_stats table covers, AND
+  // baseStatBoostPercentage at its max independently bumps rarity +1 tier (stacking with
+  // Recombobulator). The exact formula (and this specific item's real tiered_stats numbers) were
+  // separately verified this session against sammui's real, live-decoded Skeleton Master
+  // Chestplate NBT (item_tier: 10, baseStatBoostPercentage: 50) — Health/Defense/Crit Chance
+  // matched Hypixel's own displayed total exactly. This check pins the mechanism itself with
+  // simple, self-contained numbers (no reforge/enchant data needed to hand-verify).
+  await check('Gear-Score tiered stats replace catalog pristine + bump rarity', async () => {
+    const catalogItem = {
+      id: 'SKELETON_MASTER_CHESTPLATE',
+      tier: 'EPIC',
+      category: 'DUNGEON CHESTPLATE',
+      lore: ['§7Gear Score: §d142', '§7Health: §c+26', '§7Defense: §a+42', '', '§6§lEPIC DUNGEON CHESTPLATE'],
+    };
+    const itemData = { weapons: [], armor: [catalogItem], equipment: [], reforges: {}, reforgeStones: {}, enchants: {} };
+    const modifiers = { ...BARE_MODIFIERS, stars: 5, recombobulated: true, itemTier: 10, baseStatBoostPercentage: tieredArmorStats.MAX_BASE_STAT_BOOST_PERCENTAGE };
+    const totals = await itemStatTotals.computeItemStatTotals(catalogItem, modifiers, itemData, { catacombsLevel: 0 });
+    // Real tiered_stats[item_tier-1]: HEALTH=56, DEFENSE=88, x(1+50/100)=1.5 -> 84 / 132 hiddenBase
+    // (no reforge/gems/books/enchants here), + 2%/star x 5 stars on that same tiered pristine.
+    assert.equal(totals.health.nonDungeonStarred, 92.4, `expected 56*1.5=84 hiddenBase + 2%*5*84=8.4 star bonus = 92.4, got ${totals.health.nonDungeonStarred}`);
+    assert.equal(totals.defense.nonDungeonStarred, 145.2, `expected 88*1.5=132 hiddenBase + 2%*5*132=13.2 star bonus = 145.2, got ${totals.defense.nonDungeonStarred}`);
+
+    const lines = await itemTooltip.buildFullItemTooltipLines(catalogItem, modifiers, itemData, 0, 0, 0, undefined, 0, undefined, false, false, 0);
+    // applyRecombToLore appends a trailing "§8Rarity Upgraded" line after the actual tag line.
+    const tagLine = lines[lines.length - 2];
+    assert.ok(tagLine.includes('MYTHIC'), `boost bump (Epic->Legendary) + recomb bump (Legendary->Mythic) must stack to Mythic, got: ${tagLine}`);
+
+    // A manually-built copy (no real itemTier) must fall back to the catalog's own pristine value,
+    // completely unaffected by this mechanic — regression guard against an always-on tiered lookup.
+    const manualTotals = await itemStatTotals.computeItemStatTotals(catalogItem, { ...modifiers, itemTier: null, baseStatBoostPercentage: 0 }, itemData, { catacombsLevel: 0 });
+    assert.notEqual(manualTotals.health.nonDungeonStarred, 92.4, 'a manually-built item must NOT get the real per-copy tiered total');
   });
 } finally {
   await server.close();
