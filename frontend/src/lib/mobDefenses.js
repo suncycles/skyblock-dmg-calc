@@ -17,6 +17,9 @@
 //   User-confirmed 2026-09-03: Defense is its own final multiplier on damage dealt (independent
 //   of Damage Reduction/Magic Resistance above, not merged into either) — mult = 1 -
 //   Defense/(100+Defense). At Defense=0 (almost every mob) this is exactly 1, i.e. a no-op.
+//   Wither Dragon (user-renamed from the wiki's real name "Apex Dragon" 2026-09-03) is the secret
+//   post-Necron chase boss on Master Mode Floor VII — no Normal Mode variant exists at all, so
+//   normal stays 0 (unreachable in practice, same as every other unlisted mob).
 
 import { getMobLocations } from './mobLocations';
 
@@ -27,6 +30,7 @@ const MOB_DEFENSE_TABLE = {
   Maxor: { normal: 0, master: 1000 },
   'Angry Archaeologist': { normal: 900, master: 1200 },
   'Lost Adventurer': { normal: 100, master: 100 },
+  'Wither Dragon': { normal: 0, master: 3700 },
 };
 
 export function isMythologicalMob(mob) {
