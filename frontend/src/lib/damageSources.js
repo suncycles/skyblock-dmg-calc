@@ -809,13 +809,13 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
   // player can freely re-roll which stat each item is enriched for — see BuildContext.jsx's
   // setAccessoryEnrichmentCount/setAccessoryEnrichmentType. Applies even without an Accessory
   // Power selected, same as raw Magical Power above. User-confirmed rates: Strength/Crit
-  // Damage/Crit Chance get +1 per enrichment, Intelligence gets +2. 'none' (and any stat this
-  // calculator doesn't track, e.g. Magic Find) contributes nothing.
+  // Damage/Crit Chance get +1 per enrichment, Intelligence gets +2, Bonus Attack Speed gets +0.5.
+  // 'none' (and any stat this calculator doesn't track, e.g. Magic Find) contributes nothing.
   const enrichmentCount = loadout.accessory?.modifiers?.enrichmentCount || 0;
   const enrichmentType = loadout.accessory?.modifiers?.enrichmentType;
-  if (enrichmentCount > 0 && ['strength', 'crit_damage', 'crit_chance', 'intelligence'].includes(enrichmentType)) {
-    const perEnrichment = enrichmentType === 'intelligence' ? 2 : 1;
-    addBaseStat(out, enrichmentType, enrichmentCount * perEnrichment, 'Enrichments');
+  const ENRICHMENT_RATE_PER_STAT = { strength: 1, crit_damage: 1, crit_chance: 1, intelligence: 2, bonus_attack_speed: 0.5 };
+  if (enrichmentCount > 0 && ENRICHMENT_RATE_PER_STAT[enrichmentType]) {
+    addBaseStat(out, enrichmentType, enrichmentCount * ENRICHMENT_RATE_PER_STAT[enrichmentType], 'Enrichments');
   }
 }
 
