@@ -31,7 +31,7 @@ import { getMobLocations } from './mobLocations';
 import { getBestiaryStrengthBonus } from './bestiaryStrength';
 import { hasFullSet, computeCrimsonSwipeInfo, FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
-import { computeMobDamageReduction, computeMobMagicResistance } from './mobDefenses';
+import { computeMobDamageReduction, computeMobMagicResistance, computeMobDefenseMultiplier } from './mobDefenses';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -170,6 +170,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
       multiplicativeMultiplier: 1,
       bonusModifiers: 0,
       damageReductionPercent: 0,
+      mobDefenseMultiplier: 1,
       finalDamage: 0,
       finalDamageNonCrit: 0,
       appliedIds: new Set(),
@@ -186,6 +187,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
       multiplicativeMultiplier: 1,
       bonusModifiers: 0,
       damageReductionPercent: 0,
+      mobDefenseMultiplier: 1,
       finalDamage: 1,
       finalDamageNonCrit: 1,
       appliedIds: new Set(),
@@ -235,16 +237,17 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   const initialDamage = (5 + baseStats.damage) * (1 + baseStats.strength / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
   const weaponBonusMultiplier = 1 + weaponBonusPercent / 100;
-  // Mob-side Damage Reduction (lib/mobDefenses.js) — a direct final multiplier applying to ANY
-  // dealt damage, so it's the very last step here. Everything derived from this melee finalDamage
-  // (DPS breakdown's procs, Mage Beam) automatically inherits it too, no separate application
-  // needed there.
+  // Mob-side Damage Reduction and Defense (lib/mobDefenses.js) — both direct final multipliers
+  // applying to ANY dealt damage, so they're the very last step here. Everything derived from
+  // this melee finalDamage (DPS breakdown's procs, Mage Beam) automatically inherits them too, no
+  // separate application needed there.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
+  const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode);
   const preCritDamage = initialDamage * additiveMultiplier * weaponBonusMultiplier * multiplicativeMultiplier + bonusModifiers;
-  const finalDamage = Math.floor(preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100));
+  const finalDamage = Math.floor(preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100) * mobDefenseMultiplier);
   // Same formula as finalDamage, minus the Crit Damage factor — a non-critical hit's real damage.
   // Stored for computeDpsBreakdown's crit-chance-weighted DPS below; not shown as its own panel.
-  const finalDamageNonCrit = Math.floor(preCritDamage * (1 - damageReductionPercent / 100));
+  const finalDamageNonCrit = Math.floor(preCritDamage * (1 - damageReductionPercent / 100) * mobDefenseMultiplier);
 
   return {
     initialDamage,
@@ -255,6 +258,7 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
     multiplicativeMultiplier,
     bonusModifiers,
     damageReductionPercent,
+    mobDefenseMultiplier,
     finalDamage,
     finalDamageNonCrit,
     appliedIds,
@@ -312,6 +316,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
       multiplicativeMultiplier: 1,
       damageReductionPercent: 0,
       magicResistancePercent: 0,
+      mobDefenseMultiplier: 1,
       finalDamage: 0,
       appliedIds: new Set(),
     };
@@ -330,6 +335,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
       multiplicativeMultiplier: 1,
       damageReductionPercent: 0,
       magicResistancePercent: 0,
+      mobDefenseMultiplier: 1,
       finalDamage: 1,
       appliedIds: new Set(),
     };
@@ -369,12 +375,18 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   const initialDamage =
     table.base * catacombsBoostMultiplier * (1 + (baseStats.intelligence / 100) * table.scaling) * (1 + abilityDamageStat / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
-  // Mob-side Damage Reduction applies to ANY damage (see computeFinalDamage); Magic Resistance is
-  // Ability-damage-only — both lib/mobDefenses.js, both direct final multipliers.
+  // Mob-side Damage Reduction and Defense apply to ANY damage (see computeFinalDamage); Magic
+  // Resistance is Ability-damage-only — all three lib/mobDefenses.js, all direct final multipliers.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
   const magicResistancePercent = computeMobMagicResistance(mob);
+  const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode);
   const finalDamage = Math.floor(
-    initialDamage * additiveMultiplier * multiplicativeMultiplier * (1 - damageReductionPercent / 100) * (1 - magicResistancePercent / 100),
+    initialDamage *
+      additiveMultiplier *
+      multiplicativeMultiplier *
+      (1 - damageReductionPercent / 100) *
+      (1 - magicResistancePercent / 100) *
+      mobDefenseMultiplier,
   );
 
   return {
@@ -388,6 +400,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
     additivePercent,
     damageReductionPercent,
     magicResistancePercent,
+    mobDefenseMultiplier,
     multiplicativeMultiplier,
     finalDamage,
     appliedIds,
