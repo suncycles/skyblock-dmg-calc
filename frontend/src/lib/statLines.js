@@ -2,9 +2,9 @@ import { STAT_LABELS, formatStatValue } from './reforgeData';
 
 // Appends a "§{color}(+X)" annotation to each lore line whose stat label matches a key in
 // `bonuses` ({statKey: numericValue}), or adds a brand-new "§7Label: §{color}+X" line for any
-// bonus the item's lore doesn't already show. Used by Reforges/Books/Enchant stat bonuses.
-// Every "(+X)" this produces is a genuinely additional amount not already reflected in the
-// line's leading number — sumStatFromTooltipLines relies on that to avoid double-counting.
+// bonus the item's lore doesn't already show. Used by Reforges/Books/Gemstones — purely
+// informational display; the leading number itself is set once, elsewhere, from
+// lib/itemStatTotals.js's computed hidden base (which already includes this same bonus).
 export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => v);
   if (!lore || entries.length === 0) return lore;

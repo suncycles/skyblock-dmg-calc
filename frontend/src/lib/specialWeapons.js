@@ -1,5 +1,3 @@
-import { mergeStatIntoBase } from './statLines';
-
 /* Weapon-specific ability mechanics that don't fit the generic Books/Gemstones/Reforges
    pipeline — each is a single player-supplied number that scales a bonus baked into that
    weapon's own real NEU-REPO lore. Only these ids show the Special button.
@@ -142,6 +140,24 @@ function insertPriceCounterLine(lore, value) {
   return [...lore.slice(0, insertAt), '', line, ...lore.slice(insertAt)];
 }
 
+// {statKey: delta} for the two `special` kinds that actually feed a real STAT_LABELS line —
+// Midas Sword's Greed-ability Damage/Strength bonus and David's Cloak's Hunting-milestone
+// Strength (`flatStrength`). Every other kind (bestiary/emeraldBlade/midasStaff/crownOfAvarice)
+// only ever rewrites non-stat ability text (Bestiary %/Magic Find, "Current Damage Bonus:",
+// "Ability Damage Bonus:" — a distinct line from the real "Ability Damage" stat, "Coins
+// Consumed:") — confirmed by reading every branch of applySpecialToLore below. Shared by
+// lib/itemStatTotals.js so the hidden-base computation and this file's own annotation-adjacent
+// text rewrites always agree on the same bonus value.
+export function computeSpecialStatBonus(weaponId, value) {
+  const config = getSpecialConfig(weaponId);
+  if (!config) return {};
+  const bonus = computeSpecialBonus(config, value);
+  if (!bonus) return {};
+  if (config.kind === 'midasSword') return { damage: bonus, strength: bonus };
+  if (config.kind === 'flatStrength') return { strength: bonus };
+  return {};
+}
+
 // Patches each weapon's own live-value lore line in place (Daedalus's Bestiary Tiers, Emerald Blade's Current Damage Bonus, etc.).
 export function applySpecialToLore(lore, weaponId, value) {
   const config = getSpecialConfig(weaponId);
@@ -166,11 +182,10 @@ export function applySpecialToLore(lore, weaponId, value) {
   }
 
   if (config.kind === 'midasSword') {
-    const withCounter = insertPriceCounterLine(lore, value);
-    if (!bonus) return withCounter;
-    // Merged into the base Damage/Strength numbers, not an appended annotation.
-    const insertIdx = withCounter.indexOf('');
-    return mergeStatIntoBase(withCounter, { damage: bonus, strength: bonus }, insertIdx);
+    // The Damage/Strength bonus itself is folded into the leading number once, elsewhere, from
+    // lib/itemStatTotals.js's computed hidden base (via computeSpecialStatBonus above) — only the
+    // "Price paid" counter line is this function's own job.
+    return insertPriceCounterLine(lore, value);
   }
 
   if (config.kind === 'midasStaff') {
@@ -183,11 +198,10 @@ export function applySpecialToLore(lore, weaponId, value) {
     return [...withCounter.slice(0, insertIdx), line, ...withCounter.slice(insertIdx)];
   }
 
-  if (config.kind === 'flatStrength') {
-    if (!bonus) return lore;
-    // No pristine Strength line on David's Cloak — inserted as a brand-new base-stat line.
-    return mergeStatIntoBase(lore, { strength: bonus }, lore.indexOf(''));
-  }
+  // flatStrength (David's Cloak): no lore rewrite needed here at all — its Strength bonus (via
+  // computeSpecialStatBonus above) is folded into the leading number once, elsewhere, from
+  // lib/itemStatTotals.js's computed hidden base, which also handles inserting a brand-new
+  // Strength line (David's Cloak has no pristine one) via mergeStatIntoBase's own fallback.
 
   if (config.kind === 'crownOfAvarice') {
     const digits = bonus;

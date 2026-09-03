@@ -54,12 +54,19 @@ export const STAT_LABELS = {
   magic_find: { label: 'Magic Find', color: 'a', isPercent: false },
   speed: { label: 'Speed', color: 'f', isPercent: false },
   // Real item lore prefixes this line "Bonus Attack Speed:" (not just "Attack Speed") — matters
-  // for sumStatFromTooltipLines' anchored `^label:` match against real tooltip text. The
-  // 'Bonus Attack Speed' -> 'Attack Speed' alias in lib/damageSymbols.js still highlights it
-  // correctly wherever it's displayed.
+  // for every exact `^label:` lore-line match against real tooltip text (see
+  // lib/itemStatTotals.js's normalizeAttackSpeedLabel). The 'Bonus Attack Speed' -> 'Attack Speed'
+  // alias in lib/damageSymbols.js still highlights it correctly wherever it's displayed.
   bonus_attack_speed: { label: 'Bonus Attack Speed', color: 'e', isPercent: true },
   ability_damage: { label: 'Ability Damage', color: 'a', isPercent: true },
 };
+
+// Exact-match reverse lookup (STAT_LABELS' display label -> internal statKey) — consolidates a
+// lookup that used to be hand-duplicated wherever a lore line's label text needed mapping back to
+// its statKey (lib/dungeonize.js, lib/gemstones.js's stat-bonus extraction).
+export function statKeyForLabel(label) {
+  return Object.keys(STAT_LABELS).find((k) => STAT_LABELS[k].label === label) || null;
+}
 
 export function formatStatValue(statKey, value) {
   const meta = STAT_LABELS[statKey];

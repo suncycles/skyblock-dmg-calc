@@ -120,8 +120,10 @@ function stripColor(line) {
   return line.replace(/§./g, '');
 }
 
-// Finds the item's own pristine value for a stat by matching STAT_LABELS' label text against each lore line.
-function parseBaseStatValue(lore, statKey) {
+// Finds the item's own pristine value for a stat by matching STAT_LABELS' label text against each
+// lore line. Exported for lib/itemStatTotals.js's own use (reads the same pristine value the Star
+// bonus is computed from, rather than reimplementing this regex a third time).
+export function parseBaseStatValue(lore, statKey) {
   const meta = STAT_LABELS[statKey];
   if (!meta) return null;
   const re = new RegExp(`^${meta.label}:\\s*([+-]?[\\d.]+)`);

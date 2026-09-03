@@ -1,4 +1,4 @@
-import { annotateStatLines, mergeStatIntoBase } from './statLines';
+import { annotateStatLines } from './statLines';
 
 // Hot/Fuming Potato Book: +2 Strength/+2 Damage on weapons, +4 Health/+2 Defense on armor.
 // Equipment can't take Potato Books at all. Fuming Potato Book only raises the shared
@@ -19,21 +19,27 @@ export const ART_OF_PEACE_STAT_BONUS = { health: 40 };
 export const ART_OF_PEACE_ITEM_ID = 'THE_ART_OF_PEACE';
 export const ART_OF_PEACE_COLOR = '6';
 
-// `gearType` picks which bonus table applies and whether Art of War/Art of Peace are honored — the one place that enforces eligibility.
-// `potatoBookDoubled`: Legendary-tier Blaze pet doubles the Hot/Fuming Potato Book bonus on
-// both weapons and armor (e.g. a weapon's real +30 shows as +60, an extra +30 bonus damage/strength).
-// `skipMerge` (live-lore imported items only — see hypixelImport.js's resolveGearSummary): the
-// leading number is already Hypixel's real, final total including this item's real book bonus, so
-// only the informational "(+X)" annotation should be (re-)added, not another merge on top.
-export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApplied, insertBeforeLineIdx, gearType, potatoBookDoubled, skipMerge = false) {
+// {statKey: delta} for the Hot/Fuming Potato Book bonus — the calc-facing counterpart of
+// applyBooksToLore's own annotation logic below, shared by lib/itemStatTotals.js. `gearType` picks
+// which bonus table applies (equipment can't take Potato Books at all). `potatoBookDoubled`:
+// Legendary-tier Blaze pet doubles the bonus on both weapons and armor (e.g. a weapon's real +30
+// shows as +60).
+export function computeBooksStatBonus(bookCount, gearType, potatoBookDoubled) {
+  if (!bookCount || gearType === 'equipment') return {};
+  const perBook = gearType === 'armor' ? ARMOR_BOOK_STAT_BONUS : WEAPON_BOOK_STAT_BONUS;
+  const multiplier = (potatoBookDoubled ? 2 : 1) * bookCount;
+  return Object.fromEntries(Object.entries(perBook).map(([stat, value]) => [stat, value * multiplier]));
+}
+
+// `gearType` also picks whether Art of War/Art of Peace are honored — the one place that enforces
+// eligibility. The leading stat number itself is set once, elsewhere, from
+// lib/itemStatTotals.js's computed hidden base (which includes this same book/Art of War/Art of
+// Peace bonus) — this function only ever annotates, never merges.
+export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApplied, insertBeforeLineIdx, gearType, potatoBookDoubled) {
   let result = lore;
-  if (bookCount && gearType !== 'equipment') {
-    const perBook = gearType === 'armor' ? ARMOR_BOOK_STAT_BONUS : WEAPON_BOOK_STAT_BONUS;
-    const multiplier = (potatoBookDoubled ? 2 : 1) * bookCount;
-    const bonuses = Object.fromEntries(Object.entries(perBook).map(([stat, value]) => [stat, value * multiplier]));
-    // Merged into the item's own base stat number, annotated with the delta on top for visibility.
-    const merged = skipMerge ? result : mergeStatIntoBase(result, bonuses, insertBeforeLineIdx);
-    result = annotateStatLines(merged, bonuses, BOOKS_COLOR, insertBeforeLineIdx);
+  const bonuses = computeBooksStatBonus(bookCount, gearType, potatoBookDoubled);
+  if (Object.keys(bonuses).length > 0) {
+    result = annotateStatLines(result, bonuses, BOOKS_COLOR, insertBeforeLineIdx);
   }
   if (artOfWarApplied && gearType === 'weapon') {
     // Recompute the insertion point since the call above may have spliced in new lines.

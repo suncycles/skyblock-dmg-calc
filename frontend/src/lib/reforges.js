@@ -1,4 +1,4 @@
-import { annotateStatLines, mergeStatIntoBase } from './statLines';
+import { annotateStatLines } from './statLines';
 import { getReforgeStatBonus } from './reforgeData';
 import { computeAncientReforgeCritDamage, computeWitheredReforgeStrength } from './playerStats';
 import { LOVING_REFORGE_NAME } from './abilityDamage';
@@ -39,9 +39,8 @@ export function applyFabledToLore(lore, reforgeName) {
 }
 
 // The real stat bonus a given reforge grants on a given item — every name-specific override
-// (Ancient/Withered/Loving) lives here so both applyReforgeToLore and anything else that needs to
-// know "what does this reforge actually give" (lib/hypixelImport.js, recovering a live-imported
-// item's pristine pre-reforge base — see its own comment) share one answer.
+// (Ancient/Withered/Loving) lives here so both applyReforgeToLore and lib/itemStatTotals.js's
+// hidden-base computation share one answer.
 export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel) {
   if (!reforge) return {};
   const bonus = { ...getReforgeStatBonus(reforge, itemTier) };
@@ -66,14 +65,11 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
   return bonus;
 }
 
-// `skipMerge` (live-lore imported items only — see hypixelImport.js's resolveGearSummary): the
-// leading number is already Hypixel's real, final total including this item's real reforge bonus,
-// so only the informational "(+X)" annotation should be (re-)added, not another merge on top.
-export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel, skipMerge = false) {
+// The leading stat number itself is set once, elsewhere, from lib/itemStatTotals.js's computed
+// hidden base (which includes this same reforge bonus) — this function only ever annotates.
+export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel) {
   if (!reforge) return lore;
   const bonus = computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel);
   if (Object.keys(bonus).length === 0) return lore;
-  // Merged into the item's own base stat number, annotated with the delta on top for visibility.
-  const merged = skipMerge ? lore : mergeStatIntoBase(lore, bonus, insertBeforeLineIdx);
-  return annotateStatLines(merged, bonus, REFORGE_COLOR, insertBeforeLineIdx);
+  return annotateStatLines(lore, bonus, REFORGE_COLOR, insertBeforeLineIdx);
 }

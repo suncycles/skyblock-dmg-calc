@@ -1,18 +1,16 @@
 import { rarityColorCode, formatItemName } from './mcText';
-import { titleCaseEnchantId, toRoman, fetchEnchantLevels, extractDescriptionLines } from './enchantEffects';
-import { parseEnchantStatBonus } from './enchantStats';
+import { titleCaseEnchantId, toRoman } from './enchantEffects';
 import { mergeStatIntoBase } from './statLines';
 import { applyGemstonesToLore } from './gemstones';
 import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
-import { applySpecialToLore, computeDaedalusTamingBonus, computeWolfSlayerLevelBonus } from './specialWeapons';
-import { computeStarBonuses, buildStarSuffix, buildMasterStarSuffix } from './starring';
+import { applySpecialToLore } from './specialWeapons';
+import { buildStarSuffix, buildMasterStarSuffix } from './starring';
 import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
-import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
-import { applyDungeonizeToLore, sumStatFromTooltipLines } from './dungeonize';
-import { STAT_LABELS } from './reforgeData';
+import { applyDungeonizeToLore } from './dungeonize';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
+import { computeItemStatTotals, normalizeAttackSpeedLabel } from './itemStatTotals';
 
 // Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants
 // alphabetically, gold if maxed else grey. Exported (only for
@@ -45,62 +43,6 @@ export function insertEnchantLines(lore, enchantLines) {
   return [...lore.slice(0, blankIdx + 1), ...enchantLines, '', ...lore.slice(blankIdx + 1)];
 }
 
-// "The One" (ultimate_the_one): real lore is "Grants +0.5/+1 Health and +0.1/+0.2 Strength per
-// maxed out collection" at levels 4/5 (user-confirmed 2026-09-01 — these are its only two real
-// levels; NEU-REPO has no item file at all for 1-3, see enchantEffects.js's probeLevels comment).
-// The generic parseEnchantStatBonus below can't handle this — it only matches a single fixed
-// number per stat, not a rate scaled by a live account counter — so it's special-cased here the
-// same way Venomous/Fire Aspect/etc. are special-cased in damageSources.js's collectEnchantEntries.
-const THE_ONE_RATE_PER_LEVEL = { 4: { health: 0.5, strength: 0.1 }, 5: { health: 1, strength: 0.2 } };
-function computeTheOneStatBonus(level, maxedCollectionsCount) {
-  const rates = THE_ONE_RATE_PER_LEVEL[level];
-  if (!rates) return null;
-  return { health: rates.health * maxedCollectionsCount, strength: rates.strength * maxedCollectionsCount };
-}
-
-// Sums every applied enchant's own flat/percent stat bonus (Critical's +Crit Damage%, etc.).
-// Enchants with no parseable flat bonus contribute nothing rather than erroring.
-async function computeEnchantStatBonuses(modifiers, enchantsMeta, maxedCollectionsCount) {
-  const entries = [...(modifiers.hexEnchantments || [])];
-  if (modifiers.ultimateEnchantment) entries.push(modifiers.ultimateEnchantment);
-  if (entries.length === 0) return {};
-
-  const perEnchant = await Promise.all(
-    entries.map(async (entry) => {
-      if (entry.id.toLowerCase() === 'ultimate_the_one') {
-        return computeTheOneStatBonus(entry.level, maxedCollectionsCount || 0);
-      }
-      const levels = await fetchEnchantLevels(entry.id, enchantsMeta);
-      const levelData = levels.find((l) => l.level === entry.level);
-      return levelData ? parseEnchantStatBonus(extractDescriptionLines(levelData.lore)) : null;
-    }),
-  );
-
-  const totals = {};
-  for (const bonus of perEnchant) {
-    if (!bonus) continue;
-    for (const [statKey, value] of Object.entries(bonus)) {
-      totals[statKey] = (totals[statKey] || 0) + value;
-    }
-  }
-  return totals;
-}
-
-// A handful of real items label their own innate attack-speed stat line "Attack Speed:" instead
-// of "Bonus Attack Speed:" (e.g. Deathripper Dagger) — same real player stat, just an
-// inconsistent Hypixel tooltip label. Normalized to the canonical "Bonus Attack Speed:" label
-// before any other lore transform runs, so mergeStatIntoBase/annotateStatLines and
-// damageSources.js's sumStatFromTooltipLines all treat it as the SAME line instead of the
-// item's own value getting silently dropped (nothing merges into an unrecognized label) while a
-// separate "Bonus Attack Speed: +Y" line gets appended alongside it for every other source.
-function normalizeAttackSpeedLabel(lore) {
-  return (lore || []).map((line) => {
-    const plain = line.replace(/§./g, '');
-    if (!/^\s*Attack Speed:/.test(plain)) return line;
-    return line.replace(/^(\s*(?:§.)*)(Attack Speed:)/, '$1Bonus $2');
-  });
-}
-
 // Builds the exact real-item tooltip (title + lore) with every applied modifier baked in —
 // gemstones, reforge, books/Art of War, special-weapon numbers, enchant stat bonuses and
 // name lines, and recombobulation — resolved off the item's current rarity. Shared by every
@@ -126,74 +68,47 @@ export async function buildFullItemTooltipLines(
   const displayTier = modifiers.recombobulated ? bumpRarity(baseTier) : baseTier;
   const gearType = getGearType(item.category);
 
-  // Real per-account items whose lore was swapped in wholesale (hypixelImport.js's
-  // resolveGearSummary, for Gear Score-scaled items — armor and weapons both, e.g. Astraea) carry
-  // `item.liveLore: true`. Bug fix 2026-09-02: this used to assume Hypixel's real leading number
-  // was a pristine base still needing reforge/books/gemstones/Stars layered on (same as a catalog
-  // item) — disproved against sammui's real Necron's Leggings: the real leading "Strength: +111"
-  // already IS the final total (matches the user's own in-game reading exactly), with its real
-  // "(+35)"/"(+32)" reforge/gemstone annotations shown purely as an informational breakdown, not
-  // amounts still to add. Re-merging them on top inflated it to +189.1. `skipMerge` below makes
-  // gemstones/reforge/books/Stars annotate-only for a live-lore item instead of merging (Wither
-  // Blade/Daedalus Taming/Wolf Slayer/Chimera/Manticore/enchant stat bonuses are left as unconditional
-  // merges — they're dynamic, account-progress-driven bonuses this app must let the user vary via
-  // the Levels page, not a fixed part of the item's stored real lore, and no live item has yet
-  // shown evidence they're double-counted the same way).
-  const skipMerge = !!item.liveLore;
-  let lore = applyGemstonesToLore(normalizeAttackSpeedLabel(item.lore), modifiers.gemstones, displayTier, skipMerge);
+  // The single canonical computation (lib/itemStatTotals.js) — every number this tooltip shows
+  // for a stat comes from here, never re-derived by parsing rendered lore text back out.
+  const totals = await computeItemStatTotals(item, modifiers, itemData, {
+    catacombsLevel,
+    tamingLevel,
+    wolfSlayerLevel,
+    chimeraBonus,
+    generalsMedallionDigits,
+    manticoreClawBonus,
+    potatoBookDoubled,
+    maxedCollectionsCount,
+  });
+  const isMythological = isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id);
+
+  // Sets every stat line's leading number exactly once, from the already-computed total — on
+  // still-pristine lore, before any of the annotate-only passes below run, so each of them finds
+  // the real final number already in place and only ever appends an informational "(+X)" next to
+  // it (never re-adds into it). A stat the pristine item doesn't show at all gets a brand-new line
+  // here (mergeStatIntoBase's own fallback) with no separate annotation, same as before.
+  let lore = normalizeAttackSpeedLabel(item.lore);
+  const finalValues = {};
+  for (const [statKey, t] of Object.entries(totals)) {
+    const finalValue = isMythological ? t.mythologicalNonDungeonStarred : t.nonDungeonStarred;
+    if (finalValue !== t.pristine) finalValues[statKey] = finalValue - t.pristine;
+  }
+  lore = mergeStatIntoBase(lore, finalValues, lore.indexOf(''));
+
+  lore = applyGemstonesToLore(lore, modifiers.gemstones, displayTier);
   // Reforge could be a free blacksmith one or a stone-exclusive one — check both maps.
   const reforge = modifiers.reforge
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
     : null;
-  lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel, skipMerge);
-  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled, skipMerge);
+  lore = applyReforgeToLore(lore, modifiers.reforge, reforge, displayTier, lore.indexOf(''), catacombsLevel);
+  lore = applyBooksToLore(lore, modifiers.books, modifiers.artOfWar, modifiers.artOfPeace, lore.indexOf(''), gearType, potatoBookDoubled);
   lore = applySpecialToLore(lore, item.id, modifiers.special);
-  // Stars/Wither Blade/Daedalus Taming bonuses merge directly into the item's own base stats.
-  // starBonus is captured (not discarded) — Dungeonize below needs to subtract this same delta
-  // back out of the fully-merged total to get the Catacombs Boost base (see lib/dungeonize.js).
-  const starBonus = computeStarBonuses(item.lore, modifiers.stars);
-  if (!skipMerge) lore = mergeStatIntoBase(lore, starBonus, lore.indexOf(''));
-  lore = mergeStatIntoBase(lore, computeWitherBladeCatacombsBonus(item.id, catacombsLevel), lore.indexOf(''));
-  lore = mergeStatIntoBase(lore, computeDaedalusTamingBonus(item.id, tamingLevel), lore.indexOf(''));
-  lore = mergeStatIntoBase(lore, computeWolfSlayerLevelBonus(item.id, wolfSlayerLevel), lore.indexOf(''));
-  lore = mergeStatIntoBase(lore, chimeraBonus, lore.indexOf(''));
-  lore = mergeStatIntoBase(lore, manticoreClawBonus, lore.indexOf(''));
 
-  // Enchant stat bonuses also merge into the base stat, no separate annotation.
-  const enchantStatBonuses = await computeEnchantStatBonuses(modifiers, itemData.enchants, maxedCollectionsCount);
-  lore = mergeStatIntoBase(lore, enchantStatBonuses, lore.indexOf(''));
-
-  // Challenger's/Mythos Armor+Equipment's doubled stats against a Mythological target — see
-  // armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS (the same real-lore-vs-reinterpreted-
-  // condition note lives there; damageSources.js's collectBaseStats is the other, separate
-  // consumer that feeds the actual damage calc). Doubling = merging another full copy of
-  // everything settled onto the item so far (base + reforge + gemstones + stars + enchants),
-  // read straight off the lore built up to this point — same "fully-settled total" damageSources.js
-  // already computes via sumStatFromTooltipLines on this same function's output.
-  if (isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id)) {
-    const mythologicalBonus = {};
-    for (const [statKey, meta] of Object.entries(STAT_LABELS)) {
-      const current = sumStatFromTooltipLines(lore, meta.label);
-      if (current) mythologicalBonus[statKey] = current;
-    }
-    lore = mergeStatIntoBase(lore, mythologicalBonus, lore.indexOf(''));
-  }
-
-  // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has —
-  // curve[catacombsLevel] + Catacombs Stars (10%/star) + General's Medallion digits, applied to
-  // everything merged above EXCEPT starBonus (the Overworld 2%/star mechanic — see
-  // lib/dungeonize.js). A dark-blue second annotation adds Master Stars (5%/star) on top, shown
-  // only when the item actually has Master Stars — never present without Dungeonize being on.
+  // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has, a
+  // dark-blue second one adding Master Stars on top (shown only when the item actually has Master
+  // Stars) — both already-computed totals (lib/itemStatTotals.js), just formatted here.
   if (modifiers.dungeonized) {
-    lore = applyDungeonizeToLore(
-      lore,
-      catacombsLevel,
-      modifiers.dungeonizeOldCurve,
-      starBonus,
-      modifiers.stars,
-      modifiers.masterStars,
-      generalsMedallionDigits,
-    );
+    lore = applyDungeonizeToLore(lore, totals, modifiers.masterStars, isMythological);
   }
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
