@@ -254,6 +254,16 @@ export default function OptimizerSidebar() {
   // "Skip" (UpgradeRow's ✕) just hides a suggestion from view for the rest of this visit — see
   // Optimizer.jsx's identical treatment for the full-page version of this same list.
   const [skippedKeys, setSkippedKeys] = useState(() => new Set());
+  // Empty = no filter (show every category) — see Optimizer.jsx's identical treatment.
+  const [selectedCategories, setSelectedCategories] = useState(() => new Set());
+  const toggleCategory = (category) => {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
   const resultKey = (r) => `${r.category}:${r.slot}:${r.label}`;
   const tokenRef = useRef(0);
 
@@ -519,9 +529,13 @@ export default function OptimizerSidebar() {
   // maxBudget of 0 means "no limit" (default, unset) — see BuildContext.jsx. Unpriced ('?')
   // candidates always stay shown; only a confirmed over-budget real cost gets filtered out.
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
-  const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
+  const unfilteredResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
     .filter(withinBudget)
-    .filter((r) => !skippedKeys.has(resultKey(r)))
+    .filter((r) => !skippedKeys.has(resultKey(r)));
+  // Only offer chips for categories actually present right now — see Optimizer.jsx.
+  const availableCategories = [...new Set(unfilteredResults.map((r) => r.category))].sort();
+  const combinedResults = unfilteredResults
+    .filter((r) => selectedCategories.size === 0 || selectedCategories.has(r.category))
     .sort((a, b) => compareResults(a, b, sortBy));
 
   // Once the user drags/resizes the panel, its own left/top/width/height override the default
@@ -638,6 +652,38 @@ export default function OptimizerSidebar() {
 
       {state.status === 'ok' && (
         <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
+          {availableCategories.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {availableCategories.map((category) => {
+                const active = selectedCategories.size === 0 || selectedCategories.has(category);
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => toggleCategory(category)}
+                    title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
+                    className="px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide normal-case cursor-pointer transition-opacity"
+                    style={{
+                      color: active ? '#000' : '#666',
+                      backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
+                      opacity: active ? 1 : 0.5,
+                    }}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+              {selectedCategories.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategories(new Set())}
+                  className="px-1 py-0.5 text-[8px] font-bold uppercase text-neutral-700 hover:text-black cursor-pointer underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
           {combinedResults.length > 0 ? (
             combinedResults.map((r) => (
               <UpgradeRow
@@ -649,7 +695,11 @@ export default function OptimizerSidebar() {
             ))
           ) : (
             <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">
-              {build.maxBudget ? 'No upgrades available within budget.' : 'No upgrades available.'}
+              {selectedCategories.size > 0
+                ? 'No upgrades match the selected filter.'
+                : build.maxBudget
+                  ? 'No upgrades available within budget.'
+                  : 'No upgrades available.'}
             </div>
           )}
         </div>

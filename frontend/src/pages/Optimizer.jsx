@@ -235,15 +235,31 @@ export default function Optimizer() {
   // reappears on a fresh page load or once it's no longer computed at all. Keyed by
   // category/slot/label since results have no stable id of their own across recomputes.
   const [skippedKeys, setSkippedKeys] = useState(() => new Set());
+  // Empty = no filter (show every category). Populated by clicking a category chip below — a
+  // standard multi-select facet filter, not persisted (resets on reload, same as skippedKeys).
+  const [selectedCategories, setSelectedCategories] = useState(() => new Set());
+  const toggleCategory = (category) => {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
   const resultKey = (r) => `${r.category}:${r.slot}:${r.label}`;
   const slotResults = OPTIMIZER_GEAR_SLOTS.flatMap((slot) => state.slots[slot] || []);
   // maxBudget of 0 means "no limit" (default, unset). A real-priced candidate over budget is
   // dropped; unpriced ('?') candidates always stay — their real cost might be free (a
   // blacksmith-rolled reforge) or just unverified, so hiding them would be a false negative.
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
-  const combinedResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
+  const unfilteredResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
     .filter(withinBudget)
-    .filter((r) => !skippedKeys.has(resultKey(r)))
+    .filter((r) => !skippedKeys.has(resultKey(r)));
+  // Only offer chips for categories actually present right now, not the full static list — most
+  // modes/loadouts only ever surface a handful of the ~20 possible categories at once.
+  const availableCategories = [...new Set(unfilteredResults.map((r) => r.category))].sort();
+  const combinedResults = unfilteredResults
+    .filter((r) => selectedCategories.size === 0 || selectedCategories.has(r.category))
     .sort((a, b) => compareResults(a, b, sortBy));
 
   return (
@@ -364,6 +380,38 @@ export default function Optimizer() {
                 </button>
               </div>
             </div>
+            {availableCategories.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1 pb-1">
+                {availableCategories.map((category) => {
+                  const active = selectedCategories.size === 0 || selectedCategories.has(category);
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => toggleCategory(category)}
+                      title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
+                      className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide cursor-pointer transition-opacity"
+                      style={{
+                        color: active ? '#000' : '#666',
+                        backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
+                        opacity: active ? 1 : 0.5,
+                      }}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+                {selectedCategories.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategories(new Set())}
+                    className="px-1.5 py-0.5 text-[9px] font-bold uppercase text-neutral-700 hover:text-black cursor-pointer underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
             {combinedResults.length > 0 ? (
               combinedResults.map((r) => (
                 <UpgradeRow
@@ -375,7 +423,11 @@ export default function Optimizer() {
               ))
             ) : (
               <div className="px-3 py-2 text-xs text-neutral-600 italic">
-                {build.maxBudget ? 'No upgrades available within budget.' : 'No upgrades available.'}
+                {selectedCategories.size > 0
+                  ? 'No upgrades match the selected category filter.'
+                  : build.maxBudget
+                    ? 'No upgrades available within budget.'
+                    : 'No upgrades available.'}
               </div>
             )}
           </div>
