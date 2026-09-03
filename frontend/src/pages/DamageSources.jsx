@@ -57,6 +57,7 @@ const ENRICHMENT_TYPES = [
   { key: 'crit_damage', label: 'Crit Damage', ...STAT_SYMBOLS['Crit Damage'] },
   { key: 'crit_chance', label: 'Crit Chance', ...STAT_SYMBOLS['Crit Chance'] },
   { key: 'intelligence', label: 'Intelligence', ...STAT_SYMBOLS.Intelligence },
+  { key: 'bonus_attack_speed', label: 'Attack Speed', ...STAT_SYMBOLS['Attack Speed'] },
   { key: 'none', label: 'None', symbol: '✕', color: '#666666' },
 ];
 
