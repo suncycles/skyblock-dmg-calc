@@ -6,7 +6,11 @@ import { STAT_LABELS } from './reforgeData';
 // untouched by anything below. Inside a dungeon, the same star count instead feeds a 10%/star
 // rate summed with the Catacombs Level curve/General's Medallion/Master Stars, applied to the
 // item's non-star total — see lib/dungeonize.js's computeCatacombsBoostPercent.
-const PER_STAR_PERCENT = 2;
+// Exported for lib/itemStatTotals.js's own use — a tiered-stat item's real pristine value (see
+// lib/tieredArmorStats.js) differs from what parseBaseStatValue reads off raw lore, so that module
+// computes the Star bonus inline off its own already-resolved pristine rather than through
+// computeStarBonuses below (which always re-derives pristine from lore text).
+export const PER_STAR_PERCENT = 2;
 export const CATACOMBS_STAR_PERCENT_PER_STAR = 10;
 
 // Real per-item caps: most gear only ever supports 5 stars. Going past 5 is whitelist-only.

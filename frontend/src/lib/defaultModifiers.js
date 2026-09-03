@@ -24,6 +24,13 @@ export function emptyModifiers() {
     dungeonized: false, // Catacombs-level-scaled stat lines — see lib/dungeonize.js
     dungeonizeOldCurve: false, // true = pre-0.26.1 curve, false = current
     masterStars: 0, // Dungeonize-only stars, 5%/star up to 5 — see lib/starring.js. Always 0 unless dungeonized.
+    // Real per-copy Gear-Score data for the handful of tiered-stat items (Skeleton Master/Zombie
+    // Knight — see lib/tieredArmorStats.js) — which Floor the drop came from (1-10) and its real
+    // stat boost %. null/0 (no override) for every other item, and for a manually-built copy of
+    // one of these items too (no real drop data to assume) — falls back to the catalog's own
+    // pristine lore value.
+    itemTier: null,
+    baseStatBoostPercentage: 0,
   };
 }
 

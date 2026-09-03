@@ -325,6 +325,10 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     stars,
     masterStars,
     dungeonized: resolveDungeonizedFlag(summary),
+    // Real per-copy Gear-Score data (see nbt.js) — only meaningful for the handful of tiered-stat
+    // items lib/tieredArmorStats.js models, harmless/unused otherwise.
+    itemTier: summary.itemTier || null,
+    baseStatBoostPercentage: summary.baseStatBoostPercentage || 0,
     ...davidsCloak,
     ...coinSpecial,
   };

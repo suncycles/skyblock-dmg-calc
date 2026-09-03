@@ -1,4 +1,5 @@
 import { rarityColorCode } from './mcText';
+import { MAX_BASE_STAT_BOOST_PERCENTAGE } from './tieredArmorStats';
 
 // Recombobulator 3000 has no flat stat bonus of its own — its real effect is bumping which
 // rarity's reforge-stat column a reforge reads from, plus the rarity color/label on the tooltip.
@@ -16,14 +17,19 @@ export function bumpRarity(tier) {
   return RARITY_UPGRADE_ORDER[idx + 1].toUpperCase();
 }
 
-// An equipped slot's current effective rarity — accounts for a Recombobulator bump and for
-// items whose real tier is tracked separately from the bundled data (rarityOverride, e.g.
-// David's Cloak's Hunting-milestone tier). Shared wherever a slot needs the item's rarity
-// without building the full tooltip (e.g. Landing's per-slot rarity glow).
+// An equipped slot's current effective rarity — accounts for a Recombobulator bump, a real
+// Gear-Score tiered-stat item's own baseStatBoostPercentage=50 bump (see lib/tieredArmorStats.js —
+// independent of and stacks with Recombobulator, confirmed live: catalog Epic -> boost bump ->
+// Legendary -> recomb bump -> Mythic), and items whose real tier is tracked separately from the
+// bundled data (rarityOverride, e.g. David's Cloak's Hunting-milestone tier). Shared wherever a
+// slot needs the item's rarity without building the full tooltip (e.g. Landing's per-slot rarity
+// glow).
 export function getDisplayTier(item, modifiers) {
   if (!item) return null;
-  const baseTier = modifiers?.rarityOverride || item.tier;
-  return modifiers?.recombobulated ? bumpRarity(baseTier) : baseTier;
+  let tier = modifiers?.rarityOverride || item.tier;
+  if (modifiers?.baseStatBoostPercentage === MAX_BASE_STAT_BOOST_PERCENTAGE) tier = bumpRarity(tier);
+  if (modifiers?.recombobulated) tier = bumpRarity(tier);
+  return tier;
 }
 
 // Rewrites the item's trailing "§{color}§l{RARITY} {CATEGORY}" tag line to a different rarity,

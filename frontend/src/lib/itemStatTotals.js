@@ -1,16 +1,17 @@
 import { STAT_LABELS } from './reforgeData';
-import { bumpRarity } from './recombobulator';
+import { getDisplayTier } from './recombobulator';
 import { getGearType } from './gearType';
 import { computeGemstoneStatBonuses } from './gemstones';
 import { computeReforgeStatBonus } from './reforges';
 import { ART_OF_WAR_STAT_BONUS, ART_OF_PEACE_STAT_BONUS, computeBooksStatBonus } from './books';
 import { computeSpecialStatBonus, computeDaedalusTamingBonus, computeWolfSlayerLevelBonus } from './specialWeapons';
 import { computeWitherBladeCatacombsBonus } from './witherBladeBonuses';
-import { computeStarBonuses, parseBaseStatValue } from './starring';
+import { PER_STAR_PERCENT, parseBaseStatValue } from './starring';
 import { computeCatacombsBoostPercent, computeAbilityDamageCatacombsBoostPercent, ABILITY_STYLE_BOOST_STAT_KEYS } from './dungeonize';
 import { fetchEnchantLevels, extractDescriptionLines } from './enchantEffects';
 import { parseEnchantStatBonus } from './enchantStats';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
+import { computeTieredPristineStat } from './tieredArmorStats';
 
 // The single canonical per-item stat computation — the ONLY place "how much of stat X does this
 // item really have" gets computed. Both the tooltip renderer (itemTooltip.js) and the damage calc
@@ -111,8 +112,7 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
   } = ctx;
 
   const lore = normalizeAttackSpeedLabel(item.lore);
-  const baseTier = modifiers.rarityOverride || item.tier;
-  const displayTier = modifiers.recombobulated ? bumpRarity(baseTier) : baseTier;
+  const displayTier = getDisplayTier(item, modifiers);
   const gearType = getGearType(item.category);
   const reforge = modifiers.reforge ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge] : null;
 
@@ -129,11 +129,15 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
 
   const boostPercent = computeCatacombsBoostPercent(catacombsLevel, modifiers.dungeonizeOldCurve, modifiers.stars, generalsMedallionDigits, modifiers.masterStars);
   const abilityBoostPercent = computeAbilityDamageCatacombsBoostPercent(modifiers.stars, generalsMedallionDigits, modifiers.masterStars);
-  const starBonuses = computeStarBonuses(lore, modifiers.stars);
 
   const totals = {};
   for (const statKey of Object.keys(STAT_LABELS)) {
-    const pristine = parseBaseStatValue(lore, statKey) || 0;
+    // A real Gear-Score tiered-stat item's (Skeleton Master/Zombie Knight — see
+    // lib/tieredArmorStats.js) true pristine isn't the catalog's bundled lore value at all; falls
+    // back to the catalog parse for every other item, or when the real per-copy itemTier isn't
+    // known (manually-built items).
+    const tieredPristine = computeTieredPristineStat(item.id, statKey, modifiers.itemTier, modifiers.baseStatBoostPercentage);
+    const pristine = tieredPristine ?? (parseBaseStatValue(lore, statKey) || 0);
     const hiddenBase = sumSources(
       { [statKey]: pristine },
       gemstoneBonus,
@@ -150,7 +154,10 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
       enchantBonus,
     )[statKey] || 0;
 
-    const nonDungeonStarred = round1(hiddenBase + (starBonuses[statKey] || 0));
+    // Stars scale off THIS stat's real pristine (tiered-aware above), not a batch re-parse of raw
+    // lore text — see lib/starring.js's PER_STAR_PERCENT (the same 2%/star Overworld formula).
+    const starBonus = pristine ? Math.round(pristine * (PER_STAR_PERCENT / 100) * (modifiers.stars || 0) * 10) / 10 : 0;
+    const nonDungeonStarred = round1(hiddenBase + starBonus);
 
     const { withoutMaster, withMaster } = ABILITY_STYLE_BOOST_STAT_KEYS.has(statKey) ? abilityBoostPercent : boostPercent;
     const dungeonStarred = modifiers.dungeonized ? round1(hiddenBase * (1 + withoutMaster / 100)) : nonDungeonStarred;

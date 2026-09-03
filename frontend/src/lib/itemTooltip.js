@@ -6,11 +6,12 @@ import { applyReforgeToLore, applyFabledToLore } from './reforges';
 import { applyBooksToLore } from './books';
 import { applySpecialToLore } from './specialWeapons';
 import { buildStarSuffix, buildMasterStarSuffix } from './starring';
-import { bumpRarity, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
+import { bumpRarity, getDisplayTier, applyRecombToLore, applyRarityTagToLore } from './recombobulator';
 import { getGearType } from './gearType';
 import { applyDungeonizeToLore } from './dungeonize';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
 import { computeItemStatTotals, normalizeAttackSpeedLabel } from './itemStatTotals';
+import { MAX_BASE_STAT_BOOST_PERCENTAGE } from './tieredArmorStats';
 
 // Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants
 // alphabetically, gold if maxed else grey. Exported (only for
@@ -65,7 +66,7 @@ export async function buildFullItemTooltipLines(
   if (!item || !modifiers) return [];
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
   const baseTier = modifiers.rarityOverride || item.tier;
-  const displayTier = modifiers.recombobulated ? bumpRarity(baseTier) : baseTier;
+  const displayTier = getDisplayTier(item, modifiers);
   const gearType = getGearType(item.category);
 
   // The single canonical computation (lib/itemStatTotals.js) — every number this tooltip shows
@@ -113,7 +114,16 @@ export async function buildFullItemTooltipLines(
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
   if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);
-  if (modifiers.recombobulated) lore = applyRecombToLore(lore, baseTier);
+  // Real Gear-Score tiered-stat item (Skeleton Master/Zombie Knight — lib/tieredArmorStats.js) at
+  // its max boost bumps rarity +1 tier, independent of and BEFORE any Recombobulator bump (mirrors
+  // getDisplayTier's own ordering above — confirmed live: catalog Epic -> this bump -> Legendary
+  // -> recomb bump -> Mythic).
+  let tierAfterBoostBump = baseTier;
+  if (modifiers.baseStatBoostPercentage === MAX_BASE_STAT_BOOST_PERCENTAGE) {
+    tierAfterBoostBump = bumpRarity(baseTier);
+    lore = applyRarityTagToLore(lore, baseTier, tierAfterBoostBump);
+  }
+  if (modifiers.recombobulated) lore = applyRecombToLore(lore, tierAfterBoostBump);
   lore = applyFabledToLore(lore, modifiers.reforge);
 
   const reforgePrefix = modifiers.reforge ? `${modifiers.reforge} ` : '';

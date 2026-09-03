@@ -173,6 +173,12 @@ export function extractItemSummary(slotItem) {
     // (no armor piece with it applied found in the account checked) — left unset until confirmed,
     // rather than guessed. See lib/hypixelImport.js's consumer.
     artOfWar: !!ea.art_of_war_count,
+    // Real per-copy Gear-Score data — which Floor this specific drop came from (1-10) and its
+    // real stat boost % — confirmed live 2026-09-03 against a real Skeleton Master Chestplate
+    // (item_tier: 10, baseStatBoostPercentage: 50). Only meaningful for the handful of tiered-stat
+    // items lib/tieredArmorStats.js models; harmless/unused otherwise. See lib/hypixelImport.js's consumer.
+    itemTier: ea.item_tier || null,
+    baseStatBoostPercentage: ea.baseStatBoostPercentage || 0,
     enchantments: ea.enchantments || {},
     gems: ea.gems || null,
     // Real per-instance lore (with §-codes) — most items don't need this (their real stats come
