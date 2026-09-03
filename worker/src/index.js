@@ -937,12 +937,28 @@ function parseGeneralsMedallionDigits(lore) {
 //   single highest tier, not all 4 summed).
 // - Hat accessories (see isHatAccessory) are mutually exclusive with each other as a group for
 //   Magical Power — only the single highest-Magical-Power hat owned counts, not every hat summed.
-// Enrichments count is a flat, undeduped tally of every item carrying a real
-// ExtraAttributes.talisman_enrichment value, regardless of which stat it's actually on — the
-// Enrichments UI (see damageSources.js) always imports as 'none' (0 stat impact) and lets the
-// player manually swap the whole count onto one tracked stat as a "what if" — confirmed by the
-// account owner: e.g. an account with 65 Magic-Find-enriched accessories imports as count 65,
-// type 'none', and the player can swap that to Strength to see the hypothetical +65 Strength.
+// Enrichments: a real per-item stat identifier lives at ExtraAttributes.talisman_enrichment
+// (e.g. "critical_chance") — confirmed live 2026-09-03 against sammui's real Accessory Bag (66
+// enriched accessories, ALL "critical_chance"; the raw value matches the real
+// TALISMAN_ENRICHMENT_CRITICAL_CHANCE item id's suffix lowercased — every other tracked stat's
+// raw value is assumed to follow that same real, published item-id naming convention
+// (TALISMAN_ENRICHMENT_STRENGTH/_CRITICAL_DAMAGE/_INTELLIGENCE/_ATTACK_SPEED, see
+// /resources/skyblock/items), though only critical_chance has been checked against a real
+// account). Tallied per real stat below (ENRICHMENT_STAT_MAP), and the dominant TRACKED stat
+// (the ones the Enrichments UI in damageSources.js actually offers) is auto-selected as
+// enrichmentType with enrichmentCount set to THAT stat's own count — not the account's total
+// across every stat, since the UI can only represent one stat + one count at a time. Falls back
+// to the pre-existing behavior (type 'none', count = the flat total) only when the account has
+// zero enrichments on any tracked stat — confirmed by the account owner for that fallback case:
+// an account with 65 Magic-Find-enriched accessories imports as count 65, type 'none', and the
+// player can swap that to Strength to see the hypothetical +65 Strength.
+const ENRICHMENT_STAT_MAP = {
+  strength: "strength",
+  critical_damage: "crit_damage",
+  critical_chance: "crit_chance",
+  intelligence: "intelligence",
+  attack_speed: "bonus_attack_speed",
+};
 // `abiphoneContactCount` (member.nether_island_player_data.abiphone.contact_data key count) adds
 // floor(count/2) bonus Magical Power, but only while an Abicase accessory is owned — user-confirmed.
 // Real per-mob Bestiary tier caps this app models (see frontend/src/lib/bestiaryStrength.js's
@@ -1073,6 +1089,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   let hatMagicalPower = 0;
   let hasAbicase = false;
   let enrichmentCount = 0;
+  const enrichmentCountByStat = {}; // real Hypixel stat id -> count
   let generalsMedallionDigits = 0;
 
   for (const raw of items) {
@@ -1089,7 +1106,10 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     } else {
       bestMagicalPowerById.set(id, Math.max(bestMagicalPowerById.get(id) || 0, magicalPower));
     }
-    if (ea.talisman_enrichment) enrichmentCount++;
+    if (ea.talisman_enrichment) {
+      enrichmentCount++;
+      enrichmentCountByStat[ea.talisman_enrichment] = (enrichmentCountByStat[ea.talisman_enrichment] || 0) + 1;
+    }
     if (id === "ABICASE") hasAbicase = true;
     // Best (highest-digit) copy counts, same dedup treatment as Magical Power/itemStats above —
     // a player rarely owns more than one, but a stale lower-secret-count duplicate shouldn't win.
@@ -1124,7 +1144,21 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     if (total) itemStats[statKey] = Math.round(total * 10) / 10;
   }
 
-  return { magicalPower, itemStats, enrichmentCount, generalsMedallionDigits };
+  // Auto-select the tracked stat (see ENRICHMENT_STAT_MAP) with the most enrichments, so the
+  // Enrichments UI opens pre-set to what the account actually uses instead of always 'none' —
+  // falls back to 'none' (count = the flat total) when no enrichment is on a tracked stat at all.
+  let enrichmentType = "none";
+  let bestTrackedCount = 0;
+  for (const [rawStat, count] of Object.entries(enrichmentCountByStat)) {
+    const mapped = ENRICHMENT_STAT_MAP[rawStat];
+    if (mapped && count > bestTrackedCount) {
+      enrichmentType = mapped;
+      bestTrackedCount = count;
+    }
+  }
+  if (enrichmentType !== "none") enrichmentCount = bestTrackedCount;
+
+  return { magicalPower, itemStats, enrichmentCount, enrichmentType, generalsMedallionDigits };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -1480,10 +1514,11 @@ async function handleHypixelImport(url, env) {
       // owned — see computeLiveAccessoryStats/parseGeneralsMedallionDigits above. 0 (no bonus,
       // matching playerStats.generalsMedallionDigits' own default) when not owned.
       generalsMedallionDigits: liveAccessoryStats.generalsMedallionDigits,
-      // Always imports neutral — the real per-item enrichment stat is usually untracked (Magic
-      // Find, etc.), so this can't grant a real bonus automatically; the player swaps it onto a
-      // tracked stat manually as a "what if" (see computeLiveAccessoryStats' comment).
-      enrichmentType: "none",
+      // Auto-selected to the account's real dominant tracked enrichment stat, with enrichmentCount
+      // above already narrowed to that stat's own count — 'none' (and the flat total) only when
+      // the account has no enrichment on a stat this calculator tracks (see
+      // computeLiveAccessoryStats' comment).
+      enrichmentType: liveAccessoryStats.enrichmentType,
       // slot_0 is the account's currently active Stat Tuning allocation; slots 1-4 are saved
       // presets and aren't imported.
       tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
