@@ -326,9 +326,17 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     books: Math.min(15, summary.hotPotatoBooks || 0),
     recombobulated: !!summary.recombobulated,
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
-    // ExtraAttributes.art_of_war_count (see nbt.js) — real, weapon-only. No confirmed real field
-    // for The Art of Peace yet, so armor keeps the emptyModifiers() default (false) here.
+    // ExtraAttributes.art_of_war_count (see nbt.js) — real, weapon-only.
     artOfWar: !!summary.artOfWar,
+    // nbt.js now captures the real ExtraAttributes.artOfPeaceApplied flag too, but it's NOT
+    // threaded in here yet: live-tested 2026-09-03 against sammui's real Skeleton Master
+    // Chestplate (which genuinely has artOfPeaceApplied: 1) — applying this app's existing
+    // ART_OF_PEACE_STAT_BONUS ({ health: 40 }, see books.js) pushed its computed Health from the
+    // already-exactly-correct 249.4 to 289.4, which does NOT match Hypixel's real displayed total.
+    // That constant is unconfirmed for armor (no real item had the flag set until now) — wiring
+    // the real flag in without a confirmed bonus value would just trade "always off" for "always
+    // wrong". Left unset per CLAUDE.md's don't-guess-game-mechanics rule until the user confirms
+    // the real Art of Peace armor bonus.
     stars,
     masterStars,
     dungeonized: resolveDungeonizedFlag(summary),
