@@ -29,7 +29,7 @@ import { encodeLoadout, decodeLoadoutCode, shortenLoadoutCode } from '../lib/loa
 import { SAVED_LOADOUTS_KEY, loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
 import { computeLoadoutCostBreakdown, LOADOUT_COST_SECTIONS } from '../lib/loadoutCost';
 import { formatCoinsShort } from '../lib/damageFormat';
-import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
+import { ENTRY_DISMISSED_KEY, SHOW_ENTRY_EVENT } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
 import OptimizerSidebar from '../components/OptimizerSidebar';
@@ -126,10 +126,32 @@ export default function Landing() {
     setCostResult((prev) => (prev ? null : computeLoadoutCostBreakdown(loadout, attributes, itemData)));
   }
 
+  // Wipes every bit of this app's own localStorage (current build, saved Loadouts, theme — all of
+  // it, not just the equipped gear) and reloads so every context re-initializes from a genuinely
+  // blank slate, same as a brand-new visitor. Deliberately localStorage.clear() rather than
+  // removing a hand-picked list of hex*/skydmg* keys — guaranteed to stay comprehensive as the app
+  // grows new persisted state, at the cost of also clearing anything else this origin might store.
+  async function handleHardReset() {
+    if (!(await confirmDialog('Hard reset EVERYTHING? This permanently deletes your current build, all saved Loadouts, and every other saved setting. This cannot be undone.'))) return;
+    localStorage.clear();
+    window.location.reload();
+  }
+
   function dismissEntry() {
     sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
     setShowEntry(false);
   }
+
+  // TopBar.jsx's brand/logo click — brings the entry screen back even while already mounted on
+  // "/" (a plain navigate("/") is a no-op in that case, so the initial-state read above never
+  // re-runs on its own).
+  useEffect(() => {
+    function handleShowEntry() {
+      setShowEntry(true);
+    }
+    window.addEventListener(SHOW_ENTRY_EVENT, handleShowEntry);
+    return () => window.removeEventListener(SHOW_ENTRY_EVENT, handleShowEntry);
+  }, []);
 
   function persistSavedLoadouts(next) {
     setSavedLoadouts(next);
@@ -809,6 +831,26 @@ export default function Landing() {
         continue;
       }
 
+      // Bottom-right of the Target Mob block: Hard Reset — a real Barrier block texture (Minecraft's
+      // own "destructive, no going back" icon) so it reads as dangerous at a glance, distinct from
+      // every other slot's item icon. Gated behind confirmDialog (handleHardReset) since this wipes
+      // every bit of this app's own localStorage, not just the current loadout.
+      if (col === 7 && row === 5) {
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} cursor-pointer hover:brightness-110`}
+            title="Hard Reset Everything"
+            onClick={handleHardReset}
+            onMouseEnter={guardHover((e) => showTooltip(['§c§lHard Reset Everything', '§7Wipes your current build, saved', '§7Loadouts, and every other saved', '§7setting. Cannot be undone.'], e.currentTarget))}
+            onMouseLeave={guardHover(hideTooltip)}
+          >
+            <img src="/images/vanilla/Barrier.png" alt="Hard Reset Everything" className="w-[70%] h-[70%] object-contain pixelated" />
+          </div>,
+        );
+        continue;
+      }
+
       // Bottom-left: God Potion — a small dropdown (Off / God Potion / +Mixin) rather than a plain
       // on/off toggle, so a real Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) can be selected
       // alongside turning the potion on.
@@ -866,15 +908,9 @@ export default function Landing() {
           <div className="flex flex-wrap gap-1.5">
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              onClick={handleExportLoadout}
+              onClick={() => navigate('/hypixel-import')}
             >
-              <img src="/images/ui/export.png" alt="" className="w-4 h-4" /> {exportStatus || 'Export'}
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              onClick={handleImportLoadout}
-            >
-              <img src="/images/ui/import.png" alt="" className="w-4 h-4" /> {importStatus || 'Import'}
+              <img src="/images/ui/hypixel.png" alt="" className="w-4 h-4" /> Import from Hypixel
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
@@ -884,21 +920,27 @@ export default function Landing() {
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              onClick={() => navigate('/hypixel-import')}
+              onClick={handleCalculateSetupCost}
             >
-              <img src="/images/ui/hypixel.png" alt="" className="w-4 h-4" /> Hypixel
+              <img src="/images/manual/Coins.webp" alt="" className="w-4 h-4" /> {costResult ? 'Hide Cost' : 'Cost'}
+            </button>
+            <button
+              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+              onClick={handleExportLoadout}
+            >
+              <img src="/images/ui/export.png" alt="" className="w-4 h-4" /> {exportStatus || 'Export to Clipboard'}
+            </button>
+            <button
+              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+              onClick={handleImportLoadout}
+            >
+              <img src="/images/ui/import.png" alt="" className="w-4 h-4" /> {importStatus || 'Import from Clipboard'}
             </button>
             <button
               className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
               onClick={() => navigate('/compare')}
             >
               <img src="/images/manual/comp.webp" alt="" className="w-4 h-4 pixelated" /> Compare
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              onClick={handleCalculateSetupCost}
-            >
-              <img src="/images/manual/Coins.webp" alt="" className="w-4 h-4" /> {costResult ? 'Hide Setup Cost' : 'Setup Cost'}
             </button>
           </div>
           {costResult && (
