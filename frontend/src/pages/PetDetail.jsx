@@ -80,13 +80,13 @@ export default function PetDetail() {
         <h1 className="text-xl font-bold">Pet</h1>
       </header>
 
-      <div className="w-full max-w-[560px] flex flex-wrap items-start gap-2">
-        <div className={`${panel} p-3 flex flex-col gap-2 w-full max-w-[260px] text-[13px]`}>
-          <div className="flex items-center gap-2">
-            <div className={`${slotBase} w-8 h-8`}>
-              <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[70%] h-[70%] object-contain pixelated" />
+      <div className="w-full max-w-[620px] flex flex-wrap items-start gap-2">
+        <div className={`${panel} p-3 flex flex-col gap-2 w-full max-w-[300px] text-[13px]`}>
+          <div className="flex items-center gap-3">
+            <div className={`${slotBase} w-20 h-20 shrink-0`}>
+              <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[75%] h-[75%] object-contain pixelated" />
             </div>
-            <div className="font-bold text-sm" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
+            <div className="font-bold text-base leading-tight" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
               {formatItemName(pet.name)}
             </div>
           </div>
@@ -97,8 +97,17 @@ export default function PetDetail() {
           <NumberInput id="pet-level" max={maxLevel} value={level} onChange={setPetLevel} className="px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700" />
 
           <div className="flex items-center justify-between gap-2 border-t border-neutral-500 pt-2">
-            <div className="text-xs text-black">Pet Item: {petItem ? formatItemName(petItem.name) : 'None'}</div>
-            <div className="flex gap-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className={`${slotBase} w-10 h-10 shrink-0`}>
+                {petItem ? (
+                  <WeaponIcon id={petItem.id} material={petItem.material} alt={petItem.name} className="w-[75%] h-[75%] object-contain pixelated" color={petItem.color} />
+                ) : (
+                  <img src={SLOT_TEXTURES.empty} alt="" className="w-full h-full object-cover pixelated" />
+                )}
+              </div>
+              <div className="text-xs text-black truncate">{petItem ? formatItemName(petItem.name) : 'No Pet Item'}</div>
+            </div>
+            <div className="flex gap-1 shrink-0">
               <button
                 className="px-2 py-1 bg-neutral-800 text-white text-xs cursor-pointer hover:brightness-110"
                 onClick={() => navigate('/pet/item')}
