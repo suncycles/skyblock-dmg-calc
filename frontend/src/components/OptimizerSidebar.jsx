@@ -664,7 +664,7 @@ export default function OptimizerSidebar() {
                     title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
                     className="px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide normal-case cursor-pointer transition-opacity"
                     style={{
-                      color: active ? '#000' : '#666',
+                      color: '#fff',
                       backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
                       opacity: active ? 1 : 0.5,
                     }}
