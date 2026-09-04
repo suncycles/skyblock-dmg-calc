@@ -24,6 +24,7 @@ import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { computeMobDefense, computeMobDefenseMultiplier } from '../lib/mobDefenses';
 import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../lib/armorSetBonuses';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { MOB_TYPE_SYMBOLS, STAT_SYMBOLS } from '../lib/damageSymbols';
@@ -51,6 +52,16 @@ const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide p
 // actually used, same reason as isEnderTarget above.
 const FINAL_DESTINATION_BONUS_BY_KEY = { strength: FINAL_DESTINATION_STRENGTH, bonus_attack_speed: FINAL_DESTINATION_ATTACK_SPEED };
 
+// The four offensive stats worth glancing at mid-build, shown in the sticky readout on Landing.
+// symbolName bridges STAT_LABELS' internal key to STAT_SYMBOLS' display-name key, which has no
+// 'Bonus Attack Speed' entry (see lib/damageSymbols.js's own note on that alias).
+const STICKY_STAT_KEYS = [
+  { key: 'strength', symbolName: 'Strength' },
+  { key: 'crit_chance', symbolName: 'Crit Chance' },
+  { key: 'crit_damage', symbolName: 'Crit Damage' },
+  { key: 'bonus_attack_speed', symbolName: 'Attack Speed' },
+];
+
 // Which stat the Enrichments count currently applies to — see damageSources.js's Enrichments source line.
 const ENRICHMENT_TYPES = [
   { key: 'strength', label: 'Strength', ...STAT_SYMBOLS.Strength },
@@ -60,6 +71,22 @@ const ENRICHMENT_TYPES = [
   { key: 'bonus_attack_speed', label: 'Attack Speed', ...STAT_SYMBOLS['Attack Speed'] },
   { key: 'none', label: 'None', symbol: '✕', color: '#666666' },
 ];
+
+// The mob's real Defense stat and the final multiplier it applies (lib/mobDefenses.js) — shown
+// only when it's actually non-zero, which is the handful of Catacombs mobs with a published
+// number (and, for most of those, only in Master Mode). Replaces a stale "not implemented yet"
+// notice that survived the feature actually shipping.
+function MobDefenseNote({ name, types, masterMode }) {
+  const mob = { name, types };
+  const defense = computeMobDefense(mob, masterMode);
+  if (!defense) return null;
+  return (
+    <div className="text-[11px] text-neutral-700 flex items-baseline justify-between border-t border-neutral-500/40 pt-1 mt-0.5">
+      <span>Mob Defense ({defense.toLocaleString()})</span>
+      <span className="font-mono">{round4(computeMobDefenseMultiplier(mob, masterMode))}x</span>
+    </div>
+  );
+}
 
 function Section({ title, subtitle, children, empty }) {
   return (
@@ -121,6 +148,7 @@ export default function DamageSources({ embedded = false }) {
   } = useBuild();
   const { itemData } = useItemData();
   const { confirmDialog, alertDialog } = useConfirmDialog();
+  const resultsRef = useRef(null); // scroll target for the sticky headline readout below
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
   const [expandedStat, setExpandedStat] = useState(null);
@@ -399,6 +427,45 @@ export default function DamageSources({ embedded = false }) {
     ? BASE_STAT_KEYS.filter((k) => MAGE_MODE_STAT_KEYS.has(k))
     : BASE_STAT_KEYS.filter((k) => k !== 'intelligence' && k !== 'ability_damage');
 
+  // Which of the six precomputed base-stat tables the current Dungeonized/Master/Mythological
+  // toggles select. Extracted so the sticky readout's stat strip and the (Base) Stats panel can't
+  // drift apart — both read the same number for a given stat key.
+  function selectDisplayedStat(key) {
+    if (!result) return 0;
+    if (!useDungeonizedStats) return isMythologicalTarget ? result.mythologicalBaseStats[key] : result.baseStats[key];
+    if (useMasterMode)
+      return isMythologicalTarget ? result.mythologicalMasterDungeonizedBaseStats[key] : result.masterDungeonizedBaseStats[key];
+    return isMythologicalTarget ? result.mythologicalDungeonizedBaseStats[key] : result.dungeonizedBaseStats[key];
+  }
+
+  // Headline for the sticky readout (embedded/Landing only). Damage has always recalculated
+  // live, but the number sat ~1.5 screens below the gear grid, so editing gear and reading its
+  // effect were never on screen at the same time — every change cost a scroll down and back.
+  // Reuses the numbers already computed above rather than re-deriving anything.
+  const stickyHeadline = (() => {
+    if (targetMobs.length === 0 || !result) return null;
+    if (mageMode) {
+      const r = abilityMobResults[0];
+      if (!r) return null;
+      if (hasAbilityWeapon && r.abilityDamage) {
+        return { mob: r.name, label: 'Ability', value: r.abilityDamage.finalDamage.toLocaleString() };
+      }
+      if (r.beamDamage) {
+        return { mob: r.name, label: 'Beam', value: r.beamDamage.finalDamage.toLocaleString() };
+      }
+      return null;
+    }
+    const r = mobResults[0];
+    if (!r || !r.finalDamage) return null;
+    return {
+      mob: r.name,
+      label: r.finalDamageWithFabledMax ? 'Final Damage (Fabled)' : 'Final Damage',
+      value: r.finalDamageWithFabledMax
+        ? `${r.finalDamage.finalDamage.toLocaleString()} ~ ${r.finalDamageWithFabledMax.finalDamage.toLocaleString()}`
+        : r.finalDamage.finalDamage.toLocaleString(),
+    };
+  })();
+
   return (
     <div className={embedded ? 'w-full flex flex-col items-center' : 'min-h-screen flex flex-col items-center p-4'}>
       {!embedded && <PageHeader title="Damage Sources" />}
@@ -498,7 +565,7 @@ export default function DamageSources({ embedded = false }) {
           ))}
         </div>
       ) : (
-        <div className="w-full max-w-[700px] flex flex-col gap-3">
+        <div ref={resultsRef} className="w-full max-w-[700px] flex flex-col gap-3">
           {targetMobs.length === 0 ? (
             <div className={`${panel} p-4 flex flex-col gap-2`}>
               <div className={sectionTitle}>Final Damage</div>
@@ -773,11 +840,7 @@ export default function DamageSources({ embedded = false }) {
                         </span>
                       </div>
                     )}
-                    {useDungeonizedStats && (
-                      <div className="text-[10px] italic text-neutral-600">
-                        Mob Defense is currently not implemented but will be coming soon
-                      </div>
-                    )}
+                    <MobDefenseNote name={name} types={types} masterMode={useMasterMode} />
                   </>
                 )}
               </div>
@@ -859,11 +922,7 @@ export default function DamageSources({ embedded = false }) {
                         </div>
                       )}
                     </div>
-                    {useDungeonizedStats && (
-                      <div className="text-[10px] italic text-neutral-600">
-                        Mob Defense is currently not implemented but will be coming soon
-                      </div>
-                    )}
+                    <MobDefenseNote name={name} types={types} masterMode={useMasterMode} />
                   </>
                 )}
               </div>
@@ -881,17 +940,7 @@ export default function DamageSources({ embedded = false }) {
               >
                 {visibleStatKeys.map((key) => {
                   const isExpanded = expandedStat === key;
-                  const baseDisplayed = !useDungeonizedStats
-                    ? isMythologicalTarget
-                      ? result.mythologicalBaseStats[key]
-                      : result.baseStats[key]
-                    : useMasterMode
-                      ? isMythologicalTarget
-                        ? result.mythologicalMasterDungeonizedBaseStats[key]
-                        : result.masterDungeonizedBaseStats[key]
-                      : isMythologicalTarget
-                        ? result.mythologicalDungeonizedBaseStats[key]
-                        : result.dungeonizedBaseStats[key];
+                  const baseDisplayed = selectDisplayedStat(key);
                   const finalDestinationBonus =
                     result.hasFinalDestinationFullSet && isEnderTarget ? FINAL_DESTINATION_BONUS_BY_KEY[key] || 0 : 0;
                   const displayed = baseDisplayed + finalDestinationBonus;
@@ -1239,6 +1288,36 @@ export default function DamageSources({ embedded = false }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Bottom-LEFT, not a full-width bar: keeps clear of GlobalFooter's bottom-right cluster and
+          OptimizerSidebar's lg:right-4 rail. Only on Landing (`embedded`) — the standalone
+          /damage-sources page already has these numbers at the top of the viewport. */}
+      {embedded && stickyHeadline && (
+        <button
+          type="button"
+          onClick={() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="fixed bottom-2 left-2 z-30 max-w-[calc(100vw-1rem)] flex items-baseline gap-2 px-3 py-2 text-left cursor-pointer bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black hover:brightness-110"
+          title="Jump to the full damage breakdown"
+        >
+          <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-700 shrink-0">
+            {stickyHeadline.label}
+            <span className="block font-normal normal-case tracking-normal truncate">vs {stickyHeadline.mob}</span>
+          </span>
+          <span className="text-lg font-mono font-bold text-black whitespace-nowrap">{stickyHeadline.value}</span>
+          {/* The offensive stats a player actually checks while swapping gear. Dropped below `sm`
+              where the pill has no room; the full (Base) Stats panel is one tap away regardless. */}
+          <span className="hidden sm:flex items-baseline gap-2 pl-2 ml-1 border-l border-neutral-500/50 text-[10px] font-mono text-neutral-700">
+            {STICKY_STAT_KEYS.map(({ key, symbolName }) => {
+              const meta = STAT_SYMBOLS[symbolName];
+              return (
+                <span key={key} style={{ color: meta.color }} title={STAT_LABELS[key].label}>
+                  {meta.symbol} {formatStatValue(key, Math.round(selectDisplayedStat(key) * 10) / 10)}
+                </span>
+              );
+            })}
+          </span>
+        </button>
       )}
     </div>
   );
