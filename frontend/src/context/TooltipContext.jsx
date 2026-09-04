@@ -14,19 +14,39 @@ export function isTouchDevice() {
 }
 
 export function TooltipProvider({ children }) {
-  const [tooltip, setTooltip] = useState(null); // { lines, anchorRect } | null
+  const [tooltip, setTooltip] = useState(null); // { lines, point } | null
   const location = useLocation();
   // Which tap-primed target (an arbitrary caller-chosen key, e.g. a gear slot name) currently has
   // its tooltip open awaiting a confirm tap, and the DOM node that opened it — refs, not state,
   // since they're only ever read/written imperatively inside event handlers, never render.
   const primedKeyRef = useRef(null);
   const primedAnchorRef = useRef(null);
+  // Latest real cursor/touch position, tracked passively so showTooltip (called from every
+  // caller's own onMouseEnter with just an anchor element, not the event) can still open the
+  // tooltip at the cursor instead of the anchor's own (sometimes much wider/taller) bounding box —
+  // user-reported: with the old anchor-rect positioning, tooltips on a wide grid cell opened far
+  // to the right of wherever the mouse actually was inside it.
+  const pointerPosRef = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    function onPointerMove(e) {
+      const point = e.touches?.[0] || e;
+      pointerPosRef.current = { x: point.clientX, y: point.clientY };
+    }
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('touchstart', onPointerMove);
+    document.addEventListener('touchmove', onPointerMove);
+    return () => {
+      document.removeEventListener('mousemove', onPointerMove);
+      document.removeEventListener('touchstart', onPointerMove);
+      document.removeEventListener('touchmove', onPointerMove);
+    };
+  }, []);
 
   const showTooltip = useCallback((rawLines, anchorEl) => {
     if (!anchorEl) return;
     setTooltip({
       lines: rawLines.map(parseMinecraftLine),
-      anchorRect: anchorEl.getBoundingClientRect(),
+      point: pointerPosRef.current,
     });
   }, []);
 
@@ -89,29 +109,35 @@ export function TooltipProvider({ children }) {
   return (
     <TooltipContext.Provider value={{ showTooltip, hideTooltip, handleTapOrActivate, guardHover }}>
       {children}
-      {tooltip && <TooltipEl lines={tooltip.lines} anchorRect={tooltip.anchorRect} />}
+      {tooltip && <TooltipEl lines={tooltip.lines} point={tooltip.point} />}
     </TooltipContext.Provider>
   );
 }
 
-function TooltipEl({ lines, anchorRect }) {
+// Opens offset from the cursor (+50 right, -50 up — above and to the right of the pointer, out
+// from under it) rather than anchored to the hovered element's own bounding box, then clamped
+// back on-screen exactly like the old anchor-rect version was.
+const CURSOR_OFFSET_X = 50;
+const CURSOR_OFFSET_Y = -50;
+
+function TooltipEl({ lines, point }) {
   const elRef = useRef(null);
-  const [pos, setPos] = useState({ left: anchorRect.right + 8, top: anchorRect.top });
+  const [pos, setPos] = useState({ left: point.x + CURSOR_OFFSET_X, top: point.y + CURSOR_OFFSET_Y });
 
   useLayoutEffect(() => {
     const el = elRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    let left = anchorRect.right + 8;
+    let left = point.x + CURSOR_OFFSET_X;
     if (left + rect.width > window.innerWidth) {
-      left = anchorRect.left - rect.width - 8;
+      left = point.x - rect.width - 8;
     }
-    let top = anchorRect.top;
+    let top = point.y + CURSOR_OFFSET_Y;
     if (top + rect.height > window.innerHeight) {
       top = window.innerHeight - rect.height - 4;
     }
     setPos({ left: Math.max(4, left), top: Math.max(4, top) });
-  }, [anchorRect, lines]);
+  }, [point, lines]);
 
   return (
     <div ref={elRef} className="mc-tooltip" style={{ left: pos.left, top: pos.top }}>
