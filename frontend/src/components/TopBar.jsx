@@ -4,10 +4,25 @@ import { getPageLabel } from '../lib/pageTitles';
 import { ENTRY_DISMISSED_KEY, SHOW_ENTRY_EVENT } from '../lib/entryScreen';
 import { useBuild } from '../context/BuildContext';
 
-const MENU_LINKS = [
-  { to: '/tutorial', label: 'Tutorial', icon: '/images/manual/tutorial_icon.png' },
-  { to: '/examples', label: 'Examples', icon: '/images/manual/Armor_Stand.png' },
-  { to: '/resources', label: 'Calculations', icon: '/images/manual/calculations_icon.png' },
+// Build tools first (Compare/Optimize/Import were previously reachable *only* from Landing's
+// toolbar — nothing in the app's own nav pointed at them), then the reference pages.
+const MENU_SECTIONS = [
+  {
+    title: 'Build',
+    links: [
+      { to: '/hypixel-import', label: 'Import from Hypixel', icon: '/images/manual/cmd.webp' },
+      { to: '/compare', label: 'Compare', icon: '/images/manual/Armor_Stand.png' },
+      { to: '/optimizer', label: 'Damage Optimizer', icon: '/images/manual/dmg.webp' },
+    ],
+  },
+  {
+    title: 'Guides',
+    links: [
+      { to: '/tutorial', label: 'Tutorial', icon: '/images/manual/tutorial_icon.png' },
+      { to: '/examples', label: 'Examples', icon: '/images/manual/Armor_Stand.png' },
+      { to: '/resources', label: 'Calculations', icon: '/images/manual/calculations_icon.png' },
+    ],
+  },
 ];
 
 // Persistent (survives browser restarts, unlike entryScreen.js's ENTRY_DISMISSED_KEY which is
@@ -79,20 +94,6 @@ export default function TopBar() {
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               )}
             </button>
-            {showFirstLaunchHint && !menuOpen && (
-              <div className="absolute left-0 top-full mt-2 w-56 z-50 bg-emerald-600 text-white text-[12px] leading-snug rounded-lg shadow-lg p-3 pr-6 animate-[bg-video-fade-in_300ms_ease-out]">
-                <button
-                  type="button"
-                  aria-label="Dismiss"
-                  onClick={dismissFirstLaunchHint}
-                  className="absolute top-1 right-1.5 w-4 h-4 flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
-                >
-                  ✕
-                </button>
-                <span className="font-bold block mb-0.5">New here?</span>
-                Open this menu to find the Tutorial and other guides.
-              </div>
-            )}
           </div>
           <Link
             to="/"
@@ -104,7 +105,18 @@ export default function TopBar() {
           </Link>
           {pageLabel && (
             <>
+              {/* The brand itself deliberately opens the entry screen (see handleBrandClick), so
+                  it can't double as "back to my build" — without this crumb there was no one-click
+                  way back to the loadout grid from any picker. A plain Link to "/" leaves
+                  ENTRY_DISMISSED_KEY alone, so Landing renders the grid. */}
               <span className="text-white/25 text-sm select-none">/</span>
+              <Link
+                to="/"
+                className="hidden sm:inline text-[13px] font-medium text-white/50 hover:text-white transition-colors shrink-0"
+              >
+                Loadout
+              </Link>
+              <span className="hidden sm:inline text-white/25 text-sm select-none">/</span>
               <span className="text-[13px] font-medium text-white/65 truncate">{pageLabel}</span>
             </>
           )}
@@ -135,17 +147,19 @@ export default function TopBar() {
                 <RedoIcon />
               </button>
             </div>
+            {/* Damage carries the emphasis, not Credits — it's the app's whole point, and the
+                previous weighting had the least-used link rendered boldest. */}
             {pathname === '/damage-sources' ? (
-              <span className="text-white/30 cursor-default">Damage</span>
+              <span className="font-bold text-white/60 cursor-default">Damage</span>
             ) : (
-              <Link to="/damage-sources" className="text-white/50 hover:text-white transition-colors">
+              <Link to="/damage-sources" className="font-bold text-white hover:text-white/80 transition-colors">
                 Damage
               </Link>
             )}
             {pathname === '/credits' ? (
-              <span className="font-bold text-white/60 cursor-default">Credits</span>
+              <span className="text-white/30 cursor-default">Credits</span>
             ) : (
-              <Link to="/credits" className="font-bold text-white hover:text-white/80 transition-colors">
+              <Link to="/credits" className="hidden sm:inline text-white/50 hover:text-white transition-colors">
                 Credits
               </Link>
             )}
@@ -177,16 +191,23 @@ export default function TopBar() {
             ✕
           </button>
         </div>
-        <nav className="p-2 flex flex-col gap-0.5">
-          {MENU_LINKS.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[14px] font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <img src={item.icon} alt="" className="w-5 h-5 shrink-0 pixelated" />
-              {item.label}
-            </Link>
+        <nav className="p-2 flex flex-col gap-0.5 overflow-y-auto">
+          {MENU_SECTIONS.map((section) => (
+            <div key={section.title} className="flex flex-col gap-0.5">
+              <span className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-white/35">
+                {section.title}
+              </span>
+              {section.links.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[14px] font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <img src={item.icon} alt="" className="w-5 h-5 shrink-0 pixelated" />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>
