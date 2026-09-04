@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
-import { rarityColorCode, formatItemName, parseMinecraftLine } from '../lib/mcText';
+import { rarityColorCode, formatItemName, parseMinecraftLine, MC_COLORS } from '../lib/mcText';
 import { petLoreItemId, buildPetTooltipLines, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { parseShorthandNumber } from '../lib/numberInput';
@@ -86,7 +86,7 @@ export default function PetDetail() {
             <div className={`${slotBase} w-20 h-20 shrink-0`}>
               <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[75%] h-[75%] object-contain pixelated" />
             </div>
-            <div className="font-bold text-base leading-tight" style={{ color: MC_HEX[rarityColorCode(pet.tier)] }}>
+            <div className="font-bold text-base leading-tight" style={{ color: MC_COLORS[rarityColorCode(pet.tier)] }}>
               {formatItemName(pet.name)}
             </div>
           </div>
@@ -186,9 +186,3 @@ export default function PetDetail() {
   );
 }
 
-const MC_HEX = {
-  0: '#000000', 1: '#0000aa', 2: '#00aa00', 3: '#00aaaa',
-  4: '#aa0000', 5: '#aa00aa', 6: '#ffaa00', 7: '#aaaaaa',
-  8: '#555555', 9: '#5555ff', a: '#55ff55', b: '#55ffff',
-  c: '#ff5555', d: '#ff55ff', e: '#ffff55', f: '#ffffff',
-};

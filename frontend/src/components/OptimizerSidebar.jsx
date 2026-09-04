@@ -157,7 +157,7 @@ function UpgradeRow({ result, onSwapIn, onSkip }) {
   const isMasterStar = result.category === 'Master Stars';
   const coinsPerPercent = formatCoinsPerPercent(result.cost, result.percentIncrease);
   return (
-    <div className="w-full flex items-stretch bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 transition-colors">
+    <div className="group w-full flex items-stretch bg-[#8b8b8b]/40 hover:bg-[#8b8b8b]/70 border border-black/30 transition-colors">
       <button
         type="button"
         onClick={() => onSwapIn(result)}
@@ -194,11 +194,14 @@ function UpgradeRow({ result, onSwapIn, onSkip }) {
           </span>
           <span className="text-[11px] text-black truncate">{result.label}</span>
           <span className="text-[9px] text-neutral-700">
-            Cost: {formatCoinsShort(result.cost)}
-            {coinsPerPercent && ` · ${coinsPerPercent}/%`}
+            {/* A bare "Cost: ?" read as a bug rather than as "we have no price for this". */}
+            {typeof result.cost === 'number' && Number.isFinite(result.cost)
+              ? `Cost: ${formatCoinsShort(result.cost)}${coinsPerPercent ? ` · ${coinsPerPercent}/%` : ''}`
+              : 'Cost: unpriced'}
           </span>
         </div>
         <span className="text-[11px] font-mono font-bold text-green-500 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
+        <span className="hidden group-hover:inline text-[9px] font-bold uppercase text-black whitespace-nowrap">Equip</span>
       </button>
       <button
         type="button"
@@ -600,6 +603,10 @@ export default function OptimizerSidebar() {
             </button>
           </div>
         </div>
+        {/* One-click apply is this panel's most useful feature and nothing said so — the rows read
+            as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
+            the app means "remove this item". */}
+        <div className="text-[10px] text-neutral-700">Click a row to equip it · ✕ hides a suggestion</div>
         <div className="grid grid-cols-2 gap-1">
           {OPTIMIZER_MODES.map((m) => (
             <button
