@@ -8,6 +8,7 @@ import { getVariantTierItems } from '../lib/armorVariants';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
+import PickerLoadingState from '../components/PickerLoadingState';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -19,13 +20,15 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 export default function ArmorVariantTierPicker() {
   const { slot, family } = useParams();
   const navigate = useNavigate();
-  const { itemData } = useItemData();
+  const { itemData, loading } = useItemData();
   const { selectItem } = useBuild();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
 
   const tiers = useMemo(() => getVariantTierItems(itemData.armor, family, slot), [itemData.armor, family, slot]);
   const label = ARMOR_SLOT_LABELS[slot] || 'Armor';
   const familyLabel = family ? family.charAt(0) + family.slice(1).toLowerCase() : '';
+
+  if (loading) return <PickerLoadingState title={`${familyLabel} ${label} Tier`} />;
 
   function handleSelect(item) {
     selectItem(slot, item);

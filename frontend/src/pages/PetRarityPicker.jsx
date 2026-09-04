@@ -15,6 +15,7 @@ import {
 import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES } from '../lib/icons';
 import WeaponIcon from '../components/WeaponIcon';
+import PickerLoadingState from '../components/PickerLoadingState';
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b] shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
@@ -26,13 +27,15 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 export default function PetRarityPicker() {
   const { petId } = useParams();
   const navigate = useNavigate();
-  const { itemData } = useItemData();
+  const { itemData, loading } = useItemData();
   const { selectItem } = useBuild();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const hoveredRarityRef = useRef(null);
 
   const name = derivePetDisplayName(petId);
   const rarities = useMemo(() => getAvailableRarities(itemData.pets, petId), [itemData.pets, petId]);
+
+  if (loading) return <PickerLoadingState title={`${name} Rarity`} />;
 
   function handleSelect(rarity) {
     selectItem('pet', { id: `${petId}_${rarity}`, petId, name, tier: rarity, material: 'BONE' });
