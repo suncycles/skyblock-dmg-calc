@@ -646,6 +646,15 @@ export default function OptimizerSidebar() {
             as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
             the app means "remove this item". */}
         <div className="text-[10px] text-neutral-700">Click a row to equip it · ✕ hides a suggestion</div>
+        {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
+            a tooltip or a footnote. The ranking is a single-swap search against the current build,
+            so it can't see multi-piece set bonuses, attribute breakpoints, or anything it has no
+            price for; a player reading "+90.9%" as "this is the best move available" is the exact
+            misreading worth spending the space to prevent. */}
+        <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 bg-amber-400/10 border border-amber-400/30 rounded px-1.5 py-1">
+          <span aria-hidden="true" className="shrink-0 leading-none pt-px">⚠</span>
+          <span>These are ranked one swap at a time — not necessarily the most effective upgrades overall.</span>
+        </div>
         <div className="grid grid-cols-2 gap-1">
           {OPTIMIZER_MODES.map((m) => (
             <button
