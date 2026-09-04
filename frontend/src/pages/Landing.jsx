@@ -129,6 +129,32 @@ export default function Landing() {
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const { confirmDialog, alertDialog } = useConfirmDialog();
   const damageSectionRef = useRef(null);
+  // The sticky damage readout (rendered by DamageSources) is a fixed overlay in the bottom band —
+  // the same band this page's "View Damage Breakdown" button sits in at the default scroll
+  // position. It covered 199x47px of the button, and the button's own centre stopped hit-testing
+  // to the button. The two do the same job, so exactly one is ever needed: the readout hides while
+  // the button is on screen. Observed HERE rather than inside DamageSources because a plain ref
+  // passed into a lazy child is read once, before the child's effect can see it attached — a
+  // callback ref into state fires exactly when the node lands, with no timing hole.
+  const [jumpButtonEl, setJumpButtonEl] = useState(null);
+  const [jumpButtonVisible, setJumpButtonVisible] = useState(false);
+  // A plain rect check on scroll rather than IntersectionObserver: same result, and it can be
+  // verified directly (an IO callback never fires inside the headless preview surface used to
+  // test this, so an IO-based version was untestable). One passive listener for one element.
+  useEffect(() => {
+    if (!jumpButtonEl) return;
+    const update = () => {
+      const r = jumpButtonEl.getBoundingClientRect();
+      setJumpButtonVisible(r.bottom > 0 && r.top < window.innerHeight);
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [jumpButtonEl]);
   const [exportStatus, setExportStatus] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
   const [savedLoadouts, setSavedLoadouts] = useState(loadSavedLoadoutsFromStorage);
@@ -1072,6 +1098,7 @@ export default function Landing() {
       <OptimizerSidebar />
 
       <button
+        ref={setJumpButtonEl}
         className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer flex items-center gap-2"
         onClick={() => damageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
       >
@@ -1083,7 +1110,7 @@ export default function Landing() {
           equipping gear above and reading its damage breakdown below now happen on one page. */}
       <div ref={damageSectionRef} className="w-full mt-6 pt-6 border-t-2 border-white/10 flex flex-col items-center">
         <Suspense fallback={<div className="text-sm text-neutral-400">Loading damage calculation...</div>}>
-          <DamageSources embedded />
+          <DamageSources embedded hideSticky={jumpButtonVisible} />
         </Suspense>
       </div>
 

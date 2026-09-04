@@ -106,11 +106,15 @@ html {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-/* Popup/modal panels (ConfirmDialogContext, ArmorOptions/EquipmentOptions) float over whatever
-   page opened them — the usual translucent glass lets that page show through behind the dialog's
-   own text, hurting legibility exactly like the grid behind them. Same unlayered-override trick as
-   the glass rule above; wins by appearing after it. */
-.popup-panel {
+/* Anything that floats OVER other content opts out of the translucent glass above and paints a
+   solid surface instead: modals (ConfirmDialogContext, ArmorOptions/EquipmentOptions), the
+   Recommended Upgrades window, the sticky damage readout. Glass is right for panels that sit in
+   the page's own flow — it's wrong the moment a surface is stacked on top of one, because the
+   text underneath shows straight through the text on top. Measured on Landing before this:
+   3 strings behind the damage readout, 6 behind the footer, 6 behind the top bar while scrolled.
+   Same unlayered-override trick as the glass rule above; wins by appearing after it. `text-black`
+   is relit to near-white further down, so a dark solid surface is the legible pairing. */
+.opaque-panel {
   background-color: rgb(30, 32, 38);
   background-image: none;
   backdrop-filter: none;

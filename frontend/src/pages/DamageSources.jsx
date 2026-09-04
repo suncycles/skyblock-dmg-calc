@@ -105,7 +105,7 @@ function Section({ title, subtitle, children, empty }) {
 // (Landing.jsx already has both a header and its own OptimizerSidebar) — everything else renders
 // identically either way, including the Mage/DPS toggles, now inline instead of in PageHeader's
 // `right` slot so they're the same markup in both contexts.
-export default function DamageSources({ embedded = false }) {
+export default function DamageSources({ embedded = false, hideSticky = false }) {
   const navigate = useNavigate();
   const {
     loadout,
@@ -149,6 +149,7 @@ export default function DamageSources({ embedded = false }) {
   const { itemData } = useItemData();
   const { confirmDialog, alertDialog } = useConfirmDialog();
   const resultsRef = useRef(null); // scroll target for the sticky headline readout below
+
   const [result, setResult] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
   const [expandedStat, setExpandedStat] = useState(null);
@@ -1293,11 +1294,11 @@ export default function DamageSources({ embedded = false }) {
       {/* Bottom-LEFT, not a full-width bar: keeps clear of GlobalFooter's bottom-right cluster and
           OptimizerSidebar's lg:right-4 rail. Only on Landing (`embedded`) — the standalone
           /damage-sources page already has these numbers at the top of the viewport. */}
-      {embedded && stickyHeadline && (
+      {embedded && stickyHeadline && !hideSticky && (
         <button
           type="button"
           onClick={() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          className="fixed bottom-2 left-2 z-30 max-w-[calc(100vw-1rem)] flex items-baseline gap-2 px-3 py-2 text-left cursor-pointer bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black hover:brightness-110"
+          className="opaque-panel fixed bottom-2 left-2 z-30 max-w-[calc(100vw-1rem)] flex items-baseline gap-2 px-3 py-2 text-left cursor-pointer bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black hover:brightness-110"
           title="Jump to the full damage breakdown"
         >
           <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-700 shrink-0">

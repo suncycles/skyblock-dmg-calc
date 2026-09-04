@@ -596,7 +596,9 @@ export default function OptimizerSidebar() {
             onMouseDown={handleResizeStart(dir)}
           />
         ))}
-      <div className={`${panel} p-2 flex flex-col gap-1.5`}>
+      {/* opaque-panel: this is a floating window the user drags over the gear grid and the damage
+          breakdown — glass here means their text reads through this panel's own. */}
+      <div className={`${panel} opaque-panel p-2 flex flex-col gap-1.5`}>
         {/* Title and sort buttons stack rather than share a line: at the panel's 280px default the
             two competed for width, and adding the grip glyph tipped the title into truncating
             ("RECOMMENDED UPGRA..."). Stacking also makes the top row read as a real title bar,
