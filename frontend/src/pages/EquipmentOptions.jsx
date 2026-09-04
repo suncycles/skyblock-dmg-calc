@@ -20,7 +20,7 @@ export default function EquipmentOptions({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className={`${panel} w-full max-w-[420px] p-4 flex flex-col gap-3`} onClick={(e) => e.stopPropagation()}>
+      <div className={`${panel} popup-panel w-full max-w-[420px] p-4 flex flex-col gap-3`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-black">Equipment Options</h2>
           <button

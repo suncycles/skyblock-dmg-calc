@@ -116,6 +116,16 @@ html {
   -webkit-backdrop-filter: none;
 }
 
+/* Popup/modal panels (ConfirmDialogContext, ArmorOptions/EquipmentOptions) float over whatever
+   page opened them — the usual translucent glass lets that page show through behind the dialog's
+   own text, hurting legibility exactly like the search dropdown above. Same fix, same reasoning. */
+.popup-panel {
+  background-color: rgb(30, 32, 38);
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 /* Inset/slot panels — item slots, the Misc sub-panel, etc. */
 .bg-\[\#8b8b8b\],
 .bg-\[\#8b8b8b\]\/80 {
