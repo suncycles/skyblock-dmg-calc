@@ -47,27 +47,24 @@ function savePersistedLevels(id, levels) {
 
 // Mirrors worker/src/index.js's fetchEnchantLevel — a 404 is the only response that really means
 // "this level doesn't exist"; a rate-limit, 5xx or dropped connection used to read the same way
-// and silently truncate the enchant. Retries transient failures, then reports UNKNOWN so the
-// caller refuses to cache (and, here, refuses to PERSIST) a guess.
+// and silently truncate the enchant. Not retried, for the same reason as the worker's copy: the
+// usual cause is the host throttling us, and retrying adds load. Reports UNKNOWN instead, so a
+// partial probe is kept but never persisted as if it were the complete list.
 const LEVEL_UNKNOWN = Symbol('enchant-level-unknown');
-const LEVEL_FETCH_RETRIES = 3;
 
 async function fetchLevel(fileId, level) {
   const url = `${NEU_ITEMS_BASE}/${encodeURIComponent(`${fileId};${level}`)}.json`;
-  for (let attempt = 0; attempt < LEVEL_FETCH_RETRIES; attempt++) {
-    try {
-      const res = await fetch(url);
-      if (res.status === 404) return null;
-      if (res.ok) {
-        const data = await res.json();
-        return { level, lore: data.lore || [] };
-      }
-    } catch {
-      // Network failure — transient, retried below exactly like a 429/5xx.
+  try {
+    const res = await fetch(url);
+    if (res.status === 404) return null;
+    if (res.ok) {
+      const data = await res.json();
+      return { level, lore: data.lore || [] };
     }
-    if (attempt < LEVEL_FETCH_RETRIES - 1) await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
+    return LEVEL_UNKNOWN;
+  } catch {
+    return LEVEL_UNKNOWN;
   }
-  return LEVEL_UNKNOWN;
 }
 
 // Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then
@@ -93,11 +90,11 @@ async function probeLevels(fileId, enchantsMeta) {
     level += 1;
     results.push(await fetchLevel(fileId, level));
   }
-  // null = "couldn't resolve right now", distinct from [] = "no such enchant" — see the caller,
-  // which must not persist a truncated list to localStorage where it would outlive the outage.
-  if (results.includes(LEVEL_UNKNOWN)) return null;
-  const found = results.filter(Boolean);
-  if (found.length > 0) return found;
+  // `complete` gates persistence: a truncated list must not reach localStorage, where it would
+  // outlive the outage that caused it and cap the enchant indefinitely.
+  const complete = !results.includes(LEVEL_UNKNOWN);
+  const found = results.filter((r) => r && r !== LEVEL_UNKNOWN);
+  if (found.length > 0) return { levels: found, complete };
   // The head-start above assumes real levels start at 1 and go up — true for every normal
   // combinable enchant, but not for a rare one dropped pre-leveled directly from a boss with no
   // lower levels at all: "The One" (ultimate_the_one) only has real data at ULTIMATE_THE_ONE;4 and
@@ -106,12 +103,20 @@ async function probeLevels(fileId, enchantsMeta) {
   // level up to the ceiling only when the head start found nothing at all, so this never costs
   // extra requests for the common (starts-at-1) case.
   const fullSweep = await Promise.all(Array.from({ length: MAX_PROBE_LEVEL }, (_, i) => fetchLevel(fileId, i + 1)));
-  if (fullSweep.includes(LEVEL_UNKNOWN)) return null;
-  return fullSweep.filter(Boolean);
+  return {
+    levels: fullSweep.filter((r) => r && r !== LEVEL_UNKNOWN),
+    complete: !fullSweep.includes(LEVEL_UNKNOWN),
+  };
 }
+
+// Mirrors the worker's ENCHANT_FILE_ID_ALIASES — aliases NEU's own mapping tables miss. Duplex is
+// filed under its pre-rename id ULTIMATE_REITERATE (verified 2026-09-04).
+const ENCHANT_FILE_ID_ALIASES = { ultimate_duplex: 'ULTIMATE_REITERATE' };
 
 // Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").
 function resolveAlternateFileId(enchantsMeta, id) {
+  const alias = ENCHANT_FILE_ID_ALIASES[id.toLowerCase()];
+  if (alias) return alias;
   const mapItem = (enchantsMeta && enchantsMeta.enchant_mapping_item) || [];
   const mapId = (enchantsMeta && enchantsMeta.enchant_mapping_id) || [];
   const key = id.toLowerCase();
@@ -163,8 +168,13 @@ function buildVenomousLevels() {
 export function fetchEnchantLevels(id, enchantsMeta) {
   if (id.toLowerCase() === 'venomous') return Promise.resolve(buildVenomousLevels());
 
-  const serverLevels = enchantsMeta?.levelData?.[id.toLowerCase()];
-  if (serverLevels) return Promise.resolve(serverLevels);
+  // A server entry is only trustworthy when the worker finished probing it — an id on the
+  // incomplete list is served short, so fall through to a live probe instead of capping the
+  // enchant at whatever the throttled rebuild happened to reach.
+  const key = id.toLowerCase();
+  const serverIncomplete = (enchantsMeta?.levelDataIncomplete || []).includes(key);
+  const serverLevels = enchantsMeta?.levelData?.[key];
+  if (serverLevels && !serverIncomplete) return Promise.resolve(serverLevels);
 
   if (levelsCache.has(id)) return levelsCache.get(id);
 
@@ -176,19 +186,20 @@ export function fetchEnchantLevels(id, enchantsMeta) {
   }
 
   const promise = (async () => {
-    let levels = await probeLevels(id.toUpperCase(), enchantsMeta);
-    if (levels && levels.length === 0) {
+    let result = await probeLevels(id.toUpperCase(), enchantsMeta);
+    if (result.levels.length === 0) {
       const altFileId = resolveAlternateFileId(enchantsMeta, id);
-      if (altFileId) levels = await probeLevels(altFileId, enchantsMeta);
+      if (altFileId) result = await probeLevels(altFileId, enchantsMeta);
     }
-    // Unresolved (null) is never persisted and never memoized — the next call retries instead of
-    // freezing an outage into a permanently short enchant list.
-    if (!levels) {
+    // An incomplete probe is used for this render but neither persisted nor memoized, so the next
+    // call retries instead of freezing an outage into a permanently short enchant list. Falls back
+    // to the worker's own (also short) copy if the live probe got nothing at all.
+    if (!result.complete) {
       levelsCache.delete(id);
-      return [];
+      return result.levels.length > 0 ? result.levels : serverLevels || [];
     }
-    savePersistedLevels(id, levels);
-    return levels;
+    savePersistedLevels(id, result.levels);
+    return result.levels;
   })();
 
   levelsCache.set(id, promise);
