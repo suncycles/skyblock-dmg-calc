@@ -7,6 +7,7 @@ import { rarityColorCode } from '../lib/mcText';
 import { getApplicableReforges, getReforgeStatBonus, formatStatValue, STAT_LABELS } from '../lib/reforgeData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON, getReforgeStoneIcon } from '../lib/icons';
+import PickerLoadingState from '../components/PickerLoadingState';
 
 const PAGE_SIZE = 28;
 
@@ -22,7 +23,7 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 export default function ReforgesPicker({ blacksmith }) {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { itemData } = useItemData();
+  const { itemData, loading } = useItemData();
   const { loadout, applyReforge } = useBuild();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [page, setPage] = useState(0);
@@ -30,6 +31,8 @@ export default function ReforgesPicker({ blacksmith }) {
   const weapon = loadout[slot] && loadout[slot].item;
   const reforgeSource = blacksmith ? itemData.reforges : itemData.reforgeStones;
   const noun = blacksmith ? 'blacksmith reforges' : 'reforge stones';
+
+  if (loading) return <PickerLoadingState title={blacksmith ? 'Blacksmith' : 'Reforges'} />;
 
   const applicable = useMemo(() => {
     if (!weapon) return [];
