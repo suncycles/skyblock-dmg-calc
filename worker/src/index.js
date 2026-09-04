@@ -311,37 +311,51 @@ const NEU_ITEMS_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEn
 // Skyblock via anvil-combining despite a table cap of 5 — verified live 2026-09-01), so it's a head
 // start, never a hard cap.
 const MAX_ENCHANT_PROBE_LEVEL = 10;
-// How many enchant ids to probe at once — bounds peak concurrent raw.githubusercontent.com
-// requests (each enchant's own probe can itself fire several in parallel) rather than firing all
-// ~145 ids' worth at once in a single burst.
-const ENCHANT_PROBE_CONCURRENCY = 10;
+// How many enchant ids to probe at once. Deliberately low: the run is bounded by a subrequest
+// budget, not by wall time, and at 10 every worker cleared the "enough budget left to finish an
+// id" check simultaneously at spent=0, then starved mid-probe — measured live, ~10 ids per run
+// picked up partial data but only ~2 finished. At 3 the check actually staggers, so a run
+// completes most of what it starts.
+const ENCHANT_PROBE_CONCURRENCY = 3;
 
 // A 404 is the ONLY response that genuinely means "this level doesn't exist". Everything else —
 // raw.githubusercontent.com rate-limiting a ~145-id refresh, a 5xx, a dropped connection — used to
 // be indistinguishable from it, which silently truncated an enchant at whatever level happened to
 // fail and then cached that. Found live 2026-09-04: cached levelData had critical capped at VI
 // (CRITICAL;7 exists), first_strike at IV (;5 exists), fire_aspect at I (;2/;3 exist), while
-// sharpness/prosecute failed outright and vanished from levelData entirely. Retries the transient
-// cases, then reports UNKNOWN so the caller can refuse to cache a guess.
+// sharpness/prosecute failed outright and vanished from levelData entirely.
+//
+// Deliberately NOT retried: a rebuild already fires ~870 requests at one host, so the overwhelming
+// cause of a non-404 here is that host throttling us, and retrying multiplies the load that caused
+// it. (Measured 2026-09-04: adding 3 attempts per level turned a working ~13s rebuild into 12.6s
+// of pure backoff with every single id unresolved.) Instead the failure is reported as UNKNOWN and
+// handled by the callers — keep whatever levels did resolve, but mark the id incomplete so nothing
+// downstream mistakes a short list for a finished one, and let the next rebuild fill it in.
 const LEVEL_UNKNOWN = Symbol("enchant-level-unknown");
-const LEVEL_FETCH_RETRIES = 3;
 
-async function fetchEnchantLevel(fileId, level) {
+// Cloudflare caps a single Worker invocation at 50 subrequests. One full sweep of ~145 enchant ids
+// needs ~870, so a rebuild has NEVER been able to finish more than a handful — it just burned the
+// budget on the same first ten ids every run and silently abandoned the rest, which is the real
+// reason cached levels were short (critical VI, first_strike IV, fire_aspect I — reproduced exactly
+// on a cold cache 2026-09-04). Spending the budget explicitly, skipping ids already known complete,
+// and merging into the previous cache turns that into steady progress across runs instead.
+const ENCHANT_SUBREQUEST_BUDGET = 40;
+
+async function fetchEnchantLevel(fileId, level, budget) {
+  if (budget.spent >= budget.limit) return LEVEL_UNKNOWN;
+  budget.spent += 1;
   const url = `${NEU_ITEMS_BASE}/${encodeURIComponent(`${fileId};${level}`)}.json`;
-  for (let attempt = 0; attempt < LEVEL_FETCH_RETRIES; attempt++) {
-    try {
-      const res = await fetch(url);
-      if (res.status === 404) return null;
-      if (res.ok) {
-        const data = await res.json();
-        return { level, lore: data.lore || [] };
-      }
-    } catch {
-      // Network/DNS failure — transient, retried below exactly like a 429/5xx.
+  try {
+    const res = await fetch(url);
+    if (res.status === 404) return null;
+    if (res.ok) {
+      const data = await res.json();
+      return { level, lore: data.lore || [] };
     }
-    if (attempt < LEVEL_FETCH_RETRIES - 1) await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
+    return LEVEL_UNKNOWN;
+  } catch {
+    return LEVEL_UNKNOWN;
   }
-  return LEVEL_UNKNOWN;
 }
 
 // Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then both cases.
@@ -354,33 +368,44 @@ function lookupMaxTableLevel(enchantsMeta, fileId) {
 // Starts at the enchant table's own known max instead of guessing 10, then keeps probing one level
 // past the last real success (so a level beyond the table max, like Power VII, still gets found) —
 // see MAX_ENCHANT_PROBE_LEVEL's comment.
-async function probeEnchantLevels(fileId, enchantsMeta) {
+async function probeEnchantLevels(fileId, enchantsMeta, budget) {
   let level = Math.max(lookupMaxTableLevel(enchantsMeta, fileId), 1);
-  const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchEnchantLevel(fileId, i + 1)));
+  const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchEnchantLevel(fileId, i + 1, budget)));
   const top = () => results[results.length - 1];
   while (top() && top() !== LEVEL_UNKNOWN && level < MAX_ENCHANT_PROBE_LEVEL) {
     level += 1;
-    results.push(await fetchEnchantLevel(fileId, level));
+    results.push(await fetchEnchantLevel(fileId, level, budget));
   }
-  // null (not an empty array) = "couldn't resolve this enchant right now". A truncated list is
-  // worse than no list at all: the client trusts any PRESENT levelData entry outright and never
-  // re-probes it, so a half-fetched enchant would stay capped until the next daily refresh
-  // happened to succeed. Omitting it instead falls through to the client's own live probe.
-  if (results.includes(LEVEL_UNKNOWN)) return null;
-  const found = results.filter(Boolean);
-  if (found.length > 0) return found;
+  // Keeps whatever really resolved, but reports whether anything was left unknown. A truncated
+  // list must never be served as if it were complete: the client trusts a present, complete
+  // levelData entry outright and never re-probes it, so a half-fetched enchant would otherwise
+  // stay capped until some later rebuild happened to succeed.
+  const complete = !results.includes(LEVEL_UNKNOWN);
+  const found = results.filter((r) => r && r !== LEVEL_UNKNOWN);
+  if (found.length > 0) return { levels: found, complete };
   // The head-start above assumes real levels start at 1 — not true for a rare enchant dropped
   // pre-leveled directly from a boss with no lower levels at all: "The One" only has real data at
   // ULTIMATE_THE_ONE;4/;5 (levels 1-3 don't exist — verified live 2026-09-01), so starting at 1
   // finds nothing and gives up before ever trying 4. Falls back to a full sweep only when the head
   // start found nothing, so this never costs extra requests for the common starts-at-1 case.
-  const fullSweep = await Promise.all(Array.from({ length: MAX_ENCHANT_PROBE_LEVEL }, (_, i) => fetchEnchantLevel(fileId, i + 1)));
-  if (fullSweep.includes(LEVEL_UNKNOWN)) return null;
-  return fullSweep.filter(Boolean);
+  const fullSweep = await Promise.all(Array.from({ length: MAX_ENCHANT_PROBE_LEVEL }, (_, i) => fetchEnchantLevel(fileId, i + 1, budget)));
+  return {
+    levels: fullSweep.filter((r) => r && r !== LEVEL_UNKNOWN),
+    complete: !fullSweep.includes(LEVEL_UNKNOWN),
+  };
 }
+
+// Aliases NEU's own enchant_mapping_id/_item tables miss. Duplex is filed under its pre-rename id
+// ULTIMATE_REITERATE — verified 2026-09-04: every ULTIMATE_DUPLEX;N is a 404 while
+// ULTIMATE_REITERATE;1 exists and its own lore line reads "Duplex I". Without this the id can never
+// resolve, so it sat permanently on the incomplete list and made every client re-probe it (15
+// wasted requests) on each load. Narrow by design — one confirmed alias, not a guessed rule.
+const ENCHANT_FILE_ID_ALIASES = { ultimate_duplex: "ULTIMATE_REITERATE" };
 
 // Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").
 function resolveAlternateEnchantFileId(enchantsMeta, id) {
+  const alias = ENCHANT_FILE_ID_ALIASES[id.toLowerCase()];
+  if (alias) return alias;
   const mapItem = enchantsMeta?.enchant_mapping_item || [];
   const mapId = enchantsMeta?.enchant_mapping_id || [];
   const key = id.toLowerCase();
@@ -409,25 +434,73 @@ async function mapWithConcurrency(items, limit, fn) {
 // most ids appear in several categories), probed for its real per-level lore. Venomous is skipped
 // entirely — its real numbers are hardcoded client-side (NEU-REPO's own data is stale post-
 // rebalance), so it's never looked up here or on the client either.
-async function buildEnchantLevelData(enchantsMeta) {
+// Roughly what one id costs: its head-start batch, the extension levels, and the terminating 404.
+// A worker won't START an id without this much budget left, so the tail of a run finishes the ids
+// it began instead of leaving several half-probed (which would leave them all incomplete and waste
+// the whole run).
+const ENCHANT_ID_BUDGET_HEADROOM = 9;
+
+async function buildEnchantLevelData(enchantsMeta, previous) {
   const ids = new Set();
   for (const list of Object.values(enchantsMeta.enchants || {})) {
     for (const id of list) if (id.toLowerCase() !== "venomous") ids.add(id);
   }
-  const idList = [...ids];
+  // Only ids the previous run left unfinished (or never reached) — a finished one is already in
+  // the cache and re-probing it would just spend the budget re-confirming known data.
+  const done = new Set(Object.keys(previous?.levelData || {}).filter((id) => !(previous?.incomplete || []).includes(id)));
+  const pending = [...ids].filter((id) => !done.has(id.toLowerCase())).sort();
+  // Rotate by a persisted cursor. Without this every run starts at the same id, spends its whole
+  // budget on the same first handful, and the remaining ~135 are never reached at all — measured
+  // live: 12 consecutive refreshes all sat at exactly 10 resolved / 145 incomplete.
+  const start = pending.length > 0 ? (previous?.cursor || 0) % pending.length : 0;
+  const idList = [...pending.slice(start), ...pending.slice(0, start)];
+  const budget = { spent: 0, limit: ENCHANT_SUBREQUEST_BUDGET };
+  const attempted = new Set();
   const perId = await mapWithConcurrency(idList, ENCHANT_PROBE_CONCURRENCY, async (id) => {
-    let levels = await probeEnchantLevels(id.toUpperCase(), enchantsMeta);
-    if (levels && levels.length === 0) {
+    if (budget.spent + ENCHANT_ID_BUDGET_HEADROOM > budget.limit) return { levels: [], complete: false, skipped: true };
+    attempted.add(id);
+    let result = await probeEnchantLevels(id.toUpperCase(), enchantsMeta, budget);
+    if (result.levels.length === 0) {
       const altFileId = resolveAlternateEnchantFileId(enchantsMeta, id);
-      if (altFileId) levels = await probeEnchantLevels(altFileId, enchantsMeta);
+      if (altFileId) result = await probeEnchantLevels(altFileId, enchantsMeta, budget);
     }
-    return levels;
+    return result;
   });
   const levelData = {};
+  const incomplete = [];
   idList.forEach((id, i) => {
-    if (perId[i] && perId[i].length > 0) levelData[id.toLowerCase()] = perId[i];
+    const key = id.toLowerCase();
+    // A skipped id contributes nothing at all — merge keeps whatever the cache already had for it,
+    // and it stays on the incomplete list for a later run to pick up.
+    if (perId[i].skipped) {
+      incomplete.push(key);
+      return;
+    }
+    if (perId[i].levels.length > 0) levelData[key] = perId[i].levels;
+    if (!perId[i].complete) incomplete.push(key);
   });
-  return levelData;
+  // Advance past what this run actually attempted (at least one, so a pathological run still moves).
+  return { levelData, incomplete, cursor: (start + Math.max(attempted.size, 1)) % Math.max(pending.length, 1) };
+}
+
+// Merges a fresh rebuild over the previous cache so a throttled run can never LOSE ground: an id
+// keeps whichever version reached the higher level, and only drops off the incomplete list once a
+// run actually resolves it end to end. Without this a single rate-limited rebuild wipes good data
+// (observed live 2026-09-04: one bad run took all ~145 ids down to zero at once).
+function mergeEnchantLevelData(previous, fresh) {
+  const levelData = { ...(previous?.levelData || {}) };
+  const stillIncomplete = new Set(previous?.incomplete || []);
+  for (const [id, levels] of Object.entries(fresh.levelData)) {
+    const prev = levelData[id];
+    const prevMax = prev ? prev[prev.length - 1].level : 0;
+    if (levels[levels.length - 1].level >= prevMax) levelData[id] = levels;
+  }
+  for (const id of fresh.incomplete) stillIncomplete.add(id);
+  // An id this run finished is trustworthy now regardless of what an earlier run recorded.
+  for (const id of Object.keys(fresh.levelData)) {
+    if (!fresh.incomplete.includes(id)) stillIncomplete.delete(id);
+  }
+  return { levelData, incomplete: [...stillIncomplete], cursor: fresh.cursor || 0 };
 }
 
 // Same staleness-check/force-refresh/stale-fallback shape as resolveCosts below, its own KV
@@ -446,23 +519,26 @@ async function buildEnchantLevelData(enchantsMeta) {
 // result, so that path still blocks on the actual rebuild, same as every other cache here.
 async function resolveEnchantLevelData(env, enchantsMeta, force = false, ctx = null) {
   const cachedRaw = await env.CACHE.get(ENCHANT_LEVELS_CACHE_KEY, "json");
+  const cached = cachedRaw
+    ? { levelData: cachedRaw.levelData || {}, incomplete: cachedRaw.incomplete || [], cursor: cachedRaw.cursor || 0 }
+    : { levelData: {}, incomplete: [], cursor: 0 };
   const isStale = !cachedRaw || Date.now() - cachedRaw.lastFetched >= ENCHANT_LEVELS_CACHE_TTL_MS;
-  if (!force && !isStale) return cachedRaw.levelData;
+  if (!force && !isStale) return cached;
 
   const rebuild = async () => {
     try {
-      const levelData = await buildEnchantLevelData(enchantsMeta);
-      await env.CACHE.put(ENCHANT_LEVELS_CACHE_KEY, JSON.stringify({ levelData, lastFetched: Date.now() }));
-      return levelData;
+      const merged = mergeEnchantLevelData(cached, await buildEnchantLevelData(enchantsMeta, cached));
+      await env.CACHE.put(ENCHANT_LEVELS_CACHE_KEY, JSON.stringify({ ...merged, lastFetched: Date.now() }));
+      return merged;
     } catch (err) {
       console.error("resolveEnchantLevelData: build failed:", err);
-      return cachedRaw ? cachedRaw.levelData : {};
+      return cached;
     }
   };
 
   if (!force && ctx) {
     ctx.waitUntil(rebuild());
-    return cachedRaw ? cachedRaw.levelData : {};
+    return cached;
   }
   return rebuild();
 }
@@ -471,7 +547,17 @@ async function resolveEnchantLevelData(env, enchantsMeta, force = false, ctx = n
 // catalog object right before it goes out — factored out since handleGetItems needs this on all
 // three of its return paths and handleRefresh needs it too.
 function withExtras(catalog, costs, enchantLevelData) {
-  return { ...catalog, enchants: { ...catalog.enchants, levelData: enchantLevelData }, costs };
+  return {
+    ...catalog,
+    enchants: {
+      ...catalog.enchants,
+      levelData: enchantLevelData.levelData,
+      // Ids whose last probe couldn't be finished — the client re-probes these live rather than
+      // trusting a possibly-truncated list (see enchantEffects.js's fetchEnchantLevels).
+      levelDataIncomplete: enchantLevelData.incomplete,
+    },
+    costs,
+  };
 }
 
 async function fetchAttributeShards() {
