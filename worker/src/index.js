@@ -316,16 +316,32 @@ const MAX_ENCHANT_PROBE_LEVEL = 10;
 // ~145 ids' worth at once in a single burst.
 const ENCHANT_PROBE_CONCURRENCY = 10;
 
+// A 404 is the ONLY response that genuinely means "this level doesn't exist". Everything else —
+// raw.githubusercontent.com rate-limiting a ~145-id refresh, a 5xx, a dropped connection — used to
+// be indistinguishable from it, which silently truncated an enchant at whatever level happened to
+// fail and then cached that. Found live 2026-09-04: cached levelData had critical capped at VI
+// (CRITICAL;7 exists), first_strike at IV (;5 exists), fire_aspect at I (;2/;3 exist), while
+// sharpness/prosecute failed outright and vanished from levelData entirely. Retries the transient
+// cases, then reports UNKNOWN so the caller can refuse to cache a guess.
+const LEVEL_UNKNOWN = Symbol("enchant-level-unknown");
+const LEVEL_FETCH_RETRIES = 3;
+
 async function fetchEnchantLevel(fileId, level) {
   const url = `${NEU_ITEMS_BASE}/${encodeURIComponent(`${fileId};${level}`)}.json`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { level, lore: data.lore || [] };
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < LEVEL_FETCH_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.status === 404) return null;
+      if (res.ok) {
+        const data = await res.json();
+        return { level, lore: data.lore || [] };
+      }
+    } catch {
+      // Network/DNS failure — transient, retried below exactly like a 429/5xx.
+    }
+    if (attempt < LEVEL_FETCH_RETRIES - 1) await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
   }
+  return LEVEL_UNKNOWN;
 }
 
 // Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then both cases.
@@ -341,10 +357,16 @@ function lookupMaxTableLevel(enchantsMeta, fileId) {
 async function probeEnchantLevels(fileId, enchantsMeta) {
   let level = Math.max(lookupMaxTableLevel(enchantsMeta, fileId), 1);
   const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchEnchantLevel(fileId, i + 1)));
-  while (results.length > 0 && results[results.length - 1] && level < MAX_ENCHANT_PROBE_LEVEL) {
+  const top = () => results[results.length - 1];
+  while (top() && top() !== LEVEL_UNKNOWN && level < MAX_ENCHANT_PROBE_LEVEL) {
     level += 1;
     results.push(await fetchEnchantLevel(fileId, level));
   }
+  // null (not an empty array) = "couldn't resolve this enchant right now". A truncated list is
+  // worse than no list at all: the client trusts any PRESENT levelData entry outright and never
+  // re-probes it, so a half-fetched enchant would stay capped until the next daily refresh
+  // happened to succeed. Omitting it instead falls through to the client's own live probe.
+  if (results.includes(LEVEL_UNKNOWN)) return null;
   const found = results.filter(Boolean);
   if (found.length > 0) return found;
   // The head-start above assumes real levels start at 1 — not true for a rare enchant dropped
@@ -353,6 +375,7 @@ async function probeEnchantLevels(fileId, enchantsMeta) {
   // finds nothing and gives up before ever trying 4. Falls back to a full sweep only when the head
   // start found nothing, so this never costs extra requests for the common starts-at-1 case.
   const fullSweep = await Promise.all(Array.from({ length: MAX_ENCHANT_PROBE_LEVEL }, (_, i) => fetchEnchantLevel(fileId, i + 1)));
+  if (fullSweep.includes(LEVEL_UNKNOWN)) return null;
   return fullSweep.filter(Boolean);
 }
 
@@ -394,7 +417,7 @@ async function buildEnchantLevelData(enchantsMeta) {
   const idList = [...ids];
   const perId = await mapWithConcurrency(idList, ENCHANT_PROBE_CONCURRENCY, async (id) => {
     let levels = await probeEnchantLevels(id.toUpperCase(), enchantsMeta);
-    if (levels.length === 0) {
+    if (levels && levels.length === 0) {
       const altFileId = resolveAlternateEnchantFileId(enchantsMeta, id);
       if (altFileId) levels = await probeEnchantLevels(altFileId, enchantsMeta);
     }
@@ -402,7 +425,7 @@ async function buildEnchantLevelData(enchantsMeta) {
   });
   const levelData = {};
   idList.forEach((id, i) => {
-    if (perId[i].length > 0) levelData[id.toLowerCase()] = perId[i];
+    if (perId[i] && perId[i].length > 0) levelData[id.toLowerCase()] = perId[i];
   });
   return levelData;
 }

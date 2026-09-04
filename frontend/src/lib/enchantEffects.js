@@ -45,16 +45,29 @@ function savePersistedLevels(id, levels) {
   }
 }
 
+// Mirrors worker/src/index.js's fetchEnchantLevel — a 404 is the only response that really means
+// "this level doesn't exist"; a rate-limit, 5xx or dropped connection used to read the same way
+// and silently truncate the enchant. Retries transient failures, then reports UNKNOWN so the
+// caller refuses to cache (and, here, refuses to PERSIST) a guess.
+const LEVEL_UNKNOWN = Symbol('enchant-level-unknown');
+const LEVEL_FETCH_RETRIES = 3;
+
 async function fetchLevel(fileId, level) {
   const url = `${NEU_ITEMS_BASE}/${encodeURIComponent(`${fileId};${level}`)}.json`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { level, lore: data.lore || [] };
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < LEVEL_FETCH_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.status === 404) return null;
+      if (res.ok) {
+        const data = await res.json();
+        return { level, lore: data.lore || [] };
+      }
+    } catch {
+      // Network failure — transient, retried below exactly like a 429/5xx.
+    }
+    if (attempt < LEVEL_FETCH_RETRIES - 1) await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
   }
+  return LEVEL_UNKNOWN;
 }
 
 // Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then
@@ -75,10 +88,14 @@ function lookupMaxTableLevel(enchantsMeta, fileId) {
 async function probeLevels(fileId, enchantsMeta) {
   let level = Math.max(lookupMaxTableLevel(enchantsMeta, fileId), 1);
   const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchLevel(fileId, i + 1)));
-  while (results.length > 0 && results[results.length - 1] && level < MAX_PROBE_LEVEL) {
+  const top = () => results[results.length - 1];
+  while (top() && top() !== LEVEL_UNKNOWN && level < MAX_PROBE_LEVEL) {
     level += 1;
     results.push(await fetchLevel(fileId, level));
   }
+  // null = "couldn't resolve right now", distinct from [] = "no such enchant" — see the caller,
+  // which must not persist a truncated list to localStorage where it would outlive the outage.
+  if (results.includes(LEVEL_UNKNOWN)) return null;
   const found = results.filter(Boolean);
   if (found.length > 0) return found;
   // The head-start above assumes real levels start at 1 and go up — true for every normal
@@ -89,6 +106,7 @@ async function probeLevels(fileId, enchantsMeta) {
   // level up to the ceiling only when the head start found nothing at all, so this never costs
   // extra requests for the common (starts-at-1) case.
   const fullSweep = await Promise.all(Array.from({ length: MAX_PROBE_LEVEL }, (_, i) => fetchLevel(fileId, i + 1)));
+  if (fullSweep.includes(LEVEL_UNKNOWN)) return null;
   return fullSweep.filter(Boolean);
 }
 
@@ -159,9 +177,15 @@ export function fetchEnchantLevels(id, enchantsMeta) {
 
   const promise = (async () => {
     let levels = await probeLevels(id.toUpperCase(), enchantsMeta);
-    if (levels.length === 0) {
+    if (levels && levels.length === 0) {
       const altFileId = resolveAlternateFileId(enchantsMeta, id);
       if (altFileId) levels = await probeLevels(altFileId, enchantsMeta);
+    }
+    // Unresolved (null) is never persisted and never memoized — the next call retries instead of
+    // freezing an outage into a permanently short enchant list.
+    if (!levels) {
+      levelsCache.delete(id);
+      return [];
     }
     savePersistedLevels(id, levels);
     return levels;
