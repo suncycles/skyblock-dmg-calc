@@ -63,8 +63,31 @@ const slotFillImg = 'w-full h-full object-cover pixelated';
 // stacked overlapping mob renders.
 // remove-btn-square opts this element out of Aurora/Nova/Inferno's rounded-panel corners
 // (see index.css) — it should stay a plain square X on every theme, not just the flatter ones.
+// w-5 on touch-sized viewports (16px was well under any sane tap target, sitting on the corner of
+// a cell whose whole body is also tappable); back to the tighter 16px once there's a real cursor.
+// An accidental remove is recoverable either way — TopBar's undo covers it.
 const removeBtn =
-  'remove-btn-square absolute -top-1.5 -right-1.5 z-30 w-4 h-4 flex items-center justify-center text-[10px] font-bold leading-none text-black bg-[#c6c6c6] border-2 border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-1 outline-black shadow-[inset_0_0_0_20px_rgba(220,38,38,0.22)] hover:brightness-110 cursor-pointer';
+  'remove-btn-square absolute -top-1.5 -right-1.5 z-30 w-5 h-5 sm:w-4 sm:h-4 flex items-center justify-center text-[10px] font-bold leading-none text-black bg-[#c6c6c6] border-2 border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-1 outline-black shadow-[inset_0_0_0_20px_rgba(220,38,38,0.22)] hover:brightness-110 cursor-pointer';
+
+// Every Loadout-toolbar button is the same shape; below `sm` it drops to the short label, so six
+// buttons collapse from ~600px of stacked rows on a phone to two compact ones. Deliberately NOT
+// icon-only there — six unlabeled boxes (export vs. import especially) is the same guessing game
+// the Item Menu's unlabeled icons used to be.
+function ToolbarButton({ icon, label, shortLabel, onClick, pixelated }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      className="text-[12px] sm:text-[13px] font-bold px-2 sm:px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+      onClick={onClick}
+    >
+      <img src={icon} alt="" className={`w-4 h-4 ${pixelated ? 'pixelated' : ''}`} />
+      <span className="sm:hidden">{shortLabel}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
 
 // Session-scoped (not persisted across browser restarts) so every "Back" navigation within the
 // app doesn't re-show the entry screen — only a genuinely fresh visit does. Cleared per-tab.
@@ -346,6 +369,24 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
+  // The tile can only paint one number (Skyblock Level), but Combat/Catacombs/Taming/Wolf Slayer
+  // all feed the damage formula too — previously every one of them cost a click to even see.
+  function handleLevelsHover(e) {
+    showTooltip(
+      [
+        '§d§lPlayer Levels',
+        `§7Skyblock Level: §f${playerStats.skyblockLevel}`,
+        `§7Combat Level: §f${playerStats.combatLevel}`,
+        `§7Catacombs Level: §f${playerStats.catacombsLevel}`,
+        `§7Taming Level: §f${playerStats.tamingLevel}`,
+        `§7Wolf Slayer: §f${playerStats.wolfSlayerLevel}`,
+        '',
+        '§8Click to edit',
+      ],
+      e.currentTarget,
+    );
+  }
+
   function handleGearRemove(slot, e) {
     e.stopPropagation();
     hideTooltip();
@@ -474,7 +515,7 @@ export default function Landing() {
             ✕
           </span>
         )}
-        <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+        <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
           {label}
         </span>
         {cornerBadge && (
@@ -554,8 +595,9 @@ export default function Landing() {
           <div
             key={key}
             className={`${slotBase} relative cursor-pointer hover:brightness-110`}
-            onClick={() => navigate('/player-levels')}
-            title="Player Levels"
+            onClick={handleTapOrActivate('levels', handleLevelsHover, () => navigate('/player-levels'))}
+            onMouseEnter={guardHover(handleLevelsHover)}
+            onMouseLeave={guardHover(invalidateHover)}
           >
             <span
               className="text-sm font-bold leading-none whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]"
@@ -563,7 +605,7 @@ export default function Landing() {
             >
               [{playerStats.skyblockLevel}]
             </span>
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Levels
             </span>
           </div>,
@@ -601,7 +643,7 @@ export default function Landing() {
                 ✕
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Accessories
             </span>
           </div>,
@@ -639,7 +681,7 @@ export default function Landing() {
                 ✕
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Weapon
             </span>
           </div>,
@@ -676,7 +718,7 @@ export default function Landing() {
                 ✕
               </span>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5">
               Pet
             </span>
           </div>,
@@ -736,7 +778,7 @@ export default function Landing() {
                 })}
               </div>
             )}
-            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5 pointer-events-none">
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] sm:text-[9px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5 pointer-events-none">
               Weapons
             </span>
           </div>,
@@ -906,42 +948,37 @@ export default function Landing() {
         <div className={`z-10 flex flex-col gap-1.5 p-2 max-w-full ${toolbar}`}>
           <span className="text-[10px] font-bold text-black uppercase tracking-wide">Loadout</span>
           <div className="flex flex-wrap gap-1.5">
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            <ToolbarButton
+              icon="/images/ui/hypixel.png"
+              label="Import from Hypixel"
+              shortLabel="Hypixel"
               onClick={() => navigate('/hypixel-import')}
-            >
-              <img src="/images/ui/hypixel.png" alt="" className="w-4 h-4" /> Import from Hypixel
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            />
+            <ToolbarButton
+              icon="/images/ui/loadouts.png"
+              label="Loadouts"
+              shortLabel="Loadouts"
               onClick={() => setShowLoadoutsPanel((v) => !v)}
-            >
-              <img src="/images/ui/loadouts.png" alt="" className="w-4 h-4" /> Loadouts
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            />
+            <ToolbarButton
+              icon="/images/manual/Coins.webp"
+              label={costResult ? 'Hide Cost' : 'Cost'}
+              shortLabel={costResult ? 'Hide Cost' : 'Cost'}
               onClick={handleCalculateSetupCost}
-            >
-              <img src="/images/manual/Coins.webp" alt="" className="w-4 h-4" /> {costResult ? 'Hide Cost' : 'Cost'}
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            />
+            <ToolbarButton
+              icon="/images/ui/export.png"
+              label={exportStatus || 'Export to Clipboard'}
+              shortLabel={exportStatus || 'Export'}
               onClick={handleExportLoadout}
-            >
-              <img src="/images/ui/export.png" alt="" className="w-4 h-4" /> {exportStatus || 'Export to Clipboard'}
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            />
+            <ToolbarButton
+              icon="/images/ui/import.png"
+              label={importStatus || 'Import from Clipboard'}
+              shortLabel={importStatus || 'Import'}
               onClick={handleImportLoadout}
-            >
-              <img src="/images/ui/import.png" alt="" className="w-4 h-4" /> {importStatus || 'Import from Clipboard'}
-            </button>
-            <button
-              className="text-[13px] font-bold px-3 py-2 bg-neutral-800 text-white hover:brightness-125 transition-[filter] cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-              onClick={() => navigate('/compare')}
-            >
-              <img src="/images/manual/comp.webp" alt="" className="w-4 h-4 pixelated" /> Compare
-            </button>
+            />
+            <ToolbarButton icon="/images/manual/comp.webp" label="Compare" shortLabel="Compare" pixelated onClick={() => navigate('/compare')} />
           </div>
           {costResult && (
             <div className="w-64 flex flex-col gap-1 text-[12px]">
@@ -1020,8 +1057,11 @@ export default function Landing() {
         </div>
       </div>
 
+      {/* min-w 340 (was 380): at 380 the board overflowed a 375px phone viewport, so the Target
+          Mob panel and the whole right-hand column sat off-screen behind a horizontal scrollbar
+          most people never find. 340 fits the narrowest common viewport whole. */}
       <div className="w-full max-w-[700px] overflow-x-auto">
-        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[380px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
+        <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[340px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
         </div>
       </div>
@@ -1036,7 +1076,7 @@ export default function Landing() {
         onClick={() => damageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
       >
         <img src="/images/manual/dmg.webp" alt="" className="w-6 h-6 pixelated" />
-        Calculate Damage
+        View Damage Breakdown
       </button>
 
       {/* Merged inline (see the lazy DamageSources import above) instead of a separate route —
