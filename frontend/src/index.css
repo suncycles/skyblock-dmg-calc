@@ -106,19 +106,10 @@ html {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-/* Search-result dropdowns (ItemPicker.jsx) sit directly over a busy item grid mid-search — the
-   usual translucent glass lets the grid show through and hurts legibility, so this one panel
-   stays fully opaque. Same specificity/unlayered as the rule above; wins by appearing after it. */
-.search-dropdown {
-  background-color: rgb(17, 19, 24);
-  background-image: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
 /* Popup/modal panels (ConfirmDialogContext, ArmorOptions/EquipmentOptions) float over whatever
    page opened them — the usual translucent glass lets that page show through behind the dialog's
-   own text, hurting legibility exactly like the search dropdown above. Same fix, same reasoning. */
+   own text, hurting legibility exactly like the grid behind them. Same unlayered-override trick as
+   the glass rule above; wins by appearing after it. */
 .popup-panel {
   background-color: rgb(30, 32, 38);
   background-image: none;
