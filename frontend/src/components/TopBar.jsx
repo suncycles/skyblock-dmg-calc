@@ -33,9 +33,10 @@ const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
 // route without each page re-declaring it. Deliberately a plain modern navbar rather than the
 // chunky Minecraft chest-GUI bevel used everywhere below it — the contrast reads as "app chrome"
-// vs. "in-game panel". Tints itself via the same --glass-tint CSS var every other themed panel
-// uses (see index.css's per-theme html[data-theme] blocks), so it automatically re-colors with
-// the active zone theme without needing its own theme-switch logic.
+// vs. "in-game panel". Solid, not translucent: the bar and the drawer both sit ON TOP of the
+// page, and at the old 0.55/0.85 alpha the content underneath read straight through them — with
+// the page scrolled, six gear-slot labels ("Weapons", "Wither Dragon", "Gloves", ...) were
+// measurably visible through the bar's own text.
 export default function TopBar() {
   const { pathname } = useLocation();
   const pageLabel = getPageLabel(pathname);
@@ -79,7 +80,7 @@ export default function TopBar() {
           since it's the very first element in the document. fixed pins it to the viewport
           regardless of scroll/overscroll; App.jsx adds matching top padding to the routed content
           below to compensate for the space this no longer reserves in normal flow. */}
-      <header className="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-[rgba(10,11,15,0.55)] border-b border-white/10">
+      <header className="fixed top-0 inset-x-0 z-40 bg-[rgb(16,17,22)] border-b border-white/10">
         <div className="max-w-[900px] mx-auto px-4 h-12 flex items-center gap-2.5">
           <div className="relative shrink-0 -ml-1.5">
             <button
@@ -176,7 +177,7 @@ export default function TopBar() {
       )}
 
       <aside
-        className={`fixed left-0 top-0 z-50 h-full w-72 max-w-[80vw] backdrop-blur-xl bg-[rgba(10,11,15,0.85)] border-r border-white/10 shadow-[8px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-out ${
+        className={`fixed left-0 top-0 z-50 h-full w-72 max-w-[80vw] bg-[rgb(16,17,22)] border-r border-white/10 shadow-[8px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-out ${
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

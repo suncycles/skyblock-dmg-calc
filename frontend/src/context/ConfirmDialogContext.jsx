@@ -40,7 +40,7 @@ export function ConfirmDialogProvider({ children }) {
           className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4"
           onClick={() => handleChoice(false)}
         >
-          <div className={`${panel} popup-panel w-full max-w-[380px] p-5 flex flex-col gap-4`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${panel} opaque-panel w-full max-w-[380px] p-5 flex flex-col gap-4`} onClick={(e) => e.stopPropagation()}>
             <div className="text-sm text-black whitespace-pre-line">{dialog.message}</div>
             <div className="flex justify-end gap-2">
               {!dialog.alertOnly && (
