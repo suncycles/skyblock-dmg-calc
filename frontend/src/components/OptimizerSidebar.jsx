@@ -75,8 +75,18 @@ const RESIZE_HANDLES = [
   { dir: 'nw', className: 'lg:absolute lg:top-0 lg:left-0 lg:w-3 lg:h-3 lg:cursor-nwse-resize' },
   { dir: 'ne', className: 'lg:absolute lg:top-0 lg:right-0 lg:w-3 lg:h-3 lg:cursor-nesw-resize' },
   { dir: 'sw', className: 'lg:absolute lg:bottom-0 lg:left-0 lg:w-3 lg:h-3 lg:cursor-nesw-resize' },
-  { dir: 'se', className: 'lg:absolute lg:bottom-0 lg:right-0 lg:w-3 lg:h-3 lg:cursor-nwse-resize' },
+  { dir: 'se', className: 'lg:absolute lg:bottom-0 lg:right-0 lg:w-4 lg:h-4 lg:cursor-nwse-resize' },
 ];
+
+// All 8 handles were invisible 1.5-3px strips whose only cue was a cursor change on hover, so
+// nothing about the panel looked resizable until you happened to graze an edge. Every handle now
+// lights up on hover, and the bottom-right corner carries a permanently visible gripper — the same
+// three diagonal ticks a native <textarea> uses, which reads as "drag to resize" without a label.
+const HANDLE_HOVER = 'lg:transition-colors lg:hover:bg-black/25';
+const CORNER_GRIP_STYLE = {
+  backgroundImage:
+    'linear-gradient(135deg, transparent 0 45%, rgba(0,0,0,0.5) 45% 55%, transparent 55% 70%, rgba(0,0,0,0.5) 70% 80%, transparent 80%)',
+};
 
 // Horizontal half of a resize: 'e' grows/shrinks the right edge (left stays put, capped so the
 // right edge never crosses the viewport edge); 'w' grows/shrinks the left edge by keeping the
@@ -237,7 +247,10 @@ function UpgradeRow({ result, onSwapIn, onSkip }) {
 // during the actual gesture rather than through React state on every event — with 40+ candidate
 // rows, re-rendering all of them on every mousemove tick was the real source of past jankiness —
 // and only commit one final setFloatPos/setFloatSize on mouseup. Defaults to a 66vh-tall box at
-// the default right-4/top-20 spot until dragged or resized for the first time.
+// the default right-4/top-32 spot until dragged or resized for the first time. (top-32, not the
+// original top-20: at that height the panel's own title bar — the drag surface, and now the thing
+// carrying the grip glyph that advertises it — sat underneath Landing's Loadout toolbar at every
+// viewport narrower than ~1500px, hiding the affordance exactly where it needed to be seen.)
 //
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
@@ -570,17 +583,41 @@ export default function OptimizerSidebar() {
       ref={containerRef}
       className={`relative flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 max-h-[60vh] overflow-y-auto ${
         state.status === 'loading' || state.status === 'ok' ? 'min-h-[60vh]' : ''
-      } ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-20'} lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-auto`}
+      } ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-32'} lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-auto`}
       style={desktopStyle}
     >
       {isDesktop &&
         RESIZE_HANDLES.map(({ dir, className }) => (
-          <div key={dir} className={className} style={{ zIndex: dir.length === 2 ? 2 : 1 }} onMouseDown={handleResizeStart(dir)} />
+          <div
+            key={dir}
+            className={`${className} ${HANDLE_HOVER}`}
+            style={{ zIndex: dir.length === 2 ? 2 : 1, ...(dir === 'se' ? CORNER_GRIP_STYLE : null) }}
+            title="Drag to resize"
+            onMouseDown={handleResizeStart(dir)}
+          />
         ))}
       <div className={`${panel} p-2 flex flex-col gap-1.5`}>
-        <div className={`${sectionTitle} flex items-center justify-between gap-1 lg:cursor-move select-none`} onMouseDown={handleDragStart} title="Drag to reposition">
-          <span>Recommended Upgrades</span>
-          <div className="flex gap-1" onMouseDown={(e) => e.stopPropagation()}>
+        {/* Title and sort buttons stack rather than share a line: at the panel's 280px default the
+            two competed for width, and adding the grip glyph tipped the title into truncating
+            ("RECOMMENDED UPGRA..."). Stacking also makes the top row read as a real title bar,
+            which is half the point of the grip. The whole block is the drag surface; the buttons
+            stop propagation so clicking one doesn't start a drag. */}
+        <div
+          className={`${sectionTitle} flex flex-col gap-1 lg:cursor-move select-none`}
+          onMouseDown={handleDragStart}
+          title="Drag to move this window — drag its edges or corners to resize"
+        >
+          <span className="flex items-center gap-1.5 min-w-0">
+            {/* Standard drag-grip glyph (braille dots), desktop-only since the panel is an ordinary
+                in-flow block below the breakpoint. */}
+            {isDesktop && (
+              <span className="text-[13px] leading-none text-neutral-600 shrink-0" aria-hidden="true">
+                ⠿
+              </span>
+            )}
+            <span className="truncate">Recommended Upgrades</span>
+          </span>
+          <div className="flex gap-1 justify-end" onMouseDown={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setSortBy('increase')}
