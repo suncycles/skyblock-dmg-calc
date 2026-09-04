@@ -93,9 +93,14 @@ export default function WeaponIcon({ id, material, alt, className, color, style 
 
   const handleError = () => setIndex((i) => Math.min(i + 1, candidates.length - 1));
 
-  if (!color) {
-    return <img src={src} alt={alt} className={className} style={style} loading="lazy" onError={handleError} />;
-  }
-
-  return <img src={tintedSrc || src} alt={alt} className={className} style={style} loading="lazy" onError={handleError} />;
+  // alt="" (decorative) rather than the item name, and no loading="lazy". Both were actively
+  // hurting the grids this renders in: every cell already carries the item's name as a visible
+  // label or a hover tooltip, so the alt text added nothing — but until the icon finished
+  // loading the browser painted that text *inside* the cell, on top of the real label ("Skeletc"
+  // overlapping "Chestplate"). lazy-loading made it worse by deferring icons that are the
+  // primary above-the-fold content of every picker and the loadout grid. No native title either
+  // — the app's own tooltip (TooltipContext) already owns hover on every surface this appears on.
+  return (
+    <img src={color ? tintedSrc || src : src} alt="" className={className} style={style} onError={handleError} />
+  );
 }
