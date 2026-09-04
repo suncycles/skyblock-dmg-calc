@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getPageLabel } from '../lib/pageTitles';
-import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
+import { ENTRY_DISMISSED_KEY, SHOW_ENTRY_EVENT } from '../lib/entryScreen';
 import { useBuild } from '../context/BuildContext';
 
 const MENU_LINKS = [
@@ -48,12 +48,13 @@ export default function TopBar() {
     if (showFirstLaunchHint) dismissFirstLaunchHint();
   }
 
-  // The brand link's target ("/") is Landing.jsx, which shows the username-entry gate instead of
-  // the loadout grid until that gate's been dismissed once this tab (see EntryScreen.jsx). Without
-  // this, clicking the brand from a fresh/direct page load re-shows that entry prompt instead of
-  // acting like a "home" button back to the actual build screen.
+  // "Home" means the actual landing page (the SkyCrypt-style username-entry gate,
+  // components/EntryScreen.jsx), not the loadout grid — un-dismisses it so a fresh page load
+  // shows it again, and fires SHOW_ENTRY_EVENT so an already-mounted Landing.jsx (navigating to
+  // "/" while already on "/" is a no-op) shows it immediately too.
   function handleBrandClick() {
-    sessionStorage.setItem(ENTRY_DISMISSED_KEY, '1');
+    sessionStorage.removeItem(ENTRY_DISMISSED_KEY);
+    window.dispatchEvent(new Event(SHOW_ENTRY_EVENT));
   }
 
   return (
