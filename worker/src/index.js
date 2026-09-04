@@ -9,13 +9,16 @@
    Real coin prices (see `costs` in the response, resolveCosts()) are a separate, much
    shorter-lived cache layered on top — sourced from SkyHelperBot/Prices' community-maintained
    pricesV2.json, refreshed independently of the 6h item-catalog TTL below. Real per-level enchant
-   lore (see `enchants.levelData`, resolveEnchantLevelData()) is a third, much LONGER-lived cache —
-   refreshes ~daily rather than every 6h, since it's expensive to build (probes ~145 enchant ids
-   against NEU-REPO's raw item files) and essentially static content.
+   lore (see `enchants.levelData`, resolveEnchantLevelData()) is a third cache with NO TTL at all:
+   it is rebuilt ONLY by POST /api/refresh, never by age. It is expensive to build (~870 requests
+   across ~145 enchant ids, far past what one invocation can spend) and essentially static, so it
+   is rebuilt incrementally and only when asked.
 
    Routes:
      GET  /api/items            -> returns cached data (+ real coin costs), refreshing first if stale
-     POST /api/refresh          -> forces a refetch regardless of staleness
+                                    (the enchant level cache is exempt — served as-is, never rebuilt here)
+     POST /api/refresh          -> forces a refetch regardless of staleness, and advances the
+                                    enchant level rebuild by one budget's worth of probing
      GET  /api/hypixel/import   -> resolves ?username, fetches their SkyBlock profile(s), decodes
                                     currently-worn armor/equipment/pet plus every weapon candidate
                                     found across Inventory/Ender Chest/Backpacks and every
@@ -74,13 +77,14 @@ const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 // Per-level enchant lore (items/{ID};{level}.json) is far more static than the main catalog above
-// and expensive to probe (up to ~10 raw.githubusercontent.com requests per enchant) — cached
-// separately with its own much longer TTL rather than folded into the 6h cycle, so it only actually
-// refreshes "once a day or so" per user direction 2026-09-01, with the same POST /api/refresh
-// manual-refresh escape hatch as everything else here. See buildEnchantLevelData/
-// resolveEnchantLevelData below, and frontend/src/lib/enchantEffects.js for what this replaces.
+// and expensive to probe (up to ~10 raw.githubusercontent.com requests per enchant). Unlike every
+// other cache here it has NO TTL at all: it is rebuilt only by an explicit POST /api/refresh (user
+// direction 2026-09-04, replacing the earlier ~1 day TTL). NEU's per-level lore changes only when
+// Hypixel rebalances an enchant, so an age-based trigger bought nothing and cost a lot — a single
+// invocation can only probe ~40 of the ~870 requests a full sweep needs (see
+// ENCHANT_SUBREQUEST_BUDGET), so background rebuilds just churned the cursor unpredictably against
+// live traffic. See buildEnchantLevelData/resolveEnchantLevelData below.
 const ENCHANT_LEVELS_CACHE_KEY = "enchant_levels_data";
-const ENCHANT_LEVELS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // ~1 day
 
 // Real coin prices — a separate, much-shorter-lived cache than the item catalog above: prices
 // move constantly, catalog data (stats/lore) doesn't. Community-maintained, refreshed by an
@@ -167,7 +171,7 @@ export default {
     }
 
     if (url.pathname === "/api/items" && request.method === "GET") {
-      return handleGetItems(env, ctx);
+      return handleGetItems(env);
     }
 
     if (url.pathname === "/api/refresh" && request.method === "POST") {
@@ -195,23 +199,23 @@ export default {
 // payload on every hard reload/new tab within a browsing session.
 const ITEMS_RESPONSE_CACHE_HEADERS = { "Cache-Control": "public, max-age=1800" };
 
-async function handleGetItems(env, ctx) {
+async function handleGetItems(env) {
   const cached = await env.CACHE.get(CACHE_KEY, "json");
 
   if (cached && Date.now() - cached.lastFetched < CACHE_TTL_MS) {
-    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants, false, ctx)]);
+    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants)]);
     return jsonResponse(withExtras(cached, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
   }
 
   try {
     const fresh = await buildFreshData();
     await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, fresh), resolveEnchantLevelData(env, fresh.enchants, false, ctx)]);
+    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, fresh), resolveEnchantLevelData(env, fresh.enchants)]);
     return jsonResponse(withExtras(fresh, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
   } catch (err) {
     console.error("handleGetItems: buildFreshData failed:", err);
     if (cached) {
-      const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants, false, ctx)]);
+      const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants)]);
       return jsonResponse(withExtras(cached, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
     }
     return jsonResponse({ error: "Failed to fetch item data", detail: String(err) }, 502);
@@ -503,44 +507,29 @@ function mergeEnchantLevelData(previous, fresh) {
   return { levelData, incomplete: [...stillIncomplete], cursor: fresh.cursor || 0 };
 }
 
-// Same staleness-check/force-refresh/stale-fallback shape as resolveCosts below, its own KV
-// key/TTL (see ENCHANT_LEVELS_CACHE_KEY/ENCHANT_LEVELS_CACHE_TTL_MS) since this refreshes far less
-// often. A build failure (partial GitHub outage, etc.) falls back to whatever's still cached rather
-// than failing the whole /api/items response over it.
-//
-// Unlike resolveCosts, a full rebuild here genuinely takes several seconds (probing ~145 enchant
-// ids against raw.githubusercontent.com, measured ~13s) — too slow to block an ordinary page load
-// on. A lazy (non-forced) stale hit kicks the rebuild off in the background via `ctx.waitUntil` and
-// serves whatever's cached right now instead (possibly stale, possibly `{}` on a cold KV) so this
-// request stays fast; the client already falls back to live per-id probing for any id missing from
-// what it gets (see enchantEffects.js's fetchEnchantLevels), so a temporarily stale/incomplete
-// response here just means a bit more of that fallback until the background rebuild lands for the
-// NEXT request. `force` (POST /api/refresh) is a deliberate action that wants to see the real
-// result, so that path still blocks on the actual rebuild, same as every other cache here.
-async function resolveEnchantLevelData(env, enchantsMeta, force = false, ctx = null) {
+// Manual-only, unlike every other cache here: an ordinary /api/items read just serves whatever KV
+// holds and NEVER rebuilds, no matter how old it is. Only POST /api/refresh (`force`) probes
+// GitHub. Rebuilding is incremental — one call advances the cursor by whatever its subrequest
+// budget allows — so converging a cold cache means calling /api/refresh repeatedly until
+// `levelDataIncomplete` is empty (~25 calls for the full ~145 ids). Nothing breaks in the
+// meantime: any id missing or flagged incomplete is probed live by the client instead (see
+// enchantEffects.js's fetchEnchantLevels). A build failure falls back to what's already cached
+// rather than failing the whole response over it.
+async function resolveEnchantLevelData(env, enchantsMeta, force = false) {
   const cachedRaw = await env.CACHE.get(ENCHANT_LEVELS_CACHE_KEY, "json");
   const cached = cachedRaw
     ? { levelData: cachedRaw.levelData || {}, incomplete: cachedRaw.incomplete || [], cursor: cachedRaw.cursor || 0 }
     : { levelData: {}, incomplete: [], cursor: 0 };
-  const isStale = !cachedRaw || Date.now() - cachedRaw.lastFetched >= ENCHANT_LEVELS_CACHE_TTL_MS;
-  if (!force && !isStale) return cached;
+  if (!force) return cached;
 
-  const rebuild = async () => {
-    try {
-      const merged = mergeEnchantLevelData(cached, await buildEnchantLevelData(enchantsMeta, cached));
-      await env.CACHE.put(ENCHANT_LEVELS_CACHE_KEY, JSON.stringify({ ...merged, lastFetched: Date.now() }));
-      return merged;
-    } catch (err) {
-      console.error("resolveEnchantLevelData: build failed:", err);
-      return cached;
-    }
-  };
-
-  if (!force && ctx) {
-    ctx.waitUntil(rebuild());
+  try {
+    const merged = mergeEnchantLevelData(cached, await buildEnchantLevelData(enchantsMeta, cached));
+    await env.CACHE.put(ENCHANT_LEVELS_CACHE_KEY, JSON.stringify({ ...merged, lastFetched: Date.now() }));
+    return merged;
+  } catch (err) {
+    console.error("resolveEnchantLevelData: build failed:", err);
     return cached;
   }
-  return rebuild();
 }
 
 // Merges the two independently-cached extras (real coin costs, real enchant level lore) into a
