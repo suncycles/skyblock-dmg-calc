@@ -311,8 +311,7 @@ export default function HypixelImport() {
         <div className="w-full max-w-[500px] flex flex-col gap-3">
           <div className={`${panel} p-4 flex flex-col gap-3`}>
             <div className="text-xs text-neutral-700 leading-snug">
-              Accessory Power and attribute/skill levels are always imported. Pick a weapon, a pet, and an armor/equipment
-              source below — unchecked slots keep whatever's already there.
+              Accessory Power, attributes, levels, bank, collection, and other permanent upgrades are auto-imported.
             </div>
 
             <div className="flex flex-col gap-1">
@@ -495,9 +494,9 @@ export default function HypixelImport() {
 
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <div className={`${panel} p-4 flex flex-col gap-3`}>
-          <div className="text-xs text-neutral-700 leading-snug">
-            Imports your weapon, armor/equipment (worn or any saved Wardrobe set), a pet, Accessory Power, and
-            attribute/skill levels — you'll pick specifics on the next screen. Saved in-game Loadouts aren't imported.
+          <div className="text-xs text-neutral-700 font-bold leading-snug">
+            Imports your weapons, worn armor/equipment and wardrobe, pet list, Accessory Power,
+            attribute/skill levels, and bank/collection from API. 
           </div>
 
           {status !== 'picking-profile' && (
