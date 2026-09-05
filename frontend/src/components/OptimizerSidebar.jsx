@@ -653,7 +653,7 @@ export default function OptimizerSidebar() {
             misreading worth spending the space to prevent. */}
         <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 bg-amber-400/10 border border-amber-400/30 rounded px-1.5 py-1">
           <span aria-hidden="true" className="shrink-0 leading-none pt-px">⚠</span>
-          <span>These are ranked one swap at a time — not necessarily the most effective upgrades overall.</span>
+          <span>Recommendations are not necessarily indicative of the most optimal option.</span>
         </div>
         <div className="grid grid-cols-2 gap-1">
           {OPTIMIZER_MODES.map((m) => (
