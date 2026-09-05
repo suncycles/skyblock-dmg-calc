@@ -312,8 +312,7 @@ export default function Optimizer() {
           mobName &&
           mobTypes && (
             <div className={`${panel} p-3 text-[11px] text-neutral-700 italic`}>
-              No Hypixel import on file — Magical Power suggestions below are generic +10 steps (unknown cost), not real
-              accessories. Import from Hypixel to see actual missing/upgradeable ones instead.
+              No Hypixel import on file: Import from Hypixel to see actual missing/upgradeable ones instead.
             </div>
           )
         ) : (
@@ -329,7 +328,7 @@ export default function Optimizer() {
 
         {mode === 'slayer' && state.status === 'ok' && (
           <div className={`${panel} p-3 flex items-center justify-between`}>
-            <span className="text-[12px] font-bold text-black uppercase tracking-wide">Bonus Attack Speed (highest priority)</span>
+            <span className="text-[12px] font-bold text-black uppercase tracking-wide">Bonus Attack Speed</span>
             <span
               className={`text-lg font-mono font-bold ${state.bonusAttackSpeed >= SLAYER_ATTACK_SPEED_TARGET ? 'text-green-700' : 'text-red-700'}`}
             >
