@@ -56,6 +56,7 @@ try {
   const itemTooltip = await server.ssrLoadModule('/src/lib/itemTooltip.js');
   const itemStatTotals = await server.ssrLoadModule('/src/lib/itemStatTotals.js');
   const tieredArmorStats = await server.ssrLoadModule('/src/lib/tieredArmorStats.js');
+  const petData = await server.ssrLoadModule('/src/lib/petData.js');
 
   // 1. Item stars, Dungeon toggle OFF: flat 2%/star of the item's own pristine base stat.
   await check('stars out of a dungeon = 2%/star', () => {
@@ -310,6 +311,34 @@ try {
     const afterLabel = critDamageLine.replace(/§./g, '').slice('Crit Damage:'.length);
     const leading = parseFloat(/^\s*([+-]?[\d.]+)/.exec(afterLabel)[1]);
     assert.equal(leading, 119.8, `rendered Crit Damage leading number must be the real 119.8, got ${leading} (line: ${critDamageLine})`);
+  });
+  // Chimera and Manticore Claw both copy the equipped pet's stat spread, and both read the SAME
+  // PET_STAT_KEY_MAP — a stat missing from that map is silently dropped by both at once, with no
+  // error anywhere. Ability Damage was missing exactly that way (fixed 2026-09-05) even though the
+  // pet catalog carries it and the rest of the pipeline already tracked it end to end. This area
+  // has also drifted before via a duplicated definition (see the [[project_chimera_base_stats]]
+  // note), so it gets a guard rather than trusting the map to stay complete.
+  await check('Chimera/Manticore Claw copy Ability Damage and Intelligence', () => {
+    // Crow's real level-100 numbers from the live catalog.
+    const petStats = { ABILITY_DAMAGE: 20, INTELLIGENCE: 150, STRENGTH: 40 };
+
+    const chimeraMax = petData.computeChimeraStatBonus(petStats, 5); // V = 100%
+    assert.equal(chimeraMax.ability_damage, 20, "Chimera V must copy the pet's full Ability Damage");
+    assert.equal(chimeraMax.intelligence, 150, "Chimera V must copy the pet's full Intelligence");
+
+    const chimeraOne = petData.computeChimeraStatBonus(petStats, 1); // I = 20%
+    assert.equal(chimeraOne.ability_damage, 4, 'Chimera I must copy 20% of Ability Damage');
+    assert.equal(chimeraOne.intelligence, 30, 'Chimera I must copy 20% of Intelligence');
+
+    // Manticore Claw is a flat 10% of the same spread.
+    const claw = petData.computeManticoreClawBonus({ item: { id: 'MANTICORE_CLAW' }, modifiers: {} }, petStats);
+    assert.equal(claw.ability_damage, 2, 'Manticore Claw must copy 10% of Ability Damage');
+    assert.equal(claw.intelligence, 15, 'Manticore Claw must copy 10% of Intelligence');
+
+    // A pet without the stat must not gain a phantom entry.
+    const noAbility = petData.computeChimeraStatBonus({ STRENGTH: 100 }, 5);
+    assert.equal(noAbility.ability_damage, undefined, 'a pet with no Ability Damage must not gain one');
+    assert.equal(noAbility.strength, 100, 'unrelated stats must still be copied');
   });
 } finally {
   await server.close();
