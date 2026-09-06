@@ -95,11 +95,15 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
       )}
       {!hasRealHp && (
         <span className="text-[10px] italic text-neutral-600">
-          No confirmed HP for {mobName} yet — held at the Mob HP% slider's value instead of a real draining pool.
+          No confirmed HP for {mobName} yet — held at full HP instead of a real draining pool.
         </span>
       )}
       <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart data={hits} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+        {/* left margin + a wider damage axis: at width 56 with no left margin, a realistic
+            damage tick ("1,234,567" is ~58px at this font size) overflowed the axis and got
+            clipped against the SVG's left edge. 72 fits ~10 characters, and the 6px margin keeps
+            the widest label off the boundary entirely. */}
+        <ComposedChart data={hits} margin={{ top: 8, right: 12, bottom: 0, left: 6 }}>
           <CartesianGrid stroke={GRAPH_GRID_COLOR} vertical={false} />
           <XAxis
             dataKey="hit"
@@ -111,7 +115,7 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
             yAxisId="damage"
             tick={{ fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
             stroke={GRAPH_AXIS_COLOR}
-            width={56}
+            width={72}
             tickFormatter={(v) => v.toLocaleString()}
           />
           {hasRealHp && (

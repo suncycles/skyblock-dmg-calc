@@ -94,6 +94,12 @@ function MobDefenseNote({ name, types, masterMode }) {
 // own controls still read the live value, so typing stays responsive — only the copy feeding the
 // calculation waits. The checkbox is deliberately NOT debounced: it's a discrete toggle with no
 // "stopped typing" moment, and a 3s lag there would just read as broken.
+// The Mob HP% slider was removed (user-specified 2026-09-05), so every figure on this page is
+// computed at full HP — see BuildContext's PINNED_MOB_HP_PERCENT, which keeps the Optimizer in
+// agreement. That also means First Strike/Triple Strike always apply, which the Final Damage
+// headline now says out loud (meleeDamageQualifiers).
+const MOB_HP_PERCENT = 100;
+
 const MISC_DEBOUNCE_MS = 3000;
 
 function useSettled(value, delay) {
@@ -103,6 +109,25 @@ function useSettled(value, delay) {
     return () => clearTimeout(handle);
   }, [value, delay]);
   return settled;
+}
+
+// Qualifiers that belong in the Final Damage headline. Fabled means the figure is a range (its
+// crit bonus is randomized per hit); First Strike/Triple Strike mean the number is an OPENING hit
+// and won't repeat — worth naming, since with the Mob HP% slider gone every result is computed at
+// full HP, which is exactly when those two apply (see damageSources.js's firstHitOnly gate).
+const FIRST_HIT_LABELS = [
+  { suffix: '-first_strike', label: 'First Strike' },
+  { suffix: '-triple_strike', label: 'Triple Strike' },
+];
+
+function meleeDamageQualifiers(finalDamage, hasFabledRange) {
+  const parts = [];
+  if (hasFabledRange) parts.push('Fabled');
+  const applied = finalDamage?.appliedIds ? [...finalDamage.appliedIds].map((id) => id.toLowerCase()) : [];
+  for (const { suffix, label } of FIRST_HIT_LABELS) {
+    if (applied.some((id) => id.endsWith(suffix))) parts.push(label);
+  }
+  return parts.length > 0 ? ` (${parts.join(', ')})` : '';
 }
 
 function Section({ title, subtitle, children, empty }) {
@@ -142,8 +167,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     attributes,
     miscStats,
     setMiscStat,
-    mobHpPercent,
-    setMobHpPercent,
     mobHpSelections,
     setMobHpSelection,
     infernalCrimsonStacks,
@@ -175,7 +198,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   // Debounced copies of every MISC-panel value that feeds collectDamageSources — see useSettled.
   const settledMiscStats = useSettled(miscStats, MISC_DEBOUNCE_MS);
-  const settledMobHpPercent = useSettled(mobHpPercent, MISC_DEBOUNCE_MS);
   const settledInfernalCrimsonStacks = useSettled(infernalCrimsonStacks, MISC_DEBOUNCE_MS);
   const settledSwarmMobs = useSettled(swarmMobs, MISC_DEBOUNCE_MS);
   const settledComboKills = useSettled(comboKills, MISC_DEBOUNCE_MS);
@@ -247,7 +269,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         godPotionActive,
         attributes,
         settledMiscStats,
-        settledMobHpPercent,
+        MOB_HP_PERCENT,
         settledInfernalCrimsonStacks,
         useDungeonizedStats,
         settledSwarmMobs,
@@ -270,7 +292,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     godPotionMixin,
     attributes,
     settledMiscStats,
-    settledMobHpPercent,
     settledInfernalCrimsonStacks,
     useDungeonizedStats,
     settledSwarmMobs,
@@ -485,7 +506,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     if (!r || !r.finalDamage) return null;
     return {
       mob: r.name,
-      label: r.finalDamageWithFabledMax ? 'Final Damage (Fabled)' : 'Final Damage',
+      label: `Final Damage${meleeDamageQualifiers(r.finalDamage, !!r.finalDamageWithFabledMax)}`,
       value: r.finalDamageWithFabledMax
         ? `${r.finalDamage.finalDamage.toLocaleString()} ~ ${r.finalDamageWithFabledMax.finalDamage.toLocaleString()}`
         : r.finalDamage.finalDamage.toLocaleString(),
@@ -605,7 +626,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
             </div>
           ) : dpsMode ? (
             mobResults.map((mobResult) => {
-              const { name, types } = mobResult;
+              const { name, types, finalDamage, finalDamageWithFabledMax } = mobResult;
               const dps = computeDpsBreakdown(result, { name, types }, loadout, useDungeonizedStats, useMasterMode);
 
               // A mob with more than one possible starting HP (a Catacombs trash mob spawning on
@@ -632,7 +653,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 const startingHp = resolveStartingHp(name, useMasterMode, selection);
                 const simSources = startingHp ? resultAt100 : result;
                 if (simSources) {
-                  sim = simulateHitByHit(simSources, { name, types }, loadout, startingHp, settledMobHpPercent, useDungeonizedStats, useMasterMode);
+                  sim = simulateHitByHit(simSources, { name, types }, loadout, startingHp, MOB_HP_PERCENT, useDungeonizedStats, useMasterMode);
                 }
               }
 
@@ -745,9 +766,27 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                           won't sum to this exactly.
                         </div>
                       )}
-                      <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
-                        <span className="text-sm font-bold text-black">Total DPS</span>
-                        <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
+                      <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+                        {/* The per-hit melee number the non-DPS view headlines, repeated here: DPS
+                            mode otherwise only showed rates, so there was nowhere to read what one
+                            swing actually hits for. Melee only — Venomous/Fire Aspect/Thunderlord/
+                            Crimson Swipe are separate procs and already have their own DPS rows. */}
+                        {finalDamage && (
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-sm font-bold text-black">
+                              Damage{meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}
+                            </span>
+                            <span className="text-lg font-mono font-bold text-black">
+                              {finalDamageWithFabledMax
+                                ? `${finalDamage.finalDamage.toLocaleString()} ~ ${finalDamageWithFabledMax.finalDamage.toLocaleString()}`
+                                : finalDamage.finalDamage.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm font-bold text-black">Total DPS</span>
+                          <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
+                        </div>
                       </div>
                       {pickerOptions && (
                         <div className="flex items-center gap-2 text-[11px]">
@@ -928,7 +967,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
                       <div className="flex items-baseline justify-between">
                         <span className="text-sm font-bold text-black">
-                          Final Damage{finalDamageWithFabledMax ? ' (Fabled)' : ''}
+                          Final Damage{meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}
                           {finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}
                         </span>
                         <span className="text-2xl font-mono font-bold text-black">
@@ -1147,23 +1186,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   </span>
                 </label>
               )}
-              <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="mob-hp-percent">
-                <span className="flex justify-between">
-                  <span>Mob HP%</span>
-                  <span className="font-mono">{mobHpPercent}%</span>
-                </span>
-                <input
-                  id="mob-hp-percent"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={mobHpPercent}
-                  onChange={(e) => setMobHpPercent(e.target.value)}
-                  className="w-full"
-                />
-                <span className="text-[10px] text-neutral-600 italic">Execute/Prosecute/First Strike/Triple-Strike</span>
-              </label>
             </div>
           </div>
 
