@@ -160,6 +160,11 @@ const PET_STAT_KEY_MAP = {
   INTELLIGENCE: 'intelligence',
   SPEED: 'speed',
   FEROCITY: 'ferocity',
+  // Ability Damage was missing from this map, so neither Chimera nor Manticore Claw copied it even
+  // though the pet data carries it (Crow/Sheep and friends) and the rest of the pipeline already
+  // tracks it end to end (damageSources.js's TRACKED_STATS, damageFormat's BASE_STAT_KEYS).
+  // User-confirmed 2026-09-05 that both should copy it, same as every other stat here.
+  ABILITY_DAMAGE: 'ability_damage',
 };
 
 export function computeChimeraStatBonus(petStats, chimeraLevel) {
