@@ -51,6 +51,21 @@ export const MONSTER_HUNTER_MULTIPLIER = 1.25;
 export const MONSTER_RAIDER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'TARANTULA_BOOTS'];
 export const MONSTER_RAIDER_MULTIPLIER = 1.35;
 
+// Skeleton Master: a BOW-only damage multiplier, and the only set here that scales per piece
+// rather than all-or-nothing — 1.05x each, so a partial set is still worth something, plus a
+// separate 1.25x once all 4 are worn (user-provided 2026-09-05). Full set is therefore
+// 1.05^4 * 1.25 = 1.5194x, not 1.25x. Gated on an equipped bow (godPotion.js's isBowEquipped),
+// so it contributes nothing to a melee build wearing the same armor.
+export const SKELETON_MASTER_SET = [
+  'SKELETON_MASTER_HELMET',
+  'SKELETON_MASTER_CHESTPLATE',
+  'SKELETON_MASTER_LEGGINGS',
+  'SKELETON_MASTER_BOOTS',
+];
+export const SKELETON_MASTER_PER_PIECE_MULTIPLIER = 1.05;
+export const SKELETON_MASTER_FULL_SET_MULTIPLIER = 1.25;
+export const SKELETON_MASTER_FULL_SET_PIECES = 4;
+
 // `slots` is ARMOR_SLOTS or EQUIPMENT_SLOTS, matched positionally against `setIds`.
 export function hasFullSet(loadout, slots, setIds) {
   return slots.every((slot, i) => loadout[slot]?.item?.id === setIds[i]);
