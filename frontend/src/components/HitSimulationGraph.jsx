@@ -1,4 +1,5 @@
-import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { useState } from 'react';
+import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 // Matches DpsByHitGraph's own note — Recharts renders raw SVG with literal stroke/fill props, so
 // the site's Tailwind dark-glass theme never applies here and has to be hardcoded instead.
@@ -13,6 +14,48 @@ const PROC_LABELS = {
   crimsonSwipeDamage: 'Crimson Swipe',
   venomousDamage: 'Venomous (amortized)',
 };
+
+// One line per damage source rather than a single summed line (user-specified 2026-09-05) — a
+// stacked total hides which source is actually moving. Same key order as PROC_LABELS so the
+// legend and the tooltip read in the same order.
+const SOURCE_SERIES = [
+  { key: 'meleeDamage', name: 'Melee', color: '#4ade80' },
+  { key: 'venomousDamage', name: 'Venomous', color: '#a78bfa' },
+  { key: 'fireAspectDamage', name: 'Fire Aspect', color: '#fb923c' },
+  { key: 'thunderlordDamage', name: 'Thunderlord', color: '#38bdf8' },
+  { key: 'crimsonSwipeDamage', name: 'Crimson Swipe', color: '#f472b6' },
+];
+const TOTAL_COLOR = '#4ade80';
+
+// The damage axis deliberately does NOT start at zero. Anchored at 0, a real build's variance is
+// invisible — at ~5,000,000 per hit a 10,000 swing is 0.2% of the axis, a flat line (user-reported
+// 2026-09-05). Fitting the axis to the values actually plotted turns that same swing into real
+// vertical movement. Padded by 8% of the span so the extremes aren't welded to the frame, and only
+// clamped at 0 when the padding would otherwise push below it.
+function damageDomain(hits, keys) {
+  const values = [];
+  for (const h of hits) {
+    for (const k of keys) {
+      const v = h[k];
+      if (Number.isFinite(v)) values.push(v);
+    }
+  }
+  if (values.length === 0) return [0, 1];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return [Math.max(0, min - Math.abs(min) * 0.05 - 1), max + Math.abs(max) * 0.05 + 1];
+  const pad = (max - min) * 0.08;
+  return [Math.max(0, min - pad), max + pad];
+}
+
+function Toggle({ checked, onChange, label }) {
+  return (
+    <label className="flex items-center gap-1 text-[10px] text-neutral-700 cursor-pointer select-none">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="cursor-pointer" />
+      {label}
+    </label>
+  );
+}
 
 function HitTooltip({ active, payload, label }) {
   if (!active || !payload || payload.length === 0) return null;
@@ -62,7 +105,21 @@ function formatDuration(seconds) {
 }
 
 export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits, timeToKillSeconds, exceededSimCap, maxDps, minDps }) {
-  if (!hits || hits.length === 0) return null;
+  // Split by default, aggregate on demand. Mob HP stays on by default (unchanged), but is now
+  // switchable: it spans the full 0-100% height on its own axis, so against damage lines that
+  // only vary by a fraction of a percent it was the only thing the eye could follow.
+  const [aggregate, setAggregate] = useState(false);
+  const [showHp, setShowHp] = useState(true);
+  const safeHits = hits && hits.length > 0 ? hits : [];
+
+  // Only sources that actually fire — a build with no Venomous/Thunderlord shouldn't get flat
+  // zero lines pinning the axis minimum to 0 and squashing everything else.
+  const activeSeries = SOURCE_SERIES.filter(({ key }) => safeHits.some((h) => (h[key] || 0) > 0));
+  const plottedKeys = aggregate || activeSeries.length === 0 ? ['totalDamage'] : activeSeries.map((sm) => sm.key);
+  const domain = damageDomain(safeHits, plottedKeys);
+  const hpVisible = hasRealHp && showHp;
+
+  if (safeHits.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
@@ -80,6 +137,10 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
             <span className="font-bold">Time to Kill:</span> doesn't die within 10,000 hits
           </span>
         )}
+        <div className="flex items-center gap-3 ml-auto">
+          {activeSeries.length > 1 && <Toggle checked={aggregate} onChange={setAggregate} label="Aggregate" />}
+          {hasRealHp && <Toggle checked={showHp} onChange={setShowHp} label="Mob HP" />}
+        </div>
       </div>
       {/* Real per-hit DPS swings over the shown window — from Venomous stacking up, Execute/
           Prosecute ramping as real HP drains, and First Strike/Triple Strike's opening-hit-only
@@ -98,12 +159,15 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
           No confirmed HP for {mobName} yet — held at full HP instead of a real draining pool.
         </span>
       )}
-      <ResponsiveContainer width="100%" height={200}>
+      {/* Taller than the original 200 and with real bottom padding: the legend added above the
+          plot consumed vertical space, which pushed the "Hits" axis label 8px past the container
+          and clipped it. */}
+      <ResponsiveContainer width="100%" height={228}>
         {/* left margin + a wider damage axis: at width 56 with no left margin, a realistic
             damage tick ("1,234,567" is ~58px at this font size) overflowed the axis and got
             clipped against the SVG's left edge. 72 fits ~10 characters, and the 6px margin keeps
             the widest label off the boundary entirely. */}
-        <ComposedChart data={hits} margin={{ top: 8, right: 12, bottom: 0, left: 6 }}>
+        <ComposedChart data={hits} margin={{ top: 8, right: 12, bottom: 16, left: 6 }}>
           <CartesianGrid stroke={GRAPH_GRID_COLOR} vertical={false} />
           <XAxis
             dataKey="hit"
@@ -113,12 +177,17 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
           />
           <YAxis
             yAxisId="damage"
+            domain={domain}
+            allowDataOverflow
             tick={{ fill: GRAPH_AXIS_COLOR, fontSize: 11 }}
             stroke={GRAPH_AXIS_COLOR}
             width={72}
-            tickFormatter={(v) => v.toLocaleString()}
+            /* Full numbers, not compact ("4.99M"): on an axis fitted this tightly, compact ticks
+               round several gridlines to the same label and throw away the resolution the fitted
+               domain exists to show. */
+            tickFormatter={(v) => Math.round(v).toLocaleString()}
           />
-          {hasRealHp && (
+          {hpVisible && (
             <YAxis
               yAxisId="hp"
               orientation="right"
@@ -130,18 +199,41 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
             />
           )}
           <Tooltip content={<HitTooltip />} cursor={{ stroke: GRAPH_GRID_COLOR, strokeWidth: 1 }} />
-          <Line
-            yAxisId="damage"
-            type="linear"
-            dataKey="totalDamage"
-            name="Total Damage"
-            stroke="#4ade80"
-            strokeWidth={2.5}
-            dot={false}
-            activeDot={{ r: 4 }}
-            isAnimationActive={false}
+          <Legend
+            verticalAlign="top"
+            height={22}
+            iconSize={8}
+            wrapperStyle={{ fontSize: 10, color: GRAPH_AXIS_COLOR }}
           />
-          {hasRealHp && (
+          {aggregate || activeSeries.length === 0 ? (
+            <Line
+              yAxisId="damage"
+              type="linear"
+              dataKey="totalDamage"
+              name="Total Damage"
+              stroke={TOTAL_COLOR}
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{ r: 4 }}
+              isAnimationActive={false}
+            />
+          ) : (
+            activeSeries.map(({ key, name, color }) => (
+              <Line
+                key={key}
+                yAxisId="damage"
+                type="linear"
+                dataKey={key}
+                name={name}
+                stroke={color}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+                isAnimationActive={false}
+              />
+            ))
+          )}
+          {hpVisible && (
             <Line
               yAxisId="hp"
               type="linear"
