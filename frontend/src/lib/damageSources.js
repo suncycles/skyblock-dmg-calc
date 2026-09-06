@@ -25,6 +25,10 @@ import {
   MONSTER_HUNTER_MULTIPLIER,
   MONSTER_RAIDER_SET,
   MONSTER_RAIDER_MULTIPLIER,
+  SKELETON_MASTER_SET,
+  SKELETON_MASTER_PER_PIECE_MULTIPLIER,
+  SKELETON_MASTER_FULL_SET_MULTIPLIER,
+  SKELETON_MASTER_FULL_SET_PIECES,
   INFERNAL_CRIMSON_SET,
   INFERNAL_CRIMSON_MIN_PIECES,
   INFERNAL_CRIMSON_PERCENT_PER_STACK,
@@ -1671,6 +1675,29 @@ export async function collectDamageSources(
       source: 'Armor',
       value: MONSTER_RAIDER_MULTIPLIER,
     });
+  }
+
+  // Skeleton Master: 1.05x per piece, plus a separate 1.25x at 4 pieces (see armorSetBonuses.js).
+  // Bow-only, so it's skipped entirely for a melee weapon rather than pushed as a conditional —
+  // the condition is on the equipped WEAPON, not the target, which is what `additiveConditional`
+  // is for. Shown as two lines because they're two distinct real effects: folding them into one
+  // number would hide that 3 pieces gets you the per-piece stacking but none of the set bonus.
+  const skeletonMasterPieces = countSetPieces(loadout, ARMOR_SLOTS, SKELETON_MASTER_SET);
+  if (skeletonMasterPieces > 0 && isBowEquipped(loadout)) {
+    out.multiplicative.push({
+      id: 'skeleton-master-per-piece',
+      label: `Skeleton Master (${skeletonMasterPieces}/${SKELETON_MASTER_FULL_SET_PIECES} pieces)`,
+      source: 'Armor',
+      value: SKELETON_MASTER_PER_PIECE_MULTIPLIER ** skeletonMasterPieces,
+    });
+    if (skeletonMasterPieces >= SKELETON_MASTER_FULL_SET_PIECES) {
+      out.multiplicative.push({
+        id: 'skeleton-master-full-set',
+        label: 'Skeleton Master (Full Set)',
+        source: 'Armor',
+        value: SKELETON_MASTER_FULL_SET_MULTIPLIER,
+      });
+    }
   }
 
   // Magma Lord/Thunder/Taurus-Flaming-Moogma: flat melee-only additive damage against Magmatic —

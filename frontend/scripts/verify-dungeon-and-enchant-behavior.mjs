@@ -57,6 +57,9 @@ try {
   const itemStatTotals = await server.ssrLoadModule('/src/lib/itemStatTotals.js');
   const tieredArmorStats = await server.ssrLoadModule('/src/lib/tieredArmorStats.js');
   const petData = await server.ssrLoadModule('/src/lib/petData.js');
+  const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
+  const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
+  const armorSlots = await server.ssrLoadModule('/src/lib/armorSlots.js');
 
   // 1. Item stars, Dungeon toggle OFF: flat 2%/star of the item's own pristine base stat.
   await check('stars out of a dungeon = 2%/star', () => {
@@ -339,6 +342,33 @@ try {
     const noAbility = petData.computeChimeraStatBonus({ STRENGTH: 100 }, 5);
     assert.equal(noAbility.ability_damage, undefined, 'a pet with no Ability Damage must not gain one');
     assert.equal(noAbility.strength, 100, 'unrelated stats must still be copied');
+  });
+  // Skeleton Master stacks PER PIECE and adds a separate full-set bonus on top, so the full set
+  // is 1.05^4 * 1.25 = 1.5194x — not 1.25x, and not 1.05*1.25. It's also bow-only. Both are easy
+  // to get subtly wrong (a single flat multiplier, or forgetting the weapon gate), and neither
+  // fails loudly.
+  await check('Skeleton Master is 1.05x per piece plus 1.25x at 4, bow-only', () => {
+    const { SKELETON_MASTER_SET, SKELETON_MASTER_PER_PIECE_MULTIPLIER, SKELETON_MASTER_FULL_SET_MULTIPLIER,
+            SKELETON_MASTER_FULL_SET_PIECES, countSetPieces } = armorSetBonuses;
+    const { ARMOR_SLOTS } = armorSlots;
+
+    const wear = (n) => Object.fromEntries(ARMOR_SLOTS.slice(0, n).map((slot, i) => [slot, { item: { id: SKELETON_MASTER_SET[i] } }]));
+
+    assert.equal(countSetPieces(wear(4), ARMOR_SLOTS, SKELETON_MASTER_SET), 4, 'a full set must count 4 pieces');
+    assert.equal(countSetPieces(wear(3), ARMOR_SLOTS, SKELETON_MASTER_SET), 3, 'a partial set must count its real pieces');
+
+    assert.equal(SKELETON_MASTER_PER_PIECE_MULTIPLIER, 1.05, 'per-piece multiplier');
+    assert.equal(SKELETON_MASTER_FULL_SET_MULTIPLIER, 1.25, 'full-set multiplier');
+    const fullSet = SKELETON_MASTER_PER_PIECE_MULTIPLIER ** SKELETON_MASTER_FULL_SET_PIECES * SKELETON_MASTER_FULL_SET_MULTIPLIER;
+    assert.ok(Math.abs(fullSet - 1.5193828125) < 1e-9, `full set must be 1.5194x, got ${fullSet}`);
+
+    // The bow gate: same armour, different weapon category.
+    const bow = { weapon: { item: { category: 'BOW' } } };
+    const dungeonBow = { weapon: { item: { category: 'DUNGEON BOW' } } };
+    const sword = { weapon: { item: { category: 'DUNGEON SWORD' } } };
+    assert.equal(godPotion.isBowEquipped(bow), true, 'BOW counts as a bow');
+    assert.equal(godPotion.isBowEquipped(dungeonBow), true, 'DUNGEON BOW counts as a bow');
+    assert.equal(godPotion.isBowEquipped(sword), false, 'a sword must not trigger the bow-only bonus');
   });
 } finally {
   await server.close();
