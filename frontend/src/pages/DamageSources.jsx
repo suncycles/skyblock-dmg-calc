@@ -88,6 +88,23 @@ function MobDefenseNote({ name, types, masterMode }) {
   );
 }
 
+// Every MISC-panel input settles on its own 3s debounce instead of the 200ms the rest of the page
+// uses (user-specified 2026-09-05). They're the free-typed stat fields and dragged sliders, so at
+// 200ms a full collectDamageSources pass was queued per keystroke and per slider tick. The panel's
+// own controls still read the live value, so typing stays responsive — only the copy feeding the
+// calculation waits. The checkbox is deliberately NOT debounced: it's a discrete toggle with no
+// "stopped typing" moment, and a 3s lag there would just read as broken.
+const MISC_DEBOUNCE_MS = 3000;
+
+function useSettled(value, delay) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const handle = setTimeout(() => setSettled(value), delay);
+    return () => clearTimeout(handle);
+  }, [value, delay]);
+  return settled;
+}
+
 function Section({ title, subtitle, children, empty }) {
   return (
     <div className={`${panel} p-3 flex flex-col gap-1.5`}>
@@ -156,6 +173,14 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const tokenRef = useRef(0);
 
+  // Debounced copies of every MISC-panel value that feeds collectDamageSources — see useSettled.
+  const settledMiscStats = useSettled(miscStats, MISC_DEBOUNCE_MS);
+  const settledMobHpPercent = useSettled(mobHpPercent, MISC_DEBOUNCE_MS);
+  const settledInfernalCrimsonStacks = useSettled(infernalCrimsonStacks, MISC_DEBOUNCE_MS);
+  const settledSwarmMobs = useSettled(swarmMobs, MISC_DEBOUNCE_MS);
+  const settledComboKills = useSettled(comboKills, MISC_DEBOUNCE_MS);
+  const settledLegionPlayers = useSettled(legionPlayers, MISC_DEBOUNCE_MS);
+
   // Swaps in a saved loadout without leaving this page — loadFullState updates BuildContext's
   // `loadout` (and everything else this page reads), which the recalculation effect below is
   // already keyed off of, so Final Damage/(Base) Stats recompute automatically.
@@ -221,13 +246,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         playerStats,
         godPotionActive,
         attributes,
-        miscStats,
-        mobHpPercent,
-        infernalCrimsonStacks,
+        settledMiscStats,
+        settledMobHpPercent,
+        settledInfernalCrimsonStacks,
         useDungeonizedStats,
-        swarmMobs,
-        comboKills,
-        legionPlayers,
+        settledSwarmMobs,
+        settledComboKills,
+        settledLegionPlayers,
         effectiveBlazeCrimsonIsle,
         bestiaryMaxedMobs,
         godPotionMixin,
@@ -244,14 +269,14 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     godPotionActive,
     godPotionMixin,
     attributes,
-    miscStats,
-    mobHpPercent,
-    infernalCrimsonStacks,
+    settledMiscStats,
+    settledMobHpPercent,
+    settledInfernalCrimsonStacks,
     useDungeonizedStats,
-    swarmMobs,
+    settledSwarmMobs,
     bestiaryMaxedMobs,
-    comboKills,
-    legionPlayers,
+    settledComboKills,
+    settledLegionPlayers,
     effectiveBlazeCrimsonIsle,
     maxedCollectionsCount,
   ]);
@@ -274,13 +299,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         playerStats,
         godPotionActive,
         attributes,
-        miscStats,
+        settledMiscStats,
         100,
-        infernalCrimsonStacks,
+        settledInfernalCrimsonStacks,
         useDungeonizedStats,
-        swarmMobs,
-        comboKills,
-        legionPlayers,
+        settledSwarmMobs,
+        settledComboKills,
+        settledLegionPlayers,
         blazeCrimsonIsle,
         bestiaryMaxedMobs,
         godPotionMixin,
@@ -298,13 +323,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     godPotionActive,
     godPotionMixin,
     attributes,
-    miscStats,
-    infernalCrimsonStacks,
+    settledMiscStats,
+    settledInfernalCrimsonStacks,
     useDungeonizedStats,
-    swarmMobs,
+    settledSwarmMobs,
     bestiaryMaxedMobs,
-    comboKills,
-    legionPlayers,
+    settledComboKills,
+    settledLegionPlayers,
     blazeCrimsonIsle,
     maxedCollectionsCount,
   ]);
@@ -607,7 +632,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 const startingHp = resolveStartingHp(name, useMasterMode, selection);
                 const simSources = startingHp ? resultAt100 : result;
                 if (simSources) {
-                  sim = simulateHitByHit(simSources, { name, types }, loadout, startingHp, mobHpPercent, useDungeonizedStats, useMasterMode);
+                  sim = simulateHitByHit(simSources, { name, types }, loadout, startingHp, settledMobHpPercent, useDungeonizedStats, useMasterMode);
                 }
               }
 
