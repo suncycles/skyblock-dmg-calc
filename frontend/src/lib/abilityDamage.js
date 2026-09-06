@@ -13,6 +13,7 @@ export const ABILITY_DAMAGE_TABLE = {
   CELESTE_WAND: { base: 40, scaling: 1 },
   EMBER_ROD: { base: 30, scaling: 1 },
   FIRE_FURY_STAFF: { base: 42000, scaling: 0.3 },
+  FIRE_VEIL_WAND: { base: 15000, scaling: 0.3 }, // user-provided 2026-09-05
   FROZEN_SCYTHE: { base: 1000, scaling: 0.3 },
   GIANTS_SWORD: { base: 100000, scaling: 0.05 },
   GLACIAL_SCYTHE: { base: 1500, scaling: 0.3 },
