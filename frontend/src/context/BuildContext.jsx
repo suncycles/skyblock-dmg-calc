@@ -114,10 +114,16 @@ function loadInitialDpsMode() {
 }
 
 // Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
+// Pinned at 100 since the Mob HP% slider was removed (user-specified 2026-09-05). It was the only
+// control that could write this, so an old stored value — or one carried in a shared loadout code —
+// would otherwise be stuck forever with no way to change it, and would silently disagree with the
+// Optimizer, which reads the same value. Everything that consumes it (Execute/Prosecute scaling,
+// First Strike/Triple Strike's ===100 gate) now evaluates at full HP. The plumbing is left intact
+// so a future control can just start writing to it again.
+const PINNED_MOB_HP_PERCENT = 100;
+
 function loadInitialMobHpPercent() {
-  const stored = localStorage.getItem(MOB_HP_PERCENT_KEY);
-  const parsed = stored != null ? Number(stored) : 100;
-  return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 100;
+  return PINNED_MOB_HP_PERCENT;
 }
 
 // Loads the per-mob Floor/Tier picks used to disambiguate a mob with more than one possible
@@ -1440,9 +1446,9 @@ export function BuildProvider({ children }) {
     setMiscStatsState(nextMiscStats);
     localStorage.setItem(MISC_STATS_KEY, JSON.stringify(nextMiscStats));
 
-    const clampedMobHp = Math.max(0, Math.min(100, Math.round(Number(state.mobHpPercent) || 100)));
-    setMobHpPercentState(clampedMobHp);
-    localStorage.setItem(MOB_HP_PERCENT_KEY, String(clampedMobHp));
+    // Ignores whatever a shared/saved loadout carried — see PINNED_MOB_HP_PERCENT.
+    setMobHpPercentState(PINNED_MOB_HP_PERCENT);
+    localStorage.setItem(MOB_HP_PERCENT_KEY, String(PINNED_MOB_HP_PERCENT));
 
     const nextMobHpSelections =
       state.mobHpSelections && typeof state.mobHpSelections === 'object' && !Array.isArray(state.mobHpSelections)

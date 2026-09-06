@@ -86,7 +86,7 @@ export default function Tutorial() {
         <Step n={6} title="Tuning Final Stats with MISC">
           <p>
             The <strong>Misc</strong> panel on the Damage Calculation page covers everything that isn't tied to a
-            specific item — flat Strength/Crit Damage bonuses, Mob HP%, and a few situational sliders that only
+            specific item — flat Strength/Crit Damage bonuses, and a few situational sliders that only
             appear when you have the matching enchant or set equipped:
           </p>
           <ul className="list-disc list-inside pl-1 flex flex-col gap-1">
