@@ -60,6 +60,7 @@ try {
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
   const armorSlots = await server.ssrLoadModule('/src/lib/armorSlots.js');
+  const optimizer = await server.ssrLoadModule('/src/lib/optimizer.js');
 
   // 1. Item stars, Dungeon toggle OFF: flat 2%/star of the item's own pristine base stat.
   await check('stars out of a dungeon = 2%/star', () => {
@@ -369,6 +370,24 @@ try {
     assert.equal(godPotion.isBowEquipped(bow), true, 'BOW counts as a bow');
     assert.equal(godPotion.isBowEquipped(dungeonBow), true, 'DUNGEON BOW counts as a bow');
     assert.equal(godPotion.isBowEquipped(sword), false, 'a sword must not trigger the bow-only bonus');
+  });
+  // A gemstone slot with no `costs` in Hypixel's catalog ships already unlocked. Reading that
+  // absence as "price unknown" instead made every candidate for such a slot unpriced — and
+  // unpriced results are exempt from dropDominated, so two identical COMBAT slots on the same
+  // weapon disagreed about the same gem (Perfect Onyx surfaced for socket 1 while socket 2
+  // correctly dropped it as dominated). Nothing about that failed loudly.
+  await check('a gemstone slot with no unlock costs counts as already open', () => {
+    const { gemstoneSlotShipsOpen } = optimizer;
+    assert.equal(gemstoneSlotShipsOpen({ slot_type: 'COMBAT' }), true, 'no costs block = ships open');
+    assert.equal(
+      gemstoneSlotShipsOpen({ slot_type: 'COMBAT', costs: [{ type: 'COINS', coins: 100000 }] }),
+      false,
+      'a real costs block means it must be unlocked first',
+    );
+    // A missing catalog entry is genuinely unknown, NOT confirmed-free — it has to keep the
+    // unpriced treatment rather than being silently priced as gem-cost-only.
+    assert.equal(gemstoneSlotShipsOpen(undefined), false, 'no catalog data is unknown, not free');
+    assert.equal(gemstoneSlotShipsOpen(null), false, 'null catalog data is unknown, not free');
   });
 } finally {
   await server.close();
