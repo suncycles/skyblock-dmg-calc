@@ -83,10 +83,29 @@ const RESIZE_HANDLES = [
 // lights up on hover, and the bottom-right corner carries a permanently visible gripper — the same
 // three diagonal ticks a native <textarea> uses, which reads as "drag to resize" without a label.
 const HANDLE_HOVER = 'lg:transition-colors lg:hover:bg-black/25';
+
 const CORNER_GRIP_STYLE = {
   backgroundImage:
     'linear-gradient(135deg, transparent 0 45%, rgba(0,0,0,0.5) 45% 55%, transparent 55% 70%, rgba(0,0,0,0.5) 70% 80%, transparent 80%)',
 };
+
+// Same small chip the Increase/Value sort buttons use, reused for the per-row figure toggles so
+// the header reads as one control strip rather than two competing styles.
+function HeaderChip({ active, onClick, title, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-pressed={active}
+      className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
+        active ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 // Horizontal half of a resize: 'e' grows/shrinks the right edge (left stays put, capped so the
 // right edge never crosses the viewport edge); 'w' grows/shrinks the left edge by keeping the
@@ -160,7 +179,11 @@ function compareResults(a, b, sortBy) {
 // One shared row style for every candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the
 // brute-forced categories (Enchant/Reforge/Stars/...) alike — now that they all rank together in
 // one list instead of two separate sections.
-function UpgradeRow({ result, onSwapIn, onSkip }) {
+function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat }) {
+  // `value` is the post-swap number in the same metric the baseline is measured in; every result
+  // path sets it (gear/enchant candidates via evaluateTieredProgression, accessories via
+  // accessoryOptimizer). Guarded anyway so a result without one just omits the flat figure.
+  const flatIncrease = typeof result.value === 'number' && typeof baselineValue === 'number' ? result.value - baselineValue : null;
   const badge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
   const isGemstone = result.category === 'Gemstone';
@@ -210,7 +233,20 @@ function UpgradeRow({ result, onSwapIn, onSkip }) {
               : 'Cost: unpriced'}
           </span>
         </div>
-        <span className="text-[11px] font-mono font-bold text-green-500 whitespace-nowrap">+{round1(result.percentIncrease)}%</span>
+        {/* Both figures are the same swap measured two ways: the % is relative to the current
+            build, the flat number is the raw gain in the mode's own metric (melee Total DPS, or
+            Ability Damage in Mage Mode). A big % on a small baseline and a small % on a large one
+            look identical without the flat column, which is why it is offered. */}
+        <span className="flex flex-col items-end leading-tight whitespace-nowrap">
+          {showPercent && (
+            <span className="text-[11px] font-mono font-bold text-green-500">+{round1(result.percentIncrease)}%</span>
+          )}
+          {/* Same green as the percent, not a darker one — on this dark panel a darker green reads
+              as less legible rather than as secondary; the hierarchy comes from size and weight. */}
+          {showFlat && flatIncrease != null && (
+            <span className="text-[10px] font-mono text-green-500">+{Math.round(flatIncrease).toLocaleString()}</span>
+          )}
+        </span>
         <span className="hidden group-hover:inline text-[9px] font-bold uppercase text-black whitespace-nowrap">Equip</span>
       </button>
       <button
@@ -267,6 +303,10 @@ export default function OptimizerSidebar() {
   };
   const [state, setState] = useState(EMPTY_STATE);
   const [sortBy, setSortBy] = useState('ratio');
+  // Which figure each row shows. Percent is the long-standing default and stays on; flat is the
+  // same swap in the mode's own units (melee Total DPS, or Ability Damage), off until asked for.
+  const [showPercent, setShowPercent] = useState(true);
+  const [showFlat, setShowFlat] = useState(false);
   // "Skip" (UpgradeRow's ✕) just hides a suggestion from view for the rest of this visit — see
   // Optimizer.jsx's identical treatment for the full-page version of this same list.
   const [skippedKeys, setSkippedKeys] = useState(() => new Set());
@@ -646,6 +686,17 @@ export default function OptimizerSidebar() {
             as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
             the app means "remove this item". */}
         <div className="text-[10px] text-neutral-700">Click a row to equip it · ✕ hides a suggestion</div>
+        {/* Which figure the rows carry. Both can be on at once; turning both off leaves the rows
+            as name-and-cost only, which is a legitimate way to read the list purely by rank. */}
+        <div className="flex items-center gap-1 text-[10px] text-neutral-700">
+          <span className="mr-0.5">Show</span>
+          <HeaderChip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % DPS increase on each row">
+            % increase
+          </HeaderChip>
+          <HeaderChip active={showFlat} onClick={() => setShowFlat((v) => !v)} title="Show the flat DPS increase on each row">
+            Flat DPS
+          </HeaderChip>
+        </div>
         {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
             a tooltip or a footnote. The ranking is a single-swap search against the current build,
             so it can't see multi-piece set bonuses, attribute breakpoints, or anything it has no
@@ -744,6 +795,9 @@ export default function OptimizerSidebar() {
               <UpgradeRow
                 key={resultKey(r)}
                 result={r}
+                baselineValue={state.baselineValue}
+                showPercent={showPercent}
+                showFlat={showFlat}
                 onSwapIn={(res) => applyOptimizerResult(build, res)}
                 onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
               />
