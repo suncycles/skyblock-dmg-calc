@@ -2035,6 +2035,14 @@ async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, bu
   return results;
 }
 
+// A gemstone slot Hypixel's catalog describes but gives no `costs` for needs no unlocking — it
+// ships open (user-confirmed 2026-09-06). Requires a real catalog entry: a MISSING entry is
+// genuinely unknown, not confirmed-free, and must keep the unpriced treatment lib/pricing.js
+// describes. 249 of 823 real slots ship open, 137 of them the item's first socket.
+export function gemstoneSlotShipsOpen(catalogSlot) {
+  return !!catalogSlot && !catalogSlot.costs;
+}
+
 const GEMSTONE_TIER_LABELS = { rough: 'Rough', flawed: 'Flawed', fine: 'Fine', flawless: 'Flawless', perfect: 'Perfect' };
 
 // User-specified scope (2026-08-23): only the gem that actually feeds each mode's optimized
@@ -2086,7 +2094,15 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
       const current = currentGemstones[index];
       const allowedGems = getAllowedGemsForSlotType(catalogSlots[index]?.slot_type).filter((g) => relevantGems.includes(g));
       if (allowedGems.length === 0) continue;
-      const gemstoneOpen = !!current || !!unlockedFlags[index];
+      // A slot the catalog describes but gives no `costs` for needs no unlocking — it ships open
+      // (user-confirmed 2026-09-06; e.g. Daedalus Blade's first COMBAT slot, 249 of 823 real slots
+      // overall). Treating that absence as "price unknown" left every candidate for such a slot
+      // unpriced, and unpriced results are exempt from dropDominated — so two identical COMBAT
+      // slots on one weapon disagreed about the same gem, with Perfect Onyx surfacing for socket 1
+      // while socket 2 correctly dropped it as dominated. Deliberately requires real catalog data
+      // for the slot: a missing catalogSlots entry is genuinely unknown, not confirmed-free, and
+      // keeps the old unpriced treatment that lib/pricing.js's own comment already describes.
+      const gemstoneOpen = !!current || !!unlockedFlags[index] || gemstoneSlotShipsOpen(catalogSlots[index]);
       const gemstoneUnlockCost = gemstoneOpen ? null : (itemData.costs?.gemstoneUnlockCosts?.[`${equipped.item.id}_${index}`] ?? null);
       for (const gem of allowedGems) {
         for (const tier of GEMSTONE_TIERS_FINE_UP) {
