@@ -389,6 +389,34 @@ try {
     assert.equal(gemstoneSlotShipsOpen(undefined), false, 'no catalog data is unknown, not free');
     assert.equal(gemstoneSlotShipsOpen(null), false, 'null catalog data is unknown, not free');
   });
+
+  // 17. Two DIFFERENT gems in the same socket are different upgrade paths, not redundant options.
+  // Grouping them together let a cheaper Flawless Jasper delete every Perfect Onyx row from the
+  // list at low Strength, so a Crit-Damage build was never offered the Onyx it was working toward
+  // (user-reported 2026-09-06, again 2026-09-07). Same gem + same socket must still share a group
+  // so a real bazaar price inversion is still filtered.
+  await check('gemstone dominance is scoped per gem, not per socket', () => {
+    const { dominanceGroupKey } = optimizer;
+    const row = (index, gem, tier) => ({
+      category: 'Gemstone',
+      apply: [{ type: 'setGemstone', slot: 'chestplate', index, gem, tier }],
+    });
+    assert.notEqual(
+      dominanceGroupKey(row(1, 'ONYX', 'perfect')),
+      dominanceGroupKey(row(1, 'JASPER', 'flawless')),
+      'Jasper must not dominate Onyx in the same socket',
+    );
+    assert.equal(
+      dominanceGroupKey(row(1, 'ONYX', 'perfect')),
+      dominanceGroupKey(row(1, 'ONYX', 'fine')),
+      'two tiers of the same gem in the same socket are still one group',
+    );
+    assert.notEqual(
+      dominanceGroupKey(row(0, 'ONYX', 'perfect')),
+      dominanceGroupKey(row(1, 'ONYX', 'perfect')),
+      'separate sockets stay separate groups',
+    );
+  });
 } finally {
   await server.close();
 }
