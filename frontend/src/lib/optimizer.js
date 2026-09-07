@@ -670,11 +670,19 @@ function dropDominated(results, groupKeyFn = () => '_') {
 // (New Accessory/Accessory Upgrade/Recombobulate/Perfect Gemstones/Magical Power) — those aren't
 // evaluated here at all (see accessoryOptimizer.js), and whether two different real accessories are
 // truly alternatives to each other isn't as clear-cut as a single gear slot.
-function dominanceGroupKey(result) {
+export function dominanceGroupKey(result) {
   switch (result.category) {
+    // Keyed by GEM as well as socket: a socket's Jasper and Onyx options are alternatives in the
+    // trivial sense (one gem fits), but they buy different stats, so which one "wins" flips with
+    // the player's own Strength/Crit Damage — at low Strength a Flawless Jasper edges out a
+    // Perfect Onyx and, being cheaper, used to delete the entire Onyx path from the list even
+    // though the player is deliberately stacking Crit Damage (user-reported twice, 2026-09-06/07).
+    // Dominance is for genuinely redundant options — a tier of the SAME gem that costs more and
+    // gives less (a real bazaar price inversion) — not for picking the player's build direction
+    // for them.
     case 'Gemstone': {
       const step = findStep(result.apply, 'setGemstone');
-      return step ? `Gemstone:${step.slot}:${step.index}` : null;
+      return step ? `Gemstone:${step.slot}:${step.index}:${step.gem}` : null;
     }
     case 'Enchant':
     case 'Ultimate Enchant': {
