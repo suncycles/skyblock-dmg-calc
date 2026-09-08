@@ -21,8 +21,9 @@ const ECHO_ATTRIBUTES = [
   { id: 'echo_of_boxes', name: 'Echo of Boxes' },
 ];
 
-// Small "[max]" text button — maxes a single attribute, one section, or every attribute depending on call site.
-function MaxButton({ label, onClick }) {
+// Small bracketed text button — sets a single attribute, one section, or every attribute to its
+// min/max depending on call site.
+function TextButton({ label, onClick }) {
   return (
     <button
       type="button"
@@ -34,11 +35,16 @@ function MaxButton({ label, onClick }) {
   );
 }
 
+// [min] as well as [max] per row: zeroing one attribute took clearing the field by hand, while
+// maxing it was a single click — and "min this one" is the more common of the two once a build is
+// already imported at full levels (user-specified 2026-09-08). Ordered min-then-max so the pair
+// reads along the same low-to-high axis as the number beside them.
 function LevelInput({ id, level, onChange }) {
   const maxLevel = getAttributeMaxLevel(id);
   return (
     <div className="flex items-center gap-1.5">
-      <MaxButton label="max" onClick={() => onChange(maxLevel)} />
+      <TextButton label="min" onClick={() => onChange(0)} />
+      <TextButton label="max" onClick={() => onChange(maxLevel)} />
       <NumberInput
         id={id}
         max={maxLevel}
@@ -55,7 +61,7 @@ function Section({ title, subtitle, maxLabel, onMaxAll, children }) {
     <div className={`${panel} p-3 flex flex-col gap-1.5`}>
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-bold text-black">{title}</div>
-        {onMaxAll && <MaxButton label={`max ${maxLabel}`} onClick={onMaxAll} />}
+        {onMaxAll && <TextButton label={`max ${maxLabel}`} onClick={onMaxAll} />}
       </div>
       {subtitle && <div className="text-[11px] text-neutral-700 -mt-1 mb-1">{subtitle}</div>}
       {children}
