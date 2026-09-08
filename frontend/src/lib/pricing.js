@@ -79,10 +79,32 @@ export function enchantPrice(itemPrices, id, level) {
   return priceOf(itemPrices, `ENCHANTMENT_${id.toUpperCase()}_${level}`);
 }
 
+// Real coin cost of tiering a Kuudra armor piece up from `fromItemId` to `toItemId` — the sum of
+// every prestige hop between them. A tier-up is a craft that consumes the piece being worn plus a
+// fixed material list, so this is what a player actually spends; the two tiers' auction prices
+// never enter into it (user-specified 2026-09-08). `prestigeCosts` is the Worker's own
+// { <sourceId>: { to, coins } } map (see its computePrestigeCosts) — walking `to` covers a
+// multi-tier jump as naturally as a single step. null when the chain doesn't reach `toItemId`
+// (different family, non-Kuudra item, missing data), which leaves the caller on market pricing.
+export function prestigeUpgradeCost(fromItemId, toItemId, prestigeCosts) {
+  if (!fromItemId || !toItemId || !prestigeCosts) return null;
+  let total = 0;
+  let id = fromItemId;
+  // VARIANT_TIERS is 5 long, so 4 hops is the real maximum — the bound is a cycle guard, not a rule.
+  for (let hop = 0; hop < 5; hop++) {
+    const step = prestigeCosts[id];
+    if (!step) return null;
+    total += step.coins || 0;
+    if (step.to === toItemId) return total;
+    id = step.to;
+  }
+  return null;
+}
+
 export function lookupCandidateCost(result, itemData) {
   const costs = itemData?.costs;
   if (!costs) return null;
-  const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {}, attributeCosts = {} } = costs;
+  const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {}, prestigeCosts = {}, attributeCosts = {} } = costs;
 
   // Crown of Avarice's "Coins Consumed" and Midas Sword/Staff's "Price Paid at Dark Auction" are
   // both a literal count of coins actually spent/fed into the item (gone, not held) — cost is the
@@ -105,7 +127,15 @@ export function lookupCandidateCost(result, itemData) {
     case 'Armor':
     case 'Equipment': {
       const step = findStep(result.apply, 'selectItem');
-      return step ? priceOf(itemPrices, step.item.id) : null;
+      if (!step) return null;
+      // A Kuudra armor tier-up isn't bought — it's crafted, consuming the piece already worn plus
+      // a fixed recipe (lib/optimizer.js sets `result.replaces` for exactly those candidates), so
+      // it's priced from that recipe rather than either tier's auction price
+      // (user-specified 2026-09-08). Falls through to the plain market price when the prestige
+      // chain doesn't cover this swap — every other gear swap really is just bought outright.
+      const prestige = prestigeUpgradeCost(result.replaces?.itemId, step.item.id, prestigeCosts);
+      if (prestige != null) return prestige;
+      return priceOf(itemPrices, step.item.id);
     }
     case 'Pet': {
       const step = findStep(result.apply, 'selectItem');

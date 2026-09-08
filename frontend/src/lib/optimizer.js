@@ -986,7 +986,9 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
       // any, per the "/" rule) is offered — the real next step is the next star, not a tier skip.
       let maxIndexOverride;
       let alwaysIncludeLastTier = false;
-      if (category === 'Armor' && ARMOR_VARIANT_FAMILIES.some((family) => currentId?.includes(family))) {
+      const currentKuudraFamily =
+        category === 'Armor' ? ARMOR_VARIANT_FAMILIES.find((family) => currentId?.includes(family)) || null : null;
+      if (currentKuudraFamily) {
         const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
         const starsMaxed = currentIndex !== -1 && currentItem && (currentModifiers?.stars || 0) >= getMaxStarsForItem(currentItem);
         maxIndexOverride = starsMaxed ? effectiveIndex + 1 : effectiveIndex;
@@ -1070,6 +1072,18 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
               removeIds: [],
             });
           }
+          // A Kuudra tier-up is a craft that CONSUMES the piece already being worn, so it's priced
+          // from its real recipe (Essence + Kuudra Teeth + the coin fee) rather than the new
+          // tier's auction price — the player isn't buying a Fiery chestplate from scratch
+          // (user-specified 2026-09-08). Which piece gets consumed is stashed for lib/pricing.js
+          // to price, the same split as gemstoneOpen/gemstoneUnlockCost: only this function knows
+          // the loadout, only pricing.js knows the price feed. Scoped to a SAME-family swap —
+          // crossing to another family, or off Kuudra entirely, consumes nothing and is a plain
+          // purchase.
+          const replaces =
+            currentKuudraFamily && resolved.id !== currentId && resolved.id.includes(currentKuudraFamily)
+              ? { itemId: currentId }
+              : null;
           return {
             category,
             slot,
@@ -1078,6 +1092,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
             material: resolved.material,
             special: candidate.special,
             value,
+            replaces,
             apply,
           };
         },
