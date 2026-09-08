@@ -915,9 +915,16 @@ export function BuildProvider({ children }) {
 
   // Merges a Hypixel-import attribute-level patch (see lib/hypixelImport.js) — only the ids
   // present in `patch` are touched, everything else stays as it was.
+  // A real import REPLACES the attribute panel rather than merging into it (user-specified
+  // 2026-09-08): every id starts from 0 — the same state the Attributes screen's own
+  // [Min Attributes] button produces — and only what the profile actually has is written back.
+  // Merging left an attribute the player had set by hand, or imported from a different account,
+  // silently standing alongside the real ones, which is exactly what an import is meant to settle.
+  // The caller only invokes this when the profile really did return attribute data (see
+  // HypixelImport.jsx), so an empty/absent response can't wipe a hand-built panel.
   const importHypixelAttributes = useCallback((patch) => {
-    setAttributesState((prev) => {
-      const next = { ...prev };
+    setAttributesState(() => {
+      const next = Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0]));
       for (const [id, level] of Object.entries(patch || {})) {
         if (ATTRIBUTE_IDS.includes(id)) next[id] = Math.max(0, Math.min(getAttributeMaxLevel(id), Math.floor(level) || 0));
       }
