@@ -499,20 +499,13 @@ export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
   return { ...proc, additiveMultiplier, multiplicativeMultiplier, baseDamage, finalDamage };
 }
 
-// User-confirmed: Thunderlord's chain-lightning proc doesn't apply to Inferno Demonlord in-game —
-// same "real per-mob immunity" case as VENOMOUS_IMMUNE_MOBS above, not a joke-mob/token-damage
-// case (every other damage source, Fire Aspect included, still works normally against it).
-const THUNDERLORD_IMMUNE_MOBS = new Set(['Inferno Demonlord']);
-
 // Fire Aspect/Thunderlord: simple X% of real melee Final Damage per level — unlike Venomous
 // above, no restricted modifier set, just a straight cut of the same finalDamage already shown.
 // `proc` is sources.fireAspectProc/thunderlordProc (null when that enchant isn't equipped) — the
-// two share this one function, so the Thunderlord-only immunity above is gated on `proc.id`'s own
-// `-thunderlord` suffix (set in damageSources.js as `${slotLabel}-${entry.id}`) rather than a
-// separate parameter, since every real caller already only ever passes one or the other.
+// two share this one function and neither has a per-mob immunity of its own (Thunderlord used to
+// be zeroed against Inferno Demonlord here; user-corrected 2026-09-08, it does apply in-game).
 export function computeEnchantProcDamage(mob, meleeFinalDamage, proc) {
   if (!proc) return null;
-  if (proc.id?.endsWith('-thunderlord') && THUNDERLORD_IMMUNE_MOBS.has(mob?.name)) return { ...proc, finalDamage: 0 };
   if (isShieldedMob(mob)) return { ...proc, finalDamage: 1 };
   return { ...proc, finalDamage: Math.floor(meleeFinalDamage * (proc.percent / 100)) };
 }
