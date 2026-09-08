@@ -72,6 +72,45 @@ const NEU_BESTIARY_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 // checked live 2026-09-01, constants/collections.json 404s), for computeMaxedCollectionsCount
 // below — "The One" enchant's real bonus scales with the account's count of maxed collections.
 const HYPIXEL_COLLECTIONS_URL = "https://api.hypixel.net/v2/resources/skyblock/collections";
+// Kuudra armor's real tier-up ("prestige") recipe, straight off Hypixel's own item resource — each
+// entry names the next tier's item id and the exact materials it consumes (Essence + Kuudra Teeth).
+// Not in NEU-REPO and not part of the bundled catalog (scripts/build-item-data.mjs copies
+// upgrade_costs/gemstone_slots, not prestige), so it's fetched live here on the same 20-minute
+// cadence as prices — the materials are bazaar goods whose coin value moves with the feed anyway.
+const HYPIXEL_ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
+// Every star past the 3rd also costs raw coins (10k at 4✩, 25k at 5✩, 50k at 6✩, ... 50M at 15✩),
+// on top of the Essence/Heavy Pearl/Kuudra Teeth that Hypixel's own upgrade_costs lists — and
+// Hypixel's resource omits that coin half entirely (verified 2026-09-08: not one COINS entry
+// across any item's upgrade_costs). NEU-REPO's essencecosts.json is the one source that carries
+// it, as "SKYBLOCK_COIN:<amount>" inside each star's material list. Only the coin lines are read
+// from it: its non-coin materials duplicate Hypixel's exactly (checked across all 478 shared
+// items x every star — zero disagreements), so merging those too would double-count them.
+const NEU_ESSENCE_COSTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/essencecosts.json";
+// The coin half of a Kuudra armor tier-up. Hypixel's resource lists only the Essence/Teeth side of
+// each recipe (checked 2026-09-08: across all 80 prestige entries the cost types are ESSENCE and
+// ITEM only, never COINS), NEU-REPO's item files carry no recipe at all, and its essencecosts.json
+// tracks coins for STAR upgrades but not tier-ups — so this number exists in no public data source
+// and can only come from the user, who supplied all four (2026-09-08). The fee varies by tier step
+// and only by tier step — not by family or piece: every family's Basic->Hot recipe is identical, as
+// is every piece's (verified against all 80 of Hypixel's prestige entries, an even 20 per step).
+// Indexed by the tier being upgraded FROM, matching KUUDRA_TIER_PREFIXES.
+const KUUDRA_PRESTIGE_COIN_FEE_BY_STEP = {
+  0: 2_000_000, // Basic -> Hot
+  1: 5_000_000, // Hot -> Burning
+  2: 10_000_000, // Burning -> Fiery: 4500 Crimson Essence + 50 Kuudra Teeth + 10M coins, ~15.2M all in
+  3: 20_000_000, // Fiery -> Infernal
+};
+
+// The 4 real tier-up starting points, ascending (frontend/src/lib/armorVariants.js's VARIANT_TIERS
+// minus Infernal, which has nothing above it). Every one of Hypixel's 80 prestige entries is a
+// Kuudra armor piece — 5 families x 4 steps x 4 pieces — so an id's prefix is the whole story.
+const KUUDRA_TIER_PREFIXES = ["FIERY_", "BURNING_", "HOT_", ""];
+
+function kuudraPrestigeStepIndex(itemId) {
+  // Longest prefix first: "" matches everything, so it has to be the last resort.
+  const i = KUUDRA_TIER_PREFIXES.findIndex((prefix) => itemId.startsWith(prefix));
+  return i === -1 ? null : KUUDRA_TIER_PREFIXES.length - 1 - i;
+}
 
 const CACHE_KEY = "hex_data";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -655,11 +694,59 @@ async function fetchPrices() {
   return res.json(); // flat { ITEM_ID: coins }
 }
 
+async function fetchEssenceCosts() {
+  const res = await fetch(NEU_ESSENCE_COSTS_URL);
+  return res.json();
+}
+
+// { "<star>": coins } for one item, pulled out of NEU's per-star material list (see
+// NEU_ESSENCE_COSTS_URL). Stars 1-3 have no coin line at all, so they're simply absent.
+function parseStarCoinCosts(entry) {
+  const out = {};
+  for (const [star, materials] of Object.entries(entry?.items || {})) {
+    for (const material of materials || []) {
+      const [id, amount] = String(material).split(":");
+      if (id === "SKYBLOCK_COIN") out[star] = Number(amount) || 0;
+    }
+  }
+  return out;
+}
+
+async function fetchHypixelItems() {
+  const res = await fetch(HYPIXEL_ITEMS_URL);
+  const body = await res.json();
+  return body.items || [];
+}
+
+// Real coin cost of ONE Kuudra armor tier-up, keyed by the item being consumed:
+// { <sourceItemId>: { to: <nextItemId>, coins } }. A tier-up is a craft that eats the piece you're
+// wearing plus a fixed material list (e.g. Burning -> Fiery Crimson Chestplate: 4500 Crimson
+// Essence + 50 Kuudra Teeth), so its real price is those materials at market — NOT the difference
+// between the two tiers' auction prices, which is what the Optimizer used to show
+// (user-specified 2026-09-08). Same ESSENCE/ITEM/COINS cost shape computeStarCosts walks; each hop
+// is stored separately so the client can sum a multi-tier jump by walking `to`.
+function computePrestigeCosts(hypixelItems, itemPrices) {
+  const out = {};
+  for (const item of hypixelItems) {
+    const prestige = item.prestige;
+    if (!prestige?.item_id || !Array.isArray(prestige.costs)) continue;
+    let coins = 0;
+    for (const cost of prestige.costs) {
+      if (cost.type === "ESSENCE") coins += (cost.amount || 0) * (itemPrices[`ESSENCE_${cost.essence_type}`] || 0);
+      else if (cost.type === "ITEM") coins += (cost.amount || 0) * (itemPrices[cost.item_id] || 0);
+      else if (cost.type === "COINS") coins += cost.coins || 0;
+    }
+    const step = kuudraPrestigeStepIndex(item.id);
+    out[item.id] = { to: prestige.item_id, coins: coins + (KUUDRA_PRESTIGE_COIN_FEE_BY_STEP[step] || 0) };
+  }
+  return out;
+}
+
 // Real coin cost per star level for one item's real upgrade_costs (see scripts/build-item-data.mjs
 // — Hypixel's own resources API, not in NEU-REPO at all). Each star's cost entry is one of
 // ESSENCE_<type>/direct item id/flat coins; summed cumulatively so star N's price is "everything
 // spent getting from bare to N", matching how a player actually pays for it one star at a time.
-function computeStarCosts(itemId, upgradeCosts, itemPrices, out) {
+function computeStarCosts(itemId, upgradeCosts, itemPrices, starCoinCosts, out) {
   let cumulative = 0;
   upgradeCosts.forEach((level, i) => {
     for (const cost of level) {
@@ -667,6 +754,11 @@ function computeStarCosts(itemId, upgradeCosts, itemPrices, out) {
       else if (cost.type === "ITEM") cumulative += (cost.amount || 0) * (itemPrices[cost.item_id] || 0);
       else if (cost.type === "COINS") cumulative += cost.coins || 0;
     }
+    // The raw coin fee every star past the 3rd carries, which Hypixel's own upgrade_costs leaves
+    // out (see NEU_ESSENCE_COSTS_URL) — e.g. Infernal Crimson 5✩ -> 6✩ is 65,500 Crimson Essence
+    // AND 50,000 coins (user-reported 2026-09-08). The COINS branch above stays: it's the real
+    // shape of Hypixel's own data even though nothing currently uses it.
+    cumulative += starCoinCosts[String(i + 1)] || 0;
     out[`${itemId}_${i + 1}`] = cumulative;
   });
 }
@@ -701,7 +793,12 @@ async function resolveCosts(env, catalog, force = false) {
   }
 
   try {
-    const [itemPrices, attributeShards] = await Promise.all([fetchPrices(), fetchAttributeShards()]);
+    const [itemPrices, attributeShards, hypixelItems, essenceCosts] = await Promise.all([
+      fetchPrices(),
+      fetchAttributeShards(),
+      fetchHypixelItems(),
+      fetchEssenceCosts(),
+    ]);
     const { attributeCosts, attributeCostsByLevel } = computeAttributeCosts(itemPrices, attributeShards);
 
     const reforgeCosts = {};
@@ -725,7 +822,7 @@ async function resolveCosts(env, catalog, force = false) {
     const starCosts = {};
     const gemstoneUnlockCosts = {};
     for (const item of [...armor, ...weapons]) {
-      if (item.upgrade_costs) computeStarCosts(item.id, item.upgrade_costs, itemPrices, starCosts);
+      if (item.upgrade_costs) computeStarCosts(item.id, item.upgrade_costs, itemPrices, parseStarCoinCosts(essenceCosts[item.id]), starCosts);
       if (item.gemstone_slots) {
         item.gemstone_slots.forEach((slot, i) => {
           if (slot.costs) gemstoneUnlockCosts[`${item.id}_${i}`] = computeGemstoneUnlockCost(slot.costs, itemPrices);
@@ -740,6 +837,7 @@ async function resolveCosts(env, catalog, force = false) {
       petCosts,
       starCosts,
       gemstoneUnlockCosts,
+      prestigeCosts: computePrestigeCosts(hypixelItems, itemPrices),
       attributeCosts,
       attributeCostsByLevel,
     };
@@ -756,6 +854,7 @@ async function resolveCosts(env, catalog, force = false) {
           petCosts: {},
           starCosts: {},
           gemstoneUnlockCosts: {},
+          prestigeCosts: {},
           attributeCosts: {},
           attributeCostsByLevel: {},
         };

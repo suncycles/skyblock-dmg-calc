@@ -61,6 +61,7 @@ try {
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
   const armorSlots = await server.ssrLoadModule('/src/lib/armorSlots.js');
   const optimizer = await server.ssrLoadModule('/src/lib/optimizer.js');
+  const pricing = await server.ssrLoadModule('/src/lib/pricing.js');
 
   // 1. Item stars, Dungeon toggle OFF: flat 2%/star of the item's own pristine base stat.
   await check('stars out of a dungeon = 2%/star', () => {
@@ -416,6 +417,49 @@ try {
       dominanceGroupKey(row(1, 'ONYX', 'perfect')),
       'separate sockets stay separate groups',
     );
+  });
+
+  // 18. A Kuudra armor tier-up is CRAFTED from the piece already worn, so the Optimizer must price
+  // it from its real recipe (Essence + Kuudra Teeth + coin fee, precomputed per hop by the Worker)
+  // — never from either tier's auction price (user-specified 2026-09-08). Synthetic cost bundle so
+  // the arithmetic is checked, not the live bazaar.
+  await check('a Kuudra tier-up is priced from its prestige recipe, not the auction price', () => {
+    const { lookupCandidateCost, prestigeUpgradeCost } = pricing;
+    const itemData = {
+      costs: {
+        itemPrices: { BURNING_CRIMSON_CHESTPLATE: 32_000_000, FIERY_CRIMSON_CHESTPLATE: 85_000_000 },
+        prestigeCosts: {
+          BURNING_CRIMSON_CHESTPLATE: { to: 'FIERY_CRIMSON_CHESTPLATE', coins: 15_200_654 },
+          FIERY_CRIMSON_CHESTPLATE: { to: 'INFERNAL_CRIMSON_CHESTPLATE', coins: 37_996_737 },
+        },
+      },
+    };
+    const row = (replaces, toId) => ({
+      category: 'Armor',
+      replaces,
+      apply: [{ type: 'selectItem', slot: 'chestplate', item: { id: toId } }],
+    });
+    assert.equal(
+      lookupCandidateCost(row({ itemId: 'BURNING_CRIMSON_CHESTPLATE' }, 'FIERY_CRIMSON_CHESTPLATE'), itemData),
+      15_200_654,
+      "one hop costs that hop's recipe, not Fiery's 85M auction price",
+    );
+    // A jump past a tier really does pay for every hop along the way.
+    assert.equal(
+      lookupCandidateCost(row({ itemId: 'BURNING_CRIMSON_CHESTPLATE' }, 'INFERNAL_CRIMSON_CHESTPLATE'), itemData),
+      15_200_654 + 37_996_737,
+      'a multi-tier jump sums every hop',
+    );
+    // Every other gear swap is bought outright — no `replaces`, so the market price still stands.
+    assert.equal(
+      lookupCandidateCost(row(null, 'FIERY_CRIMSON_CHESTPLATE'), itemData),
+      85_000_000,
+      'a non-craft swap keeps its market price',
+    );
+    // A chain that never reaches the target (different family, non-Kuudra item) must not invent a
+    // number — it falls back to the market price rather than summing the whole ladder.
+    assert.equal(prestigeUpgradeCost('BURNING_CRIMSON_CHESTPLATE', 'FIERY_HOLLOW_CHESTPLATE', itemData.costs.prestigeCosts), null);
+    assert.equal(prestigeUpgradeCost('NECRON_CHESTPLATE', 'FIERY_CRIMSON_CHESTPLATE', itemData.costs.prestigeCosts), null);
   });
 } finally {
   await server.close();
