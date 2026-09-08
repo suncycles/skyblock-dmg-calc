@@ -289,7 +289,10 @@ function DpsResultCard({ label, r }) {
                 <span className="text-right font-mono">{Math.round(r.dps.duplexBonusDps).toLocaleString()}</span>
               </>
             )}
-            <span>Venomous ({DPS_HITS_PER_SECOND.venomous}/s)</span>
+            <span>
+              Venomous ({DPS_HITS_PER_SECOND.venomous}/s)
+              {r.dps.venomousProc?.reductionLabel && ` (${r.dps.venomousProc.reductionLabel})`}
+            </span>
             <span className="text-right font-mono">{Math.round(r.dps.venomous).toLocaleString()}</span>
             <span>Thunderlord ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
             <span className="text-right font-mono">{Math.round(r.dps.thunderlord).toLocaleString()}</span>
