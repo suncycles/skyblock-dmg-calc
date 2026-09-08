@@ -725,7 +725,12 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             of "0" rows was just clutter (user-specified 2026-08-29). */}
                         {dps.venomous > 0 && (
                           <>
-                            <span>Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)</span>
+                            <span>
+                              Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)
+                              {/* Names the real mob mechanic cutting this to a fraction (Inferno
+                                  Demonlord's Hellion Shield), so a tiny number doesn't read as a bug. */}
+                              {dps.venomousProc?.reductionLabel && ` (${dps.venomousProc.reductionLabel})`}
+                            </span>
                             <span className="text-right font-mono">{Math.round(dps.venomous).toLocaleString()}</span>
                           </>
                         )}

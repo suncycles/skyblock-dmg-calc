@@ -468,7 +468,15 @@ export const MAX_VENOMOUS_STACKS = 40;
 
 // User-confirmed: Venomous' poison DoT doesn't apply to these bosses in-game (real mechanic, not
 // a joke-mob/token-damage case — every other damage source still works normally against them).
-const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror', 'Inferno Demonlord']);
+const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror']);
+
+// Not immune, but heavily resistant: the poison still ticks, at 1% of its normal damage
+// (user-specified 2026-09-08 — Inferno Demonlord was in the immune set above until then). `label`
+// names the real mechanic doing the reducing and is surfaced next to the DPS row so a suspiciously
+// tiny Venomous number reads as a real mob mechanic rather than a bug.
+const VENOMOUS_REDUCED_MOBS = {
+  'Inferno Demonlord': { multiplier: 0.01, label: 'Hellion Shield' },
+};
 
 export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
   const proc = sources.venomousProc;
@@ -492,11 +500,22 @@ export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
     if (!e.condition || conditionMatchesMob(e.condition, mob)) multiplicativeMultiplier *= e.value;
   }
 
+  // Folded into the same single floor as everything else rather than floored twice — at 1% a
+  // second rounding step would quantise the result hard enough to matter.
+  const reduction = VENOMOUS_REDUCED_MOBS[mob?.name];
+  const reductionMultiplier = reduction?.multiplier ?? 1;
   const additiveMultiplier = 1 + additivePercent / 100;
   const baseDamage = meleeFinalDamage * (proc.percent / 100);
-  const finalDamage = Math.floor(baseDamage * additiveMultiplier * multiplicativeMultiplier);
+  const finalDamage = Math.floor(baseDamage * additiveMultiplier * multiplicativeMultiplier * reductionMultiplier);
 
-  return { ...proc, additiveMultiplier, multiplicativeMultiplier, baseDamage, finalDamage };
+  return {
+    ...proc,
+    additiveMultiplier,
+    multiplicativeMultiplier,
+    baseDamage,
+    finalDamage,
+    reductionLabel: reduction?.label || null,
+  };
 }
 
 // Fire Aspect/Thunderlord: simple X% of real melee Final Damage per level — unlike Venomous

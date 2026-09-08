@@ -956,19 +956,19 @@
  "Quazii": {
   "tiers": [
    {
-    "hp": 2500000,
+    "hp": 500000,
     "label": "Tier I"
    },
    {
-    "hp": 10000000,
+    "hp": 1750000,
     "label": "Tier II"
    },
    {
-    "hp": 45000000,
+    "hp": 5000000,
     "label": "Tier III"
    },
    {
-    "hp": 150000000,
+    "hp": 10000000,
     "label": "Tier IV"
    }
   ]
@@ -1549,19 +1549,19 @@
  "Typhoeus": {
   "tiers": [
    {
-    "hp": 2500000,
+    "hp": 500000,
     "label": "Tier I"
    },
    {
-    "hp": 10000000,
+    "hp": 1750000,
     "label": "Tier II"
    },
    {
-    "hp": 45000000,
+    "hp": 5000000,
     "label": "Tier III"
    },
    {
-    "hp": 150000000,
+    "hp": 10000000,
     "label": "Tier IV"
    }
   ]

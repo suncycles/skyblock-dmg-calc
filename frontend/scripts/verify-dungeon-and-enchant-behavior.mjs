@@ -461,6 +461,27 @@ try {
     assert.equal(prestigeUpgradeCost('BURNING_CRIMSON_CHESTPLATE', 'FIERY_HOLLOW_CHESTPLATE', itemData.costs.prestigeCosts), null);
     assert.equal(prestigeUpgradeCost('NECRON_CHESTPLATE', 'FIERY_CRIMSON_CHESTPLATE', itemData.costs.prestigeCosts), null);
   });
+
+  // 19. Inferno Demonlord's Hellion Shield doesn't block Venomous, it cuts it to 1% — it sat in the
+  // outright-immune set until 2026-09-08, so both halves are pinned here: the survivor multiplier
+  // AND the fact that Atoned Horror is still genuinely immune.
+  await check("Venomous is cut to 1% by Hellion Shield, not zeroed", () => {
+    const { computeVenomousProcDamage } = finalDamage;
+    const sources = {
+      venomousProc: { id: 'Weapon-venomous', label: 'Venomous VII', level: 7, percent: 60 },
+      additiveNonConditional: [],
+      additiveConditional: [],
+      abilityMultiplicative: [],
+    };
+    const at = (name, types) => computeVenomousProcDamage(sources, { name, types }, 1_000_000);
+    const normal = at('Blaze', ['Infernal']);
+    const demonlord = at('Inferno Demonlord', ['Infernal', 'Boss']);
+    assert.equal(normal.finalDamage, 600000, 'an ordinary mob takes the full 60% proc');
+    assert.equal(demonlord.finalDamage, 6000, 'Inferno Demonlord takes exactly 1% of that');
+    assert.equal(demonlord.reductionLabel, 'Hellion Shield', 'the reduction names its real mechanic');
+    assert.equal(normal.reductionLabel, null, 'an unreduced mob carries no label');
+    assert.equal(at('Atoned Horror', ['Undead']).finalDamage, 0, 'Atoned Horror stays fully immune');
+  });
 } finally {
   await server.close();
 }
