@@ -103,7 +103,6 @@ html {
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 /* Anything that floats OVER other content opts out of the translucent glass above and paints a
@@ -130,16 +129,30 @@ html {
   border-radius: 10px;
 }
 
+/* Flat, not beveled. The chest-GUI heritage put four edge treatments on every panel at once —
+   a 3px DIRECTIONAL border (light top/left, dark bottom/right), a 2px outline ring outside it, a
+   32px drop shadow, and a 1px inset top highlight — which together read as embossed plastic. The
+   directional pair is the actual 3D cue, so all four sides now take one even hairline and the
+   outline/shadow are dropped below; the gear icons end up the loudest thing on the grid, which is
+   the point. Drafted as four options and chosen live (user-specified 2026-09-08). Border WIDTH is
+   retargeted rather than edited across the 47 files using border-[3px], same reasoning as the
+   rest of this block. */
+.border-\[3px\] {
+  border-width: 1px;
+}
 .border-t-white,
-.border-l-white {
-  border-color: rgba(255, 255, 255, 0.22);
-}
+.border-l-white,
 .border-b-\[\#555555\],
-.border-r-\[\#555555\] {
-  border-color: rgba(0, 0, 0, 0.35);
+.border-r-\[\#555555\],
+.border-t-\[\#c9c9c9\],
+.border-l-\[\#c9c9c9\],
+.border-b-\[\#4a4a4a\],
+.border-r-\[\#4a4a4a\] {
+  border-color: rgba(255, 255, 255, 0.12);
 }
-.outline-black {
-  outline-color: rgba(var(--glass-tint), 0.22);
+.outline-1,
+.outline-2 {
+  outline-width: 0;
 }
 
 /* CTA / equipped-highlight accent stays a solid, saturated color — it needs to read as
@@ -152,12 +165,10 @@ html {
   background-color: rgba(var(--glass-tint), 0.8);
 }
 .border-t-\[\#6fd66f\],
-.border-l-\[\#6fd66f\] {
-  border-color: rgba(var(--glass-tint), 0.9);
-}
+.border-l-\[\#6fd66f\],
 .border-b-\[\#1f4f1f\],
 .border-r-\[\#1f4f1f\] {
-  border-color: rgba(var(--glass-tint), 0.35);
+  border-color: rgba(var(--glass-tint), 0.55);
 }
 
 /* Buttons and form controls (Back/Max/Min/+N buttons, number/text inputs) get a lighter,
