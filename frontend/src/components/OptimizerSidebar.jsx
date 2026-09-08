@@ -288,6 +288,12 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
 // carrying the grip glyph that advertises it — sat underneath Landing's Loadout toolbar at every
 // viewport narrower than ~1500px, hiding the affordance exactly where it needed to be seen.)
 //
+// lg:z-[1000] puts it above every other layer in the app — the TopBar (z-40) and its menu drawer
+// (z-50), the GlobalFooter's data-freshness chip (z-30, which sits in the same bottom-right corner
+// and covered the panel's last rows), and the Armor/Equipment Options dialogs (z-[999]). A window
+// the user has deliberately dragged somewhere should stay the topmost thing on the page
+// (user-specified 2026-09-08) — nothing is allowed to render over it.
+//
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
 // together in one list, rather than a separate "by slot" section capped to one pick per slot.
@@ -621,9 +627,9 @@ export default function OptimizerSidebar() {
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 max-h-[60vh] overflow-y-auto ${
+      className={`relative flex flex-col gap-2 w-full max-w-[700px] mt-4 lg:mt-0 max-h-[60vh] overflow-hidden ${
         state.status === 'loading' || state.status === 'ok' ? 'min-h-[60vh]' : ''
-      } ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-32'} lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-auto`}
+      } ${floatPos ? 'lg:fixed' : 'lg:fixed lg:right-4 lg:top-32'} lg:z-[1000] lg:w-[280px] lg:h-[66vh] lg:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100vh-6rem)] lg:min-w-[220px] lg:min-h-[200px] lg:overflow-hidden`}
       style={desktopStyle}
     >
       {isDesktop &&
@@ -636,183 +642,190 @@ export default function OptimizerSidebar() {
             onMouseDown={handleResizeStart(dir)}
           />
         ))}
-      {/* opaque-panel: this is a floating window the user drags over the gear grid and the damage
-          breakdown — glass here means their text reads through this panel's own. */}
-      <div className={`${panel} opaque-panel p-2 flex flex-col gap-1.5`}>
-        {/* Title and sort buttons stack rather than share a line: at the panel's 280px default the
-            two competed for width, and adding the grip glyph tipped the title into truncating
-            ("RECOMMENDED UPGRA..."). Stacking also makes the top row read as a real title bar,
-            which is half the point of the grip. The whole block is the drag surface; the buttons
-            stop propagation so clicking one doesn't start a drag. */}
-        <div
-          className={`${sectionTitle} flex flex-col gap-1 lg:cursor-move select-none`}
-          onMouseDown={handleDragStart}
-          title="Drag to move this window — drag its edges or corners to resize"
-        >
-          <span className="flex items-center gap-1.5 min-w-0">
-            {/* Standard drag-grip glyph (braille dots), desktop-only since the panel is an ordinary
-                in-flow block below the breakpoint. */}
-            {isDesktop && (
-              <span className="text-[13px] leading-none text-neutral-600 shrink-0" aria-hidden="true">
-                ⠿
-              </span>
-            )}
-            <span className="truncate">Recommended Upgrades</span>
-          </span>
-          <div className="flex gap-1 justify-end" onMouseDown={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setSortBy('increase')}
-              title="Highest raw % DPS increase"
-              className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
-                sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
-              }`}
-            >
-              Increase
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortBy('ratio')}
-              title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
-              className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
-                sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
-              }`}
-            >
-              Value
-            </button>
-          </div>
-        </div>
-        {/* One-click apply is this panel's most useful feature and nothing said so — the rows read
-            as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
-            the app means "remove this item". */}
-        <div className="text-[10px] text-neutral-700">Click a row to equip it · ✕ hides a suggestion</div>
-        {/* Which figure the rows carry. Both can be on at once; turning both off leaves the rows
-            as name-and-cost only, which is a legitimate way to read the list purely by rank. */}
-        <div className="flex items-center gap-1 text-[10px] text-neutral-700">
-          <span className="mr-0.5">Show</span>
-          <HeaderChip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % DPS increase on each row">
-            % increase
-          </HeaderChip>
-          <HeaderChip active={showFlat} onClick={() => setShowFlat((v) => !v)} title="Show the flat DPS increase on each row">
-            Flat DPS
-          </HeaderChip>
-        </div>
-        {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
-            a tooltip or a footnote. The ranking is a single-swap search against the current build,
-            so it can't see multi-piece set bonuses, attribute breakpoints, or anything it has no
-            price for; a player reading "+90.9%" as "this is the best move available" is the exact
-            misreading worth spending the space to prevent. */}
-        <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 bg-amber-400/10 border border-amber-400/30 rounded px-1.5 py-1">
-          <span aria-hidden="true" className="shrink-0 leading-none pt-px">⚠</span>
-          <span>Recommendations are not necessarily indicative of the most optimal option.</span>
-        </div>
-        <div className="grid grid-cols-2 gap-1">
-          {OPTIMIZER_MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              disabled={m.disabled}
-              onClick={() => !m.disabled && setMode(m.id)}
-              title={m.disabled ? `${m.label} — not selectable yet` : m.label}
-              className={`${panel} px-2 py-1 flex items-center justify-center gap-1 text-[10px] font-bold text-black transition-[filter] ${
-                m.disabled ? 'opacity-40 cursor-not-allowed' : mode === m.id ? 'cursor-pointer hover:brightness-110' : 'cursor-pointer brightness-50'
-              }`}
-            >
-              {m.icon && <img src={m.icon} alt="" className="w-4 h-4 pixelated shrink-0" />}
-              <span className="truncate">{m.label}</span>
-            </button>
-          ))}
-        </div>
-        {!hasCuratedData(mode) && (
-          <div className="text-[10px] text-neutral-700 italic">Armor/Pet progression not configured for this mode yet.</div>
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor="sidebar-max-budget" className="text-[10px] font-bold text-black uppercase tracking-wide">
-            Max Budget
-          </label>
-          <NumberInput
-            id="sidebar-max-budget"
-            value={build.maxBudget}
-            onChange={build.setMaxBudget}
-            min={0}
-            step={1000000}
-            allowSuffix
-            placeholder="No limit"
-            className={`${panel} px-1.5 py-0.5 text-[11px] text-black w-28 text-right`}
-          />
-        </div>
-        {mode === 'slayer' && state.status === 'ok' && (
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-bold text-black uppercase tracking-wide">Atk Speed</span>
-            <span className={`font-mono font-bold ${state.bonusAttackSpeed >= SLAYER_ATTACK_SPEED_TARGET ? 'text-green-700' : 'text-red-700'}`}>
-              {round1(state.bonusAttackSpeed)}% {state.bonusAttackSpeed < SLAYER_ATTACK_SPEED_TARGET && `(target ${SLAYER_ATTACK_SPEED_TARGET}%)`}
+      {/* The 8 resize handles are absolutely positioned against the frame above, so the frame
+          itself must never scroll — an `absolute` box inside a scroll container is anchored to
+          the SCROLLED content, not the visible edges, which sent the corner grip thousands of
+          pixels off-screen the moment the list scrolled. Scrolling lives on this inner wrapper
+          instead; the frame stays put and the handles stay on its real edges. */}
+      <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-y-auto">
+        {/* opaque-panel: this is a floating window the user drags over the gear grid and the damage
+            breakdown — glass here means their text reads through this panel's own. */}
+        <div className={`${panel} opaque-panel p-2 flex flex-col gap-1.5`}>
+          {/* Title and sort buttons stack rather than share a line: at the panel's 280px default the
+              two competed for width, and adding the grip glyph tipped the title into truncating
+              ("RECOMMENDED UPGRA..."). Stacking also makes the top row read as a real title bar,
+              which is half the point of the grip. The whole block is the drag surface; the buttons
+              stop propagation so clicking one doesn't start a drag. */}
+          <div
+            className={`${sectionTitle} flex flex-col gap-1 lg:cursor-move select-none`}
+            onMouseDown={handleDragStart}
+            title="Drag to move this window — drag its edges or corners to resize"
+          >
+            <span className="flex items-center gap-1.5 min-w-0">
+              {/* Standard drag-grip glyph (braille dots), desktop-only since the panel is an ordinary
+                  in-flow block below the breakpoint. */}
+              {isDesktop && (
+                <span className="text-[13px] leading-none text-neutral-600 shrink-0" aria-hidden="true">
+                  ⠿
+                </span>
+              )}
+              <span className="truncate">Recommended Upgrades</span>
             </span>
+            <div className="flex gap-1 justify-end" onMouseDown={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setSortBy('increase')}
+                title="Highest raw % DPS increase"
+                className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
+                  sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                }`}
+              >
+                Increase
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy('ratio')}
+                title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
+                className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
+                  sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                }`}
+              >
+                Value
+              </button>
+            </div>
+          </div>
+          {/* One-click apply is this panel's most useful feature and nothing said so — the rows read
+              as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
+              the app means "remove this item". */}
+          <div className="text-[10px] text-neutral-700">Click a row to equip it · ✕ hides a suggestion</div>
+          {/* Which figure the rows carry. Both can be on at once; turning both off leaves the rows
+              as name-and-cost only, which is a legitimate way to read the list purely by rank. */}
+          <div className="flex items-center gap-1 text-[10px] text-neutral-700">
+            <span className="mr-0.5">Show</span>
+            <HeaderChip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % DPS increase on each row">
+              % increase
+            </HeaderChip>
+            <HeaderChip active={showFlat} onClick={() => setShowFlat((v) => !v)} title="Show the flat DPS increase on each row">
+              Flat DPS
+            </HeaderChip>
+          </div>
+          {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
+              a tooltip or a footnote. The ranking is a single-swap search against the current build,
+              so it can't see multi-piece set bonuses, attribute breakpoints, or anything it has no
+              price for; a player reading "+90.9%" as "this is the best move available" is the exact
+              misreading worth spending the space to prevent. */}
+          <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 bg-amber-400/10 border border-amber-400/30 rounded px-1.5 py-1">
+            <span aria-hidden="true" className="shrink-0 leading-none pt-px">⚠</span>
+            <span>Recommendations are not necessarily indicative of the most optimal option.</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            {OPTIMIZER_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                disabled={m.disabled}
+                onClick={() => !m.disabled && setMode(m.id)}
+                title={m.disabled ? `${m.label} — not selectable yet` : m.label}
+                className={`${panel} px-2 py-1 flex items-center justify-center gap-1 text-[10px] font-bold text-black transition-[filter] ${
+                  m.disabled ? 'opacity-40 cursor-not-allowed' : mode === m.id ? 'cursor-pointer hover:brightness-110' : 'cursor-pointer brightness-50'
+                }`}
+              >
+                {m.icon && <img src={m.icon} alt="" className="w-4 h-4 pixelated shrink-0" />}
+                <span className="truncate">{m.label}</span>
+              </button>
+            ))}
+          </div>
+          {!hasCuratedData(mode) && (
+            <div className="text-[10px] text-neutral-700 italic">Armor/Pet progression not configured for this mode yet.</div>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="sidebar-max-budget" className="text-[10px] font-bold text-black uppercase tracking-wide">
+              Max Budget
+            </label>
+            <NumberInput
+              id="sidebar-max-budget"
+              value={build.maxBudget}
+              onChange={build.setMaxBudget}
+              min={0}
+              step={1000000}
+              allowSuffix
+              placeholder="No limit"
+              className={`${panel} px-1.5 py-0.5 text-[11px] text-black w-28 text-right`}
+            />
+          </div>
+          {mode === 'slayer' && state.status === 'ok' && (
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-bold text-black uppercase tracking-wide">Atk Speed</span>
+              <span className={`font-mono font-bold ${state.bonusAttackSpeed >= SLAYER_ATTACK_SPEED_TARGET ? 'text-green-700' : 'text-red-700'}`}>
+                {round1(state.bonusAttackSpeed)}% {state.bonusAttackSpeed < SLAYER_ATTACK_SPEED_TARGET && `(target ${SLAYER_ATTACK_SPEED_TARGET}%)`}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {state.status === 'no-target' && (
+          <div className={`${panel} p-2 text-[11px] text-neutral-600 italic`}>Pick a target mob to see recommended upgrades.</div>
+        )}
+        {state.status === 'loading' && <div className={`${panel} p-2 text-[11px] text-neutral-600 italic`}>Evaluating...</div>}
+
+        {state.status === 'ok' && (
+          <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
+            {availableCategories.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1">
+                {availableCategories.map((category) => {
+                  const active = selectedCategories.size === 0 || selectedCategories.has(category);
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => toggleCategory(category)}
+                      title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
+                      className="px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide normal-case cursor-pointer transition-opacity"
+                      style={{
+                        color: '#fff',
+                        backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
+                        opacity: active ? 1 : 0.5,
+                      }}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+                {selectedCategories.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategories(new Set())}
+                    className="px-1 py-0.5 text-[8px] font-bold uppercase text-neutral-700 hover:text-black cursor-pointer underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+            {combinedResults.length > 0 ? (
+              combinedResults.map((r) => (
+                <UpgradeRow
+                  key={resultKey(r)}
+                  result={r}
+                  baselineValue={state.baselineValue}
+                  showPercent={showPercent}
+                  showFlat={showFlat}
+                  onSwapIn={(res) => applyOptimizerResult(build, res)}
+                  onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
+                />
+              ))
+            ) : (
+              <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">
+                {selectedCategories.size > 0
+                  ? 'No upgrades match the selected filter.'
+                  : build.maxBudget
+                    ? 'No upgrades available within budget.'
+                    : 'No upgrades available.'}
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {state.status === 'no-target' && (
-        <div className={`${panel} p-2 text-[11px] text-neutral-600 italic`}>Pick a target mob to see recommended upgrades.</div>
-      )}
-      {state.status === 'loading' && <div className={`${panel} p-2 text-[11px] text-neutral-600 italic`}>Evaluating...</div>}
-
-      {state.status === 'ok' && (
-        <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
-          {availableCategories.length > 1 && (
-            <div className="flex flex-wrap items-center gap-1">
-              {availableCategories.map((category) => {
-                const active = selectedCategories.size === 0 || selectedCategories.has(category);
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => toggleCategory(category)}
-                    title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
-                    className="px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide normal-case cursor-pointer transition-opacity"
-                    style={{
-                      color: '#fff',
-                      backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
-                      opacity: active ? 1 : 0.5,
-                    }}
-                  >
-                    {category}
-                  </button>
-                );
-              })}
-              {selectedCategories.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategories(new Set())}
-                  className="px-1 py-0.5 text-[8px] font-bold uppercase text-neutral-700 hover:text-black cursor-pointer underline"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          )}
-          {combinedResults.length > 0 ? (
-            combinedResults.map((r) => (
-              <UpgradeRow
-                key={resultKey(r)}
-                result={r}
-                baselineValue={state.baselineValue}
-                showPercent={showPercent}
-                showFlat={showFlat}
-                onSwapIn={(res) => applyOptimizerResult(build, res)}
-                onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
-              />
-            ))
-          ) : (
-            <div className="px-2 py-1.5 text-[11px] text-neutral-600 italic">
-              {selectedCategories.size > 0
-                ? 'No upgrades match the selected filter.'
-                : build.maxBudget
-                  ? 'No upgrades available within budget.'
-                  : 'No upgrades available.'}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
