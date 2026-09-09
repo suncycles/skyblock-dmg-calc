@@ -428,3 +428,13 @@ export function mobHasType(mobName, type) {
 export function getEnchantForType(type) {
   return MOB_TYPE_ENCHANTS[type] || null;
 }
+
+// Every Bestiary type name, most-populous first — drives TargetMobPicker's type filter chips, the
+// same shape (and ordering rule) mobLocations.js's ALL_LOCATIONS/LOCATION_COUNTS give the location
+// chips right beside them, so the two filter rows stay consistent.
+const typeCounts = {};
+for (const types of Object.values(MOB_TYPES)) {
+  for (const type of types) typeCounts[type] = (typeCounts[type] || 0) + 1;
+}
+export const ALL_MOB_TYPES = Object.keys(typeCounts).sort((a, b) => typeCounts[b] - typeCounts[a]);
+export const MOB_TYPE_COUNTS = typeCounts;

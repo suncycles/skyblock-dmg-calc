@@ -480,7 +480,13 @@ try {
     assert.equal(demonlord.finalDamage, 6000, 'Inferno Demonlord takes exactly 1% of that');
     assert.equal(demonlord.reductionLabel, 'Hellion Shield', 'the reduction names its real mechanic');
     assert.equal(normal.reductionLabel, null, 'an unreduced mob carries no label');
-    assert.equal(at('Atoned Horror', ['Undead']).finalDamage, 0, 'Atoned Horror stays fully immune');
+    // Fully immune, as distinct from Inferno Demonlord's reduced-but-present case above — the two
+    // treatments live in separate tables and must not drift into each other.
+    for (const immune of ['Atoned Horror', 'Quazii', 'Typhoeus']) {
+      const r = at(immune, ['Boss']);
+      assert.equal(r.finalDamage, 0, `${immune} stays fully immune`);
+      assert.equal(r.reductionLabel, undefined, `${immune} is immune, not labelled as reduced`);
+    }
   });
 } finally {
   await server.close();
