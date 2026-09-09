@@ -468,7 +468,9 @@ export const MAX_VENOMOUS_STACKS = 40;
 
 // User-confirmed: Venomous' poison DoT doesn't apply to these bosses in-game (real mechanic, not
 // a joke-mob/token-damage case — every other damage source still works normally against them).
-const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror']);
+// Quazii/Typhoeus added 2026-09-09; unlike Inferno Demonlord below they're fully immune, not
+// reduced.
+const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror', 'Quazii', 'Typhoeus']);
 
 // Not immune, but heavily resistant: the poison still ticks, at 1% of its normal damage
 // (user-specified 2026-09-08 — Inferno Demonlord was in the immune set above until then). `label`

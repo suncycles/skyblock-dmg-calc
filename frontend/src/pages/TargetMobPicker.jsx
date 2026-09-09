@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
-import { MOB_TYPES } from '../lib/mobTypes';
+import { MOB_TYPES, ALL_MOB_TYPES, MOB_TYPE_COUNTS } from '../lib/mobTypes';
 import { MOB_LOCATIONS, ALL_LOCATIONS, LOCATION_COUNTS } from '../lib/mobLocations';
+import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { getMobIconDataUri, getMobModelIcon } from '../lib/mobIcons';
 import PageHeader from '../components/PageHeader';
 
@@ -11,9 +12,11 @@ const ALL_MOB_NAMES = Object.keys(MOB_TYPES).sort((a, b) => a.localeCompare(b));
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Toggleable filter pill — same shape as ThemeSwitcher's theme buttons, reused here for
-// per-location filtering instead of per-theme switching.
-function LocationChip({ label, count, active, onClick }) {
+// Toggleable filter pill — same shape as ThemeSwitcher's theme buttons, shared by both the
+// location and type filter rows. `symbol` is the type's own Bestiary glyph (mob types have one,
+// locations don't), rendered in its real color so the chips read the same way the type does
+// everywhere else in the app — the tooltip, the Damage Sources breakdown, the tile badges.
+function FilterChip({ label, count, active, symbol, onClick }) {
   return (
     <button
       type="button"
@@ -24,8 +27,33 @@ function LocationChip({ label, count, active, onClick }) {
           : 'bg-black/30 text-neutral-200 border-neutral-600 hover:bg-black/50 hover:text-white'
       }`}
     >
+      {symbol && (
+        <span style={{ color: active ? undefined : symbol.color }} className="mr-0.5">
+          {symbol.symbol}
+        </span>
+      )}
       {label} <span className="opacity-60">{count}</span>
     </button>
+  );
+}
+
+// One collapsible row of filter chips. Both rows collapse independently: 22 locations and 24
+// types expanded at once would push the search box and the whole mob grid below the fold.
+function FilterSection({ title, expanded, onToggle, activeCount, children }) {
+  return (
+    <>
+      <button
+        type="button"
+        className="flex items-center gap-1.5 text-[11px] font-bold text-black uppercase tracking-wide cursor-pointer"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <span className="text-[9px]">{expanded ? '▾' : '▸'}</span>
+        {title}
+        {activeCount > 0 && <span className="normal-case font-normal text-black/60">({activeCount})</span>}
+      </button>
+      {expanded && <div className="flex flex-wrap gap-1.5">{children}</div>}
+    </>
   );
 }
 
@@ -41,24 +69,32 @@ export default function TargetMobPicker() {
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [query, setQuery] = useState('');
   const [activeLocations, setActiveLocations] = useState(() => new Set());
-  // Collapsed by default — expanded, the 22 location chips push the search box and mob grid
-  // well below the fold on mobile. Active filters still show as a count on the collapsed header.
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [activeTypes, setActiveTypes] = useState(() => new Set());
+  // Both collapsed by default — expanded, the 22 location and 24 type chips push the search box
+  // and mob grid well below the fold on mobile. Active filters still show as a count on the
+  // collapsed header, so a narrowed grid is never unexplained.
+  const [locationsExpanded, setLocationsExpanded] = useState(false);
+  const [typesExpanded, setTypesExpanded] = useState(false);
 
-  function toggleLocation(loc) {
-    setActiveLocations((prev) => {
+  const toggleIn = (setter) => (value) =>
+    setter((prev) => {
       const next = new Set(prev);
-      if (next.has(loc)) next.delete(loc);
-      else next.add(loc);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
       return next;
     });
-  }
+  const toggleLocation = toggleIn(setActiveLocations);
+  const toggleType = toggleIn(setActiveTypes);
 
   function clearFilters() {
     setActiveLocations(new Set());
+    setActiveTypes(new Set());
     setQuery('');
   }
 
+  // Within one filter group the chips are OR'd (a mob in ANY selected location/type qualifies);
+  // across groups they're AND'd, so "Catacombs" + "Undead" narrows to undead mobs in the
+  // Catacombs rather than widening to everything matching either.
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return ALL_MOB_NAMES.filter((name) => {
@@ -67,9 +103,13 @@ export default function TargetMobPicker() {
         const locs = MOB_LOCATIONS[name] || [];
         if (!locs.some((loc) => activeLocations.has(loc))) return false;
       }
+      if (activeTypes.size > 0) {
+        const types = MOB_TYPES[name] || [];
+        if (!types.some((type) => activeTypes.has(type))) return false;
+      }
       return true;
     });
-  }, [query, activeLocations]);
+  }, [query, activeLocations, activeTypes]);
 
   function handleHover(name, e) {
     const types = MOB_TYPES[name] || [];
@@ -79,7 +119,7 @@ export default function TargetMobPicker() {
     showTooltip(lines, e.currentTarget);
   }
 
-  const hasFilters = activeLocations.size > 0 || query.length > 0;
+  const hasFilters = activeLocations.size > 0 || activeTypes.size > 0 || query.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
@@ -92,42 +132,52 @@ export default function TargetMobPicker() {
         </div>
 
         <div className={`${panel} p-2.5 flex flex-col gap-2`}>
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 text-[11px] font-bold text-black uppercase tracking-wide cursor-pointer"
-              onClick={() => setFiltersExpanded((v) => !v)}
-              aria-expanded={filtersExpanded}
-            >
-              <span className="text-[9px]">{filtersExpanded ? '▾' : '▸'}</span>
-              Filter by Location
-              {activeLocations.size > 0 && (
-                <span className="normal-case font-normal text-black/60">({activeLocations.size})</span>
-              )}
-            </button>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-col gap-2 min-w-0">
+              <FilterSection
+                title="Filter by Location"
+                expanded={locationsExpanded}
+                onToggle={() => setLocationsExpanded((v) => !v)}
+                activeCount={activeLocations.size}
+              >
+                {ALL_LOCATIONS.map((loc) => (
+                  <FilterChip
+                    key={loc}
+                    label={loc}
+                    count={LOCATION_COUNTS[loc]}
+                    active={activeLocations.has(loc)}
+                    onClick={() => toggleLocation(loc)}
+                  />
+                ))}
+              </FilterSection>
+              <FilterSection
+                title="Filter by Type"
+                expanded={typesExpanded}
+                onToggle={() => setTypesExpanded((v) => !v)}
+                activeCount={activeTypes.size}
+              >
+                {ALL_MOB_TYPES.map((type) => (
+                  <FilterChip
+                    key={type}
+                    label={type}
+                    count={MOB_TYPE_COUNTS[type]}
+                    symbol={MOB_TYPE_SYMBOLS[type]}
+                    active={activeTypes.has(type)}
+                    onClick={() => toggleType(type)}
+                  />
+                ))}
+              </FilterSection>
+            </div>
             {hasFilters && (
               <button
                 type="button"
-                className="text-[11px] underline text-black cursor-pointer whitespace-nowrap"
+                className="text-[11px] underline text-black cursor-pointer whitespace-nowrap shrink-0"
                 onClick={clearFilters}
               >
                 Clear filters
               </button>
             )}
           </div>
-          {filtersExpanded && (
-            <div className="flex flex-wrap gap-1.5">
-              {ALL_LOCATIONS.map((loc) => (
-                <LocationChip
-                  key={loc}
-                  label={loc}
-                  count={LOCATION_COUNTS[loc]}
-                  active={activeLocations.has(loc)}
-                  onClick={() => toggleLocation(loc)}
-                />
-              ))}
-            </div>
-          )}
         </div>
 
         <input
