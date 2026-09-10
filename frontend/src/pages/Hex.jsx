@@ -15,6 +15,7 @@ import { buildFullItemTooltipLines } from '../lib/itemTooltip';
 import { computeBasePetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
 import { MOB_TYPES } from '../lib/mobTypes';
 import WeaponIcon from '../components/WeaponIcon';
+import { reforgeRarityFor } from '../lib/dungeonHeads';
 
 // 6 rows x 9 columns, matching the reference screenshot.
 // type: "empty" | "filler" | "item" | "icon" | "change" | "barrier"
@@ -147,7 +148,7 @@ export default function Hex() {
         };
       case 'Modifiers':
         return {
-          enabled: canRecombobulate(modifiers.rarityOverride || currentItem.tier),
+          enabled: canRecombobulate(modifiers.rarityOverride || reforgeRarityFor(currentItem.id, currentItem.tier)),
           disabledReason: "this item can't be recombobulated",
           title: 'Recombobulator 3000 — click to toggle',
           badge: modifiers.recombobulated ? '✓' : null,

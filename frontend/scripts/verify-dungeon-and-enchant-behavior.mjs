@@ -60,6 +60,7 @@ try {
   const dungeonBlessing = await server.ssrLoadModule('/src/lib/dungeonBlessing.js');
   const essencePerks = await server.ssrLoadModule('/src/lib/essencePerks.js');
   const masterSkull = await server.ssrLoadModule('/src/lib/masterSkull.js');
+  const recombobulator = await server.ssrLoadModule('/src/lib/recombobulator.js');
   const petData = await server.ssrLoadModule('/src/lib/petData.js');
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
@@ -615,6 +616,29 @@ try {
     const compounded = (1 + powerPercent / 100) * masterSkullStrengthMultiplier(7);
     assert.equal(Number(compounded.toFixed(4)), 1.265);
     assert.notEqual(Number(compounded.toFixed(4)), 1.25, 'summing the percentages would be wrong');
+  });
+
+  // 24. A Catacombs boss head's own rarity is SPECIAL, which appears in no reforge's
+  // requiredRarities and in no rarity ladder — so heads matched zero reforges and couldn't be
+  // recombobulated (user-reported 2026-09-10). They read a stand-in rarity for both. Pins the
+  // BEHAVIOUR rather than the stand-in's value, which is a separate, still-open question.
+  await check('boss heads reforge and recombobulate like helmets', () => {
+    const { reforgeRarityFor, DUNGEON_HEAD_REFORGE_RARITY } = dungeonHeads;
+    assert.equal(reforgeRarityFor('GOLD_BONZO_HEAD', 'SPECIAL'), DUNGEON_HEAD_REFORGE_RARITY);
+    assert.equal(reforgeRarityFor('DIAMOND_NECRON_HEAD', 'SPECIAL'), DUNGEON_HEAD_REFORGE_RARITY);
+    // Every other item keeps its own tier — the stand-in must not leak.
+    assert.equal(reforgeRarityFor('POWER_WITHER_HELMET', 'LEGENDARY'), 'LEGENDARY');
+    assert.equal(reforgeRarityFor('HYPERION', 'MYTHIC'), 'MYTHIC');
+    assert.equal(reforgeRarityFor(null, 'EPIC'), 'EPIC');
+
+    // The stand-in has to be a rarity the reforge tables actually carry, or a head matches nothing
+    // again — which was the whole bug.
+    assert.ok(
+      ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'].includes(DUNGEON_HEAD_REFORGE_RARITY),
+      'stand-in must be a real reforge-table column',
+    );
+    const head = { id: 'DIAMOND_BONZO_HEAD', tier: 'SPECIAL' };
+    assert.equal(recombobulator.getDisplayTier(head, {}), DUNGEON_HEAD_REFORGE_RARITY);
   });
 } finally {
   await server.close();

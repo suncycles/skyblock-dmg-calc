@@ -69,7 +69,7 @@ import {
   getAttributeMaxLevel,
 } from './attributes';
 import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
-import { parseDungeonHead, diamondCounterpartFor } from './dungeonHeads';
+import { parseDungeonHead, diamondCounterpartFor, reforgeRarityFor } from './dungeonHeads';
 import { derivePetDisplayName, getMaxPetLevel, MAX_GOLDEN_DRAGON_BANK_COINS, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
@@ -2318,7 +2318,7 @@ async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeCo
   for (const slot of [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item || equipped.modifiers.recombobulated) continue;
-    const baseTier = equipped.modifiers.rarityOverride || equipped.item.tier;
+    const baseTier = equipped.modifiers.rarityOverride || reforgeRarityFor(equipped.item.id, equipped.item.tier);
     if (!canRecombobulate(baseTier)) continue;
     const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, recombobulated: true } } };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
