@@ -12,6 +12,7 @@ import { fetchEnchantLevels, extractDescriptionLines } from './enchantEffects';
 import { parseEnchantStatBonus } from './enchantStats';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
 import { computeTieredPristineStat } from './tieredArmorStats';
+import { dungeonHeadBaseStatMultiplier } from './dungeonHeads';
 
 // The single canonical per-item stat computation — the ONLY place "how much of stat X does this
 // item really have" gets computed. Both the tooltip renderer (itemTooltip.js) and the damage calc
@@ -137,7 +138,11 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
     // back to the catalog parse for every other item, or when the real per-copy itemTier isn't
     // known (manually-built items).
     const tieredPristine = computeTieredPristineStat(item.id, statKey, modifiers.itemTier, modifiers.baseStatBoostPercentage);
-    const pristine = tieredPristine ?? (parseBaseStatValue(lore, statKey) || 0);
+    // A Catacombs boss head's real base is its printed lore value doubled (lib/dungeonHeads.js);
+    // 1x for everything else. Applied to the pristine value specifically, so every boost below —
+    // stars, the Catacombs Stats Boost, reforge, gems — compounds on the doubled base rather than
+    // being doubled itself.
+    const pristine = (tieredPristine ?? (parseBaseStatValue(lore, statKey) || 0)) * dungeonHeadBaseStatMultiplier(item.id);
     const hiddenBase = sumSources(
       { [statKey]: pristine },
       gemstoneBonus,

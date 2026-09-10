@@ -122,6 +122,12 @@ export function lookupCandidateCost(result, itemData) {
     return (basePrice || 0) + result.special;
   }
 
+  // Some candidates are deliberately unpriceable rather than merely unpriced — "Max Golden Dragon"
+  // (lib/optimizer.js) is the pet plus a 1b bank and a maxed Gold collection, and there's no coin
+  // figure that means "get there". Flagged at the source so it can't be confused with a genuine
+  // price-feed miss.
+  if (result.unpriced) return null;
+
   switch (result.category) {
     case 'Weapon':
     case 'Armor':
