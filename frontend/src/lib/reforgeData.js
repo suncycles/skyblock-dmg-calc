@@ -1,3 +1,4 @@
+import { reforgeRarityFor } from './dungeonHeads';
 /* Reforge stat tables come from NEU-REPO's constants/reforges.json (the ~50 "free" reforges
    the blacksmith can roll) and constants/reforgestones.json (the ~81 that need a specific
    reforge-stone item) — worker/src/index.js keeps these as two separate
@@ -87,7 +88,7 @@ export function isReforgeApplicable(reforge, item) {
   // rather than folded into CATEGORY_TO_REFORGE_TYPES, since there's no general "Gauntlet" rule.
   const categoryTypes =
     item.id === 'GEMSTONE_GAUNTLET' ? ['SWORD/ROD', 'SWORD'] : CATEGORY_TO_REFORGE_TYPES[item.category] || [];
-  const rarity = (item.tier || '').toUpperCase();
+  const rarity = (reforgeRarityFor(item.id, item.tier) || '').toUpperCase();
   // No recognized rarity means treat as not-reforgeable rather than showing every reforge as applicable.
   if (!rarity) return false;
 

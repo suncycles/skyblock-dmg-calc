@@ -1,5 +1,6 @@
 import { rarityColorCode } from './mcText';
 import { MAX_BASE_STAT_BOOST_PERCENTAGE } from './tieredArmorStats';
+import { reforgeRarityFor } from './dungeonHeads';
 
 // Recombobulator 3000 has no flat stat bonus of its own — its real effect is bumping which
 // rarity's reforge-stat column a reforge reads from, plus the rarity color/label on the tooltip.
@@ -26,7 +27,10 @@ export function bumpRarity(tier) {
 // glow).
 export function getDisplayTier(item, modifiers) {
   if (!item) return null;
-  let tier = modifiers?.rarityOverride || item.tier;
+  // A Catacombs boss head's own rarity is SPECIAL, which sits outside this ladder entirely — it
+  // reads its stand-in rarity instead (lib/dungeonHeads.js), which is what makes reforging and
+  // recombobulating one work at all. Everything else passes its real tier through.
+  let tier = modifiers?.rarityOverride || reforgeRarityFor(item.id, item.tier);
   if (modifiers?.baseStatBoostPercentage === MAX_BASE_STAT_BOOST_PERCENTAGE) tier = bumpRarity(tier);
   if (modifiers?.recombobulated) tier = bumpRarity(tier);
   return tier;

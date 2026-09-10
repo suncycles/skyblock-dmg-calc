@@ -14,7 +14,7 @@ import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCa
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
-import { round1, formatCoinsPerPercent, formatCoinsShort } from '../lib/damageFormat';
+import { round1, round3Sig, formatCoinsPerPercent, formatCoinsShort } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import { ENCHANTED_BOOK_ICON, getGemstoneIcon } from '../lib/icons';
 import NumberInput from './NumberInput';
@@ -242,8 +242,11 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
             Ability Damage in Mage Mode). A big % on a small baseline and a small % on a large one
             look identical without the flat column, which is why it is offered. */}
         <span className="flex flex-col items-end leading-tight whitespace-nowrap">
+          {/* 3 significant figures, matching Optimizer.jsx's own row — at 1 decimal every
+              sub-0.05% candidate collapsed to "+0.0%", which is exactly where the ranking is
+              tightest and the precision matters most (user-specified 2026-09-10). */}
           {showPercent && (
-            <span className="text-[11px] font-mono font-bold text-green-500">+{round1(result.percentIncrease)}%</span>
+            <span className="text-[11px] font-mono font-bold text-green-500">+{round3Sig(result.percentIncrease)}%</span>
           )}
           {/* Same green as the percent, not a darker one — on this dark panel a darker green reads
               as less legible rather than as secondary; the hierarchy comes from size and weight. */}
