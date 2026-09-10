@@ -110,6 +110,7 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
     manticoreClawBonus,
     potatoBookDoubled = false,
     maxedCollectionsCount = 0,
+    essencePerks = null,
   } = ctx;
 
   const lore = normalizeAttackSpeedLabel(item.lore);
@@ -118,7 +119,7 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
   const reforge = modifiers.reforge ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge] : null;
 
   const gemstoneBonus = computeGemstoneStatBonuses(modifiers.gemstones, displayTier);
-  const reforgeBonus = computeReforgeStatBonus(modifiers.reforge, reforge, displayTier, catacombsLevel);
+  const reforgeBonus = computeReforgeStatBonus(modifiers.reforge, reforge, displayTier, catacombsLevel, essencePerks);
   const booksBonus = computeBooksStatBonus(modifiers.books, gearType, potatoBookDoubled);
   const artOfWarBonus = modifiers.artOfWar && gearType === 'weapon' ? ART_OF_WAR_STAT_BONUS : {};
   const artOfPeaceBonus = modifiers.artOfPeace && gearType === 'armor' ? ART_OF_PEACE_STAT_BONUS : {};

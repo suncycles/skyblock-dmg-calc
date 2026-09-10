@@ -149,6 +149,8 @@ export default function HypixelImport() {
   const {
     importHypixelLoadout,
     importHypixelAttributes,
+    importHypixelBlessingInputs,
+    importHypixelEssencePerks,
     importHypixelPlayerStats,
     importHypixelBestiaryMaxedMobs,
     importHypixelCombinedMythologicalBestiaryTiers,
@@ -235,7 +237,16 @@ export default function HypixelImport() {
     const weaponIndex = typeof weaponChoice === 'number' ? weaponChoice : null;
     const petIndex = typeof petChoice === 'number' ? petChoice : null;
     const excludedSlots = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => !includedSlots.has(slot)));
-    const { loadout, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers, maxedCollectionsCount } = await mapHypixelImportToLoadout(
+    const {
+      loadout,
+      attributes,
+      playerStats,
+      bestiaryMaxedMobs,
+      combinedMythologicalBestiaryTiers,
+      maxedCollectionsCount,
+      blessingInputs,
+      essencePerks,
+    } = await mapHypixelImportToLoadout(
       rawImport,
       itemData,
       {
@@ -252,6 +263,8 @@ export default function HypixelImport() {
     }
     importHypixelLoadout(loadout);
     if (Object.keys(attributes).length > 0) importHypixelAttributes(attributes);
+    importHypixelBlessingInputs(blessingInputs);
+    importHypixelEssencePerks(essencePerks);
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
     importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);

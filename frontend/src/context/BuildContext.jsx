@@ -6,6 +6,15 @@ import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
 import { getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from '../lib/petData';
+import {
+  BLESSING_IDS,
+  BLESSING_MIN_LEVEL,
+  BLESSING_MAX_LEVEL,
+  MIMIC_SHARD_MAX_LEVEL,
+  FORBIDDEN_BLESSING_MAX_LEVEL,
+  emptyBlessingLevels,
+} from '../lib/dungeonBlessing';
+import { MASTER_SKULL_MAX_TIER } from '../lib/masterSkull';
 import { ARMOR_VARIANT_FAMILIES } from '../lib/armorVariants';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS } from '../lib/equipmentSlots';
@@ -30,6 +39,11 @@ const MAGE_MODE_KEY = 'hexMageMode';
 const DPS_MODE_KEY = 'hexDpsMode';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
+// Dungeon Blessings (lib/dungeonBlessing.js): the four per-run slider levels, the Paul checkbox,
+// and the two account-wide effectiveness inputs the Hypixel import fills in.
+const BLESSING_KEY = 'hexDungeonBlessing';
+// Essence-shop perk levels, {perkKey: level} — imported from the account, never typed by hand.
+const ESSENCE_PERKS_KEY = 'hexEssencePerks';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 const MOB_HP_SELECTIONS_KEY = 'hexMobHpSelections';
 const INFERNAL_CRIMSON_STACKS_KEY = 'hexInfernalCrimsonStacks';
@@ -238,6 +252,42 @@ function loadInitialMaxBudget() {
 }
 
 // Loads the manually-entered "everything else" Strength/Crit Damage/Intelligence total (Fairy Souls, skill rewards, etc.).
+function loadInitialEssencePerks() {
+  const stored = localStorage.getItem(ESSENCE_PERKS_KEY);
+  if (!stored) return {};
+  try {
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) {
+    console.error('Failed to parse saved essence perks:', err);
+    return {};
+  }
+}
+
+function loadInitialBlessing() {
+  const fallback = { levels: emptyBlessingLevels(), mimicShardLevel: 0, forbiddenBlessingLevel: 0, masterSkullTier: 0, paulBuff: false };
+  const stored = localStorage.getItem(BLESSING_KEY);
+  if (!stored) return fallback;
+  try {
+    const parsed = JSON.parse(stored);
+    const levels = emptyBlessingLevels();
+    for (const id of BLESSING_IDS) {
+      const v = Math.floor(Number(parsed?.levels?.[id]) || 0);
+      levels[id] = Math.max(BLESSING_MIN_LEVEL, Math.min(BLESSING_MAX_LEVEL, v));
+    }
+    return {
+      levels,
+      mimicShardLevel: Math.max(0, Math.min(MIMIC_SHARD_MAX_LEVEL, Math.floor(Number(parsed?.mimicShardLevel) || 0))),
+      forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(parsed?.forbiddenBlessingLevel) || 0))),
+      masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(parsed?.masterSkullTier) || 0))),
+      paulBuff: !!parsed?.paulBuff,
+    };
+  } catch (err) {
+    console.error('Failed to parse saved dungeon blessing state:', err);
+    return fallback;
+  }
+}
+
 function loadInitialMiscStats() {
   const stored = localStorage.getItem(MISC_STATS_KEY);
   if (!stored) return { strength: 0, crit_damage: 0, intelligence: 0 };
@@ -433,6 +483,8 @@ export function BuildProvider({ children }) {
   const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
+  const [blessing, setBlessingState] = useState(loadInitialBlessing);
+  const [essencePerks, setEssencePerksState] = useState(loadInitialEssencePerks);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
   const [mobHpSelections, setMobHpSelectionsState] = useState(loadInitialMobHpSelections);
   const [infernalCrimsonStacks, setInfernalCrimsonStacksState] = useState(loadInitialInfernalCrimsonStacks);
@@ -511,6 +563,49 @@ export function BuildProvider({ children }) {
       localStorage.setItem(ATTRIBUTES_KEY, JSON.stringify(next));
       return next;
     });
+  }, []);
+
+  // One setter for the whole blessing block — the slider levels, the Paul checkbox and the two
+  // imported effectiveness inputs all live in the same persisted object.
+  const updateBlessing = useCallback((patch) => {
+    setBlessingState((prev) => {
+      const next = { ...prev, ...patch, levels: { ...prev.levels, ...(patch.levels || {}) } };
+      localStorage.setItem(BLESSING_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setBlessingLevel = useCallback(
+    (id, value) => {
+      const level = Math.max(BLESSING_MIN_LEVEL, Math.min(BLESSING_MAX_LEVEL, Math.floor(Number(value) || 0)));
+      updateBlessing({ levels: { [id]: level } });
+    },
+    [updateBlessing],
+  );
+
+  const setPaulBuff = useCallback((value) => updateBlessing({ paulBuff: !!value }), [updateBlessing]);
+
+  // Both effectiveness inputs come from the account, never typed — see lib/hypixelImport.js.
+  const importHypixelBlessingInputs = useCallback(
+    ({ mimicShardLevel, forbiddenBlessingLevel, masterSkullTier }) =>
+      updateBlessing({
+        mimicShardLevel: Math.max(0, Math.min(MIMIC_SHARD_MAX_LEVEL, Math.floor(Number(mimicShardLevel) || 0))),
+        forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(forbiddenBlessingLevel) || 0))),
+        masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(masterSkullTier) || 0))),
+      }),
+    [updateBlessing],
+  );
+
+  // Replaces the map wholesale, same "an import is authoritative" rule importHypixelAttributes
+  // follows — a perk the account no longer has must not survive from a previous import.
+  const importHypixelEssencePerks = useCallback((perks) => {
+    const next = {};
+    for (const [key, level] of Object.entries(perks || {})) {
+      const n = Math.floor(Number(level) || 0);
+      if (n > 0) next[key] = n;
+    }
+    setEssencePerksState(next);
+    localStorage.setItem(ESSENCE_PERKS_KEY, JSON.stringify(next));
   }, []);
 
   const setMiscStat = useCallback((statKey, value) => {
@@ -1559,6 +1654,12 @@ export function BuildProvider({ children }) {
         bestiaryMaxedMobs,
         combinedMythologicalBestiaryTiers,
         maxedCollectionsCount,
+        blessing,
+        essencePerks,
+        importHypixelEssencePerks,
+        setBlessingLevel,
+        setPaulBuff,
+        importHypixelBlessingInputs,
         importedWeapons,
         maxBudget,
         setMaxBudget,

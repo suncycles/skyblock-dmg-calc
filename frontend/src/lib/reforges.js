@@ -2,6 +2,7 @@ import { annotateStatLines } from './statLines';
 import { getReforgeStatBonus } from './reforgeData';
 import { computeAncientReforgeCritDamage, computeWitheredReforgeStrength } from './playerStats';
 import { LOVING_REFORGE_NAME } from './abilityDamage';
+import { computeTwoHeadedStrikeAttackSpeed } from './essencePerks';
 
 // §9 (blue) — distinct from Gemstones' pink and Books' green.
 export const REFORGE_COLOR = '9';
@@ -41,9 +42,16 @@ export function applyFabledToLore(lore, reforgeName) {
 // The real stat bonus a given reforge grants on a given item — every name-specific override
 // (Ancient/Withered/Loving) lives here so both applyReforgeToLore and lib/itemStatTotals.js's
 // hidden-base computation share one answer.
-export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel) {
+export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel, essencePerks) {
   if (!reforge) return {};
   const bonus = { ...getReforgeStatBonus(reforge, itemTier) };
+
+  // Two-Headed Strike (Dragon essence shop) adds Bonus Attack Speed to the Renowned and Spiked
+  // reforges specifically — folded into the reforge's own stat block rather than added to the
+  // player afterwards, so it inherits everything a reforge stat already gets downstream
+  // (user-specified 2026-09-10). See lib/essencePerks.js.
+  const twoHeaded = computeTwoHeadedStrikeAttackSpeed(essencePerks, reforgeName);
+  if (twoHeaded > 0) bonus.bonus_attack_speed = (bonus.bonus_attack_speed || 0) + twoHeaded;
 
   if (reforgeName === ANCIENT_REFORGE_NAME) {
     const critDamage = computeAncientReforgeCritDamage(catacombsLevel);
@@ -67,9 +75,9 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
 
 // The leading stat number itself is set once, elsewhere, from lib/itemStatTotals.js's computed
 // hidden base (which includes this same reforge bonus) — this function only ever annotates.
-export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel) {
+export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel, essencePerks) {
   if (!reforge) return lore;
-  const bonus = computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel);
+  const bonus = computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel, essencePerks);
   if (Object.keys(bonus).length === 0) return lore;
   return annotateStatLines(lore, bonus, REFORGE_COLOR, insertBeforeLineIdx);
 }

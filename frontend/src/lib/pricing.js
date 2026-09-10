@@ -186,14 +186,24 @@ export function lookupCandidateCost(result, itemData) {
       // feed's entry for that id is a single unit, but unlocking the Power actually takes 9 of it
       // (user-confirmed) — the real cost is 9x the per-unit market price.
       if (!step) return null;
+      // The Powers unlocked by default (lib/accessoryPowers.js's DEFAULT_POWERS) have no source
+      // stone at all — `iconId` is null for exactly those, and free is a real answer, not a
+      // missing price.
+      if (!step.item.iconId) return 0;
       const unitPrice = priceOf(itemPrices, step.item.iconId);
       return unitPrice != null ? unitPrice * 9 : null;
     }
     case 'Reforge': {
       const step = findStep(result.apply, 'applyReforge');
-      // Free/blacksmith-rolled reforges (Pure, Fierce, Blended, Menacing) have no physical stone
-      // and so no entry in reforgeCosts — correctly resolves to null, not a guessed fee.
-      return step ? priceOf(reforgeCosts, step.name) : null;
+      if (!step) return null;
+      // A reforge either comes from a physical stone you buy, or it's one the Blacksmith just
+      // rolls for you (Hasty, Spicy, Pure, Fierce, ... — all 50 entries in itemData.reforges).
+      // Those have no stone to price, which used to resolve to null and render as "unpriced" —
+      // but "there is nothing to buy" is a real answer, not a missing one, so they're 0 now
+      // (user-specified 2026-09-10). itemData.reforgeStones is the discriminator: in it means a
+      // real stone (and every one of those currently has a price), absent means Blacksmith.
+      if (!itemData?.reforgeStones?.[step.name]) return 0;
+      return priceOf(reforgeCosts, step.name);
     }
     case 'Recombobulator':
       return recombobulatorCost || null;

@@ -117,7 +117,7 @@ function UpgradeRow({ result, onSwapIn, onSkip }) {
           </span>
           <span className="text-[13px] text-black truncate">{result.label}</span>
           <span className="text-[10px] text-neutral-700">
-            Cost: {formatCoinsShort(result.cost)} coins{coinsPerPercent && ` · ${coinsPerPercent} coins/%`}
+            {result.cost === 0 ? 'Cost: free' : <>Cost: {formatCoinsShort(result.cost)} coins{coinsPerPercent && ` · ${coinsPerPercent} coins/%`}</>}
           </span>
         </div>
         <span className="text-sm font-mono font-bold text-green-500 whitespace-nowrap">+{round3Sig(result.percentIncrease)}%</span>

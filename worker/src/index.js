@@ -1288,6 +1288,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   let enrichmentCount = 0;
   const enrichmentCountByStat = {}; // real Hypixel stat id -> count
   let generalsMedallionDigits = 0;
+  let masterSkullTier = 0;
 
   for (const raw of items) {
     const ea = raw?.tag?.ExtraAttributes;
@@ -1308,6 +1309,11 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
       enrichmentCountByStat[ea.talisman_enrichment] = (enrichmentCountByStat[ea.talisman_enrichment] || 0) + 1;
     }
     if (id === "ABICASE") hasAbicase = true;
+    // Master Skull tier — its Strength multiplier is applied client-side
+    // (frontend/src/lib/masterSkull.js). Highest owned tier wins, same "best copy counts" dedup
+    // every other field in this loop uses.
+    const skullTier = MASTER_SKULL_ID_RE.exec(id);
+    if (skullTier) masterSkullTier = Math.max(masterSkullTier, Number(skullTier[1]));
     // Best (highest-digit) copy counts, same dedup treatment as Magical Power/itemStats above —
     // a player rarely owns more than one, but a stale lower-secret-count duplicate shouldn't win.
     if (id === "GENERAL_MEDALLION") {
@@ -1355,7 +1361,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   }
   if (enrichmentType !== "none") enrichmentCount = bestTrackedCount;
 
-  return { magicalPower, itemStats, enrichmentCount, enrichmentType, generalsMedallionDigits };
+  return { magicalPower, itemStats, enrichmentCount, enrichmentType, generalsMedallionDigits, masterSkullTier };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -1427,6 +1433,40 @@ function computePetLevel(type, tier, exp) {
   if (exp <= xpAt102) return levelFromCurve(curve, exp, DRAGON_LINEAR_START_LEVEL);
   const level = DRAGON_LINEAR_START_LEVEL + Math.floor((exp - xpAt102) / DRAGON_LINEAR_XP_PER_LEVEL);
   return Math.min(200, level);
+}
+
+// The Mimic Shard's level feeds the Dungeon Blessing effectiveness multiplier
+// (frontend/src/lib/dungeonBlessing.js). It is NOT an attribute shard — it has no entry in
+// NEU-REPO's attribute_shards.json and never appears in member.attributes.stacks; it lives in the
+// newer member.shards.owned list as a raw owned count. It is Epic tier, so its level comes off the
+// same 32-shards-to-10 ladder every other Epic shard uses (user-specified 2026-09-10).
+const EPIC_SHARD_LEVEL_THRESHOLDS = [1, 2, 4, 6, 9, 12, 16, 20, 25, 32];
+const MIMIC_SHARD_TYPE = "MIMIC";
+const MASTER_SKULL_ID_RE = /^MASTER_SKULL_TIER_([1-7])$/;
+
+// Mirrors frontend/src/lib/essencePerks.js's TRACKED_PERK_KEYS — the Worker and frontend are
+// separate deploys with no shared module, same duplication EXTENDED_PET_MAX_LEVELS already has.
+const TRACKED_ESSENCE_PERK_KEYS = [
+  "permanent_strength",
+  "permanent_intelligence",
+  "blessing_of_time",
+  "catacombs_strength",
+  "catacombs_intelligence",
+  "catacombs_crit_damage",
+  "bane",
+  "edrag_cd",
+  "dragon_reforges_buff",
+];
+
+function computeMimicShardLevel(shards) {
+  const owned = (shards?.owned || []).find((entry) => entry?.type === MIMIC_SHARD_TYPE);
+  const count = owned?.amount_owned || 0;
+  let level = 0;
+  for (const threshold of EPIC_SHARD_LEVEL_THRESHOLDS) {
+    if (count >= threshold) level += 1;
+    else break;
+  }
+  return level;
 }
 
 // "ATTRIBUTE_SHARD_FROST_ELEMENTAL;1" -> "frost_elemental", matching the raw key format Hypixel
@@ -1661,6 +1701,20 @@ async function handleHypixelImport(url, env) {
     const rarityMap = buildAttributeRarityMap(attributeShards);
     const thresholds = buildAttributeThresholds(attributeShards.attribute_levelling);
     const attributeLevels = computeAttributeLevels(member.attributes?.stacks, rarityMap, thresholds);
+    // Both Dungeon Blessing effectiveness inputs. member.player_data.perks is the flat
+    // {perkKey: level} map every Essence-shop perk lives in (NEU-REPO's essenceshops.json names
+    // them); forbidden_blessing is the Wither one, max level 10.
+    const mimicShardLevel = computeMimicShardLevel(member.shards);
+    const forbiddenBlessingLevel = Math.min(10, member.player_data?.perks?.forbidden_blessing || 0);
+    // Every Essence-shop perk level this app models (frontend/src/lib/essencePerks.js). Filtered to
+    // the tracked keys rather than shipped whole — the raw map is ~300 entries, almost all of them
+    // fishing/mining/farming perks with no bearing on damage.
+    const perks = member.player_data?.perks || {};
+    const essencePerks = {};
+    for (const key of TRACKED_ESSENCE_PERK_KEYS) {
+      const level = Math.floor(perks[key] || 0);
+      if (level > 0) essencePerks[key] = level;
+    }
 
     // Hypixel's own skill ids are uppercase (e.g. "TAMING") — real maxLevel per skill, falling
     // back to NEU-REPO's static cap only if the live resource is ever missing that skill.
@@ -1711,6 +1765,7 @@ async function handleHypixelImport(url, env) {
       // owned — see computeLiveAccessoryStats/parseGeneralsMedallionDigits above. 0 (no bonus,
       // matching playerStats.generalsMedallionDigits' own default) when not owned.
       generalsMedallionDigits: liveAccessoryStats.generalsMedallionDigits,
+      masterSkullTier: liveAccessoryStats.masterSkullTier,
       // Auto-selected to the account's real dominant tracked enrichment stat, with enrichmentCount
       // above already narrowed to that stat's own count — 'none' (and the flat total) only when
       // the account has no enrichment on a stat this calculator tracks (see
@@ -1774,6 +1829,9 @@ async function handleHypixelImport(url, env) {
       uuid,
       armor: armorResult,
       equipment: equipmentResult,
+      mimicShardLevel,
+      forbiddenBlessingLevel,
+      essencePerks,
       wardrobeSets,
       wardrobeEquipmentSets,
       weapons,
