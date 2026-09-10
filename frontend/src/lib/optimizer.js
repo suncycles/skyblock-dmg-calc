@@ -69,7 +69,8 @@ import {
   getAttributeMaxLevel,
 } from './attributes';
 import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
-import { derivePetDisplayName, getMaxPetLevel } from './petData';
+import { parseDungeonHead, diamondCounterpartFor } from './dungeonHeads';
+import { derivePetDisplayName, getMaxPetLevel, MAX_GOLDEN_DRAGON_BANK_COINS, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
 import { getApplicableReforges } from './reforgeData';
@@ -425,12 +426,24 @@ const DUNGEON_ARCHER_WEAPON_PROGRESSION = {
 // for this calculator to prefer them). Starred Shadow Assassin inserted as its own real
 // intermediate tier (strictly better than base, same item family, real id) — flag if that ordering
 // relative to Necron's Armor is wrong.
+// The four real Wither armour lines. Every one of them is a strict upgrade over Shadow Assassin,
+// so wearing ANY of them means Shadow Assassin is never a real suggestion again — but only
+// Necron's is on the curated chain, so the other three would otherwise read as "not in the
+// progression at all" and restart the walk from Shadow Assassin (user-reported 2026-09-09:
+// Maxor's Boots were being told to downgrade to Shadow Assassin Boots). Listing them as
+// `alsoAtThisTier` puts the player at the wither tier without adding Storm's/Goldor's/Maxor's as
+// suggestions of their own, so a Maxor's -> Necron's swap is still offered.
+const WITHER_ARMOR_PREFIXES = ['POWER_WITHER', 'WISE_WITHER', 'TANK_WITHER', 'SPEED_WITHER'];
+
 function dungeonArcherArmorProgression(slot) {
   const suffix = slot.toUpperCase();
   return [
     [{ id: `SHADOW_ASSASSIN_${suffix}` }],
     [{ id: `STARRED_SHADOW_ASSASSIN_${suffix}` }],
-    [{ id: `POWER_WITHER_${suffix}` }, { id: `FROZEN_BLAZE_${suffix}`, requiresPetId: 'BLAZE' }],
+    [
+      { id: `POWER_WITHER_${suffix}`, alsoAtThisTier: WITHER_ARMOR_PREFIXES.map((p) => `${p}_${suffix}`) },
+      { id: `FROZEN_BLAZE_${suffix}`, requiresPetId: 'BLAZE' },
+    ],
   ];
 }
 const DUNGEON_ARCHER_ARMOR_PROGRESSION = Object.fromEntries(ARMOR_SLOTS.map((slot) => [slot, dungeonArcherArmorProgression(slot)]));
@@ -588,6 +601,21 @@ const EQUIPMENT_PROGRESSION_BY_MODE = {
   dungeon_mage_beam: MAGE_BEAM_EQUIPMENT_PROGRESSION,
   dungeon_mage_ability: MAGE_EQUIPMENT_PROGRESSION,
 };
+// Dungeon/Archer only (user-specified 2026-09-09, alongside the Wither rule above): while the
+// player is wearing a Catacombs boss head, the ONLY helmet worth suggesting is that same boss's
+// Diamond rank — not another armour line, and not a different boss's Diamond head, since a head is
+// a boss-specific drop. Already on Diamond means nothing is left, so the slot goes empty. Applied
+// by swapping the helmet chain rather than special-casing inside evaluateItemSlotCandidates, which
+// is shared by every mode and slot.
+function armorProgressionForMode(mode, loadout) {
+  const progression = ARMOR_PROGRESSION_BY_MODE[mode];
+  if (mode !== 'dungeon_archer' || !progression) return progression;
+  const helmetId = loadout.helmet?.item?.id || null;
+  if (!parseDungeonHead(helmetId)) return progression;
+  const diamond = diamondCounterpartFor(helmetId);
+  return { ...progression, helmet: diamond ? [[{ id: diamond }]] : [] };
+}
+
 const PET_PROGRESSION_BY_MODE = {
   slayer: SLAYER_PET_PROGRESSION,
   diana: DIANA_PET_PROGRESSION,
@@ -711,6 +739,16 @@ function findStep(apply, type) {
   return (apply || []).find((s) => s.type === type);
 }
 
+// "Is the player's current item already AT this tier?" — its own id, or one of the equivalent
+// lines a tier entry declares via `alsoAtThisTier` (see dungeonArcherArmorProgression's Wither
+// families). Deliberately separate from the `isCurrent` predicate passed to
+// evaluateTieredProgression, which stays strictly id-based: an equivalent-but-different item
+// shouldn't mark the chain's own entry as "already equipped", or a Maxor's -> Necron's swap would
+// be skipped as a no-op instead of offered.
+function candidateCoversId(candidate, currentId) {
+  return candidate.id === currentId || !!candidate.alsoAtThisTier?.includes(currentId);
+}
+
 function findTierIndex(progression, matches) {
   for (let i = 0; i < progression.length; i++) {
     if (progression[i].some(matches)) return i;
@@ -727,7 +765,7 @@ function findTierIndex(progression, matches) {
 // (weapons had their own copy of this exact selection logic) — shared here so the two can't drift.
 function resolveChainsToWalk(progression, currentId) {
   const chains = Array.isArray(progression) ? [progression] : Object.values(progression);
-  const owned = chains.filter((chain) => findTierIndex(chain, (c) => c.id === currentId) !== -1);
+  const owned = chains.filter((chain) => findTierIndex(chain, (c) => candidateCoversId(c, currentId)) !== -1);
   return owned.length > 0 ? owned : chains;
 }
 
@@ -976,7 +1014,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
     const currentId = currentItem?.id || null;
     const slotResults = [];
     for (const progression of resolveChainsToWalk(progressionOrChains, currentId)) {
-      const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
+      const currentIndex = findTierIndex(progression, (c) => candidateCoversId(c, currentId));
       // User-specified exception: only while currently wearing a real Kuudra-family piece (base/
       // Hot/Burning/Fiery/Infernal armor from one of the 5 real families — see
       // lib/armorVariants.js's ARMOR_VARIANT_FAMILIES) does this slot's progression refuse to skip
@@ -1376,6 +1414,56 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
       apply: [{ type: 'selectItem', slot: 'pet', item: petItem }],
     };
   });
+}
+
+// Golden Dragon is the one pet whose real strength depends on account state rather than the pet
+// itself — Legendary Treasure scales with bank balance and Shining Scales with the Gold collection
+// (lib/petData.js). Evaluating it only at the player's CURRENT bank/gold (what
+// evaluatePetCandidates does, carrying those two values across) prices the pet as the player has
+// it today, which for anyone who hasn't banked a billion badly understates the ceiling. This adds
+// a second, separate row showing what the same pet is worth with both inputs maxed
+// (user-specified 2026-09-09), offered in every mode rather than only the ones whose curated pet
+// chain happens to list Golden Dragon. Deliberately unpriced: the coin cost of the pet itself is
+// knowable, but "get your bank to 1b and max the Gold collection" isn't a purchase.
+async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeConfig, mob, baselineValue) {
+  const petCatalog = itemData.pets?.GOLDEN_DRAGON;
+  if (!petCatalog) return [];
+  const tiers = Object.keys(petCatalog);
+  const tier = tiers.includes('LEGENDARY') ? 'LEGENDARY' : tiers[tiers.length - 1];
+  const petItem = {
+    id: `GOLDEN_DRAGON_${tier}`,
+    petId: 'GOLDEN_DRAGON',
+    name: derivePetDisplayName('GOLDEN_DRAGON'),
+    tier,
+    material: 'BONE',
+  };
+  const modifiers = {
+    ...emptyPetModifiers(),
+    level: getMaxPetLevel('GOLDEN_DRAGON'),
+    petItem: loadout.pet?.modifiers?.petItem || null,
+    bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS,
+    goldCollection: SHINING_SCALES_MAX_GOLD_COLLECTION,
+  };
+  const value = await computeModeDamage({ ...loadout, pet: { item: petItem, modifiers } }, itemData, build, modeConfig, mob);
+  const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : value * 100;
+  if (!(percentIncrease > 0.001)) return [];
+  return [
+    {
+      category: 'Pet',
+      slot: 'pet',
+      label: 'Max Golden Dragon',
+      itemId: 'GOLDEN_DRAGON',
+      material: 'BONE',
+      value,
+      percentIncrease,
+      unpriced: true,
+      apply: [
+        { type: 'selectItem', slot: 'pet', item: petItem },
+        { type: 'setPetBankCoins', slot: 'pet', value: MAX_GOLDEN_DRAGON_BANK_COINS },
+        { type: 'setPetGoldCollection', slot: 'pet', value: SHINING_SCALES_MAX_GOLD_COLLECTION },
+      ],
+    },
+  ];
 }
 
 // Brute-forces the next real level of every enchant already on the weapon (e.g. Sharpness 6 -> 7)
@@ -1900,8 +1988,17 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
 // evaluateStarsCandidates already applies to Crimson armor's regular stars, just unconditional
 // here rather than family-gated (Master Stars are individually significant upgrades regardless of
 // armor family).
+// Master Stars only pay out while Master Mode is on (lib/finalDamage.js's selectBaseStats gates
+// them there deliberately), but this evaluator only ever required the Dungeon toggle — so in a
+// normal-difficulty dungeon run every candidate scored exactly 0% and was silently filtered out,
+// and the category simply never appeared (user-reported 2026-09-09). Candidates are now valued
+// with Master Mode forced on, the same "assume real best-case" treatment stars/rarity/gemstones
+// already get elsewhere in this file. `masterModeBaselineValue` in runOptimizer is the matching
+// Master-Mode baseline: measuring a Master-Mode candidate against a non-Master baseline would
+// credit this one star with the entire mode's boost.
 async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob) {
   if (!modeConfig.useDungeonizedStats) return [];
+  const masterConfig = { ...modeConfig, useMasterMode: true };
   const results = [];
   for (const slot of ARMOR_SLOTS) {
     const equipped = loadout[slot];
@@ -1911,7 +2008,7 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
     if (currentMasterStars >= MAX_MASTER_STARS) continue;
     const masterStars = currentMasterStars + 1;
     const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, masterStars } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const value = await computeModeDamage(candidateLoadout, itemData, build, masterConfig, mob);
     results.push({
       category: 'Master Stars',
       slot,
@@ -2304,12 +2401,22 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   // 2026-08-25, second half) — real Pet Item/Gemstone/etc upgrades were reading as ~0% or getting
   // filtered out entirely, since they were being measured against a baseline ~7.5% too high.
   const reforgeBaselineValue = hasFabledReforgeEquipped(loadout) ? baselineValue * FABLED_MIDPOINT_MULTIPLIER : baselineValue;
+  // Master Star candidates are valued with Master Mode forced on (see evaluateMasterStarsCandidates),
+  // so they need a baseline measured the same way — otherwise one star would be credited with the
+  // whole mode's boost. Same shape as reforgeBaselineValue above. Only computed when it can differ
+  // from the shared baseline: outside a dungeon there are no Master Star candidates at all, and
+  // inside one with Master Mode already on the two are identical.
+  const masterModeBaselineValue =
+    modeConfig.useDungeonizedStats && !modeConfig.useMasterMode
+      ? await computeModeDamage(loadout, itemData, build, { ...modeConfig, useMasterMode: true }, mob)
+      : baselineValue;
 
   const [
     weapons,
     armor,
     equipment,
     pets,
+    maxGoldenDragon,
     enchants,
     missingTypeBaneEnchants,
     missingEnchants,
@@ -2329,7 +2436,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     attributes,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
-    evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, ARMOR_PROGRESSION_BY_MODE[mode], 'Armor'),
+    evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, armorProgressionForMode(mode, loadout), 'Armor'),
     evaluateItemSlotCandidates(
       loadout,
       itemData,
@@ -2342,6 +2449,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       'Equipment',
     ),
     evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+    evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeConfig, mob, baselineValue),
     evaluateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMissingEnchantCandidates(loadout, itemData, build, modeConfig, mob),
@@ -2377,7 +2485,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       .filter((r) => r.percentIncrease > 0.001);
   const withPercent = (list) => withPercentUsing(list, baselineValue);
 
-  const slotCandidates = [...weapons, ...armor, ...equipment, ...pets];
+  const slotCandidates = [...weapons, ...armor, ...equipment, ...pets, ...maxGoldenDragon];
   const slots = {};
   for (const slot of OPTIMIZER_GEAR_SLOTS) {
     slots[slot] = slotCandidates.filter((r) => r.slot === slot);
@@ -2394,7 +2502,6 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...equipmentUltimates,
       ...powers,
       ...stars,
-      ...masterStars,
       ...recombs,
       ...petItems,
       ...fullSets,
@@ -2402,6 +2509,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...attributes,
     ]),
     ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue),
+    ...withPercentUsing(masterStars, masterModeBaselineValue),
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
@@ -2452,6 +2560,15 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setPetItem':
         build.setPetItem(step.petItemId);
+        break;
+      // Max Golden Dragon's own two inputs (see evaluateMaxGoldenDragonCandidate) — applied so
+      // swapping the suggestion in reproduces the number it was ranked at, same reason the
+      // dungeonized/reforge/gemstone steps exist above.
+      case 'setPetBankCoins':
+        build.setPetBankCoins(step.value);
+        break;
+      case 'setPetGoldCollection':
+        build.setPetGoldCollection(step.value);
         break;
       case 'setAccessoryMagicalPower':
         build.setAccessoryMagicalPower(step.mp);

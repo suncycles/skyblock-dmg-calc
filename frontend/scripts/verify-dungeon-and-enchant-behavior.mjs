@@ -56,6 +56,7 @@ try {
   const itemTooltip = await server.ssrLoadModule('/src/lib/itemTooltip.js');
   const itemStatTotals = await server.ssrLoadModule('/src/lib/itemStatTotals.js');
   const tieredArmorStats = await server.ssrLoadModule('/src/lib/tieredArmorStats.js');
+  const dungeonHeads = await server.ssrLoadModule('/src/lib/dungeonHeads.js');
   const petData = await server.ssrLoadModule('/src/lib/petData.js');
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
@@ -487,6 +488,27 @@ try {
       assert.equal(r.finalDamage, 0, `${immune} stays fully immune`);
       assert.equal(r.reductionLabel, undefined, `${immune} is immune, not labelled as reduced`);
     }
+  });
+
+  // 20. A Catacombs boss head's real base stat is its printed lore value DOUBLED, and every later
+  // boost compounds on the doubled figure (user-specified 2026-09-09). Checked through the real
+  // computeItemStatTotals pipeline rather than the helper alone, since the whole point is where in
+  // that pipeline the doubling lands — and a non-head helmet must be left completely alone.
+  await check('Catacombs boss heads double their printed base stats', async () => {
+    const { diamondCounterpartFor, parseDungeonHead } = dungeonHeads;
+    const head = { id: 'GOLD_BONZO_HEAD', name: 'Gold Bonzo Head', tier: 'SPECIAL', lore: ['§7Health: §c+20', '§7Strength: §c+5'] };
+    const plain = { id: 'SHADOW_ASSASSIN_HELMET', name: 'Shadow Assassin Helmet', tier: 'EPIC', lore: ['§7Health: §c+160', '§7Strength: §c+25'] };
+    const headTotals = await itemStatTotals.computeItemStatTotals(head, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, {});
+    assert.equal(headTotals.health.pristine, 40, '+20 Health prints, +40 applies');
+    assert.equal(headTotals.strength.pristine, 10, '+5 Strength prints, +10 applies');
+    const plainTotals = await itemStatTotals.computeItemStatTotals(plain, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, {});
+    assert.equal(plainTotals.health.pristine, 160, 'a non-head helmet is untouched');
+
+    // The head family's other rule: a head only ever upgrades to its OWN boss's Diamond rank.
+    assert.equal(diamondCounterpartFor('GOLD_BONZO_HEAD'), 'DIAMOND_BONZO_HEAD');
+    assert.equal(diamondCounterpartFor('GOLD_NECRON_HEAD'), 'DIAMOND_NECRON_HEAD');
+    assert.equal(diamondCounterpartFor('DIAMOND_BONZO_HEAD'), null, 'Diamond is the top rank');
+    assert.equal(parseDungeonHead('SHADOW_ASSASSIN_HELMET'), null, 'ordinary helmets are not heads');
   });
 } finally {
   await server.close();
