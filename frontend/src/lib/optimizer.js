@@ -59,7 +59,7 @@ import {
   resolveEnchantCategory,
   computeConflictingEntries,
 } from './enchantEffects';
-import { STONE_POWERS } from './accessoryPowers';
+import { STONE_POWERS, DEFAULT_POWERS } from './accessoryPowers';
 import { getMaxStarsForItem, isStarrableItem, MASTER_STAR_MIN_BASE_STARS, MAX_MASTER_STARS } from './starring';
 import {
   RULER_ATTRIBUTES,
@@ -650,14 +650,19 @@ export function hasCuratedData(mode) {
 function withCost(result, itemData) {
   if (!result) return result;
   const cost = lookupCandidateCost(result, itemData);
-  // A cost of exactly 0 reads as "unknown, not '?' confirmed unpriced" everywhere else in this
-  // file (a real 0 never otherwise occurs — every other category's lookup returns either a real
-  // positive price or null) — except 'Enchant Set', where 0 is a real, confirmed answer (every
-  // level in the set resolved to a real, no-market-price tier — see
-  // evaluateCheapestOneForAllAlternative's "unpriced = free" treatment, user-specified 2026-09-02),
-  // not an unresolved unknown, so it's allowed through here rather than masked as '?'.
-  const hasRealCost = typeof cost === 'number' && (cost > 0 || (cost === 0 && result.category === 'Enchant Set'));
-  return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost && cost > 0 ? result.percentIncrease / cost : hasRealCost ? Infinity : null };
+  // "Free" and "we don't know" are different answers and now render differently (user-specified
+  // 2026-09-10): a numeric 0 is a real, confirmed cost — a Blacksmith reforge, a Power that needs
+  // no stone, an enchant set whose every level has no market price — and only `null` means
+  // unpriced. Safe to trust any 0 here because none can arrive by accident: priceOf treats a 0
+  // price as no price (`price > 0`), so every 0 below is a deliberate `return 0`.
+  const hasRealCost = typeof cost === 'number';
+  return {
+    ...result,
+    cost: hasRealCost ? cost : '?',
+    // Damage per coin is unbounded when the coins are 0 — Infinity sorts these to the top of the
+    // Best Value ranking, which is exactly right for a free upgrade.
+    ratio: hasRealCost ? (cost > 0 ? result.percentIncrease / cost : Infinity) : null,
+  };
 }
 
 // Drops a candidate when another real-cost option in the same mutually-exclusive group (same
@@ -878,6 +883,8 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     build.bestiaryMaxedMobs,
     build.godPotionMixin,
     build.maxedCollectionsCount,
+    build.blessing,
+    build.essencePerks,
   );
 
   if (modeConfig.metric === 'ability') {
@@ -1919,9 +1926,14 @@ const POWER_STONE_RESTRICTED_MODES = new Set(['slayer', 'diana']);
 async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   if (!loadout.accessory?.item) return [];
   const currentId = loadout.accessory.item.id;
+  // DEFAULT_POWERS (Fortuitous, Warrior, and the Intermediate tier) need no stone at all — they're
+  // unlocked from the start, so they were never offered here despite being real, free, and
+  // occasionally the best pick for a given build (user-specified 2026-09-10). They're always in the
+  // pool, including in the modes whose stone list is deliberately narrowed, since "free" needs no
+  // narrowing.
   const candidatePowers = POWER_STONE_RESTRICTED_MODES.has(mode)
-    ? STONE_POWERS.filter((p) => SLAYER_POWER_STONE_IDS.has(p.id))
-    : STONE_POWERS;
+    ? [...DEFAULT_POWERS, ...STONE_POWERS.filter((p) => SLAYER_POWER_STONE_IDS.has(p.id))]
+    : [...DEFAULT_POWERS, ...STONE_POWERS];
   const results = [];
   for (const power of candidatePowers) {
     if (power.id === currentId) continue;
@@ -2000,9 +2012,17 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
   if (!modeConfig.useDungeonizedStats) return [];
   const masterConfig = { ...modeConfig, useMasterMode: true };
   const results = [];
-  for (const slot of ARMOR_SLOTS) {
+  // The weapon takes Master Stars exactly like armour does, and was simply missing from this loop
+  // (evaluateStarsCandidates has always walked the same ['weapon', ...ARMOR_SLOTS] list) — so the
+  // single most common real archer setup, a 5-star dungeonized bow with non-dungeon armour, got no
+  // Master Star suggestions at all (user-reported 2026-09-10).
+  for (const slot of ['weapon', ...ARMOR_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item || !isStarrableItem(equipped.item)) continue;
+    // Master Stars only exist on a dungeonized copy — lib/itemStatTotals.js computes a masterStarred
+    // total only when the item's own dungeonized flag is set, so on anything else this would just
+    // compute a guaranteed-0 candidate and throw it away.
+    if (!equipped.modifiers.dungeonized) continue;
     if ((equipped.modifiers.stars || 0) < MASTER_STAR_MIN_BASE_STARS) continue;
     const currentMasterStars = equipped.modifiers.masterStars || 0;
     if (currentMasterStars >= MAX_MASTER_STARS) continue;

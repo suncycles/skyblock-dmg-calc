@@ -29,6 +29,8 @@ import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../l
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { MOB_TYPE_SYMBOLS, STAT_SYMBOLS } from '../lib/damageSymbols';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
+import { DUNGEON_BLESSINGS, BLESSING_MIN_LEVEL, BLESSING_MAX_LEVEL, computeBlessingMultiplier } from '../lib/dungeonBlessing';
+import { masterSkullStrengthMultiplier } from '../lib/masterSkull';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
@@ -88,27 +90,29 @@ function MobDefenseNote({ name, types, masterMode }) {
   );
 }
 
-// Every MISC-panel input settles on its own 3s debounce instead of the 200ms the rest of the page
-// uses (user-specified 2026-09-05). They're the free-typed stat fields and dragged sliders, so at
-// 200ms a full collectDamageSources pass was queued per keystroke and per slider tick. The panel's
-// own controls still read the live value, so typing stays responsive — only the copy feeding the
-// calculation waits. The checkbox is deliberately NOT debounced: it's a discrete toggle with no
-// "stopped typing" moment, and a 3s lag there would just read as broken.
 // The Mob HP% slider was removed (user-specified 2026-09-05), so every figure on this page is
 // computed at full HP — see BuildContext's PINNED_MOB_HP_PERCENT, which keeps the Optimizer in
 // agreement. That also means First Strike/Triple Strike always apply, which the Final Damage
 // headline now says out loud (meleeDamageQualifiers).
 const MOB_HP_PERCENT = 100;
 
-const MISC_DEBOUNCE_MS = 3000;
+// The blessing effectiveness readout only ever needs 2dp (1.815 max, 1.2 minimum).
+const round2 = (n) => Math.round(n * 100) / 100;
 
-function useSettled(value, delay) {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const handle = setTimeout(() => setSettled(value), delay);
-    return () => clearTimeout(handle);
-  }, [value, delay]);
-  return settled;
+// The MISC panel's values reach the calculation on an explicit Apply press, not a timer
+// (user-specified 2026-09-10, replacing the 3s debounce that came before it). These are the
+// free-typed stat fields and dragged sliders, so recalculating per keystroke queued a full
+// collectDamageSources pass each time — but a timer meant the page silently changed under you
+// three seconds after you stopped, with no way to say "now". A button makes the commit moment
+// yours. The panel's own controls always show the live value, so typing stays responsive; only the
+// copy feeding the calculation waits for the press. The Blaze checkbox stays outside this: it's a
+// discrete toggle with no "still editing" state to confirm.
+function useConfirmedValues(live) {
+  const [applied, setApplied] = useState(live);
+  // Compared by serialising — this is five small numbers plus one flat object, and `live` is a
+  // fresh object every render, so an identity check would always read dirty.
+  const dirty = JSON.stringify(live) !== JSON.stringify(applied);
+  return [applied, () => setApplied(live), dirty];
 }
 
 // Qualifiers that belong in the Final Damage headline. Fabled means the figure is a range (its
@@ -181,6 +185,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     toggleBlazeCrimsonIsle,
     bestiaryMaxedMobs,
     maxedCollectionsCount,
+    blessing,
+    essencePerks,
+    setBlessingLevel,
+    setPaulBuff,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
     setAccessoryEnrichmentType,
@@ -196,12 +204,22 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const tokenRef = useRef(0);
 
-  // Debounced copies of every MISC-panel value that feeds collectDamageSources — see useSettled.
-  const settledMiscStats = useSettled(miscStats, MISC_DEBOUNCE_MS);
-  const settledInfernalCrimsonStacks = useSettled(infernalCrimsonStacks, MISC_DEBOUNCE_MS);
-  const settledSwarmMobs = useSettled(swarmMobs, MISC_DEBOUNCE_MS);
-  const settledComboKills = useSettled(comboKills, MISC_DEBOUNCE_MS);
-  const settledLegionPlayers = useSettled(legionPlayers, MISC_DEBOUNCE_MS);
+  // Applied-on-confirm copies of every MISC-panel value that feeds collectDamageSources — see
+  // useConfirmedValues. Bundled into one snapshot so a single Apply press commits the whole panel.
+  const [appliedMisc, applyMisc, miscDirty] = useConfirmedValues({
+    miscStats,
+    infernalCrimsonStacks,
+    swarmMobs,
+    comboKills,
+    legionPlayers,
+    blessing,
+  });
+  const settledMiscStats = appliedMisc.miscStats;
+  const settledInfernalCrimsonStacks = appliedMisc.infernalCrimsonStacks;
+  const settledSwarmMobs = appliedMisc.swarmMobs;
+  const settledComboKills = appliedMisc.comboKills;
+  const settledLegionPlayers = appliedMisc.legionPlayers;
+  const settledBlessing = appliedMisc.blessing;
 
   // Swaps in a saved loadout without leaving this page — loadFullState updates BuildContext's
   // `loadout` (and everything else this page reads), which the recalculation effect below is
@@ -279,6 +297,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         bestiaryMaxedMobs,
         godPotionMixin,
         maxedCollectionsCount,
+        settledBlessing,
+        essencePerks,
       ).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
@@ -298,6 +318,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     bestiaryMaxedMobs,
     settledComboKills,
     settledLegionPlayers,
+    settledBlessing,
+    essencePerks,
     effectiveBlazeCrimsonIsle,
     maxedCollectionsCount,
   ]);
@@ -331,6 +353,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         bestiaryMaxedMobs,
         godPotionMixin,
         maxedCollectionsCount,
+        settledBlessing,
+        essencePerks,
       ).then((r) => {
         if (tokenAt100Ref.current === token) setResultAt100(r);
       });
@@ -351,6 +375,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     bestiaryMaxedMobs,
     settledComboKills,
     settledLegionPlayers,
+    settledBlessing,
+    essencePerks,
     blazeCrimsonIsle,
     maxedCollectionsCount,
   ]);
@@ -1191,6 +1217,65 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   </span>
                 </label>
               )}
+              {/* Dungeon Blessings are a Catacombs-run thing, so the whole block only exists while
+                  the Dungeon toggle is on (user-specified 2026-09-10). The two effectiveness
+                  inputs above the sliders are read-only: they come from the account on import
+                  (Mimic Shard level, Forbidden Blessing perk), not from typing. */}
+              {useDungeonizedStats && (
+                <>
+                  <div className="border-t border-neutral-500/40 pt-2 mt-1 text-[11px] font-bold text-black uppercase tracking-wide">
+                    Dungeon Blessings
+                  </div>
+                  <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="paul-buff">
+                    <input id="paul-buff" type="checkbox" checked={!!blessing.paulBuff} onChange={(e) => setPaulBuff(e.target.checked)} className="mt-0.5 shrink-0" />
+                    <span>Paul Buff</span>
+                  </label>
+                  <div className="text-[10px] text-neutral-600 leading-snug">
+                    Effectiveness ×{round2(computeBlessingMultiplier(blessing))}
+                    <span className="italic">
+                      {' '}
+                      (Mimic {blessing.mimicShardLevel}/10 · Forbidden {blessing.forbiddenBlessingLevel}/10)
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-neutral-600 leading-snug">
+                    Master Skull ×{masterSkullStrengthMultiplier(blessing.masterSkullTier)}
+                    <span className="italic"> (Tier {blessing.masterSkullTier || '—'}, Strength only)</span>
+                  </div>
+                  {DUNGEON_BLESSINGS.map((b) => (
+                    <label key={b.id} className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor={`blessing-${b.id}`}>
+                      <span className="flex justify-between">
+                        <span>{b.label}</span>
+                        <span className="font-mono">{blessing.levels[b.id]}</span>
+                      </span>
+                      <input
+                        id={`blessing-${b.id}`}
+                        type="range"
+                        min={BLESSING_MIN_LEVEL}
+                        max={BLESSING_MAX_LEVEL}
+                        step="1"
+                        value={blessing.levels[b.id]}
+                        onChange={(e) => setBlessingLevel(b.id, e.target.value)}
+                        className="w-full"
+                      />
+                    </label>
+                  ))}
+                </>
+              )}
+              {/* Always rendered, not only while dirty — a button that appears out of nowhere the
+                  first time you type is worse than one that's visibly waiting, and a stable slot
+                  keeps the panel from reflowing mid-edit. */}
+              <button
+                type="button"
+                onClick={applyMisc}
+                disabled={!miscDirty}
+                className={`mt-1 w-full px-2 py-1.5 text-[12px] font-bold cursor-pointer transition-colors ${
+                  miscDirty
+                    ? 'bg-green-400 text-black hover:brightness-110'
+                    : 'bg-neutral-800 text-neutral-500 cursor-default'
+                }`}
+              >
+                {miscDirty ? 'Apply changes' : 'Applied'}
+              </button>
             </div>
           </div>
 

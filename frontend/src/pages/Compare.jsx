@@ -62,6 +62,13 @@ function useCurrentBuildState(build) {
       legionPlayers: build.legionPlayers,
       blazeCrimsonIsle: build.blazeCrimsonIsle,
       bestiaryMaxedMobs: build.bestiaryMaxedMobs,
+      // Account-wide state that isn't part of a gear loadout — Dungeon Blessings + their
+      // effectiveness inputs, Essence-shop perks, Master Skull tier, and the maxed-collections
+      // count (that last one was missing since before those existed, so the Current Build side
+      // silently disagreed with the Damage page on "The One"'s bonus too).
+      maxedCollectionsCount: build.maxedCollectionsCount,
+      blessing: build.blessing,
+      essencePerks: build.essencePerks,
     }),
     [
       build.loadout,
@@ -78,6 +85,9 @@ function useCurrentBuildState(build) {
       build.swarmMobs,
       build.comboKills,
       build.legionPlayers,
+      build.maxedCollectionsCount,
+      build.blessing,
+      build.essencePerks,
       build.blazeCrimsonIsle,
       build.bestiaryMaxedMobs,
     ],
@@ -108,13 +118,24 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
 
       const token = (tokensRef.current[selection] = (tokensRef.current[selection] || 0) + 1);
       (async () => {
-        const state =
+        const decoded =
           selection === 'current'
             ? currentState
             : await decodeLoadoutCode(entry.code, itemData).catch((err) => {
                 console.error('Failed to decode saved loadout for comparison:', err);
                 return null;
               });
+        // A saved loadout is a GEAR snapshot — it carries no Blessings/Essence perks/Master Skull,
+        // because those belong to the account rather than to the build. Both sides of a comparison
+        // are the same account, so the live values apply to a decoded loadout just as much as to
+        // the current one; without this a saved side would be scored as if the player had none.
+        const state = decoded && {
+          bestiaryMaxedMobs: currentState.bestiaryMaxedMobs,
+          maxedCollectionsCount: currentState.maxedCollectionsCount,
+          blessing: currentState.blessing,
+          essencePerks: currentState.essencePerks,
+          ...decoded,
+        };
         if (cancelled || tokensRef.current[selection] !== token) return;
         if (!state) {
           setResultsByKey((prev) => ({ ...prev, [selection]: { state: null, result: null, missing: false } }));
@@ -140,6 +161,8 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           state.bestiaryMaxedMobs,
           state.godPotionMixin,
           state.maxedCollectionsCount,
+          state.blessing,
+          state.essencePerks,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));

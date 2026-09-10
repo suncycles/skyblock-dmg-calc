@@ -57,6 +57,9 @@ try {
   const itemStatTotals = await server.ssrLoadModule('/src/lib/itemStatTotals.js');
   const tieredArmorStats = await server.ssrLoadModule('/src/lib/tieredArmorStats.js');
   const dungeonHeads = await server.ssrLoadModule('/src/lib/dungeonHeads.js');
+  const dungeonBlessing = await server.ssrLoadModule('/src/lib/dungeonBlessing.js');
+  const essencePerks = await server.ssrLoadModule('/src/lib/essencePerks.js');
+  const masterSkull = await server.ssrLoadModule('/src/lib/masterSkull.js');
   const petData = await server.ssrLoadModule('/src/lib/petData.js');
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
@@ -509,6 +512,109 @@ try {
     assert.equal(diamondCounterpartFor('GOLD_NECRON_HEAD'), 'DIAMOND_NECRON_HEAD');
     assert.equal(diamondCounterpartFor('DIAMOND_BONZO_HEAD'), null, 'Diamond is the top rank');
     assert.equal(parseDungeonHead('SHADOW_ASSASSIN_HELMET'), null, 'ordinary helmets are not heads');
+  });
+
+  // 21. Dungeon Blessing effectiveness: four independent sources, multiplicative with each other,
+  // landing on exactly 1.815 when all four are maxed (user-confirmed 2026-09-10 — that figure is
+  // the whole spec, so it's pinned here). The Mimic Shard's level comes off the Epic 32-cap shard
+  // ladder, and the multiplier scales a blessing's own numbers BEFORE they reach the base stats.
+  await check('Dungeon Blessing multiplier and Mimic ladder', () => {
+    const { computeBlessingMultiplier, epicShardLevelFromCount, computeBlessingEffects } = dungeonBlessing;
+    assert.equal(Number(computeBlessingMultiplier({}).toFixed(4)), 1.2, 'the automatic +20% is always on');
+    assert.equal(
+      Number(computeBlessingMultiplier({ mimicShardLevel: 10, forbiddenBlessingLevel: 10, paulBuff: true }).toFixed(4)),
+      1.815,
+      '1.10 * 1.10 * 1.20 * 1.25',
+    );
+    // Epic ladder: cumulative [1,2,4,6,9,12,16,20,25,32], 32 shards to reach level 10.
+    assert.equal(epicShardLevelFromCount(0), 0);
+    assert.equal(epicShardLevelFromCount(4), 3);
+    assert.equal(epicShardLevelFromCount(31), 9, '31 is one short of the cap');
+    assert.equal(epicShardLevelFromCount(32), 10);
+    assert.equal(epicShardLevelFromCount(9999), 10, 'level is capped, not unbounded');
+
+    const effects = computeBlessingEffects({ power: 30 }, 1.815);
+    assert.equal(effects.length, 1, 'only levelled blessings produce an effect');
+    // 30 x 4 x 1.815 flat, then 30 x 2% x 1.815 — the boost scales the blessing, not the stat.
+    assert.equal(Number(effects[0].flat.strength.toFixed(1)), 217.8);
+    assert.equal(Number(effects[0].percent.crit_damage.toFixed(1)), 108.9);
+    assert.deepEqual(computeBlessingEffects({ power: 0, time: 0, stone: 0, wisdom: 0 }, 1.815), [], 'level 0 is inert');
+    // Stone is the flat-only one.
+    const stone = computeBlessingEffects({ stone: 10 }, 1)[0];
+    assert.equal(stone.flat.damage, 60);
+    assert.deepEqual(stone.percent, {}, 'Stone has no percentage clause');
+  });
+
+  // 22. Essence-shop perk effects, all user-supplied (2026-09-10) and none of them in any public
+  // data source — so every per-level figure is pinned here at both ends of its range. The three
+  // Catacombs (Undead) ones exist only inside a dungeon; the rest are permanent.
+  await check('essence-shop perks grant their real per-level stats', () => {
+    const { computeFlatPerkStats, computeBanePercent, computeInfusedDragonCritDamage, computeTwoHeadedStrikeAttackSpeed } = essencePerks;
+    const at = (level, dungeon) => {
+      const perks = Object.fromEntries(essencePerks.TRACKED_PERK_KEYS.map((k) => [k, level]));
+      return Object.fromEntries(computeFlatPerkStats(perks, dungeon).map((e) => [`${e.label}|${e.stat}`, e.value]));
+    };
+    const max = at(99, true);
+    assert.equal(max['Forbidden Strength 5|strength'], 5, '1-5 Strength');
+    assert.equal(max['Forbidden Intelligence 5|intelligence'], 10, '2-10 Intelligence');
+    assert.equal(max['Blessing of Time 3|strength'], 6, '2/4/6 Strength');
+    assert.equal(max['Blessing of Time 3|intelligence'], 6, '2/4/6 Intelligence');
+    assert.equal(max['Strength Essence 5|strength'], 50, '10-50 Strength');
+    assert.equal(max['Intelligence Essence 5|intelligence'], 75, '15-75 Intelligence');
+    assert.equal(max['Critical Essence 5|crit_damage'], 50, '10-50 Crit Damage');
+    const min = at(1, true);
+    assert.equal(min['Forbidden Strength 1|strength'], 1);
+    assert.equal(min['Forbidden Intelligence 1|intelligence'], 2);
+    assert.equal(min['Strength Essence 1|strength'], 10);
+    assert.equal(min['Intelligence Essence 1|intelligence'], 15);
+    assert.equal(min['Critical Essence 1|crit_damage'], 10);
+
+    // The Catacombs line is dungeon-only; the permanent ones are not.
+    const outside = at(99, false);
+    assert.equal(outside['Strength Essence 5|strength'], undefined, 'Strength Essence is dungeon-only');
+    assert.equal(outside['Intelligence Essence 5|intelligence'], undefined, 'Intelligence Essence is dungeon-only');
+    assert.equal(outside['Critical Essence 5|crit_damage'], undefined, 'Critical Essence is dungeon-only');
+    assert.equal(outside['Forbidden Strength 5|strength'], 5, 'Forbidden Strength applies everywhere');
+
+    const maxed = Object.fromEntries(essencePerks.TRACKED_PERK_KEYS.map((k) => [k, 99]));
+    assert.equal(computeBanePercent(maxed), 15, '3-15% vs Arachnids');
+    assert.equal(computeBanePercent({ bane: 1 }), 3);
+    assert.equal(computeInfusedDragonCritDamage(maxed, 'ENDER_DRAGON'), 10, '2-10 Crit Damage');
+    assert.equal(computeInfusedDragonCritDamage(maxed, 'GOLDEN_DRAGON'), 0, 'Ender Dragon only');
+    assert.equal(computeTwoHeadedStrikeAttackSpeed(maxed, 'Renowned'), 10, '2-10 Attack Speed');
+    assert.equal(computeTwoHeadedStrikeAttackSpeed(maxed, 'Spiked'), 10);
+    assert.equal(computeTwoHeadedStrikeAttackSpeed(maxed, 'Ancient'), 0, 'Renowned/Spiked only');
+    // A manually-built loadout has no perk map at all — that must be inert, not a crash.
+    assert.deepEqual(computeFlatPerkStats(null, true), []);
+    assert.equal(computeBanePercent(null), 0);
+    assert.equal(computeTwoHeadedStrikeAttackSpeed(null, 'Renowned'), 0);
+  });
+
+  // 23. Master Skull's Strength multiplier is MULTIPLICATIVE with the Dungeon Blessings, not summed
+  // into them (user-specified 2026-09-10) — the distinction is the whole point, so both the ladder
+  // and the compounding are pinned. The ladder changes slope at tier 4, which is exactly the kind
+  // of thing a "clever" formula would quietly get wrong.
+  await check('Master Skull tiers compound with blessings', () => {
+    const { masterSkullStrengthMultiplier, masterSkullStrengthPercent, masterSkullTierFromItemId } = masterSkull;
+    assert.deepEqual(
+      [0, 1, 2, 3, 4, 5, 6, 7].map(masterSkullStrengthMultiplier),
+      [1, 1.01, 1.02, 1.03, 1.04, 1.06, 1.08, 1.1],
+      'tiers 1-4 step by 1 point, 5-7 by 2',
+    );
+    assert.equal(masterSkullStrengthMultiplier(0), 1, 'not owned is inert');
+    assert.equal(masterSkullStrengthMultiplier(99), 1.1, 'capped at tier 7');
+    assert.equal(Number(masterSkullStrengthPercent(7).toFixed(4)), 10, '1.10x is +10%');
+    assert.equal(masterSkullTierFromItemId('MASTER_SKULL_TIER_7'), 7);
+    assert.equal(masterSkullTierFromItemId('HEGEMONY_ARTIFACT'), 0, 'other accessories are not skulls');
+
+    // Power 5 at effectiveness 1.5 is x1.15; Master Skull 7 is x1.10. Together they must compound
+    // to x1.265 on top of the flat grant, NOT sum to x1.25.
+    const blessingMult = dungeonBlessing.computeBlessingMultiplier({ paulBuff: true });
+    const powerPercent = dungeonBlessing.computeBlessingEffects({ power: 5 }, blessingMult)[0].percent.strength;
+    assert.equal(Number(powerPercent.toFixed(4)), 15, 'Power 5 at 1.5x effectiveness is +15%');
+    const compounded = (1 + powerPercent / 100) * masterSkullStrengthMultiplier(7);
+    assert.equal(Number(compounded.toFixed(4)), 1.265);
+    assert.notEqual(Number(compounded.toFixed(4)), 1.25, 'summing the percentages would be wrong');
   });
 } finally {
   await server.close();

@@ -118,6 +118,9 @@ import {
   ATTACK_SPEED_SHARD_RATE,
   computeEchoBoost,
 } from './attributes';
+import { computeBlessingEffects, computeBlessingMultiplier } from './dungeonBlessing';
+import { computeFlatPerkStats, computeBanePercent, BANE_PERK } from './essencePerks';
+import { masterSkullStrengthPercent } from './masterSkull';
 
 // Elite's boss/miniboss condition, scoped to the 5 real Slayer bosses (no boss/miniboss flag exists on mobs).
 const ELITE_BOSS_MOBS = ['Inferno Demonlord', 'Voidgloom Seraph', 'Revenant Horror', 'Tarantula Broodfather', 'Sven Packmaster'];
@@ -534,7 +537,7 @@ const BLAZETEKK_HAM_RADIO_BLUERTOOTH_DAMAGE = 4;
 // computeBasePetStats alone, because this file's own copy still had the bug. Do not reintroduce a
 // local reimplementation here; if the scope of "base stats" ever needs to change again, change it
 // in computeBasePetStats and this call picks it up for free.
-async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, generalsMedallionDigits, out, maxedCollectionsCount) {
+async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, generalsMedallionDigits, out, maxedCollectionsCount, essencePerks) {
   let basePetStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
   out.firstPounceFactor = 1;
@@ -551,7 +554,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // (petItemDeltas, Ankylosaurus, Lion's Damage-only Primal Force add, etc.), with Primal Force
     // staying in its original position below (after the pet item's boost), not moved up here, since
     // a %-based pet item boost must not also multiply Primal Force's flat add for that total.
-    basePetStats = computeBasePetStats(loadout, itemData);
+    basePetStats = computeBasePetStats(loadout, itemData, essencePerks);
     const statsBeforePetItem = stats;
     const petItemId = modifiers.petItem;
     const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
@@ -674,6 +677,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       generalsMedallionDigits,
       potatoBookDoubled,
       maxedCollectionsCount,
+      essencePerks,
     });
     for (const statKey of TRACKED_STATS) {
       const t = totals[statKey];
@@ -741,6 +745,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
         tamingLevel,
         wolfSlayerLevel,
         chimeraBonus,
+        essencePerks,
         generalsMedallionDigits,
         potatoBookDoubled,
         maxedCollectionsCount,
@@ -1168,7 +1173,7 @@ async function collectPetEntriesInto(pet, modifiers, itemData, out) {
 // Account-wide Attributes (lib/attributes.js), read from BuildContext state rather than the
 // loadout. The Echo chain is computed once and applied to every Ruler/Strength-Elemental
 // attribute's value before it's pushed/summed.
-function collectAttributeEntries(attributes, loadout, out) {
+function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks) {
   if (!attributes) return;
 
   const echoOfRulerBoost = computeEchoBoost(ECHO_OF_RULER_RATE, attributes.echo_of_ruler, attributes.echo_of_echoes);
@@ -1239,6 +1244,50 @@ function collectAttributeEntries(attributes, loadout, out) {
     addBaseStat(out, 'bonus_attack_speed', ATTACK_SPEED_SHARD_RATE * attackSpeedLevel, 'Attributes');
   }
 
+  // Essence-shop perks (lib/essencePerks.js) — permanent account-wide stats, so they go in before
+  // the run-scoped blessings below and before Unlimited Power's final multiplier. The Catacombs
+  // (Undead essence) ones are gated on the Dungeon toggle inside computeFlatPerkStats.
+  for (const entry of computeFlatPerkStats(essencePerks, useDungeonizedStats)) {
+    addBaseStat(out, entry.stat, entry.value, entry.label);
+  }
+  const banePercent = computeBanePercent(essencePerks);
+  if (banePercent > 0) {
+    out.additiveConditional.push({
+      id: 'essence-perk-bane',
+      label: `${BANE_PERK.name} (${banePercent}% vs Arachnids)`,
+      source: 'Essence Shop',
+      value: banePercent,
+      condition: BANE_PERK.condition,
+      abilityEligible: true,
+    });
+  }
+
+  // Dungeon Blessings (lib/dungeonBlessing.js) — Catacombs-run buffs, so only while the Dungeon
+  // toggle is on. Every flat grant lands before any of the percentages, so a blessing's own %
+  // compounds on its flat grant (and on the other blessings') exactly as the real buff does. Placed
+  // ahead of the Unlimited Power block below so that one genuinely stays the last multiplier.
+  if (useDungeonizedStats) {
+    const blessingEffects = computeBlessingEffects(blessing?.levels, computeBlessingMultiplier(blessing));
+    for (const effect of blessingEffects) {
+      for (const [statKey, amount] of Object.entries(effect.flat)) addBaseStat(out, statKey, amount, effect.label);
+    }
+    for (const effect of blessingEffects) {
+      for (const [statKey, percent] of Object.entries(effect.percent)) {
+        addPercentStatBoost(out, statKey, percent, effect.label, currentStatTotals(out, statKey));
+      }
+    }
+
+    // Master Skull's own Strength multiplier — applied here, straight after the blessings and off
+    // the running total, so the two COMPOUND rather than summing their percentages: tier 7 with a
+    // Power 5 blessing is 1.10 * 1.15, not 1 + 0.10 + 0.15 (user-specified 2026-09-10). Scoped to
+    // the Dungeon toggle alongside the blessings it multiplies with — say so if it should apply
+    // outside a run too, it's one line.
+    const skullPercent = masterSkullStrengthPercent(blessing?.masterSkullTier);
+    if (skullPercent > 0) {
+      addPercentStatBoost(out, 'strength', skullPercent, `Master Skull Tier ${blessing.masterSkullTier}`, currentStatTotals(out, 'strength'));
+    }
+  }
+
   // Unlimited Power/Energy/Torrent apply last, as a true multiplier on the fully-summed
   // Strength/Crit Damage/Intelligence — baked into baseStats directly rather than left for
   // finalDamage.js to apply. Almighty boosts all three; Echo of Echoes in turn boosts Almighty
@@ -1277,6 +1326,13 @@ export async function collectDamageSources(
   bestiaryMaxedMobs = null,
   godPotionMixin = 'none',
   maxedCollectionsCount = 0,
+  // One trailing object rather than four more positional slots on an already-long list —
+  // { levels: {power,time,stone,wisdom}, mimicShardLevel, forbiddenBlessingLevel, paulBuff }.
+  // See lib/dungeonBlessing.js; only read while useDungeonizedStats is on.
+  blessing = null,
+  // The account's Essence-shop perk levels, {perkKey: level} — see lib/essencePerks.js. Imported
+  // only, never typed; null for a manually-built loadout.
+  essencePerks = null,
 ) {
   const out = {
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
@@ -1350,6 +1406,9 @@ export async function collectDamageSources(
     playerStats?.generalsMedallionDigits,
     out,
     maxedCollectionsCount,
+    // Reaches the reforge bonus (Two-Headed Strike) and the pet's raw base stats (Infused Dragon)
+    // — see lib/essencePerks.js.
+    essencePerks,
   );
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
@@ -1794,7 +1853,7 @@ export async function collectDamageSources(
 
   await collectPetEntries(loadout, itemData, out);
 
-  collectAttributeEntries(attributes, loadout, out);
+  collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks);
 
   // Final-multiplier "stat boost" perks: applied last, on the fully-summed combat-stat totals
   // only (never Damage) — same mechanism as Unlimited Power/Energy above. Extended to

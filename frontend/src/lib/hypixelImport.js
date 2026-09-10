@@ -561,5 +561,25 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // real count happened to be scraped for NEU-REPO's static catalog snapshot, not this player's.
   const maxedCollectionsCount = typeof raw.maxedCollectionsCount === 'number' ? raw.maxedCollectionsCount : 0;
 
-  return { loadout, skipped, attributes, playerStats, bestiaryMaxedMobs, combinedMythologicalBestiaryTiers, maxedCollectionsCount };
+  // Dungeon Blessing effectiveness inputs — both account-wide, both resolved Worker-side (see its
+  // computeMimicShardLevel / player_data.perks.forbidden_blessing), never typed by hand.
+  const blessingInputs = {
+    mimicShardLevel: raw.mimicShardLevel || 0,
+    forbiddenBlessingLevel: raw.forbiddenBlessingLevel || 0,
+    // Off the talisman bag, alongside Magical Power — see the Worker's computeLiveAccessoryStats.
+    masterSkullTier: raw.accessory?.masterSkullTier || 0,
+  };
+  // Essence-shop perk levels, {perkKey: level} — see lib/essencePerks.js.
+  const essencePerks = raw.essencePerks || {};
+  return {
+    loadout,
+    skipped,
+    attributes,
+    playerStats,
+    bestiaryMaxedMobs,
+    combinedMythologicalBestiaryTiers,
+    maxedCollectionsCount,
+    blessingInputs,
+    essencePerks,
+  };
 }

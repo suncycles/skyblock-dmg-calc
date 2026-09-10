@@ -1,5 +1,6 @@
 import { formatItemName, rarityColorCode } from './mcText.js';
 import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from './petItemEffects.js';
+import { computeInfusedDragonCritDamage } from './essencePerks';
 
 /* Pet stats, sourced from NEU-REPO's constants/petnums.json (worker forwards it live under
    itemData.pets) — shaped { [petId]: { [rarity]: { "1": {statNums, otherNums}, "100": {...} } } }.
@@ -190,9 +191,9 @@ export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
 // thing Chimera/Manticore still don't copy — it invents a Strength stat on a pet whose curve has
 // none at all, unlike everything else in the pipeline (see the comment below for why that's the
 // one real exception).
-export function computeEquippedPetStats(loadout, itemData) {
+export function computeEquippedPetStats(loadout, itemData, essencePerks) {
   if (!loadout.pet) return null;
-  return applyAnkylosaurusMax(loadout.pet.item.petId, computeBasePetStats(loadout, itemData));
+  return applyAnkylosaurusMax(loadout.pet.item.petId, computeBasePetStats(loadout, itemData, essencePerks));
 }
 
 // What Chimera and Manticore Claw copy onto an item: the pet's real stat total — curve, Golden
@@ -206,12 +207,18 @@ export function computeEquippedPetStats(loadout, itemData) {
 // Every other perk here (Shining Scales, Primal Force, the pet item) boosts a stat already on the
 // pet's own line, which is the real, verified distinction — not "abilities vs. base stats" in
 // general (that was the wrong generalization the previous version of this comment made).
-export function computeBasePetStats(loadout, itemData) {
+export function computeBasePetStats(loadout, itemData, essencePerks) {
   if (!loadout.pet) return null;
   const { item: pet, modifiers } = loadout.pet;
   const maxLevel = getMaxPetLevel(pet.petId);
   const levels = itemData.pets?.[pet.petId]?.[pet.tier];
   let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
+  // Infused Dragon (Dragon essence shop) adds Crit Damage to the Ender Dragon's RAW base stats —
+  // folded in here, before Shining Scales / the held pet item / Lion's Primal Force, so a
+  // %-Crit-Damage pet item boosts the combined total the way it does the pet's printed stats
+  // (user-specified 2026-09-10). See lib/essencePerks.js.
+  const infusedDragon = computeInfusedDragonCritDamage(essencePerks, pet.petId);
+  if (infusedDragon) stats = { ...stats, CRIT_DAMAGE: (stats.CRIT_DAMAGE || 0) + infusedDragon };
   stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
   const petItemId = modifiers.petItem;
   const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;

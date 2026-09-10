@@ -227,10 +227,14 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
           </span>
           <span className="text-[11px] text-black truncate">{result.label}</span>
           <span className="text-[9px] text-neutral-700">
-            {/* A bare "Cost: ?" read as a bug rather than as "we have no price for this". */}
-            {typeof result.cost === 'number' && Number.isFinite(result.cost)
-              ? `Cost: ${formatCoinsShort(result.cost)}${coinsPerPercent ? ` · ${coinsPerPercent}/%` : ''}`
-              : 'Cost: unpriced'}
+            {/* Three distinct states, deliberately worded apart: a real price, a confirmed
+                "costs nothing" (Blacksmith reforges, the no-stone Powers), and no price data at
+                all — a bare "Cost: ?" read as a bug rather than as "we have no price for this". */}
+            {typeof result.cost !== 'number' || !Number.isFinite(result.cost)
+              ? 'Cost: unpriced'
+              : result.cost === 0
+                ? 'Cost: free'
+                : `Cost: ${formatCoinsShort(result.cost)}${coinsPerPercent ? ` · ${coinsPerPercent}/%` : ''}`}
           </span>
         </div>
         {/* Both figures are the same swap measured two ways: the % is relative to the current
