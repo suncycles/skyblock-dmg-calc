@@ -66,6 +66,16 @@ export const SKELETON_MASTER_PER_PIECE_MULTIPLIER = 1.05;
 export const SKELETON_MASTER_FULL_SET_MULTIPLIER = 1.25;
 export const SKELETON_MASTER_FULL_SET_PIECES = 4;
 
+// Maxor's Armor — "Speed Wither" is Hypixel's own internal name for the set, which is why the real
+// ids read SPEED_WITHER_* rather than MAXOR_* (same four-way naming the other Wither sets use:
+// POWER = Necron's, WISE = Storm's, TANK = Goldor's — see optimizer.js's WITHER_ARMOR_PREFIXES).
+// Each piece grants +5% arrow damage, ADDITIVE (user-specified 2026-09-11) — so a full set is a
+// flat +20% summed in with every other additive % source, NOT the compounding per-piece multiplier
+// Skeleton Master above uses. Bow-only, and like Skeleton Master the condition is on the equipped
+// WEAPON rather than the target, so it's gated with isBowEquipped instead of being a conditional.
+export const MAXOR_SET = ['SPEED_WITHER_HELMET', 'SPEED_WITHER_CHESTPLATE', 'SPEED_WITHER_LEGGINGS', 'SPEED_WITHER_BOOTS'];
+export const MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE = 5;
+
 // `slots` is ARMOR_SLOTS or EQUIPMENT_SLOTS, matched positionally against `setIds`.
 export function hasFullSet(loadout, slots, setIds) {
   return slots.every((slot, i) => loadout[slot]?.item?.id === setIds[i]);

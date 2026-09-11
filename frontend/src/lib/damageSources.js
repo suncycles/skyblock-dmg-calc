@@ -54,6 +54,8 @@ import {
   MYTHOLOGICAL_STAT_DOUBLE_IDS,
   hasFullSet,
   countSetPieces,
+  MAXOR_SET,
+  MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE,
 } from './armorSetBonuses';
 import {
   petLoreItemId,
@@ -1752,6 +1754,19 @@ export async function collectDamageSources(
   // the condition is on the equipped WEAPON, not the target, which is what `additiveConditional`
   // is for. Shown as two lines because they're two distinct real effects: folding them into one
   // number would hide that 3 pieces gets you the per-piece stacking but none of the set bonus.
+  // Maxor's: +5% ADDITIVE arrow damage per piece (see armorSetBonuses.js). Same bow-only gate as
+  // Skeleton Master below, and shown as one line with the piece count since the effect scales
+  // smoothly — there's no separate full-set step to keep visible.
+  const maxorPieces = countSetPieces(loadout, ARMOR_SLOTS, MAXOR_SET);
+  if (maxorPieces > 0 && isBowEquipped(loadout)) {
+    out.additiveNonConditional.push({
+      id: 'maxor-arrow-damage',
+      label: `Maxor's (${maxorPieces}/${MAXOR_SET.length} pieces)`,
+      source: 'Armor',
+      value: maxorPieces * MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE,
+    });
+  }
+
   const skeletonMasterPieces = countSetPieces(loadout, ARMOR_SLOTS, SKELETON_MASTER_SET);
   if (skeletonMasterPieces > 0 && isBowEquipped(loadout)) {
     out.multiplicative.push({
