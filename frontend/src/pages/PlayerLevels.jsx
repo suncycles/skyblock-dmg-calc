@@ -11,6 +11,9 @@ import {
   MAX_ENCHANTING_LEVEL,
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
+import { FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK } from '../lib/essencePerks';
+import { FORBIDDEN_BLESSING_MAX_LEVEL } from '../lib/dungeonBlessing';
+import { MASTER_SKULL_MAX_TIER } from '../lib/masterSkull';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
 
@@ -19,12 +22,24 @@ const translucentPanel =
 
 const inputClass = 'w-20 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700 text-center';
 
+// Every permanent account upgrade bought with Essence, in the order the shops themselves read: the
+// always-on Forbidden line, then the Catacombs line, then the three that aren't a flat stat.
+// Normally filled by the Hypixel import, but typeable — a manually built loadout has no import, and
+// these move the damage number as much as a skill level does, which is why they live on this page.
+// `dungeonOnly` perks are marked rather than hidden: they're still real, just Catacombs-scoped.
+const ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK];
+
 // Combat/Skyblock/Foraging/Catacombs/Taming Level, grouped on one small edit page. Foraging feeds a
 // flat Strength bonus; Catacombs feeds Ancient reforge/Wither blade per-level bonuses; Taming feeds
 // Daedalus Blade's per-level base stat.
 export default function PlayerLevels() {
   const {
     playerStats,
+    essencePerks,
+    setEssencePerkLevel,
+    blessing,
+    setForbiddenBlessingLevel,
+    setMasterSkullTier,
     setCombatLevel,
     setSkyblockLevel,
     setForagingLevel,
@@ -179,6 +194,60 @@ export default function PlayerLevels() {
             checked={playerStats.blazetekkHamRadio}
             onChange={toggleBlazetekkHamRadio}
             className="w-5 h-5 accent-black cursor-pointer"
+          />
+        </div>
+      </div>
+
+      <div className={`${translucentPanel} w-full max-w-[500px] p-6 mt-4 flex flex-col gap-4`}>
+        <div>
+          <h2 className="text-base font-bold text-black">Essence Shop</h2>
+          <p className="text-xs text-neutral-700">
+            Permanent upgrades bought with Essence. Filled in by a Hypixel import; edit them here if you build by hand.
+          </p>
+        </div>
+
+        {ESSENCE_PERKS.map((perk) => (
+          <div key={perk.key} className="flex items-center justify-between gap-2">
+            <label className="text-sm text-black" htmlFor={`perk-${perk.key}`}>
+              {perk.name}
+              {perk.dungeonOnly && <span className="text-xs text-neutral-600"> (dungeon only)</span>}
+            </label>
+            <NumberInput
+              id={`perk-${perk.key}`}
+              max={perk.maxLevel}
+              value={essencePerks[perk.key] || 0}
+              onChange={(v) => setEssencePerkLevel(perk.key, v)}
+              className={inputClass}
+            />
+          </div>
+        ))}
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="forbidden-blessing">
+            Forbidden Blessing <span className="text-xs text-neutral-600">(dungeon blessing strength)</span>
+          </label>
+          <NumberInput
+            id="forbidden-blessing"
+            max={FORBIDDEN_BLESSING_MAX_LEVEL}
+            value={blessing.forbiddenBlessingLevel}
+            onChange={setForbiddenBlessingLevel}
+            className={inputClass}
+          />
+        </div>
+
+        {/* Not an Essence purchase, but the same shape of permanent account upgrade and the only
+            other one with nowhere else to live — the Mimic shard, its old neighbour here, is an
+            attribute and sits on the Attributes page under Other. */}
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="master-skull-tier">
+            Master Skull Tier <span className="text-xs text-neutral-600">(Strength multiplier)</span>
+          </label>
+          <NumberInput
+            id="master-skull-tier"
+            max={MASTER_SKULL_MAX_TIER}
+            value={blessing.masterSkullTier}
+            onChange={setMasterSkullTier}
+            className={inputClass}
           />
         </div>
       </div>

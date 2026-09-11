@@ -41,18 +41,6 @@ export const TRACKED_PERK_KEYS = [
   TWO_HEADED_STRIKE_PERK.key,
 ];
 
-// Every tracked perk the account actually owns, for the Misc panel's read-only Account block:
-// name, level, cap, and whether it only counts inside a dungeon. Ordered as declared above so the
-// permanent ones lead and the Catacombs line follows.
-export function describeOwnedPerks(perks) {
-  const owned = [];
-  for (const perk of [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK]) {
-    const level = levelOf(perks, perk);
-    if (level > 0) owned.push({ key: perk.key, name: perk.name, level, maxLevel: perk.maxLevel, dungeonOnly: !!perk.dungeonOnly });
-  }
-  return owned;
-}
-
 function levelOf(perks, perk) {
   return Math.max(0, Math.min(perk.maxLevel, Math.floor(Number(perks?.[perk.key]) || 0)));
 }

@@ -10,7 +10,6 @@ import {
   BLESSING_IDS,
   BLESSING_MIN_LEVEL,
   BLESSING_MAX_LEVEL,
-  MIMIC_SHARD_MAX_LEVEL,
   FORBIDDEN_BLESSING_MAX_LEVEL,
   emptyBlessingLevels,
 } from '../lib/dungeonBlessing';
@@ -265,7 +264,7 @@ function loadInitialEssencePerks() {
 }
 
 function loadInitialBlessing() {
-  const fallback = { levels: emptyBlessingLevels(), mimicShardLevel: 0, forbiddenBlessingLevel: 0, masterSkullTier: 0, paulBuff: false };
+  const fallback = { levels: emptyBlessingLevels(), forbiddenBlessingLevel: 0, masterSkullTier: 0, paulBuff: false };
   const stored = localStorage.getItem(BLESSING_KEY);
   if (!stored) return fallback;
   try {
@@ -277,7 +276,6 @@ function loadInitialBlessing() {
     }
     return {
       levels,
-      mimicShardLevel: Math.max(0, Math.min(MIMIC_SHARD_MAX_LEVEL, Math.floor(Number(parsed?.mimicShardLevel) || 0))),
       forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(parsed?.forbiddenBlessingLevel) || 0))),
       masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(parsed?.masterSkullTier) || 0))),
       paulBuff: !!parsed?.paulBuff,
@@ -305,6 +303,17 @@ function loadInitialMiscStats() {
 }
 
 // Loads account-wide Attribute levels (see lib/attributes.js), defaulting every known id to 0.
+// Reads the Mimic level off the pre-2026-09-10 blessing block, for loadInitialAttributes' one-time
+// migration. Returns 0 for a build saved after the move, or no build at all.
+function legacyMimicShardLevel() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BLESSING_KEY) || '{}');
+    return Math.max(0, Math.min(getAttributeMaxLevel('mimic'), Math.floor(Number(parsed?.mimicShardLevel) || 0)));
+  } catch {
+    return 0;
+  }
+}
+
 function loadInitialAttributes() {
   const defaults = Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0]));
   const stored = localStorage.getItem(ATTRIBUTES_KEY);
@@ -314,6 +323,10 @@ function loadInitialAttributes() {
     for (const id of ATTRIBUTE_IDS) {
       if (typeof parsed[id] === 'number') defaults[id] = Math.max(0, Math.min(getAttributeMaxLevel(id), Math.floor(parsed[id])));
     }
+    // The Mimic shard used to live on the blessing block before it became a normal attribute.
+    // Without this, everyone with a build already saved silently drops to Mimic 0 until they
+    // re-import. One-way and one-time: once `mimic` is in the attributes map this never fires.
+    if (typeof parsed.mimic !== 'number') defaults.mimic = legacyMimicShardLevel();
     return defaults;
   } catch (err) {
     console.error('Failed to parse saved attributes:', err);
@@ -585,11 +598,12 @@ export function BuildProvider({ children }) {
 
   const setPaulBuff = useCallback((value) => updateBlessing({ paulBuff: !!value }), [updateBlessing]);
 
-  // Both effectiveness inputs come from the account, never typed — see lib/hypixelImport.js.
+  // Imported from the account, but editable afterwards on the Player Levels page — a manually
+  // built loadout has no import to get them from. The Mimic shard is deliberately NOT here: it's a
+  // normal attribute now (`attributes.mimic`), imported through importHypixelAttributes.
   const importHypixelBlessingInputs = useCallback(
-    ({ mimicShardLevel, forbiddenBlessingLevel, masterSkullTier }) =>
+    ({ forbiddenBlessingLevel, masterSkullTier }) =>
       updateBlessing({
-        mimicShardLevel: Math.max(0, Math.min(MIMIC_SHARD_MAX_LEVEL, Math.floor(Number(mimicShardLevel) || 0))),
         forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(forbiddenBlessingLevel) || 0))),
         masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(masterSkullTier) || 0))),
       }),
@@ -620,6 +634,13 @@ export function BuildProvider({ children }) {
 
   const setForbiddenBlessingLevel = useCallback(
     (level) => updateBlessing({ forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(level) || 0))) }),
+    [updateBlessing],
+  );
+
+  // Derived from the equipped Master Skull on import, but typeable too — a manually built loadout
+  // has no accessory bag to read it off.
+  const setMasterSkullTier = useCallback(
+    (tier) => updateBlessing({ masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(tier) || 0))) }),
     [updateBlessing],
   );
 
@@ -1674,6 +1695,7 @@ export function BuildProvider({ children }) {
         importHypixelEssencePerks,
         setEssencePerkLevel,
         setForbiddenBlessingLevel,
+        setMasterSkullTier,
         setBlessingLevel,
         setPaulBuff,
         importHypixelBlessingInputs,

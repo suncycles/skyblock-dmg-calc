@@ -37,7 +37,6 @@ import {
   FORBIDDEN_BLESSING_MAX_LEVEL,
   computeBlessingMultiplier,
 } from '../lib/dungeonBlessing';
-import { describeOwnedPerks } from '../lib/essencePerks';
 import { masterSkullStrengthMultiplier } from '../lib/masterSkull';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
@@ -214,10 +213,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   // Applied-on-confirm copies of every MISC-panel value that feeds collectDamageSources — see
   // useConfirmedValues. Bundled into one snapshot so a single Apply press commits the whole panel.
-  // Reference list, collapsed by default — see the From Import block in the Misc panel.
-  const [accountExpanded, setAccountExpanded] = useState(false);
-  const ownedPerks = describeOwnedPerks(essencePerks);
-
   const [appliedMisc, applyMisc, miscDirty] = useConfirmedValues({
     miscStats,
     infernalCrimsonStacks,
@@ -1243,10 +1238,11 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                     <span>Paul Buff</span>
                   </label>
                   <div className="text-[10px] text-neutral-600 leading-snug">
-                    Effectiveness ×{round2(computeBlessingMultiplier(blessing))}
+                    Effectiveness ×{round2(computeBlessingMultiplier(blessing, attributes))}
                     <span className="italic">
                       {' '}
-                      (Mimic {blessing.mimicShardLevel}/10 · Forbidden {blessing.forbiddenBlessingLevel}/10)
+                      (Mimic {attributes.mimic || 0}/{MIMIC_SHARD_MAX_LEVEL} · Forbidden {blessing.forbiddenBlessingLevel}/
+                      {FORBIDDEN_BLESSING_MAX_LEVEL})
                     </span>
                   </div>
                   <div className="text-[10px] text-neutral-600 leading-snug">
@@ -1288,66 +1284,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               >
                 {miscDirty ? 'Apply changes' : 'Applied'}
               </button>
-
-              {/* Read-only account state, shown regardless of the Dungeon toggle. All of this is
-                  imported and already folded into the numbers, but until now it had nowhere to be
-                  SEEN: the essence perks only surfaced as rows inside a collapsed stat breakdown,
-                  and the three effectiveness inputs only inside the dungeon-gated Blessings block.
-                  "I can't tell whether the import picked these up" is the problem this solves
-                  (user-reported 2026-09-10) — so it never hides just because Dungeon is off, and a
-                  dungeon-only perk is marked rather than omitted. Collapsed by default: it's
-                  reference, not a control, and the panel is only 200px wide. */}
-              {(ownedPerks.length > 0 || blessing.mimicShardLevel > 0 || blessing.forbiddenBlessingLevel > 0 || blessing.masterSkullTier > 0) && (
-                <div className="border-t border-neutral-500/40 pt-2 mt-1 flex flex-col gap-1">
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-[11px] font-bold text-black uppercase tracking-wide cursor-pointer"
-                    onClick={() => setAccountExpanded((v) => !v)}
-                    aria-expanded={accountExpanded}
-                  >
-                    <span className="text-[9px]">{accountExpanded ? '▾' : '▸'}</span>
-                    From Import
-                    <span className="normal-case font-normal text-black/60">({ownedPerks.length})</span>
-                  </button>
-                  {accountExpanded && (
-                    <div className="flex flex-col gap-0.5 text-[10px] text-neutral-700">
-                      {ownedPerks.map((perk) => (
-                        <div
-                          key={perk.key}
-                          className={`flex justify-between gap-1.5 ${perk.dungeonOnly && !useDungeonizedStats ? 'opacity-50' : ''}`}
-                          title={perk.dungeonOnly ? 'Only applies inside a dungeon' : 'Always applies'}
-                        >
-                          <span className="truncate">
-                            {perk.name}
-                            {perk.dungeonOnly && <span className="italic"> (dungeon)</span>}
-                          </span>
-                          <span className="font-mono shrink-0">
-                            {perk.level}/{perk.maxLevel}
-                          </span>
-                        </div>
-                      ))}
-                      {/* The three blessing-effectiveness inputs — same source, same "was this
-                          picked up?" question, so they belong in the same list. */}
-                      <div className="flex justify-between gap-1.5">
-                        <span>Mimic Shard</span>
-                        <span className="font-mono shrink-0">{blessing.mimicShardLevel}/{MIMIC_SHARD_MAX_LEVEL}</span>
-                      </div>
-                      <div className="flex justify-between gap-1.5">
-                        <span>Forbidden Blessing</span>
-                        <span className="font-mono shrink-0">
-                          {blessing.forbiddenBlessingLevel}/{FORBIDDEN_BLESSING_MAX_LEVEL}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-1.5">
-                        <span>Master Skull</span>
-                        <span className="font-mono shrink-0">
-                          {blessing.masterSkullTier ? `T${blessing.masterSkullTier}` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 

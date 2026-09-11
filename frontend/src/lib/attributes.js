@@ -81,6 +81,11 @@ export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at fu
 // curve already used by the Hypixel import's attribute-level computation). Always-active, feeds
 // the Bonus Attack Speed base stat directly rather than a % damage source.
 export const ATTACK_SPEED_SHARD_RATE = 1; // Bonus Attack Speed %/level, "+1%-10% Bonus Attack Speed"
+// "Mimic" shard — same EPIC 32-shard ladder as Inferno Demonlord above, but what it grants isn't a
+// stat: it scales Dungeon Blessings before they touch the player (see lib/dungeonBlessing.js's
+// MIMIC_SHARD_PERCENT_PER_LEVEL, the rate this mirrors). It lives here, with the other shards,
+// rather than beside the blessings it feeds — it's an attribute the player levels like any other.
+export const MIMIC_SHARD_RATE = 1; // % blessing effectiveness/level
 
 // Non-Ruler/Elemental/Echo attributes needing a single number input — shared shape for pages/Attributes.jsx to render generically.
 export const OTHER_ATTRIBUTES = [
@@ -94,6 +99,7 @@ export const OTHER_ATTRIBUTES = [
   { id: 'tuning_box', name: 'Tuning Box', rate: TUNING_BOX_RATE, unit: ' pts' },
   { id: 'dominance', name: 'Dominance', rate: DOMINANCE_RATE, unit: '%' },
   { id: 'attack_speed', name: 'Attack Speed', rate: ATTACK_SPEED_SHARD_RATE, unit: '%' },
+  { id: 'mimic', name: 'Mimic', rate: MIMIC_SHARD_RATE, unit: '% blessings' },
 ];
 
 export const ATTRIBUTE_IDS = [
