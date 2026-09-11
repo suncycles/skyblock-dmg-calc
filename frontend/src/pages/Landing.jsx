@@ -919,15 +919,21 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-left: God Potion — a small dropdown (Off / God Potion / +Mixin) rather than a plain
-      // on/off toggle, so a real Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) can be selected
-      // alongside turning the potion on.
+      // Bottom-left: God Potion — a dropdown (Off / God Potion / +Mixin) rather than a plain on/off
+      // toggle, so a real Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) can be selected alongside
+      // turning the potion on. The <select> is a transparent overlay across the WHOLE tile rather
+      // than a strip along its bottom edge (user-specified 2026-09-10): the strip was an ~8px
+      // target on a tile that otherwise looks entirely clickable, so most of the tile did nothing.
+      // Still a real native <select>, so the picker, keyboard and screen readers all behave as they
+      // did — only the hit area changed. The caption below stays as the visible state readout and
+      // is pointer-events-none so it never eats the click.
       if (col === 0 && row === 5) {
         const godPotionValue = !godPotionActive ? 'off' : godPotionMixin === 'spider_egg' ? 'spider_egg' : 'on';
+        const godPotionLabel = { off: 'Off', on: 'God Potion', spider_egg: '+Spider Egg' }[godPotionValue];
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative flex-col ${godPotionActive ? 'bg-green-400' : ''}`}
+            className={`${slotBase} relative flex-col cursor-pointer ${godPotionActive ? 'bg-green-400' : ''}`}
             onMouseEnter={guardHover((e) => showTooltip(getGodPotionTooltipLines(godPotionMixin), e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
@@ -937,7 +943,11 @@ export default function Landing() {
               alt="God Potion"
               className={`${iconImg} flex-1 min-h-0 ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
             />
+            <span className="w-full shrink-0 px-0.5 text-[8px] leading-tight text-center text-white truncate bg-black/70 border-t border-black/40 pointer-events-none">
+              {godPotionLabel}
+            </span>
             <select
+              aria-label="God Potion"
               value={godPotionValue}
               onChange={(e) => {
                 const next = e.target.value;
@@ -945,7 +955,7 @@ export default function Landing() {
                 setGodPotionMixin(next === 'spider_egg' ? 'spider_egg' : 'none');
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full shrink-0 text-[8px] leading-tight bg-black/70 text-white border-t border-black/40 cursor-pointer outline-none"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer outline-none"
             >
               <option value="off">Off</option>
               <option value="on">God Potion</option>

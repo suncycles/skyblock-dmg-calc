@@ -30,6 +30,12 @@ const MENU_SECTIONS = [
 // "check the menu/Tutorial" nudge below only ever shows once, on a genuinely first visit.
 const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 
+// Stacking: the bar (z-[1100]), the drawer's scrim (z-[1100]) and the drawer itself (z-[1110]) all
+// sit ABOVE the floating Recommended Upgrades window (lg:z-[1000], see OptimizerSidebar.jsx) —
+// user-specified 2026-09-10. That window is otherwise the topmost thing on the page, but the app
+// chrome has to win: it's how you navigate away, and a draggable panel parked over the menu button
+// would be a trap. Everything else still renders under the panel.
+//
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
 // route without each page re-declaring it. Deliberately a plain modern navbar rather than the
 // chunky Minecraft chest-GUI bevel used everywhere below it — the contrast reads as "app chrome"
@@ -80,7 +86,7 @@ export default function TopBar() {
           since it's the very first element in the document. fixed pins it to the viewport
           regardless of scroll/overscroll; App.jsx adds matching top padding to the routed content
           below to compensate for the space this no longer reserves in normal flow. */}
-      <header className="fixed top-0 inset-x-0 z-40 bg-[rgb(16,17,22)] border-b border-white/10">
+      <header className="fixed top-0 inset-x-0 z-[1100] bg-[rgb(16,17,22)] border-b border-white/10">
         <div className="max-w-[900px] mx-auto px-4 h-12 flex items-center gap-2.5">
           <div className="relative shrink-0 -ml-1.5">
             <button
@@ -170,14 +176,14 @@ export default function TopBar() {
 
       {menuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[1100] bg-black/50 backdrop-blur-[1px]"
           onClick={() => setMenuOpen(false)}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed left-0 top-0 z-50 h-full w-72 max-w-[80vw] bg-[rgb(16,17,22)] border-r border-white/10 shadow-[8px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-out ${
+        className={`fixed left-0 top-0 z-[1110] h-full w-72 max-w-[80vw] bg-[rgb(16,17,22)] border-r border-white/10 shadow-[8px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-out ${
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

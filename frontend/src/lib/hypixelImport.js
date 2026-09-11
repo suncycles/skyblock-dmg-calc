@@ -242,13 +242,28 @@ function splitRawStars(item, rawStars) {
 // trailing "MYTHIC CLOAK" tier line) rather than anywhere this app can derive them from. Parsed
 // straight from the real lore Hypixel returns instead of leaving the Special screen's manual
 // inputs (`modifiers.special`/`rarityOverride`) at their defaults.
-function parseDavidsCloakFromLore(lore) {
+// Hypixel renders a stat line as "§7Strength: §c+TOTAL §9(+REFORGE) §8(+DUNGEON)". The LEADING
+// number already includes the reforge's contribution — and this app applies that reforge itself
+// from the real reforge table (lib/reforges.js), so reading the leading number whole counted the
+// reforge twice. Confirmed against a real copy (2026-09-10): a Strengthened David's Cloak reads
+// "§7Strength: §c+7 §9(+7)" — its own Hunting-milestone Strength is 0 and the whole +7 is the
+// reforge, but the import stored special=7 and the app then added Strengthened's +7 again for a
+// total of 14. Only the §9 parenthetical is subtracted: the §8 one is the Catacombs Stats Boost
+// preview, which is NOT part of the leading number and which this app computes separately too.
+const DAVIDS_CLOAK_REFORGE_BONUS_RE = /§9\(\+?([\d.]+)\)/;
+
+export function parseDavidsCloakFromLore(lore) {
   if (!Array.isArray(lore) || lore.length === 0) return { special: 0, rarityOverride: null };
   const stripped = lore.map((l) => l.replace(/§./g, ''));
 
-  const strengthLine = stripped.find((l) => /^Strength:\s*[+-]?\d+/.test(l.trim()));
-  const strengthMatch = strengthLine && /^Strength:\s*([+-]?\d+)/.exec(strengthLine.trim());
-  const special = strengthMatch ? Math.max(0, parseInt(strengthMatch[1], 10)) : 0;
+  const strengthIdx = stripped.findIndex((l) => /^Strength:\s*[+-]?[\d.]+/.test(l.trim()));
+  let special = 0;
+  if (strengthIdx !== -1) {
+    const total = parseFloat(/^Strength:\s*([+-]?[\d.]+)/.exec(stripped[strengthIdx].trim())[1]);
+    const reforgeMatch = DAVIDS_CLOAK_REFORGE_BONUS_RE.exec(lore[strengthIdx]);
+    const reforge = reforgeMatch ? parseFloat(reforgeMatch[1]) : 0;
+    special = Math.max(0, Math.round(total - reforge));
+  }
 
   const rarities = getSpecialConfig('DAVIDS_CLOAK')?.rarities || [];
   const lastLine = [...stripped].reverse().find((l) => l.trim());
