@@ -1473,13 +1473,6 @@ function computePetLevel(type, tier, exp) {
   return Math.min(200, level);
 }
 
-// The Mimic Shard's level feeds the Dungeon Blessing effectiveness multiplier
-// (frontend/src/lib/dungeonBlessing.js). It is NOT an attribute shard — it has no entry in
-// NEU-REPO's attribute_shards.json and never appears in member.attributes.stacks; it lives in the
-// newer member.shards.owned list as a raw owned count. It is Epic tier, so its level comes off the
-// same 32-shards-to-10 ladder every other Epic shard uses (user-specified 2026-09-10).
-const EPIC_SHARD_LEVEL_THRESHOLDS = [1, 2, 4, 6, 9, 12, 16, 20, 25, 32];
-const MIMIC_SHARD_TYPE = "MIMIC";
 const MASTER_SKULL_ID_RE = /^MASTER_SKULL_TIER_([1-7])$/;
 
 // Mirrors frontend/src/lib/essencePerks.js's TRACKED_PERK_KEYS — the Worker and frontend are
@@ -1495,17 +1488,6 @@ const TRACKED_ESSENCE_PERK_KEYS = [
   "edrag_cd",
   "dragon_reforges_buff",
 ];
-
-function computeMimicShardLevel(shards) {
-  const owned = (shards?.owned || []).find((entry) => entry?.type === MIMIC_SHARD_TYPE);
-  const count = owned?.amount_owned || 0;
-  let level = 0;
-  for (const threshold of EPIC_SHARD_LEVEL_THRESHOLDS) {
-    if (count >= threshold) level += 1;
-    else break;
-  }
-  return level;
-}
 
 // "ATTRIBUTE_SHARD_FROST_ELEMENTAL;1" -> "frost_elemental", matching the raw key format Hypixel
 // uses in member.attributes.stacks (confirmed via real account data).
@@ -1739,10 +1721,10 @@ async function handleHypixelImport(url, env) {
     const rarityMap = buildAttributeRarityMap(attributeShards);
     const thresholds = buildAttributeThresholds(attributeShards.attribute_levelling);
     const attributeLevels = computeAttributeLevels(member.attributes?.stacks, rarityMap, thresholds);
-    // Both Dungeon Blessing effectiveness inputs. member.player_data.perks is the flat
-    // {perkKey: level} map every Essence-shop perk lives in (NEU-REPO's essenceshops.json names
-    // them); forbidden_blessing is the Wither one, max level 10.
-    const mimicShardLevel = computeMimicShardLevel(member.shards);
+    // member.player_data.perks is the flat {perkKey: level} map every Essence-shop perk lives in
+    // (NEU-REPO's essenceshops.json names them); forbidden_blessing is the Wither one, max 10. The
+    // Mimic shard is NOT resolved here — it's a normal attribute (`stacks.faker`, keyed by its
+    // ability name) and comes out of computeAttributeLevels above with every other shard.
     const forbiddenBlessingLevel = Math.min(10, member.player_data?.perks?.forbidden_blessing || 0);
     // Every Essence-shop perk level this app models (frontend/src/lib/essencePerks.js). Filtered to
     // the tracked keys rather than shipped whole — the raw map is ~300 entries, almost all of them
@@ -1867,7 +1849,6 @@ async function handleHypixelImport(url, env) {
       uuid,
       armor: armorResult,
       equipment: equipmentResult,
-      mimicShardLevel,
       forbiddenBlessingLevel,
       essencePerks,
       wardrobeSets,
