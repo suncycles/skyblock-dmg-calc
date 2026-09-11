@@ -345,7 +345,7 @@ export const MOB_TYPES = {
   // are this app's own inference (Airborne/Arcane matching the Ender Dragon family it borrows its
   // icon from, Wither/Boss matching its fellow F7 bosses Maxor/Storm/Goldor/Necron) — not
   // individually user-confirmed, flag if wrong.
-  'Wither Dragon': ['Airborne', 'Wither', 'Arcane', 'Boss'],
+  'Wither Dragon': ['Airborne', 'Ender', 'Arcane', 'Boss'],
   'Wither Gourd': ['Shielded', 'Spooky'],
   'Wither Guard': ['Skeletal', 'Wither'],
   'Wither Husk': [],
