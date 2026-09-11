@@ -1267,7 +1267,7 @@ function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, 
   // compounds on its flat grant (and on the other blessings') exactly as the real buff does. Placed
   // ahead of the Unlimited Power block below so that one genuinely stays the last multiplier.
   if (useDungeonizedStats) {
-    const blessingEffects = computeBlessingEffects(blessing?.levels, computeBlessingMultiplier(blessing));
+    const blessingEffects = computeBlessingEffects(blessing?.levels, computeBlessingMultiplier(blessing, attributes));
     for (const effect of blessingEffects) {
       for (const [statKey, amount] of Object.entries(effect.flat)) addBaseStat(out, statKey, amount, effect.label);
     }

@@ -523,9 +523,17 @@ try {
     const { computeBlessingMultiplier, epicShardLevelFromCount, computeBlessingEffects } = dungeonBlessing;
     assert.equal(Number(computeBlessingMultiplier({}).toFixed(4)), 1.2, 'the automatic +20% is always on');
     assert.equal(
-      Number(computeBlessingMultiplier({ mimicShardLevel: 10, forbiddenBlessingLevel: 10, paulBuff: true }).toFixed(4)),
+      Number(computeBlessingMultiplier({ forbiddenBlessingLevel: 10, paulBuff: true }, { mimic: 10 }).toFixed(4)),
       1.815,
       '1.10 * 1.10 * 1.20 * 1.25',
+    );
+    // Mimic is a normal attribute (lib/attributes.js's OTHER_ATTRIBUTES), so it reaches the
+    // multiplier through the attributes map — never off the blessing block, which no longer
+    // carries it. A stale `mimicShardLevel` on the blessing must be ignored, not silently honoured.
+    assert.equal(
+      Number(computeBlessingMultiplier({ mimicShardLevel: 10 }, {}).toFixed(4)),
+      1.2,
+      'the blessing block no longer carries the Mimic level',
     );
     // Epic ladder: cumulative [1,2,4,6,9,12,16,20,25,32], 32 shards to reach level 10.
     assert.equal(epicShardLevelFromCount(0), 0);

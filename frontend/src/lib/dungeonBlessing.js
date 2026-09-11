@@ -52,13 +52,15 @@ export function epicShardLevelFromCount(count) {
 }
 
 // The single multiplier every blessing's own numbers are scaled by, before they reach the player's
-// stats. `mimicShardLevel`/`forbiddenBlessingLevel` are 0-10 (both imported from the account);
-// `paulBuff` is the Misc checkbox.
+// stats. `forbiddenBlessingLevel` is the 0-10 essence-shop perk and `paulBuff` the Misc checkbox,
+// both off `inputs`; the Mimic shard's 0-10 level is a normal attribute (`attributes.mimic`, see
+// lib/attributes.js) and so comes from the second argument rather than the blessing block.
 // Null-safe on purpose: a default parameter only covers `undefined`, and callers legitimately pass
 // null — collectDamageSources defaults `blessing` to null, and a Compare snapshot saved before this
 // feature existed has no blessing block at all. Both mean "no blessings", not a crash.
-export function computeBlessingMultiplier(inputs) {
-  const { mimicShardLevel = 0, forbiddenBlessingLevel = 0, paulBuff = false } = inputs || {};
+export function computeBlessingMultiplier(inputs, attributes) {
+  const { forbiddenBlessingLevel = 0, paulBuff = false } = inputs || {};
+  const mimicShardLevel = Math.floor(Number(attributes?.mimic) || 0);
   const mimic = Math.max(0, Math.min(MIMIC_SHARD_MAX_LEVEL, mimicShardLevel)) * MIMIC_SHARD_PERCENT_PER_LEVEL;
   const forbidden = Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, forbiddenBlessingLevel)) * FORBIDDEN_BLESSING_PERCENT_PER_LEVEL;
   return (
