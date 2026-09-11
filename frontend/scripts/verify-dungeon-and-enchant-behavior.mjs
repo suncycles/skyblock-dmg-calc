@@ -640,6 +640,26 @@ try {
     const head = { id: 'DIAMOND_BONZO_HEAD', tier: 'SPECIAL' };
     assert.equal(recombobulator.getDisplayTier(head, {}), DUNGEON_HEAD_REFORGE_RARITY);
   });
+
+  // 25. David's Cloak's Hunting-milestone Strength is imported from the item's own lore, but that
+  // lore's leading number ALREADY includes the reforge — and this app applies the reforge itself,
+  // so taking the leading number whole double-counted it. Confirmed against a real Strengthened
+  // copy (2026-09-10) reading "§7Strength: §c+7 §9(+7)": milestone 0, reforge 7, app said 14.
+  await check("David's Cloak imports milestone Strength without the reforge", () => {
+    const { parseDavidsCloakFromLore } = hypixelImport;
+    const realStrengthened = ['§7Health: §c+50', '§7Strength: §c+7 §9(+7)', '§d§lMYTHIC CLOAK'];
+    assert.equal(parseDavidsCloakFromLore(realStrengthened).special, 0, 'an all-reforge +7 is milestone 0');
+    assert.equal(parseDavidsCloakFromLore(realStrengthened).rarityOverride, 'MYTHIC');
+    // A real milestone value with no reforge survives untouched.
+    assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+34', '§d§lMYTHIC CLOAK']).special, 34);
+    // ...and with one, only the reforge's share comes off.
+    assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+41 §9(+7)', '§d§lLEGENDARY CLOAK']).special, 34);
+    // The §8 parenthetical is the Catacombs Stats Boost preview — it is NOT part of the leading
+    // number, so subtracting it too would swing the milestone value wildly negative.
+    assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+41 §9(+7) §8(+99)', '§d§lMYTHIC CLOAK']).special, 34);
+    assert.equal(parseDavidsCloakFromLore(['§7Health: §c+50', '§d§lMYTHIC CLOAK']).special, 0, 'no Strength line is 0');
+    assert.deepEqual(parseDavidsCloakFromLore(null), { special: 0, rarityOverride: null });
+  });
 } finally {
   await server.close();
 }

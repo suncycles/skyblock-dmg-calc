@@ -295,11 +295,13 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
 // carrying the grip glyph that advertises it — sat underneath Landing's Loadout toolbar at every
 // viewport narrower than ~1500px, hiding the affordance exactly where it needed to be seen.)
 //
-// lg:z-[1000] puts it above every other layer in the app — the TopBar (z-40) and its menu drawer
-// (z-50), the GlobalFooter's data-freshness chip (z-30, which sits in the same bottom-right corner
-// and covered the panel's last rows), and the Armor/Equipment Options dialogs (z-[999]). A window
-// the user has deliberately dragged somewhere should stay the topmost thing on the page
-// (user-specified 2026-09-08) — nothing is allowed to render over it.
+// lg:z-[1000] puts it above almost every other layer in the app — the GlobalFooter's
+// data-freshness chip (z-30, which sits in the same bottom-right corner and covered the panel's
+// last rows) and the Armor/Equipment Options dialogs (z-[999]). A window the user has deliberately
+// dragged somewhere should stay on top of the page content (user-specified 2026-09-08). The one
+// exception is the app chrome — TopBar (z-[1100]) and its menu drawer (z-[1110]) deliberately
+// overlap this panel (user-specified 2026-09-10), so a panel dragged over the menu button can
+// never strand you.
 //
 // Every real candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the brute-forced
 // categories (Enchant/Ultimate Enchant/Power Stone/Stars/Magical Power/accessories) alike — ranks
