@@ -608,6 +608,21 @@ export function BuildProvider({ children }) {
     localStorage.setItem(ESSENCE_PERKS_KEY, JSON.stringify(next));
   }, []);
 
+  // Normally import-only, but the Optimizer can suggest levelling one — see its
+  // evaluateEssencePerkCandidates / applyOptimizerResult.
+  const setEssencePerkLevel = useCallback((key, level) => {
+    setEssencePerksState((prev) => {
+      const next = { ...prev, [key]: Math.max(0, Math.floor(Number(level) || 0)) };
+      localStorage.setItem(ESSENCE_PERKS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setForbiddenBlessingLevel = useCallback(
+    (level) => updateBlessing({ forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(level) || 0))) }),
+    [updateBlessing],
+  );
+
   const setMiscStat = useCallback((statKey, value) => {
     setMiscStatsState((prev) => {
       const next = { ...prev, [statKey]: Number(value) || 0 };
@@ -1657,6 +1672,8 @@ export function BuildProvider({ children }) {
         blessing,
         essencePerks,
         importHypixelEssencePerks,
+        setEssencePerkLevel,
+        setForbiddenBlessingLevel,
         setBlessingLevel,
         setPaulBuff,
         importHypixelBlessingInputs,

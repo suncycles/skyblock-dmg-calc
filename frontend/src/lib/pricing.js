@@ -240,6 +240,18 @@ export function lookupCandidateCost(result, itemData) {
       // treatment Full Set gives a missing item price.
       return result.gemstoneUnlockCost != null ? gemPrice + result.gemstoneUnlockCost : null;
     }
+    case 'Essence Perk': {
+      // Essence bought at the shop, priced through the same feed as everything else (the Worker
+      // precomputes the cumulative coin ladder — see its computeEssencePerkCosts). The Optimizer
+      // only ever offers a jump straight to max, but the account is rarely at level 0, so the
+      // charge is the ladder's difference rather than its whole total.
+      const ladder = costs.essencePerkCosts?.[result.perkKey];
+      if (!Array.isArray(ladder) || result.toLevel == null) return null;
+      const to = ladder[result.toLevel - 1];
+      if (to == null) return null;
+      const from = result.fromLevel > 0 ? (ladder[result.fromLevel - 1] ?? 0) : 0;
+      return Math.max(0, to - from);
+    }
     case 'Attribute': {
       const step = findStep(result.apply, 'setAttributeLevel');
       return step ? priceOf(attributeCosts, step.id) : null;

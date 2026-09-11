@@ -85,6 +85,10 @@ const HYPIXEL_ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
 // it, as "SKYBLOCK_COIN:<amount>" inside each star's material list. Only the coin lines are read
 // from it: its non-coin materials duplicate Hypixel's exactly (checked across all 478 shared
 // items x every star — zero disagreements), so merging those too would double-count them.
+// The Essence shops themselves — perk key -> {name, costs: [essence per level]}. Used to price the
+// Optimizer's Essence-shop perk upgrades (frontend/src/lib/essencePerks.js); essencecosts.json
+// below is a different file entirely (per-STAR upgrade costs, nothing to do with perks).
+const NEU_ESSENCE_SHOPS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/essenceshops.json";
 const NEU_ESSENCE_COSTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/essencecosts.json";
 // The coin half of a Kuudra armor tier-up. Hypixel's resource lists only the Essence/Teeth side of
 // each recipe (checked 2026-09-08: across all 80 prestige entries the cost types are ESSENCE and
@@ -694,6 +698,31 @@ async function fetchPrices() {
   return res.json(); // flat { ITEM_ID: coins }
 }
 
+async function fetchEssenceShops() {
+  const res = await fetch(NEU_ESSENCE_SHOPS_URL);
+  return res.json();
+}
+
+// Coin cost to reach each level of every Essence-shop perk: { <perkKey>: [cumulative coins per
+// level] }, index = level - 1. Cumulative (not per-level) so the client can price ANY jump as
+// cumulative[to-1] - cumulative[from-1] — the Optimizer only ever offers a jump straight to max,
+// but the subtraction has to start from whatever level the account is already at.
+// Essence prices come from the same feed everything else uses; a perk whose essence has no price
+// is omitted entirely rather than shipped as 0, so it reads as unpriced instead of free.
+function computeEssencePerkCosts(essenceShops, itemPrices) {
+  const out = {};
+  for (const [essenceId, perks] of Object.entries(essenceShops || {})) {
+    const essencePrice = itemPrices[essenceId];
+    if (!essencePrice) continue;
+    for (const [perkKey, def] of Object.entries(perks || {})) {
+      if (!Array.isArray(def?.costs) || def.costs.length === 0) continue;
+      let running = 0;
+      out[perkKey] = def.costs.map((amount) => (running += (amount || 0) * essencePrice));
+    }
+  }
+  return out;
+}
+
 async function fetchEssenceCosts() {
   const res = await fetch(NEU_ESSENCE_COSTS_URL);
   return res.json();
@@ -793,11 +822,12 @@ async function resolveCosts(env, catalog, force = false) {
   }
 
   try {
-    const [itemPrices, attributeShards, hypixelItems, essenceCosts] = await Promise.all([
+    const [itemPrices, attributeShards, hypixelItems, essenceCosts, essenceShops] = await Promise.all([
       fetchPrices(),
       fetchAttributeShards(),
       fetchHypixelItems(),
       fetchEssenceCosts(),
+      fetchEssenceShops(),
     ]);
     const { attributeCosts, attributeCostsByLevel } = computeAttributeCosts(itemPrices, attributeShards);
 
@@ -838,6 +868,7 @@ async function resolveCosts(env, catalog, force = false) {
       starCosts,
       gemstoneUnlockCosts,
       prestigeCosts: computePrestigeCosts(hypixelItems, itemPrices),
+      essencePerkCosts: computeEssencePerkCosts(essenceShops, itemPrices),
       attributeCosts,
       attributeCostsByLevel,
     };
@@ -855,6 +886,7 @@ async function resolveCosts(env, catalog, force = false) {
           starCosts: {},
           gemstoneUnlockCosts: {},
           prestigeCosts: {},
+          essencePerkCosts: {},
           attributeCosts: {},
           attributeCostsByLevel: {},
         };

@@ -70,6 +70,11 @@ import {
 } from './attributes';
 import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
 import { parseDungeonHead, diamondCounterpartFor, reforgeRarityFor } from './dungeonHeads';
+import { FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK } from './essencePerks';
+import { FORBIDDEN_BLESSING_MAX_LEVEL } from './dungeonBlessing';
+
+// Every tracked Essence-shop perk that grants something, in one list for the candidate loop below.
+const ALL_ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK];
 import { derivePetDisplayName, getMaxPetLevel, MAX_GOLDEN_DRAGON_BANK_COINS, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
@@ -725,6 +730,10 @@ export function dominanceGroupKey(result) {
     case 'Attribute': {
       const step = findStep(result.apply, 'setAttributeLevel');
       return step ? `Attribute:${step.id}` : null;
+    }
+    case 'Essence Perk': {
+      const step = findStep(result.apply, 'setEssencePerkLevel') || findStep(result.apply, 'setForbiddenBlessingLevel');
+      return step ? `Essence Perk:${result.perkKey}` : null;
     }
     case 'Power Stone': // one global Accessory Power selection at a time
     case 'Pet Item': // one held pet item at a time
@@ -2269,6 +2278,59 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
   return results;
 }
 
+// Essence-shop perks (lib/essencePerks.js) as upgrade candidates. Only ONE candidate per perk, at
+// its max level (user-specified 2026-09-10) — these are bought a level at a time in-game, but the
+// intermediate levels are the same purchase split up, so offering each rung separately would bury
+// every other category under 30 near-identical rows. Cost is the essence ladder's difference
+// between the account's current level and max, which lib/pricing.js resolves from the Worker's
+// precomputed coin ladder.
+//
+// Forbidden Blessing rides along despite granting no stat of its own: it scales every Dungeon
+// Blessing, so it's a real damage upgrade whenever blessings are active — and naturally scores 0
+// and filters itself out when they aren't. It lives in `build.blessing`, not the perk map, so it
+// gets its own candidate shape.
+async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob) {
+  const perks = build.essencePerks || {};
+  const results = [];
+
+  for (const perk of ALL_ESSENCE_PERKS) {
+    const current = Math.max(0, Math.min(perk.maxLevel, Math.floor(Number(perks[perk.key]) || 0)));
+    if (current >= perk.maxLevel) continue;
+    const candidateBuild = { ...build, essencePerks: { ...perks, [perk.key]: perk.maxLevel } };
+    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    results.push({
+      category: 'Essence Perk',
+      slot: 'accessory',
+      label: `${perk.name} ${current} → ${perk.maxLevel}`,
+      perkKey: perk.key,
+      fromLevel: current,
+      toLevel: perk.maxLevel,
+      value,
+      apply: [{ type: 'setEssencePerkLevel', key: perk.key, level: perk.maxLevel }],
+    });
+  }
+
+  const forbidden = Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, build.blessing?.forbiddenBlessingLevel || 0));
+  if (forbidden < FORBIDDEN_BLESSING_MAX_LEVEL) {
+    const candidateBuild = {
+      ...build,
+      blessing: { ...(build.blessing || {}), forbiddenBlessingLevel: FORBIDDEN_BLESSING_MAX_LEVEL },
+    };
+    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    results.push({
+      category: 'Essence Perk',
+      slot: 'accessory',
+      label: `Forbidden Blessing ${forbidden} → ${FORBIDDEN_BLESSING_MAX_LEVEL}`,
+      perkKey: 'forbidden_blessing',
+      fromLevel: forbidden,
+      toLevel: FORBIDDEN_BLESSING_MAX_LEVEL,
+      value,
+      apply: [{ type: 'setForbiddenBlessingLevel', level: FORBIDDEN_BLESSING_MAX_LEVEL }],
+    });
+  }
+  return results;
+}
+
 // Every real damage-relevant Attribute this app models, with a display name — same 4 sources
 // attributes.js itself is built from, plus the 4 Echo ids (which attributes.js only carries as
 // bare ATTRIBUTE_IDS strings; Attributes.jsx has its own small local {id, name} list for these —
@@ -2454,6 +2516,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     fullSets,
     gemstones,
     attributes,
+    essencePerkUpgrades,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, armorProgressionForMode(mode, loadout), 'Armor'),
@@ -2487,6 +2550,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob),
   ]);
 
   // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
@@ -2527,6 +2591,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...fullSets,
       ...gemstones,
       ...attributes,
+      ...essencePerkUpgrades,
     ]),
     ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue),
     ...withPercentUsing(masterStars, masterModeBaselineValue),
@@ -2589,6 +2654,14 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setPetGoldCollection':
         build.setPetGoldCollection(step.value);
+        break;
+      // Essence-shop perks are normally import-only, but a suggestion the player clicks has to
+      // actually take effect — same as every other swap-in step here.
+      case 'setEssencePerkLevel':
+        build.setEssencePerkLevel(step.key, step.level);
+        break;
+      case 'setForbiddenBlessingLevel':
+        build.setForbiddenBlessingLevel(step.level);
         break;
       case 'setAccessoryMagicalPower':
         build.setAccessoryMagicalPower(step.mp);
