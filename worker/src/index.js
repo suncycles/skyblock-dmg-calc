@@ -1473,6 +1473,18 @@ function computePetLevel(type, tier, exp) {
   return Math.min(200, level);
 }
 
+// Heart of the Mountain lives in member.skill_tree, not member.mining_core, and an account holds
+// several independent trees — member.skill_tree.nodes.mining, .mining_2 ... .mining_5 — of which
+// only the one member.skill_tree.selected_skill_tree_slot.mining points at is actually equipped.
+// Reading the wrong slot silently reports another loadout's perks. Slot 1 is the unsuffixed key.
+// Each node also carries a sibling `toggle_<node>` flag; a node toggled off grants nothing.
+function hotmNodeLevel(skillTree, node) {
+  const slot = Math.floor(Number(skillTree?.selected_skill_tree_slot?.mining) || 1);
+  const nodes = skillTree?.nodes?.[slot > 1 ? `mining_${slot}` : "mining"];
+  if (!nodes || nodes[`toggle_${node}`] === false) return 0;
+  return Math.max(0, Math.floor(Number(nodes[node]) || 0));
+}
+
 const MASTER_SKULL_ID_RE = /^MASTER_SKULL_TIER_([1-7])$/;
 
 // Mirrors frontend/src/lib/essencePerks.js's TRACKED_PERK_KEYS — the Worker and frontend are
@@ -1736,6 +1748,10 @@ async function handleHypixelImport(url, env) {
       if (level > 0) essencePerks[key] = level;
     }
 
+    // Heart of the Mountain's Lonesome Miner perk — a flat Strength/Crit Damage boost while on a
+    // Mining Island (frontend/src/lib/miningIslands.js), capped at level 45.
+    const lonesomeMinerLevel = Math.min(45, hotmNodeLevel(member.skill_tree, "lonesome_miner"));
+
     // Hypixel's own skill ids are uppercase (e.g. "TAMING") — real maxLevel per skill, falling
     // back to NEU-REPO's static cap only if the live resource is ever missing that skill.
     const skillCap = (key, staticCap) => skillsResource?.skills?.[key.toUpperCase()]?.maxLevel || staticCap;
@@ -1850,6 +1866,7 @@ async function handleHypixelImport(url, env) {
       armor: armorResult,
       equipment: equipmentResult,
       forbiddenBlessingLevel,
+      lonesomeMinerLevel,
       essencePerks,
       wardrobeSets,
       wardrobeEquipmentSets,

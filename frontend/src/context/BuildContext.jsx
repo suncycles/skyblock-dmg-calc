@@ -333,6 +333,7 @@ function loadInitialPlayerStats() {
     blazeSlayerLevel: 0,
     alchemyLevel: 0,
     enchantingLevel: 0,
+    lonesomeMinerLevel: 0,
     generalsMedallionDigits: 0,
     blazetekkHamRadio: false,
   };
@@ -351,6 +352,7 @@ function loadInitialPlayerStats() {
       blazeSlayerLevel: typeof parsed.blazeSlayerLevel === 'number' ? parsed.blazeSlayerLevel : 0,
       alchemyLevel: typeof parsed.alchemyLevel === 'number' ? parsed.alchemyLevel : 0,
       enchantingLevel: typeof parsed.enchantingLevel === 'number' ? parsed.enchantingLevel : 0,
+      lonesomeMinerLevel: typeof parsed.lonesomeMinerLevel === 'number' ? parsed.lonesomeMinerLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
       blazetekkHamRadio: typeof parsed.blazetekkHamRadio === 'boolean' ? parsed.blazetekkHamRadio : false,
     };
@@ -829,6 +831,14 @@ export function BuildProvider({ children }) {
   const setEnchantingLevel = useCallback((value) => {
     setPlayerStats((prev) => {
       const next = { ...prev, enchantingLevel: value };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setLonesomeMinerLevel = useCallback((value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, lonesomeMinerLevel: value };
       localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
       return next;
     });
@@ -1529,6 +1539,7 @@ export function BuildProvider({ children }) {
       blazeSlayerLevel: 0,
       alchemyLevel: 0,
       enchantingLevel: 0,
+      lonesomeMinerLevel: 0,
       generalsMedallionDigits: 0,
       blazetekkHamRadio: false,
       ...(state.playerStats || {}),
@@ -1630,6 +1641,7 @@ export function BuildProvider({ children }) {
         setBlazeSlayerLevel,
         setAlchemyLevel,
         setEnchantingLevel,
+        setLonesomeMinerLevel,
         setGeneralsMedallionDigits,
         toggleBlazetekkHamRadio,
         targetMobs,

@@ -552,6 +552,10 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
   if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
   if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
+  // Heart of the Mountain's Lonesome Miner perk level, off the account's SELECTED mining skill
+  // tree (worker/src/index.js's hotmNodeLevel) — see lib/miningIslands.js for what it grants.
+  if (typeof raw.lonesomeMinerLevel === 'number') playerStats.lonesomeMinerLevel = raw.lonesomeMinerLevel;
+
   // Real digit count off the account's own General's Medallion (worker/src/index.js's
   // computeLiveAccessoryStats/parseGeneralsMedallionDigits) — 0 (matches the manual input's own
   // default) when the account doesn't own one in its Accessory Bag.

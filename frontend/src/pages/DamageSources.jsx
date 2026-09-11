@@ -24,6 +24,7 @@ import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { anyMiningIslandTarget } from '../lib/miningIslands';
 import { computeMobDefense, computeMobDefenseMultiplier } from '../lib/mobDefenses';
 import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../lib/armorSetBonuses';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
@@ -271,6 +272,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   // automatically rather than relying on the player to remember the manual checkbox (user-specified
   // 2026-09-01). OR'd with the manual toggle rather than replacing it — a manual "on" still counts
   // for non-Infernal/Magmatic targets fought on Crimson Isle for other reasons.
+  // Same shape as isCrimsonIsleTarget below — a target-derived gate, computed here because
+  // collectDamageSources never sees the mob itself. See lib/miningIslands.js.
+  const isMiningIslandTarget = anyMiningIslandTarget(targetMobs);
+
   const isCrimsonIsleTarget = targetMobs.some((name) => {
     const types = MOB_TYPES[name] || [];
     return types.includes('Infernal') || types.includes('Magmatic');
@@ -306,6 +311,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         maxedCollectionsCount,
         settledBlessing,
         essencePerks,
+        isMiningIslandTarget,
       ).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
@@ -328,6 +334,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     settledBlessing,
     essencePerks,
     effectiveBlazeCrimsonIsle,
+    isMiningIslandTarget,
     maxedCollectionsCount,
   ]);
 
@@ -362,6 +369,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         maxedCollectionsCount,
         settledBlessing,
         essencePerks,
+        isMiningIslandTarget,
       ).then((r) => {
         if (tokenAt100Ref.current === token) setResultAt100(r);
       });
@@ -385,6 +393,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     settledBlessing,
     essencePerks,
     blazeCrimsonIsle,
+    isMiningIslandTarget,
     maxedCollectionsCount,
   ]);
 
