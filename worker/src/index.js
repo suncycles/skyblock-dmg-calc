@@ -648,6 +648,12 @@ const ATTRIBUTE_SHARD_IDS = {
   tuning_box: "ATTRIBUTE_SHARD_TUNING_BOX",
   dominance: "ATTRIBUTE_SHARD_DOMINANCE",
   attack_speed: "ATTRIBUTE_SHARD_ATTACK_SPEED",
+  // "Mimic" is the shard's displayName; its internalName (and so its price-feed key) is its
+  // ABILITY name, Faker — the one shard in this map where the two differ, which is why it reads
+  // like a mismatch. Confirmed against attribute_shards.json: displayName "Mimic", abilityName
+  // "Faker", internalName ATTRIBUTE_SHARD_FAKER;1, rarity EPIC (same 32-shards-to-10 ladder the
+  // rest of this function already walks).
+  mimic: "ATTRIBUTE_SHARD_FAKER",
 };
 
 // Real total shard count to reach an attribute's own max level (always 10 — every rarity in
