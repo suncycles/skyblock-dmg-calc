@@ -61,6 +61,7 @@ try {
   const dungeonBlessing = await server.ssrLoadModule('/src/lib/dungeonBlessing.js');
   const miningIslands = await server.ssrLoadModule('/src/lib/miningIslands.js');
   const optimizerModule = await server.ssrLoadModule('/src/lib/optimizer.js');
+  const applyResult = await server.ssrLoadModule('/src/lib/applyResult.js');
   const essencePerks = await server.ssrLoadModule('/src/lib/essencePerks.js');
   const masterSkull = await server.ssrLoadModule('/src/lib/masterSkull.js');
   const recombobulator = await server.ssrLoadModule('/src/lib/recombobulator.js');
@@ -763,6 +764,77 @@ try {
       0,
       "Necron's is a different Wither set",
     );
+  });
+  // 30. The pure apply (lib/applyResult.js) is what lets a planner apply a candidate, re-rank
+  // against the outcome, and continue — optimizer.js's applyOptimizerResult can't, since it writes
+  // through BuildContext's setters. The two have to agree or a planned sequence gets ranked
+  // against a state a real click never produces, so the shared rules live in lib/slotSelection.js
+  // and the checks below pin the ones with real logic behind them.
+  await check('Pure apply reproduces BuildContext\'s own swap rules', () => {
+    const { applyResultToState, canApplyPurely } = applyResult;
+    const sword = { id: 'ASPECT_OF_THE_END', name: 'AotE', category: 'SWORD', tier: 'LEGENDARY', lore: [] };
+    const bow = { id: 'JUJU_SHORTBOW', name: 'Juju', category: 'BOW', tier: 'LEGENDARY', lore: [] };
+    const base = {
+      loadout: {
+        weapon: {
+          item: sword,
+          modifiers: {
+            reforge: 'Fabled',
+            stars: 3,
+            masterStars: 0,
+            dungeonized: false,
+            hexEnchantments: [{ id: 'sharpness', level: 5, maxLevel: 5 }],
+            ultimateEnchantment: { id: 'ultimate_one_for_all', level: 5, maxLevel: 5 },
+            gemstones: [],
+            gemstoneSlotsUnlocked: [],
+          },
+        },
+      },
+      attributes: {},
+      essencePerks: {},
+      blessing: {},
+    };
+    const data = { reforges: { Fabled: { name: 'Fabled', itemTypes: 'SWORD', requiredRarities: ['LEGENDARY'] } }, reforgeStones: {} };
+
+    // Crossing the weapon family drops every persisted upgrade — the rule BuildContext's own
+    // selectItem applies, now shared rather than reimplemented.
+    const swapped = applyResultToState(base, { apply: [{ type: 'selectItem', slot: 'weapon', item: bow }] }, data);
+    assert.equal(swapped.loadout.weapon.item.id, 'JUJU_SHORTBOW');
+    assert.equal(swapped.loadout.weapon.modifiers.reforge, null, 'a sword reforge does not survive onto a bow');
+    assert.equal(swapped.loadout.weapon.modifiers.ultimateEnchantment, null, "nor does the sword's ultimate");
+    assert.deepEqual(swapped.loadout.weapon.modifiers.hexEnchantments, [], 'nor its hex enchants');
+    assert.equal(swapped.loadout.weapon.modifiers.stars, 0, 'nor its stars');
+    // ...and the original state is untouched, which is what makes it safe to loop over.
+    assert.equal(base.loadout.weapon.item.id, 'ASPECT_OF_THE_END', 'apply is pure');
+    assert.equal(base.loadout.weapon.modifiers.reforge, 'Fabled');
+
+    // Master Stars clear whenever the base stars drop below the eligibility threshold, and again
+    // when dungeonized is turned off — both mirror their setters.
+    const starred = applyResultToState(
+      { ...base, loadout: { weapon: { ...base.loadout.weapon, modifiers: { ...base.loadout.weapon.modifiers, dungeonized: true, stars: 5, masterStars: 3 } } } },
+      { apply: [{ type: 'setStarCount', slot: 'weapon', count: 1 }] },
+      data,
+    );
+    assert.equal(starred.loadout.weapon.modifiers.masterStars, 0, 'dropping below the threshold clears Master Stars');
+
+    // One For All's removeIds clear the hex list AND a named ultimate, same as applyEnchant.
+    const ofa = applyResultToState(
+      base,
+      { apply: [{ type: 'applyEnchant', slot: 'weapon', id: 'ultimate_soul_eater', level: 5, maxLevel: 5, removeIds: ['sharpness', 'ultimate_one_for_all'] }] },
+      data,
+    );
+    assert.equal(ofa.loadout.weapon.modifiers.ultimateEnchantment.id, 'ultimate_soul_eater');
+    assert.deepEqual(ofa.loadout.weapon.modifiers.hexEnchantments, [], 'removeIds clears the hex list');
+
+    // Build-level steps land outside the loadout but still inside the state a planner re-ranks on.
+    const perked = applyResultToState(base, { apply: [{ type: 'setEssencePerkLevel', key: 'bane', level: 5 }, { type: 'setAttributeLevel', id: 'mimic', level: 10 }] }, data);
+    assert.equal(perked.essencePerks.bane, 5);
+    assert.equal(perked.attributes.mimic, 10);
+
+    // A result touching the owned-accessory inventory isn't purely applicable — a planner must
+    // skip it rather than apply it partially and rank the rest against a state that never exists.
+    assert.equal(canApplyPurely({ apply: [{ type: 'selectItem', slot: 'weapon', item: bow }] }), true);
+    assert.equal(canApplyPurely({ apply: [{ type: 'setOwnedAccessory', id: 'X', tier: 'RARE' }] }), false);
   });
 } finally {
   await server.close();
