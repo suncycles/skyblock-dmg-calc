@@ -9,8 +9,7 @@ import {
   OPTIMIZER_GEAR_SLOTS,
   hasCuratedData,
   loadOptimizerMode,
-  saveOptimizerMode,
-} from '../lib/optimizer';
+  saveOptimizerMode, OPTIMIZER_BUILD_KEYS } from '../lib/optimizer';
 import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
@@ -159,6 +158,9 @@ export default function Optimizer() {
   // found zero accessories. No separate fetch here: reuses whatever's already on the loadout.
   const ownedAccessories = build.loadout.accessory?.modifiers?.ownedAccessories ?? null;
 
+  // One dependency per build field runOptimizer reads — see OPTIMIZER_BUILD_KEYS.
+  const optimizerBuildDeps = OPTIMIZER_BUILD_KEYS.map((key) => build[key]);
+
   useEffect(() => {
     if (itemDataLoading || !mobName || !mobTypes) {
       setState({ ...EMPTY_STATE, status: 'no-target' });
@@ -176,26 +178,10 @@ export default function Optimizer() {
       });
     }, 200);
     return () => clearTimeout(handle);
+    // Spreading OPTIMIZER_BUILD_KEYS keeps this in lockstep with what runOptimizer actually reads;
+    // the array's length is constant (it's a module constant), which is all React requires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    build.loadout,
-    build.playerStats,
-    build.attributes,
-    build.miscStats,
-    build.godPotionActive,
-    build.godPotionMixin,
-    build.mobHpPercent,
-    build.mobHpSelections,
-    build.infernalCrimsonStacks,
-    build.swarmMobs,
-    build.comboKills,
-    build.legionPlayers,
-    build.blazeCrimsonIsle,
-    itemData,
-    itemDataLoading,
-    mode,
-    mobName,
-  ]);
+  }, [...optimizerBuildDeps, itemData, itemDataLoading, mode, mobName]);
 
   const [mpResult, setMpResult] = useState(null);
   const mpTokenRef = useRef(0);

@@ -2476,6 +2476,35 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 // Every result also carries `cost`/`ratio` (damage-increase-per-coin) via withCost/lib/pricing.js
 // — a real number when a coin cost source exists for that specific candidate, `'?'`/`null` when
 // it doesn't (see lib/pricing.js for exactly which categories are/aren't priceable today).
+// Every field of `build` that runOptimizer READS (as opposed to the set*/apply* mutators
+// applyOptimizerResult calls). A React caller re-runs the optimizer when any of these changes, so
+// the list lives here, next to the reads, rather than being retyped into each caller's dependency
+// array — which is exactly how Dungeon Blessings, essence perks, Master Mode and three Bestiary/
+// collection inputs ended up silently frozen in the Optimizer panel (user-reported 2026-09-11:
+// changing a blessing slider moved the damage number but not a single recommendation).
+// scripts/verify-dungeon-and-enchant-behavior.mjs asserts this stays complete.
+export const OPTIMIZER_BUILD_KEYS = [
+  'loadout',
+  'playerStats',
+  'attributes',
+  'miscStats',
+  'godPotionActive',
+  'godPotionMixin',
+  'mobHpPercent',
+  'mobHpSelections',
+  'infernalCrimsonStacks',
+  'swarmMobs',
+  'comboKills',
+  'legionPlayers',
+  'blazeCrimsonIsle',
+  'bestiaryMaxedMobs',
+  'combinedMythologicalBestiaryTiers',
+  'maxedCollectionsCount',
+  'useMasterMode',
+  'blessing',
+  'essencePerks',
+];
+
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
   build = withOptimizerSwarmMobs(build, mode);
   const modeConfig = getModeConfig(mode, build.useMasterMode);

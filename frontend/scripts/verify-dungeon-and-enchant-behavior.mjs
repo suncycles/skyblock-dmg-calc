@@ -14,6 +14,7 @@
 // files use extensionless relative imports that only Vite's resolver (not Node's ESM loader)
 // understands — this also means the check runs against the exact same code the app ships.
 
+import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
@@ -59,6 +60,7 @@ try {
   const dungeonHeads = await server.ssrLoadModule('/src/lib/dungeonHeads.js');
   const dungeonBlessing = await server.ssrLoadModule('/src/lib/dungeonBlessing.js');
   const miningIslands = await server.ssrLoadModule('/src/lib/miningIslands.js');
+  const optimizerModule = await server.ssrLoadModule('/src/lib/optimizer.js');
   const essencePerks = await server.ssrLoadModule('/src/lib/essencePerks.js');
   const masterSkull = await server.ssrLoadModule('/src/lib/masterSkull.js');
   const recombobulator = await server.ssrLoadModule('/src/lib/recombobulator.js');
@@ -689,6 +691,28 @@ try {
     assert.equal(isMiningIslandMob('Nonexistent Mob'), false, 'an unlocated mob is not on one');
     assert.equal(anyMiningIslandTarget(['Bonzo', 'Automaton']), true, 'any selected target counts');
     assert.equal(anyMiningIslandTarget([]), false);
+  });
+  // 27. OPTIMIZER_BUILD_KEYS must list every build field runOptimizer reads. Both React callers
+  // build their effect's dependency array from it, so a field missing here is a recommendation
+  // panel that silently never updates when that input changes — how Dungeon Blessings, essence
+  // perks, Master Mode and three Bestiary/collection inputs went stale (user-reported 2026-09-11).
+  // Source-scanned rather than called, since the omission is invisible at runtime.
+  await check('OPTIMIZER_BUILD_KEYS covers every build field the optimizer reads', async () => {
+    const { OPTIMIZER_BUILD_KEYS } = optimizerModule;
+    const src = await readFile(new URL('../src/lib/optimizer.js', import.meta.url), 'utf8');
+    // The set*/apply*/toggle*/remove*/selectItem members are BuildContext mutators that
+    // applyOptimizerResult calls — actions, not inputs, so they are deliberately not dependencies.
+    const isMutator = (f) => /^(set|apply|toggle|remove)[A-Z]/.test(f) || f === 'selectItem';
+    const read = [...new Set([...src.matchAll(/\bbuild\.([a-zA-Z_][a-zA-Z0-9_]*)/g)].map((m) => m[1]))]
+      .filter((f) => !isMutator(f))
+      .sort();
+    const missing = read.filter((f) => !OPTIMIZER_BUILD_KEYS.includes(f));
+    assert.deepEqual(missing, [], `add these to OPTIMIZER_BUILD_KEYS: ${missing.join(', ')}`);
+    // ...and nothing stale in the other direction, which would be a wasted re-run per change.
+    // 'loadout' is the one legitimate extra: runOptimizer takes it as its own first argument
+    // rather than off `build`, but the callers still pass build.loadout and must depend on it.
+    const unread = OPTIMIZER_BUILD_KEYS.filter((f) => f !== 'loadout' && !read.includes(f));
+    assert.deepEqual(unread, [], `these are listed but never read: ${unread.join(', ')}`);
   });
 } finally {
   await server.close();
