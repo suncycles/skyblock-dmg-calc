@@ -59,6 +59,11 @@ const RAW_ATTRIBUTE_ID_REMAP = {
   arachno: 'ruler_arthropod',
   ender: 'ruler_ender',
   humanoid_ruler_new: 'ruler_humanoid',
+  // The Mimic shard is keyed by its ABILITY name here, exactly as it is in the price feed — see
+  // the Worker's ATTRIBUTE_SHARD_IDS. `stacks.faker` is the real fused-shard count (32 = level 10);
+  // `shards.owned` only holds the loose, not-yet-fused stack, which is why reading it there
+  // reported 3/10 for an account that has it maxed (user-reported 2026-09-10).
+  faker: 'mimic',
 };
 
 // Hypixel's raw Stat Tuning field names differ from this app's own TUNING_STATS ids (see
@@ -576,10 +581,10 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // real count happened to be scraped for NEU-REPO's static catalog snapshot, not this player's.
   const maxedCollectionsCount = typeof raw.maxedCollectionsCount === 'number' ? raw.maxedCollectionsCount : 0;
 
-  // Dungeon Blessing effectiveness inputs — both account-wide, both resolved Worker-side (see its
-  // computeMimicShardLevel / player_data.perks.forbidden_blessing), never typed by hand.
+  // Account-wide upgrades resolved Worker-side (player_data.perks.forbidden_blessing, and the
+  // talisman bag's Master Skull), not typed by hand. The Mimic shard used to ride along here; it's
+  // a normal attribute now and arrives through attributeLevels like every other shard.
   const blessingInputs = {
-    mimicShardLevel: raw.mimicShardLevel || 0,
     forbiddenBlessingLevel: raw.forbiddenBlessingLevel || 0,
     // Off the talisman bag, alongside Magical Power — see the Worker's computeLiveAccessoryStats.
     masterSkullTier: raw.accessory?.masterSkullTier || 0,

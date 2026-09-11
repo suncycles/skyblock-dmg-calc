@@ -520,7 +520,7 @@ try {
   // the whole spec, so it's pinned here). The Mimic Shard's level comes off the Epic 32-cap shard
   // ladder, and the multiplier scales a blessing's own numbers BEFORE they reach the base stats.
   await check('Dungeon Blessing multiplier and Mimic ladder', () => {
-    const { computeBlessingMultiplier, epicShardLevelFromCount, computeBlessingEffects } = dungeonBlessing;
+    const { computeBlessingMultiplier, computeBlessingEffects } = dungeonBlessing;
     assert.equal(Number(computeBlessingMultiplier({}).toFixed(4)), 1.2, 'the automatic +20% is always on');
     assert.equal(
       Number(computeBlessingMultiplier({ forbiddenBlessingLevel: 10, paulBuff: true }, { mimic: 10 }).toFixed(4)),
@@ -535,13 +535,6 @@ try {
       1.2,
       'the blessing block no longer carries the Mimic level',
     );
-    // Epic ladder: cumulative [1,2,4,6,9,12,16,20,25,32], 32 shards to reach level 10.
-    assert.equal(epicShardLevelFromCount(0), 0);
-    assert.equal(epicShardLevelFromCount(4), 3);
-    assert.equal(epicShardLevelFromCount(31), 9, '31 is one short of the cap');
-    assert.equal(epicShardLevelFromCount(32), 10);
-    assert.equal(epicShardLevelFromCount(9999), 10, 'level is capped, not unbounded');
-
     const effects = computeBlessingEffects({ power: 30 }, 1.815);
     assert.equal(effects.length, 1, 'only levelled blessings produce an effect');
     // 30 x 4 x 1.815 flat, then 30 x 2% x 1.815 — the boost scales the blessing, not the stat.

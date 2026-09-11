@@ -33,24 +33,6 @@ export const FORBIDDEN_BLESSING_MAX_LEVEL = 10; // Wither essence-shop perk, +1%
 export const MIMIC_SHARD_PERCENT_PER_LEVEL = 1;
 export const FORBIDDEN_BLESSING_PERCENT_PER_LEVEL = 1;
 
-// The Mimic Shard is an Epic-tier shard, so its level comes off the same 32-shards-to-level-10
-// ladder every other Epic attribute shard uses (NEU-REPO's attribute_levelling.EPIC:
-// [1,1,2,2,3,3,4,4,5,7], cumulative [1,2,4,6,9,12,16,20,25,32]). Duplicated here as a constant
-// rather than read from that file because the Mimic Shard is NOT an attribute shard — it lives in
-// the newer member.shards.owned list as a raw count, so nothing else resolves its level for us
-// (user-specified 2026-09-10: "follow the pattern of other 32-cap shards").
-export const EPIC_SHARD_LEVEL_THRESHOLDS = [1, 2, 4, 6, 9, 12, 16, 20, 25, 32];
-
-// How many whole levels `count` owned shards buys — 0 below the first threshold, capped at 10.
-export function epicShardLevelFromCount(count) {
-  let level = 0;
-  for (const threshold of EPIC_SHARD_LEVEL_THRESHOLDS) {
-    if ((count || 0) >= threshold) level += 1;
-    else break;
-  }
-  return level;
-}
-
 // The single multiplier every blessing's own numbers are scaled by, before they reach the player's
 // stats. `forbiddenBlessingLevel` is the 0-10 essence-shop perk and `paulBuff` the Misc checkbox,
 // both off `inputs`; the Mimic shard's 0-10 level is a normal attribute (`attributes.mimic`, see

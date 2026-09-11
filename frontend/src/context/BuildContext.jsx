@@ -303,17 +303,6 @@ function loadInitialMiscStats() {
 }
 
 // Loads account-wide Attribute levels (see lib/attributes.js), defaulting every known id to 0.
-// Reads the Mimic level off the pre-2026-09-10 blessing block, for loadInitialAttributes' one-time
-// migration. Returns 0 for a build saved after the move, or no build at all.
-function legacyMimicShardLevel() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(BLESSING_KEY) || '{}');
-    return Math.max(0, Math.min(getAttributeMaxLevel('mimic'), Math.floor(Number(parsed?.mimicShardLevel) || 0)));
-  } catch {
-    return 0;
-  }
-}
-
 function loadInitialAttributes() {
   const defaults = Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0]));
   const stored = localStorage.getItem(ATTRIBUTES_KEY);
@@ -323,10 +312,6 @@ function loadInitialAttributes() {
     for (const id of ATTRIBUTE_IDS) {
       if (typeof parsed[id] === 'number') defaults[id] = Math.max(0, Math.min(getAttributeMaxLevel(id), Math.floor(parsed[id])));
     }
-    // The Mimic shard used to live on the blessing block before it became a normal attribute.
-    // Without this, everyone with a build already saved silently drops to Mimic 0 until they
-    // re-import. One-way and one-time: once `mimic` is in the attributes map this never fires.
-    if (typeof parsed.mimic !== 'number') defaults.mimic = legacyMimicShardLevel();
     return defaults;
   } catch (err) {
     console.error('Failed to parse saved attributes:', err);

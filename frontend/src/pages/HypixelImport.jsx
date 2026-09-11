@@ -262,11 +262,7 @@ export default function HypixelImport() {
       return;
     }
     importHypixelLoadout(loadout);
-    // The Mimic shard rides in with the attributes rather than the blessing block: it IS an
-    // attribute (lib/attributes.js's OTHER_ATTRIBUTES), and importHypixelAttributes zeroes every
-    // attribute it isn't handed — so folding it in here is also what keeps an import from wiping it.
-    const importedAttributes = { ...attributes, mimic: blessingInputs.mimicShardLevel || 0 };
-    if (Object.keys(attributes).length > 0 || importedAttributes.mimic > 0) importHypixelAttributes(importedAttributes);
+    if (Object.keys(attributes).length > 0) importHypixelAttributes(attributes);
     importHypixelBlessingInputs(blessingInputs);
     importHypixelEssencePerks(essencePerks);
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);

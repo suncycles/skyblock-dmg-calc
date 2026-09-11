@@ -1327,7 +1327,7 @@ export async function collectDamageSources(
   godPotionMixin = 'none',
   maxedCollectionsCount = 0,
   // One trailing object rather than four more positional slots on an already-long list —
-  // { levels: {power,time,stone,wisdom}, mimicShardLevel, forbiddenBlessingLevel, paulBuff }.
+  // { levels: {power,time,stone,wisdom}, forbiddenBlessingLevel, masterSkullTier, paulBuff }.
   // See lib/dungeonBlessing.js; only read while useDungeonizedStats is on.
   blessing = null,
   // The account's Essence-shop perk levels, {perkKey: level} — see lib/essencePerks.js. Imported
