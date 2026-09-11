@@ -79,7 +79,7 @@ const ALL_ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, T
 import { derivePetDisplayName, getMaxPetLevel, MAX_GOLDEN_DRAGON_BANK_COINS, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
-import { getApplicableReforges } from './reforgeData';
+import { getApplicableReforges, isReforgeApplicable } from './reforgeData';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { getSpecialConfig } from './specialWeapons';
 import { countGemstoneSlots, getAllowedGemsForSlotType } from './gemstones';
@@ -1024,6 +1024,31 @@ function withDungeonizedIfRelevant(modifiers, modeConfig) {
   return modifiers;
 }
 
+// What of the currently-equipped item's reforge / ultimate enchant the CANDIDATE can really take.
+// BuildContext's selectItem already drops both when the new item can't hold them (a cross-family
+// weapon swap — Sword <-> Bow <-> Wand — or an item-exclusive reforge like Gilded), but this
+// evaluator used to carry them over blind AND push explicit applyReforge/applyEnchant steps that
+// put them straight back afterwards. So swapping a Sword for a Bow through the Optimizer left the
+// Sword's reforge and ultimate sitting on the Bow, and ranked the Bow as if it had them
+// (user-reported 2026-09-11). Both the value and the apply steps read these, so they can't diverge.
+// An unrecognised reforge name carries over as before rather than being guessed invalid — the same
+// permissive fallback selectItem uses for a name missing from both real tables.
+export function carriedReforgeName(currentModifiers, item, itemData) {
+  const name = currentModifiers?.reforge;
+  if (!name) return null;
+  const meta = itemData.reforges?.[name] || itemData.reforgeStones?.[name];
+  if (!meta) return name;
+  return isReforgeApplicable(meta, item) ? name : null;
+}
+
+export function carriedUltimateEnchantment(currentModifiers, item, itemData) {
+  const ultimate = currentModifiers?.ultimateEnchantment;
+  if (!ultimate?.id) return null;
+  const ids = getCategoryEnchantIds(itemData.enchants, resolveEnchantCategory(item.category));
+  const wanted = ultimate.id.toLowerCase();
+  return ids.some((id) => id.toLowerCase() === wanted) ? ultimate : null;
+}
+
 async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category) {
   if (!progressionBySlot) return [];
   const baselineInfernalPieces = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
@@ -1079,8 +1104,10 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
           if (candidate.special != null) modifiers.special = candidate.special;
           if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
-          if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
-          if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+          const carriedReforge = carriedReforgeName(currentModifiers, resolved, itemData);
+          const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
+          if (carriedReforge) modifiers.reforge = carriedReforge;
+          if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
           // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
           // first written — a candidate with real gemstones stripped off looked artificially worse
           // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
@@ -1115,20 +1142,20 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
           if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
           if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
-          if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+          if (carriedReforge) apply.push({ type: 'applyReforge', slot, name: carriedReforge });
           if (modifiers.gemstones.length) {
             modifiers.gemstones.forEach((g, index) => {
               if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
             });
           }
           if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot, value: true });
-          if (currentModifiers?.ultimateEnchantment) {
+          if (carriedUltimate) {
             apply.push({
               type: 'applyEnchant',
               slot,
-              id: currentModifiers.ultimateEnchantment.id,
-              level: currentModifiers.ultimateEnchantment.level,
-              maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+              id: carriedUltimate.id,
+              level: carriedUltimate.level,
+              maxLevel: carriedUltimate.maxLevel,
               removeIds: [],
             });
           }
@@ -1251,8 +1278,10 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       }
       const currentModifiers = loadout[slot]?.modifiers;
       const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
-      if (currentModifiers?.reforge) modifiers.reforge = currentModifiers.reforge;
-      if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      const carriedReforge = carriedReforgeName(currentModifiers, resolved, itemData);
+      if (carriedReforge) modifiers.reforge = carriedReforge;
+      const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
+      if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
       // Clipped to the candidate's own real slot count (see clipGemstonesToSlots) — a candidate
       // can have fewer gemstone slots than the item it's replacing.
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
@@ -1262,20 +1291,20 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       // Keeps the real applied outcome matching what the RANKED VALUE above assumed (see
       // withDungeonizedIfRelevant).
       if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
-      if (currentModifiers?.reforge) apply.push({ type: 'applyReforge', slot, name: currentModifiers.reforge });
+      if (carriedReforge) apply.push({ type: 'applyReforge', slot, name: carriedReforge });
       if (modifiers.gemstones.length) {
         modifiers.gemstones.forEach((g, index) => {
           if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
         });
       }
       if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot, value: true });
-      if (currentModifiers?.ultimateEnchantment) {
+      if (carriedUltimate) {
         apply.push({
           type: 'applyEnchant',
           slot,
-          id: currentModifiers.ultimateEnchantment.id,
-          level: currentModifiers.ultimateEnchantment.level,
-          maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+          id: carriedUltimate.id,
+          level: carriedUltimate.level,
+          maxLevel: carriedUltimate.maxLevel,
           removeIds: [],
         });
       }
@@ -1329,7 +1358,9 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       // -derived value, see worker/src/index.js's computeCombinedMythologicalBestiaryTiers) instead,
       // capped at the item's own real max the same way the static values above already are.
       const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
-      const reforgeName = candidate.forcedReforge || currentModifiers?.reforge;
+      // A forced reforge belongs to the candidate itself, so it's applicable by construction; a
+      // carried-over one has to be checked against the new weapon — see carriedReforgeName.
+      const reforgeName = candidate.forcedReforge || carriedReforgeName(currentModifiers, resolved, itemData);
       if (reforgeName) modifiers.reforge = reforgeName;
       const bestiaryTiersConfig = getSpecialConfig(candidate.id);
       const specialValue =
@@ -1337,7 +1368,8 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
           ? Math.min(build.combinedMythologicalBestiaryTiers || 0, bestiaryTiersConfig.max)
           : candidate.special;
       if (specialValue != null) modifiers.special = specialValue;
-      if (currentModifiers?.ultimateEnchantment) modifiers.ultimateEnchantment = currentModifiers.ultimateEnchantment;
+      const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
+      if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
       // Clipped to the candidate's own real slot count (see clipGemstonesToSlots) — a candidate
       // can have fewer gemstone slots than the item it's replacing.
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
@@ -1367,13 +1399,13 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
         });
       }
       if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot: 'weapon', value: true });
-      if (currentModifiers?.ultimateEnchantment) {
+      if (carriedUltimate) {
         apply.push({
           type: 'applyEnchant',
           slot: 'weapon',
-          id: currentModifiers.ultimateEnchantment.id,
-          level: currentModifiers.ultimateEnchantment.level,
-          maxLevel: currentModifiers.ultimateEnchantment.maxLevel,
+          id: carriedUltimate.id,
+          level: carriedUltimate.level,
+          maxLevel: carriedUltimate.maxLevel,
           removeIds: [],
         });
       }
@@ -2144,6 +2176,19 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
 // on top of whatever computeModeDamage already returned for the 0%-boost baseline.
 const FABLED_MIDPOINT_MULTIPLIER = 1 + FABLED_CRIT_BONUS_MAX_PERCENT / 100 / 2;
 
+// ...but only where a melee hit is what's being measured. Fabled's bonus rides on critical HITS,
+// so it reaches the 'dps' metric directly and the 'beam' metric proportionally (beam damage is a
+// multiple of the melee hit that procs it — see finalDamage.js's computeMageStaffBeamDamage). It
+// does NOT touch Ability Damage, which is built from its own abilityMultiplicative chain and never
+// sees a weapon hit at all; damageSources.js already reflects that by pushing the Fabled entry to
+// `multiplicative` only. Applying the midpoint in an ability mode inflated every Fabled candidate
+// by 7.5% over a number Fabled cannot move (user-reported 2026-09-11: "fabled should be GATED to
+// melee damage"). Used for BOTH the candidate and the baseline, which must agree or the
+// Fabled<->other suggestion loop below comes right back.
+function fabledMultiplierFor(modeConfig) {
+  return modeConfig.metric === 'ability' ? 1 : FABLED_MIDPOINT_MULTIPLIER;
+}
+
 // Same midpoint treatment has to apply to the CURRENT loadout's baseline whenever Fabled is
 // already equipped — otherwise the baseline (computed via the deliberate 1x no-op above) reads
 // ~7.5% low compared to how a Fabled candidate gets valued, so every other reforge looks like a
@@ -2177,7 +2222,7 @@ async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, bu
       if (reforge.name === currentName) continue;
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: reforge.name } } };
       let value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-      if (reforge.name === FABLED_REFORGE_NAME) value *= FABLED_MIDPOINT_MULTIPLIER;
+      if (reforge.name === FABLED_REFORGE_NAME) value *= fabledMultiplierFor(modeConfig);
       results.push({
         category: 'Reforge',
         slot,
@@ -2517,7 +2562,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   // broke every other category's percentIncrease whenever Fabled was equipped (bug report
   // 2026-08-25, second half) — real Pet Item/Gemstone/etc upgrades were reading as ~0% or getting
   // filtered out entirely, since they were being measured against a baseline ~7.5% too high.
-  const reforgeBaselineValue = hasFabledReforgeEquipped(loadout) ? baselineValue * FABLED_MIDPOINT_MULTIPLIER : baselineValue;
+  const reforgeBaselineValue = hasFabledReforgeEquipped(loadout) ? baselineValue * fabledMultiplierFor(modeConfig) : baselineValue;
   // Master Star candidates are valued with Master Mode forced on (see evaluateMasterStarsCandidates),
   // so they need a baseline measured the same way — otherwise one star would be credited with the
   // whole mode's boost. Same shape as reforgeBaselineValue above. Only computed when it can differ
