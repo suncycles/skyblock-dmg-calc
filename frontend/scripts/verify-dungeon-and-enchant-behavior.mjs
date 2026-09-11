@@ -714,6 +714,34 @@ try {
     const unread = OPTIMIZER_BUILD_KEYS.filter((f) => f !== 'loadout' && !read.includes(f));
     assert.deepEqual(unread, [], `these are listed but never read: ${unread.join(', ')}`);
   });
+  // 28. Two Optimizer carry-over rules. (a) A reforge/ultimate enchant only rides onto a swap
+  // candidate the new item can actually take: BuildContext's selectItem clears both across a
+  // weapon-family boundary, but the Optimizer used to re-apply them with its own explicit steps,
+  // so a Sword's Fabled and One For All landed on a Bow and the Bow was ranked as if it had them
+  // (user-reported 2026-09-11). (b) Fabled's midpoint is melee-only.
+  await check('Optimizer carries only what the new item can take', () => {
+    const { carriedReforgeName, carriedUltimateEnchantment } = optimizerModule;
+    const sword = { id: 'ASPECT_OF_THE_END', category: 'SWORD', tier: 'LEGENDARY' };
+    const bow = { id: 'JUJU_SHORTBOW', category: 'BOW', tier: 'LEGENDARY' };
+    const mods = { reforge: 'Fabled', ultimateEnchantment: { id: 'ultimate_one_for_all', level: 5, maxLevel: 5 } };
+    // Same shape lib/reforgeData.js's isReforgeApplicable really reads: a single itemTypes string
+    // matched through CATEGORY_TO_REFORGE_TYPES, plus the rarities the reforge is sold for.
+    const data = {
+      reforges: { Fabled: { name: 'Fabled', itemTypes: 'SWORD', requiredRarities: ['LEGENDARY'] } },
+      reforgeStones: {},
+      // getCategoryEnchantIds reads enchantsMeta.enchants[CATEGORY] — the nesting is real.
+      enchants: { enchants: { SWORD: ['ultimate_one_for_all', 'sharpness'], BOW: ['power', 'ultimate_soul_eater'] } },
+    };
+    assert.equal(carriedReforgeName(mods, sword, data), 'Fabled', 'a sword keeps a sword reforge');
+    assert.equal(carriedReforgeName(mods, bow, data), null, 'a bow cannot take a sword-only reforge');
+    assert.equal(carriedUltimateEnchantment(mods, sword, data)?.id, 'ultimate_one_for_all');
+    assert.equal(carriedUltimateEnchantment(mods, bow, data), null, "a bow cannot take the sword's ultimate");
+    // An unrecognised reforge name carries over rather than being guessed invalid — same
+    // permissive fallback selectItem uses when a name is in neither real table.
+    assert.equal(carriedReforgeName({ reforge: 'Unknown' }, bow, data), 'Unknown');
+    assert.equal(carriedReforgeName({}, bow, data), null);
+    assert.equal(carriedUltimateEnchantment({}, bow, data), null);
+  });
 } finally {
   await server.close();
 }
