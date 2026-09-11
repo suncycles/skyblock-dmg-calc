@@ -991,9 +991,11 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
       continue;
     }
 
-    if (/damage/i.test(text)) {
-      out.situational.push({ id, label: name, source, note: text, formula: null });
-    }
+    // No catch-all here. Anything whose lore merely CONTAINS the word "damage" used to be pushed
+    // as a situational note, which is how Feather Falling ("reduces fall damage by 50%") turned up
+    // on the Damage Sources page (user-reported 2026-09-11). An enchant this function can't reduce
+    // to a real number contributes nothing, same rule the item-lore scan's removal established
+    // above: not modelled beats guessed-at or merely mentioned.
   }
 }
 
@@ -1028,7 +1030,10 @@ function matchDamageParagraph(text) {
   m = DEALS_FLAT_RE.exec(text);
   if (m) return { bucket: 'additiveNonConditional', value: parseFloat(m[1]) };
 
-  if (/damage/i.test(text)) return { bucket: 'situational', note: text };
+  // Deliberately no situational catch-all — see collectEnchantEntries' closing comment. A pet
+  // paragraph that merely mentions damage without a parseable number is not a damage source (the
+  // Ender Dragon's "Buffs the Aspect of the Dragons sword by 50 Damage" is a buff to a weapon the
+  // player probably isn't even holding), so it's dropped rather than surfaced as a note.
   return null;
 }
 
@@ -1040,9 +1045,7 @@ function matchDamageParagraph(text) {
 function pushParagraphMatch(out, text, label, source, id, abilityEligible) {
   const match = matchDamageParagraph(text);
   if (!match) return;
-  if (match.bucket === 'situational') {
-    out.situational.push({ id, label, source, note: match.note, formula: null });
-  } else if (match.bucket === 'multiplicative') {
+  if (match.bucket === 'multiplicative') {
     out.multiplicative.push({ id, label, source, value: match.value, condition: match.condition });
   } else if (match.bucket === 'additiveConditional') {
     out.additiveConditional.push({ id, label, source, value: match.value, condition: match.condition, abilityEligible });
@@ -1517,12 +1520,16 @@ export async function collectDamageSources(
       source: 'Belt',
       value: IMPLOSION_BELT_ABILITY_MULTIPLIER,
     });
-  } else {
+  } else if (IMPLOSION_BELT_WEAPON_IDS.has(loadout.weapon?.item?.id)) {
+    // Only worth surfacing while an Implosion-family weapon is actually equipped — then it's a
+    // real, actionable "equip the belt for +25%". Shown unconditionally it appeared on every
+    // loadout, bow builds included, where the belt could not possibly apply (user-reported
+    // 2026-09-11).
     out.situational.push({
       id: 'implosion-belt-inactive',
       label: 'Implosion Belt',
       source: 'Ability Damage',
-      note: `Not currently active — requires the Implosion Belt equipped with Hyperion, Spirit Sceptre, or Yeti Sword for a +${Math.round((IMPLOSION_BELT_ABILITY_MULTIPLIER - 1) * 100)}% Ability Damage multiplier.`,
+      note: `Not currently active — equipping the Implosion Belt alongside this weapon would add a +${Math.round((IMPLOSION_BELT_ABILITY_MULTIPLIER - 1) * 100)}% Ability Damage multiplier.`,
       formula: null,
     });
   }
