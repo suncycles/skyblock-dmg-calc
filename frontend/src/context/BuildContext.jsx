@@ -3,6 +3,7 @@ import { isUltimateEnchant } from '../lib/enchantEffects';
 import { computeTotalTuningPoints } from '../lib/accessoryPowers';
 import { ATTRIBUTE_IDS, getAttributeMaxLevel } from '../lib/attributes';
 import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from '../lib/starring';
+import { buildSlotEntry } from '../lib/slotSelection';
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from '../lib/defaultModifiers';
 import { INFERNAL_CRIMSON_MAX_STACKS } from '../lib/armorSetBonuses';
 import { getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_BANK_COINS } from '../lib/petData';
@@ -902,130 +903,31 @@ export function BuildProvider({ children }) {
     [editAllArmor, editAllEquipment],
   );
 
-  // Kuudra armor (any of the 5 real families, any power tier — see ARMOR_VARIANT_FAMILIES) never
-  // carries its stars to a different piece in real Hypixel, even within the same family: Basic ->
-  // Hot is a genuinely new item. Every other piece is much cheaper to re-star in practice, so its
-  // stars persist across a swap instead (user-specified 2026-08-23).
-  function isKuudraArmorId(id) {
-    return !!id && ARMOR_VARIANT_FAMILIES.some((family) => id.includes(family));
-  }
-
-  // Which broad weapon family a real catalog `category` belongs to — enchants meaningfully differ
-  // across these (Sharpness/Critical are melee-only, a Bow's own enchants don't apply to a Sword,
-  // Wand's are Ability-focused), so a persisted-upgrades stash (see selectItem/removeSlot below)
-  // only carries across a weapon swap WITHIN one family, never across (user-specified 2026-08-29,
-  // bug report: Sharpness persisting onto a freshly-picked Bow). Real ids confirmed against
-  // worker/src/data/weapons.json's `category` field — SWORD/DUNGEON SWORD/DUNGEON LONGSWORD/
-  // GAUNTLET are all melee weapons; only 'weapon'-slot swaps ever check this (armor/equipment
-  // categories are already fixed per slot, so there's no cross-type case there).
-  function weaponTypeGroup(category) {
-    const c = (category || '').toUpperCase();
-    if (c.includes('BOW')) return 'bow';
-    if (c === 'WAND') return 'wand';
-    if (c.includes('SWORD') || c === 'GAUNTLET') return 'melee';
-    return null;
-  }
-
-  // Equips `item` into `slot`, resetting modifiers to defaults — except Accessory, whose Magical
-  // Power/Tuning carry over across Power Stone switches, and weapon/armor/equipment, which restore
-  // whatever modifiers (recomb, enchants, gemstones, reforge, ...) were last seen in this slot
-  // (stashed by removeSlot below — the only way to reach here for a non-empty slot is
-  // remove-then-repick, so `prev[slot]` is already gone by then). Every field but stars carries
-  // over blind, same as Accessory always has — a mismatched reforge/gemstone count for the new
-  // item is a rare edge the relevant picker already surfaces, not something worth reconciling
-  // here. Stars are handled separately below (isKuudraArmorId) and read straight off `prev[slot]`
-  // — the item actually being replaced — rather than only the remove-then-repick stash, so a
-  // direct swap (the common path, both from Hex and from a Recommended Upgrade) carries them too.
-  //
-  // EXCEPT when the weapon slot's swap crosses a real weapon family boundary (Sword/Longsword/
-  // Gauntlet <-> Bow <-> Wand — see weaponTypeGroup) — a persisted Sharpness/reforge/etc. from a
-  // Sword doesn't apply to a Bow at all in real Hypixel, so that carry-over (both the stash AND
-  // the direct-swap `prev[slot]` path) is skipped entirely and the new item starts fully clean,
-  // same as a genuinely fresh pick (user-confirmed 2026-08-29, bug report: Sharpness persisting
-  // onto a freshly-picked Bow).
-  const selectItem = useCallback((slot, item) => {
-    setLoadout((prev) => {
-      const stashedRaw = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
-      // Normalizes the pre-2026-08-29 stash shape (a bare modifiers object) alongside the current
-      // one ({ modifiers, category }) — an old entry has no `category` to compare, so it's treated
-      // as same-family (permissive default: never worse than what already shipped).
-      const stashedEntry = stashedRaw ? (stashedRaw.modifiers ? stashedRaw : { modifiers: stashedRaw, category: null }) : null;
-      const prevCategory = prev[slot]?.item?.category ?? stashedEntry?.category ?? null;
-      const crossesWeaponType =
-        slot === 'weapon' && !!weaponTypeGroup(prevCategory) && weaponTypeGroup(prevCategory) !== weaponTypeGroup(item.category);
-      const stashed = crossesWeaponType ? null : stashedEntry?.modifiers;
-      let gearModifiers = stashed ? { ...emptyModifiers(), ...stashed } : emptyModifiers();
-      // A carried-over gemstone set can be too big for the new item's own real slot count (e.g.
-      // Infernal Crimson Chestplate's 2 slots -> Mythos Chestplate's 1 slot) — same real mismatch
-      // lib/optimizer.js's clipGemstonesToSlots already guards against for Optimizer candidates,
-      // applied here too so a manual armor/equipment swap doesn't silently carry a gem into (or
-      // leave a slot marked unlocked past) a socket the new item doesn't actually have
-      // (user-specified 2026-08-30).
-      if (gearModifiers.gemstones?.length || gearModifiers.gemstoneSlotsUnlocked?.length) {
-        const slotCount = item.gemstone_slots?.length || 0;
-        gearModifiers.gemstones = (gearModifiers.gemstones || []).slice(0, slotCount);
-        gearModifiers.gemstoneSlotsUnlocked = (gearModifiers.gemstoneSlotsUnlocked || []).slice(0, slotCount);
-      }
-      // A carried-over reforge can be item-exclusive to the item being replaced (e.g. Gilded ->
-      // Midas Sword only, matched by item.id rather than category/rarity — see reforgeData.js's
-      // isReforgeApplicable) — same real mismatch as the gemstone clip above, just for reforges
-      // instead of gem slots (user-specified 2026-08-31, bug report: Gilded carrying onto a
-      // different sword). Looked up from whichever real table (blacksmith or stone) actually has
-      // this name; a lookup miss (itemData not loaded yet, or a genuinely unknown name) carries
-      // over as before rather than guessing it's invalid.
-      if (gearModifiers.reforge) {
-        const reforgeMeta = itemData.reforges?.[gearModifiers.reforge] || itemData.reforgeStones?.[gearModifiers.reforge];
-        if (reforgeMeta && !isReforgeApplicable(reforgeMeta, item)) gearModifiers.reforge = null;
-      }
-      if (slot !== 'pet' && slot !== 'accessory') {
-        const carriedStars = crossesWeaponType ? 0 : (prev[slot]?.modifiers?.stars ?? stashed?.stars ?? 0);
-        const maxStars = getMaxStarsForItem(item);
-        gearModifiers.stars = isKuudraArmorId(item.id) ? 0 : Math.max(0, Math.min(maxStars, carriedStars));
-        if (gearModifiers.stars < MASTER_STAR_MIN_BASE_STARS) gearModifiers.masterStars = 0;
-      }
-      const next = {
-        ...prev,
-        [slot]: {
-          item:
-            slot === 'pet'
-              ? { id: item.id, petId: item.petId, name: item.name, material: item.material, tier: item.tier }
-              : slot === 'accessory'
-                ? { id: item.id, name: item.name, iconId: item.iconId, material: item.material }
-                : {
-                    id: item.id,
-                    name: item.name,
-                    material: item.material,
-                    category: item.category,
-                    tier: item.tier,
-                    lore: item.lore || [],
-                    color: item.color,
-                    // Real per-slot gemstone type/unlock-cost data (worker/scripts/build-item-
-                    // data.mjs) — see lib/optimizer.js's evaluateGemstoneCandidates, the consumer.
-                    gemstone_slots: item.gemstone_slots || null,
-                  },
-          modifiers:
-            slot === 'pet'
-              ? {
-                  ...emptyPetModifiers(),
-                  // Freshly-picked pets default to max effectiveness (max level, and for Golden
-                  // Dragon specifically, maxed Legendary Treasure/Shining Scales inputs) rather
-                  // than level 1/0 — a real Hypixel import overwrites these with the account's
-                  // actual values afterward (see lib/hypixelImport.js), so this only matters for
-                  // a from-scratch pick.
-                  level: getMaxPetLevel(item.petId),
-                  ...(item.petId === 'GOLDEN_DRAGON'
-                    ? { bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS, goldCollection: SHINING_SCALES_MAX_GOLD_COLLECTION }
-                    : null),
-                }
-              : slot === 'accessory'
-                ? prev.accessory?.modifiers || emptyAccessoryModifiers()
-                : gearModifiers,
-        },
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, [itemData]);
+  // Equips `item` into `slot`. Every rule about what survives the swap — which modifiers carry,
+  // the gemstone clip, the reforge-applicability check, star carry-over and the Kuudra reset, and
+  // the weapon-family boundary that drops the lot — lives in lib/slotSelection.js, shared with the
+  // Optimizer's own pure apply (lib/applyResult.js) so a planned swap and a clicked one can't
+  // diverge. The stash below is this screen's own affordance: remove-then-repick is the only way
+  // to reach here with the slot already empty, so `prev[slot]` is gone by then and the last-seen
+  // modifiers have to come from somewhere. A planner never has one.
+  const selectItem = useCallback(
+    (slot, item) => {
+      setLoadout((prev) => {
+        const stashedRaw = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
+        // Normalizes the pre-2026-08-29 stash shape (a bare modifiers object) alongside the
+        // current one ({ modifiers, category }) — an old entry has no `category` to compare, so
+        // it's treated as same-family (permissive default: never worse than what already shipped).
+        const stashedEntry = stashedRaw ? (stashedRaw.modifiers ? stashedRaw : { modifiers: stashedRaw, category: null }) : null;
+        const next = {
+          ...prev,
+          [slot]: buildSlotEntry({ slot, item, prevEntry: prev[slot], stashedEntry, itemData }),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [itemData],
+  );
 
   // Merges a Hypixel-import gear patch (see lib/hypixelImport.js) into the current loadout —
   // only the slots present in `patch` are touched (already-full {item, modifiers} entries, not
@@ -1128,7 +1030,8 @@ export function BuildProvider({ children }) {
       // going through remove first).
       if (slot !== 'pet' && slot !== 'accessory') {
         // `category` rides along so selectItem can tell a same-family repick (Sword -> another
-        // Sword) apart from a cross-family one (Sword -> Bow) — see weaponTypeGroup above.
+        // Sword) apart from a cross-family one (Sword -> Bow) — see slotSelection.js's
+        // weaponTypeGroup, which buildSlotEntry consults.
         lastGearModifiersRef.current = {
           ...lastGearModifiersRef.current,
           [slot]: { modifiers: prev[slot].modifiers, category: prev[slot].item?.category ?? null },
