@@ -6,6 +6,7 @@ import { collectDamageSources, FABLED_REFORGE_ID } from '../lib/damageSources';
 import { computeFinalDamage, computeDpsBreakdown, DPS_HITS_PER_SECOND } from '../lib/finalDamage';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { anyMiningIslandTarget } from '../lib/miningIslands';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
@@ -102,7 +103,7 @@ function useCurrentBuildState(build) {
 // slots pointing at the same loadout (including two both left on 'current') share one
 // computation instead of duplicating it. Per-key tokens guard against a stale async resolution
 // (e.g. rapid selection changes) overwriting a newer one.
-function useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget) {
+function useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget, isMiningIslandTarget) {
   const [resultsByKey, setResultsByKey] = useState({});
   const tokensRef = useRef({});
 
@@ -163,6 +164,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           state.maxedCollectionsCount,
           state.blessing,
           state.essencePerks,
+          isMiningIslandTarget,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));
@@ -171,7 +173,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
     return () => {
       cancelled = true;
     };
-  }, [selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget]);
+  }, [selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget, isMiningIslandTarget]);
 
   return selections.map((s) => resultsByKey[s] || { state: null, result: null, missing: false });
 }
@@ -371,7 +373,10 @@ export default function Compare() {
   });
 
   const currentState = useCurrentBuildState(build);
-  const sides = useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget);
+  // Target-derived like isCrimsonIsleTarget above, and applied to every compared side for the
+  // same reason — see lib/miningIslands.js.
+  const isMiningIslandTarget = anyMiningIslandTarget(targetMobs);
+  const sides = useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget, isMiningIslandTarget);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true, itemDataLoading);
   const currentHelmetName = build.loadout.helmet?.item?.name;
   const currentHelmetPreview = currentHelmetName ? formatItemName(currentHelmetName) : '';

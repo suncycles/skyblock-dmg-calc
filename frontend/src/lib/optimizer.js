@@ -72,6 +72,7 @@ import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
 import { parseDungeonHead, diamondCounterpartFor, reforgeRarityFor } from './dungeonHeads';
 import { FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK } from './essencePerks';
 import { FORBIDDEN_BLESSING_MAX_LEVEL } from './dungeonBlessing';
+import { isMiningIslandMob } from './miningIslands';
 
 // Every tracked Essence-shop perk that grants something, in one list for the candidate loop below.
 const ALL_ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK];
@@ -874,6 +875,10 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   // whenever the manual toggle happens to be off (user-specified 2026-09-01).
   const isCrimsonIsleTarget = !!mob?.types && (mob.types.includes('Infernal') || mob.types.includes('Magmatic'));
   const blazeCrimsonIsle = build.blazeCrimsonIsle || isCrimsonIsleTarget;
+  // Same derivation, by location rather than type — this is what gates the Lonesome Miner perk
+  // and a Mithril Golem pet, so a Mithril Golem candidate is only ever credited its Mining Island
+  // bonus against a Mining Island target. See lib/miningIslands.js.
+  const onMiningIsland = isMiningIslandMob(mob?.name);
 
   const sources = await collectDamageSources(
     loadout,
@@ -894,6 +899,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     build.maxedCollectionsCount,
     build.blessing,
     build.essencePerks,
+    onMiningIsland,
   );
 
   if (modeConfig.metric === 'ability') {

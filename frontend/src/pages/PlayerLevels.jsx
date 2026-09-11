@@ -11,6 +11,7 @@ import {
   MAX_ENCHANTING_LEVEL,
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
+import { LONESOME_MINER_MAX_LEVEL, MINING_ISLANDS_LABEL } from '../lib/miningIslands';
 import { FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK } from '../lib/essencePerks';
 import { FORBIDDEN_BLESSING_MAX_LEVEL } from '../lib/dungeonBlessing';
 import { MASTER_SKULL_MAX_TIER } from '../lib/masterSkull';
@@ -51,6 +52,7 @@ export default function PlayerLevels() {
     setAlchemyLevel,
     setEnchantingLevel,
     setGeneralsMedallionDigits,
+    setLonesomeMinerLevel,
     toggleBlazetekkHamRadio,
   } = useBuild();
 
@@ -167,6 +169,19 @@ export default function PlayerLevels() {
             max={MAX_ENCHANTING_LEVEL}
             value={playerStats.enchantingLevel}
             onChange={setEnchantingLevel}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="lonesome-miner-level">
+            Lonesome Miner <span className="text-xs text-neutral-600">(HotM perk, {MINING_ISLANDS_LABEL} only)</span>
+          </label>
+          <NumberInput
+            id="lonesome-miner-level"
+            max={LONESOME_MINER_MAX_LEVEL}
+            value={playerStats.lonesomeMinerLevel}
+            onChange={setLonesomeMinerLevel}
             className={inputClass}
           />
         </div>

@@ -119,6 +119,13 @@ import {
   computeEchoBoost,
 } from './attributes';
 import { computeBlessingEffects, computeBlessingMultiplier } from './dungeonBlessing';
+import {
+  MINING_ISLAND_BOOST_STATS,
+  MINING_ISLANDS_LABEL,
+  MITHRIL_GOLEM_PET_ID,
+  lonesomeMinerPercent,
+  mithrilGolemPercent,
+} from './miningIslands';
 import { computeFlatPerkStats, computeBanePercent, BANE_PERK } from './essencePerks';
 import { masterSkullStrengthPercent } from './masterSkull';
 
@@ -1333,6 +1340,10 @@ export async function collectDamageSources(
   // The account's Essence-shop perk levels, {perkKey: level} — see lib/essencePerks.js. Imported
   // only, never typed; null for a manually-built loadout.
   essencePerks = null,
+  // Whether the selected target lives on a Mining Island (lib/miningIslands.js). Derived from the
+  // target mob at the call site and passed in, exactly as blazeCrimsonIsle above is — this
+  // function never receives the mob itself.
+  onMiningIsland = false,
 ) {
   const out = {
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
@@ -1891,6 +1902,29 @@ export async function collectDamageSources(
     statBoostSources.push({ percent: BLAZE_CRIMSON_ISLE_PERCENT, label: 'Blaze (In Crimson Isle)' });
   }
 
+  // Both Mining Island boosts — the HotM perk and the pet ability — are gated on the same target
+  // check and raise the same two stats, so they sit together. Each keeps its own labelled row.
+  if (onMiningIsland) {
+    const lonesomeMiner = lonesomeMinerPercent(playerStats?.lonesomeMinerLevel);
+    if (lonesomeMiner > 0) {
+      statBoostSources.push({
+        percent: lonesomeMiner,
+        label: `Lonesome Miner ${playerStats.lonesomeMinerLevel} (On ${MINING_ISLANDS_LABEL})`,
+        stats: MINING_ISLAND_BOOST_STATS,
+      });
+    }
+    if (loadout.pet?.item?.petId === MITHRIL_GOLEM_PET_ID) {
+      const golem = mithrilGolemPercent(loadout.pet?.modifiers?.level);
+      if (golem > 0) {
+        statBoostSources.push({
+          percent: golem,
+          label: `Mithril Golem (On ${MINING_ISLANDS_LABEL})`,
+          stats: MINING_ISLAND_BOOST_STATS,
+        });
+      }
+    }
+  }
+
   const renownedPieces = [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter(
     (slot) => loadout[slot]?.modifiers?.reforge === RENOWNED_REFORGE_NAME,
   ).length;
@@ -1917,8 +1951,10 @@ export async function collectDamageSources(
     statBoostSources.push({ percent: out.sacredStrengthPercent, label: 'Sacred Strength (assumed active)', stat: 'strength' });
   }
 
-  for (const { percent, label, stat } of statBoostSources) {
-    for (const statKey of stat ? [stat] : finalMultiplierStats) {
+  // `stat`/`stats` narrow a source to one or a few of finalMultiplierStats; omitting both means
+  // every one of them, the "all combat stats" case most of these sources are.
+  for (const { percent, label, stat, stats } of statBoostSources) {
+    for (const statKey of stats || (stat ? [stat] : finalMultiplierStats)) {
       addPercentStatBoost(out, statKey, percent, label, preBoostTotals[statKey]);
     }
   }

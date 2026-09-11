@@ -58,6 +58,7 @@ try {
   const tieredArmorStats = await server.ssrLoadModule('/src/lib/tieredArmorStats.js');
   const dungeonHeads = await server.ssrLoadModule('/src/lib/dungeonHeads.js');
   const dungeonBlessing = await server.ssrLoadModule('/src/lib/dungeonBlessing.js');
+  const miningIslands = await server.ssrLoadModule('/src/lib/miningIslands.js');
   const essencePerks = await server.ssrLoadModule('/src/lib/essencePerks.js');
   const masterSkull = await server.ssrLoadModule('/src/lib/masterSkull.js');
   const recombobulator = await server.ssrLoadModule('/src/lib/recombobulator.js');
@@ -660,6 +661,34 @@ try {
     assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+41 §9(+7) §8(+99)', '§d§lMYTHIC CLOAK']).special, 34);
     assert.equal(parseDavidsCloakFromLore(['§7Health: §c+50', '§d§lMYTHIC CLOAK']).special, 0, 'no Strength line is 0');
     assert.deepEqual(parseDavidsCloakFromLore(null), { special: 0, rarityOverride: null });
+  });
+  // 26. Mining Islands: two separate boosts (the HotM Lonesome Miner perk and a Mithril Golem
+  // pet) share one location gate. Both rates are pinned here because both were quoted 10x/0.5
+  // off before being checked against NEU-REPO and confirmed (user-confirmed 2026-09-11):
+  // hotmlayout.json's "(+ (* level 0.5) 4.5)" and petnums.json's LEGENDARY otherNums[1].
+  await check('Mining Island boosts and their location gate', () => {
+    const { lonesomeMinerPercent, mithrilGolemPercent, isMiningIslandMob, anyMiningIslandTarget } = miningIslands;
+
+    // Level 0 is "perk unbought" — NOT the formula's 4.5% intercept, the easy off-by-one here.
+    assert.equal(lonesomeMinerPercent(0), 0, 'an unbought perk grants nothing');
+    assert.equal(lonesomeMinerPercent(1), 5, 'level 1 is +5%');
+    assert.equal(lonesomeMinerPercent(45), 27, 'level 45 caps at +27%, not +27.5%');
+    assert.equal(lonesomeMinerPercent(999), 27, 'level is clamped to the cap');
+    assert.equal(lonesomeMinerPercent(null), 0);
+
+    // 0.2%/level, so +20% at level 100 — the 2%/level figure belongs to Mithril Affinity.
+    assert.equal(mithrilGolemPercent(100), 20, 'level 100 is +20%, not +200%');
+    assert.equal(mithrilGolemPercent(1), 0.2);
+    assert.equal(mithrilGolemPercent(0), 0);
+
+    // The gate is by LOCATION, not by mob type — all three islands count, nothing else does.
+    assert.equal(isMiningIslandMob('Diamond Goblin'), true, 'Dwarven Mines');
+    assert.equal(isMiningIslandMob('Automaton'), true, 'Crystal Hollows');
+    assert.equal(isMiningIslandMob('Emerald Slime'), true, 'Deep Caverns');
+    assert.equal(isMiningIslandMob('Bonzo'), false, 'the Catacombs is not a Mining Island');
+    assert.equal(isMiningIslandMob('Nonexistent Mob'), false, 'an unlocated mob is not on one');
+    assert.equal(anyMiningIslandTarget(['Bonzo', 'Automaton']), true, 'any selected target counts');
+    assert.equal(anyMiningIslandTarget([]), false);
   });
 } finally {
   await server.close();
