@@ -742,6 +742,28 @@ try {
     assert.equal(carriedReforgeName({}, bow, data), null);
     assert.equal(carriedUltimateEnchantment({}, bow, data), null);
   });
+  // 29. Maxor's: +5% ADDITIVE arrow damage per piece, bow-only (user-specified 2026-09-11). The
+  // set's real ids are SPEED_WITHER_*, Hypixel's internal name for it — a set keyed on MAXOR_*
+  // would silently never match. Additive, so a full set is +20% summed, not 1.05^4 compounded the
+  // way Skeleton Master's per-piece multiplier is; keeping those two straight is the point here.
+  await check("Maxor's stacks additively per piece, bows only", () => {
+    const { MAXOR_SET, MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE, countSetPieces } = armorSetBonuses;
+    assert.deepEqual(MAXOR_SET, ['SPEED_WITHER_HELMET', 'SPEED_WITHER_CHESTPLATE', 'SPEED_WITHER_LEGGINGS', 'SPEED_WITHER_BOOTS']);
+    assert.equal(MAXOR_SET.length * MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE, 20, 'a full set is +20%, additive');
+
+    // countSetPieces aligns setIds to ARMOR_SLOTS by INDEX, so the array order above is load
+    // bearing — a helmet id sitting in the chestplate position would count zero pieces.
+    const slots = ['helmet', 'chestplate', 'leggings', 'boots'];
+    const wear = (n) => Object.fromEntries(slots.slice(0, n).map((slot, i) => [slot, { item: { id: MAXOR_SET[i] } }]));
+    assert.equal(countSetPieces(wear(0), slots, MAXOR_SET), 0);
+    assert.equal(countSetPieces(wear(2), slots, MAXOR_SET), 2);
+    assert.equal(countSetPieces(wear(4), slots, MAXOR_SET), 4);
+    assert.equal(
+      countSetPieces({ helmet: { item: { id: 'POWER_WITHER_HELMET' } } }, slots, MAXOR_SET),
+      0,
+      "Necron's is a different Wither set",
+    );
+  });
 } finally {
   await server.close();
 }
