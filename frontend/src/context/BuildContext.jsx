@@ -984,6 +984,17 @@ export function BuildProvider({ children }) {
 
   // Merges a Hypixel-import player-stats patch (wolfSlayerLevel/alchemyLevel/enchantingLevel) —
   // only the keys present in `patch` are touched.
+  // One named level, by its playerStats key — the Optimizer's free Skill-level suggestions apply
+  // through this rather than through nine slot-specific setters (see optimizer.js's
+  // evaluateSkillLevelCandidates).
+  const setPlayerLevel = useCallback((key, value) => {
+    setPlayerStats((prev) => {
+      const next = { ...prev, [key]: Math.max(0, Math.floor(Number(value) || 0)) };
+      localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const importHypixelPlayerStats = useCallback((patch) => {
     setPlayerStats((prev) => {
       const next = { ...prev, ...patch };
@@ -1569,6 +1580,7 @@ export function BuildProvider({ children }) {
         setAlchemyLevel,
         setEnchantingLevel,
         setLonesomeMinerLevel,
+        setPlayerLevel,
         setGeneralsMedallionDigits,
         toggleBlazetekkHamRadio,
         targetMobs,

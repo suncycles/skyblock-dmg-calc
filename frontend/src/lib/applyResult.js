@@ -28,6 +28,7 @@ import { buildSlotEntry } from './slotSelection';
 export function emptyApplyState(build) {
   return {
     loadout: build.loadout,
+    playerStats: build.playerStats || {},
     attributes: build.attributes || {},
     essencePerks: build.essencePerks || {},
     blessing: build.blessing || null,
@@ -149,6 +150,7 @@ const STEPS = {
     },
   }),
 
+  setPlayerLevel: (state, step) => ({ ...state, playerStats: { ...state.playerStats, [step.key]: step.value } }),
   setAttributeLevel: (state, step) => ({ ...state, attributes: { ...state.attributes, [step.id]: step.level } }),
   setEssencePerkLevel: (state, step) => ({ ...state, essencePerks: { ...state.essencePerks, [step.key]: step.level } }),
   setForbiddenBlessingLevel: (state, step) => ({ ...state, blessing: { ...(state.blessing || {}), forbiddenBlessingLevel: step.level } }),

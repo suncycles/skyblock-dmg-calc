@@ -215,6 +215,9 @@ export default function Optimizer() {
   // coin-efficiency first) so the player's most coin-efficient sources of damage lead by default;
   // "increase" is available via the toggle for raw %DPS ranking.
   const [sortBy, setSortBy] = useState('ratio');
+  // Off by default — the usual question is "what should I buy next", and free upgrades would
+  // otherwise dominate Best Value on an infinite ratio.
+  const [showFree, setShowFree] = useState(false);
   // "Skip" (UpgradeRow's ✕) just hides a suggestion from view for the rest of this visit — it
   // doesn't change anything about the loadout or the candidate itself, so a plain key set (not
   // persisted, and never touched by the optimizer re-running) is enough; the same suggestion
@@ -244,7 +247,13 @@ export default function Optimizer() {
   // Only offer chips for categories actually present right now, not the full static list — most
   // modes/loadouts only ever surface a handful of the ~20 possible categories at once.
   const availableCategories = [...new Set(unfilteredResults.map((r) => r.category))].sort();
+  // A real numeric 0 is free; '?' is unpriced and stays with the paid list — see the sidebar's
+  // matching split. Free upgrades cost time rather than coins, so they never compete on
+  // coins-per-percent and would otherwise sit permanently on top of Best Value at an infinite ratio.
+  const isFree = (r) => r.cost === 0;
+  const freeCount = unfilteredResults.filter(isFree).length;
   const combinedResults = unfilteredResults
+    .filter((r) => (showFree ? true : !isFree(r)))
     .filter((r) => selectedCategories.size === 0 || selectedCategories.has(r.category))
     .sort((a, b) => compareResults(a, b, sortBy));
 
@@ -365,6 +374,10 @@ export default function Optimizer() {
                 </button>
               </div>
             </div>
+            <label className="flex items-center gap-1.5 text-[11px] text-neutral-700 cursor-pointer">
+              <input type="checkbox" checked={showFree} onChange={(e) => setShowFree(e.target.checked)} className="cursor-pointer" />
+              <span>Show 0-cost upgrades{freeCount > 0 && ` (${freeCount})`}</span>
+            </label>
             {availableCategories.length > 1 && (
               <div className="flex flex-wrap items-center gap-1 pb-1">
                 {availableCategories.map((category) => {

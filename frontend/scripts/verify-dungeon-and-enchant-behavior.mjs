@@ -878,6 +878,21 @@ try {
     assert.equal(Number(computeMeleeHitsPerSecond(82, bare).toFixed(3)), 4);
     assert.equal(rate(82), Number((1 / 0.3).toFixed(3)), 'the same Attack Speed is slower on a bow');
   });
+  // 32. Free upgrades. A Skill level costs time, not coins, so it prices to a real 0 rather than
+  // null — the UI splits on exactly that (0 is free, '?' is unpriced, and they are different
+  // claims). The step also has to survive the pure apply, or a planner would rank a Catacombs
+  // level it can't actually take (user-specified 2026-09-11).
+  await check('Skill levels are free and applicable', () => {
+    const { applyResultToState, canApplyPurely } = applyResult;
+    const step = { type: 'setPlayerLevel', key: 'catacombsLevel', value: 48 };
+    assert.equal(pricing.lookupCandidateCost({ category: 'Skill', apply: [step] }, { costs: {} }), 0, 'a skill level costs no coins');
+    assert.notEqual(pricing.lookupCandidateCost({ category: 'Skill', apply: [step] }, { costs: {} }), null, '0 is not the same as unpriced');
+    assert.equal(canApplyPurely({ apply: [step] }), true);
+    const before = { loadout: {}, playerStats: { catacombsLevel: 47 }, attributes: {}, essencePerks: {}, blessing: null };
+    const after = applyResultToState(before, { apply: [step] }, {});
+    assert.equal(after.playerStats.catacombsLevel, 48);
+    assert.equal(before.playerStats.catacombsLevel, 47, 'apply stays pure');
+  });
 } finally {
   await server.close();
 }
