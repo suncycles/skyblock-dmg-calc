@@ -950,12 +950,22 @@ export default function Landing() {
             onMouseEnter={guardHover((e) => showTooltip(potionTooltip, e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
-            <WeaponIcon
-              id={dungeonPotion ? 'DUNGEON_POTION' : 'GOD_POTION'}
-              material="POTION"
-              alt={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
-              className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
-            />
+            {/* The Dungeon Potion has its own art; the God Potion still resolves through the
+                catalog icon lookup like every other real item id. */}
+            {dungeonPotion ? (
+              <img
+                src="/images/manual/dpot.png"
+                alt="Dungeon Potion"
+                className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
+              />
+            ) : (
+              <WeaponIcon
+                id="GOD_POTION"
+                material="POTION"
+                alt="God Potion"
+                className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
+              />
+            )}
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5 pointer-events-none">
               {potionLabel}
             </span>
