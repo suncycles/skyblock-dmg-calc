@@ -246,8 +246,13 @@ export function lookupCandidateCost(result, itemData) {
       return 0;
     // Drinking is free (a consumable already in the inventory); the Jellyfish is a real pet
     // purchase, priced as the level-100 Legendary petCosts holds.
-    case 'Potion':
-      return result.potionKind === 'jellyfish' ? priceOf(petCosts, 'JELLYFISH') : 0;
+    case 'Potion': {
+      if (result.potionKind === 'jellyfish') return priceOf(petCosts, 'JELLYFISH');
+      // A Spider Egg is a real purchase, but the feed carries no price for it — unpriced ('?')
+      // rather than 0, since "no price found" and "costs nothing" are different claims.
+      if (result.potionKind === 'mixin') return priceOf(itemPrices, 'SPIDER_EGG');
+      return 0;
+    }
     case 'Essence Perk': {
       // Essence bought at the shop, priced through the same feed as everything else (the Worker
       // precomputes the cumulative coin ladder — see its computeEssencePerkCosts). The Optimizer
