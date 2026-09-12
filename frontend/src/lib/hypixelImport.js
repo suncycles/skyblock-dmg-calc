@@ -335,7 +335,7 @@ const SPECIAL_LORE_LABELS = {
 // Terminator/Flaming Flay really does set it), which is why it stays first.
 //
 // The two signals that ARE real, both checked against that same live NBT:
-//  - a `STARRED_` id IS the dungeonized form of the item (Bone Necklace -> Starred Bone Necklace);
+//  - a `STARRED_` id is a Master Mode dungeon drop, so it is dungeon gear by definition;
 //  - stars on a DUNGEON-category item, since starring requires dungeonizing first.
 // The category ALONE is still not enough, exactly as the 2026-09-02 note said — it marks gear as
 // eligible, and a crafted-but-never-converted Necron's Leggings is a real thing. Pairing it with a
@@ -344,10 +344,37 @@ const SPECIAL_LORE_LABELS = {
 const DUNGEON_CATEGORY_PREFIX = 'DUNGEON ';
 const STARRED_ID_PREFIX = 'STARRED_';
 
+// Pieces that come out of the game already dungeonized, so no per-copy evidence is needed at all —
+// user-confirmed 2026-09-11. This is what closes the 0-star gap noted above: a Necron's Leggings
+// sitting at 0 stars is still a dungeon piece, and only an explicit list can say so, since the NBT
+// carries nothing and the category alone stays ambiguous for gear that CAN be crafted unconverted.
+// Narrow allowlist by real id, same convention as tieredArmorStats.js and starring.js's
+// HIGH_STAR_ITEM_IDS — not a general "anything in a DUNGEON category" rule.
+// The four Wither sets are Hypixel's internal names: POWER = Necron's, SPEED = Maxor's,
+// WISE = Storm's, TANK = Goldor's.
+const WITHER_ARMOR_PREFIXES = ['POWER_WITHER', 'SPEED_WITHER', 'WISE_WITHER', 'TANK_WITHER'];
+const ARMOR_PIECE_SUFFIXES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
+const ALWAYS_DUNGEONIZED_IDS = new Set([
+  ...WITHER_ARMOR_PREFIXES.flatMap((prefix) => ARMOR_PIECE_SUFFIXES.map((piece) => `${prefix}_${piece}`)),
+  ...ARMOR_PIECE_SUFFIXES.map((piece) => `SHADOW_ASSASSIN_${piece}`),
+  'SPIRIT_MASK',
+  'BONZO_MASK',
+  'BONE_NECKLACE',
+  'SHADOW_ASSASSIN_CLOAK',
+  'ADAPTIVE_BELT',
+  'SOULWEAVER_GLOVES',
+]);
+
 export function resolveDungeonizedFlag(summary, item) {
   if (summary.dungeonized) return true;
   if (isTieredArmorStatItem(summary.id)) return true;
-  if (String(summary.id || '').startsWith(STARRED_ID_PREFIX)) return true;
+  // A STARRED_ id is a Master Mode dungeon drop — a distinct, stronger catalog item than its base
+  // (Bone Necklace Defense +35 -> Starred +45; Shadow Assassin Cloak EPIC Strength +20 -> Starred
+  // LEGENDARY +25), not the same item with a boost already applied. So it is always dungeon gear,
+  // and the Catacombs boost still layers on top of those printed stats rather than double-counting.
+  const id = String(summary.id || '');
+  if (id.startsWith(STARRED_ID_PREFIX)) return true;
+  if (ALWAYS_DUNGEONIZED_IDS.has(id)) return true;
   const isDungeonCategory = String(item?.category || '').toUpperCase().startsWith(DUNGEON_CATEGORY_PREFIX);
   return isDungeonCategory && (summary.stars || 0) > 0;
 }

@@ -584,10 +584,15 @@ const MAGE_EQUIPMENT_PROGRESSION = {
 // unlike plain Mage above. Bone Necklace/Balloon Snake are sidegrades; cloak/belt/gloves are each
 // a single real pick. All real, EPIC Dungeon-tagged equipment (Balloon Snake RARE — already
 // confirmed a real sidegrade despite the rarity gap, see MAGE_EQUIPMENT_PROGRESSION above).
+// Each line's Starred variant is appended as its own tier above the base: a Master Mode drop is a
+// genuinely stronger item, not a boosted copy (Bone Necklace Defense +35 -> Starred +45; Shadow
+// Assassin Cloak EPIC Strength +20 -> Starred LEGENDARY +25), so it's the real next step in the
+// same slot and was simply missing (found 2026-09-11). Balloon Snake has no Starred form, which is
+// why only the Bone Necklace half of that tier gains one.
 const MAGE_BEAM_EQUIPMENT_PROGRESSION = {
-  necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }]],
-  cloak: [[{ id: 'SHADOW_ASSASSIN_CLOAK' }]],
-  belt: [[{ id: 'ADAPTIVE_BELT' }]],
+  necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
+  cloak: [[{ id: 'SHADOW_ASSASSIN_CLOAK' }], [{ id: 'STARRED_SHADOW_ASSASSIN_CLOAK' }]],
+  belt: [[{ id: 'ADAPTIVE_BELT' }], [{ id: 'STARRED_ADAPTIVE_BELT' }]],
   gloves: [[{ id: 'SOULWEAVER_GLOVES' }]],
 };
 
