@@ -72,6 +72,17 @@ import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
 import { parseDungeonHead, diamondCounterpartFor, reforgeRarityFor } from './dungeonHeads';
 import { FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK } from './essencePerks';
 import { FORBIDDEN_BLESSING_MAX_LEVEL } from './dungeonBlessing';
+import {
+  MAX_COMBAT_LEVEL,
+  MAX_CATACOMBS_LEVEL,
+  MAX_FORAGING_LEVEL,
+  MAX_TAMING_LEVEL,
+  MAX_ALCHEMY_LEVEL,
+  MAX_ENCHANTING_LEVEL,
+  MAX_WOLF_SLAYER_LEVEL,
+  MAX_TARANTULA_SLAYER_LEVEL,
+  MAX_BLAZE_SLAYER_LEVEL,
+} from './playerStats';
 import { isMiningIslandMob } from './miningIslands';
 
 // Every tracked Essence-shop perk that grants something, in one list for the candidate loop below.
@@ -736,6 +747,10 @@ export function dominanceGroupKey(result) {
       const step = findStep(result.apply, 'setEssencePerkLevel') || findStep(result.apply, 'setForbiddenBlessingLevel');
       return step ? `Essence Perk:${result.perkKey}` : null;
     }
+    // One row per skill — only the immediate next level is ever offered, so two rows for the same
+    // skill would be the same step twice.
+    case 'Skill':
+      return `Skill:${result.skillKey}`;
     case 'Power Stone': // one global Accessory Power selection at a time
     case 'Pet Item': // one held pet item at a time
       return result.category;
@@ -1443,6 +1458,8 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
     const tiers = Object.keys(petCatalog);
     const tier = tiers.includes('LEGENDARY') ? 'LEGENDARY' : tiers[tiers.length - 1];
     const petItem = { id: `${candidate.petId}_${tier}`, petId: candidate.petId, name: derivePetDisplayName(candidate.petId), tier, material: 'BONE' };
+    const carriedBankCoins = loadout.pet?.modifiers?.bankCoins || 0;
+    const carriedGoldCollection = loadout.pet?.modifiers?.goldCollection || 0;
     const candidateLoadout = {
       ...loadout,
       pet: {
@@ -1451,20 +1468,37 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
           ...emptyPetModifiers(),
           level: getMaxPetLevel(candidate.petId),
           petItem: loadout.pet?.modifiers?.petItem || null,
-          bankCoins: loadout.pet?.modifiers?.bankCoins || 0,
-          goldCollection: loadout.pet?.modifiers?.goldCollection || 0,
+          bankCoins: carriedBankCoins,
+          goldCollection: carriedGoldCollection,
         },
       },
     };
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    // Golden Dragon is the one pet whose strength comes from account state rather than the pet, so
+    // it gets two rows: this one at the player's REAL bank/gold, and evaluateMaxGoldenDragonCandidate's
+    // at the ceiling. That split only works if this row's apply steps pin the carried values —
+    // BuildContext's selectItem hands a freshly picked Golden Dragon MAXED bank and gold (see
+    // slotSelection.js's freshPetModifiers), so without them this row was ranked at the player's
+    // zero bank and applied at a billion: +1.1% shown, +88.2% delivered (found 2026-09-11).
+    const isGoldenDragon = candidate.petId === 'GOLDEN_DRAGON';
     return {
       category: 'Pet',
       slot: 'pet',
-      label: `${derivePetDisplayName(candidate.petId)} (${tier})`,
+      label: isGoldenDragon
+        ? `${derivePetDisplayName(candidate.petId)} [Uses your Bank and Gold]`
+        : `${derivePetDisplayName(candidate.petId)} (${tier})`,
       itemId: candidate.petId,
       material: 'BONE',
       value,
-      apply: [{ type: 'selectItem', slot: 'pet', item: petItem }],
+      apply: [
+        { type: 'selectItem', slot: 'pet', item: petItem },
+        ...(isGoldenDragon
+          ? [
+              { type: 'setPetBankCoins', slot: 'pet', value: carriedBankCoins },
+              { type: 'setPetGoldCollection', slot: 'pet', value: carriedGoldCollection },
+            ]
+          : []),
+      ],
     };
   });
 }
@@ -1504,7 +1538,7 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
     {
       category: 'Pet',
       slot: 'pet',
-      label: 'Max Golden Dragon',
+      label: `${derivePetDisplayName('GOLDEN_DRAGON')} [Max]`,
       itemId: 'GOLDEN_DRAGON',
       material: 'BONE',
       value,
@@ -2381,6 +2415,48 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
   return results;
 }
 
+// Player levels that cost no coins — only time — so they belong with the free upgrades rather than
+// competing on coins-per-percent against things you can actually buy. Only the IMMEDIATE next level
+// is offered (user-specified 2026-09-11): "Catacombs 48" is an actionable next step, "Catacombs 50"
+// is a project. Which of these actually move damage is not hardcoded — every one is evaluated and
+// the zero-gain ones fall out through the same percentIncrease filter every other category uses, so
+// a level that matters only for a specific weapon (Taming for Daedalus, Wolf Slayer for Pooch Sword)
+// shows up exactly when that weapon is equipped.
+const SKILL_LEVEL_CANDIDATES = [
+  { key: 'combatLevel', name: 'Combat', max: MAX_COMBAT_LEVEL },
+  { key: 'catacombsLevel', name: 'Catacombs', max: MAX_CATACOMBS_LEVEL },
+  { key: 'foragingLevel', name: 'Foraging', max: MAX_FORAGING_LEVEL },
+  { key: 'tamingLevel', name: 'Taming', max: MAX_TAMING_LEVEL },
+  { key: 'alchemyLevel', name: 'Alchemy', max: MAX_ALCHEMY_LEVEL },
+  { key: 'enchantingLevel', name: 'Enchanting', max: MAX_ENCHANTING_LEVEL },
+  { key: 'wolfSlayerLevel', name: 'Wolf Slayer', max: MAX_WOLF_SLAYER_LEVEL },
+  { key: 'tarantulaSlayerLevel', name: 'Tarantula Slayer', max: MAX_TARANTULA_SLAYER_LEVEL },
+  { key: 'blazeSlayerLevel', name: 'Blaze Slayer', max: MAX_BLAZE_SLAYER_LEVEL },
+  // No cap — Skyblock Level keeps going, and it feeds a real Ability Damage multiplier.
+  { key: 'skyblockLevel', name: 'Skyblock Level', max: null },
+];
+
+async function evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob) {
+  const results = [];
+  for (const skill of SKILL_LEVEL_CANDIDATES) {
+    const current = Math.max(0, Math.floor(Number(build.playerStats?.[skill.key]) || 0));
+    if (skill.max != null && current >= skill.max) continue;
+    const next = current + 1;
+    const candidateBuild = { ...build, playerStats: { ...build.playerStats, [skill.key]: next } };
+    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    results.push({
+      category: 'Skill',
+      slot: 'accessory',
+      label: `${skill.name} ${next}`,
+      skillKey: skill.key,
+      value,
+      freeUpgrade: true,
+      apply: [{ type: 'setPlayerLevel', key: skill.key, value: next }],
+    });
+  }
+  return results;
+}
+
 // Every real damage-relevant Attribute this app models, with a display name — same 4 sources
 // attributes.js itself is built from, plus the 4 Echo ids (which attributes.js only carries as
 // bare ATTRIBUTE_IDS strings; Attributes.jsx has its own small local {id, name} list for these —
@@ -2596,6 +2672,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     gemstones,
     attributes,
     essencePerkUpgrades,
+    skillLevels,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, armorProgressionForMode(mode, loadout), 'Armor'),
@@ -2630,6 +2707,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob),
   ]);
 
   // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
@@ -2671,6 +2749,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...gemstones,
       ...attributes,
       ...essencePerkUpgrades,
+      ...skillLevels,
     ]),
     ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue),
     ...withPercentUsing(masterStars, masterModeBaselineValue),
@@ -2736,6 +2815,9 @@ export function applyOptimizerResult(build, result) {
         break;
       // Essence-shop perks are normally import-only, but a suggestion the player clicks has to
       // actually take effect — same as every other swap-in step here.
+      case 'setPlayerLevel':
+        build.setPlayerLevel(step.key, step.value);
+        break;
       case 'setEssencePerkLevel':
         build.setEssencePerkLevel(step.key, step.level);
         break;

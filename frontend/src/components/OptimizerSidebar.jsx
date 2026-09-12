@@ -321,6 +321,10 @@ export default function OptimizerSidebar() {
   // same swap in the mode's own units (melee Total DPS, or Ability Damage), off until asked for.
   const [showPercent, setShowPercent] = useState(true);
   const [showFlat, setShowFlat] = useState(false);
+  // Free upgrades are a different kind of decision from a purchase — they cost time, not coins, so
+  // they never compete on coins-per-percent and would otherwise sit permanently at the top of Best
+  // Value on an infinite ratio. Off by default: the common question is "what should I buy next".
+  const [showFree, setShowFree] = useState(false);
   // "Skip" (UpgradeRow's ✕) just hides a suggestion from view for the rest of this visit — see
   // Optimizer.jsx's identical treatment for the full-page version of this same list.
   const [skippedKeys, setSkippedKeys] = useState(() => new Set());
@@ -591,7 +595,12 @@ export default function OptimizerSidebar() {
     .filter((r) => !skippedKeys.has(resultKey(r)));
   // Only offer chips for categories actually present right now — see Optimizer.jsx.
   const availableCategories = [...new Set(unfilteredResults.map((r) => r.category))].sort();
+  // A real numeric 0 is free; '?' is unpriced and stays with the paid list, since an unknown price
+  // is not the same claim as no price.
+  const isFree = (r) => r.cost === 0;
+  const freeCount = unfilteredResults.filter(isFree).length;
   const combinedResults = unfilteredResults
+    .filter((r) => (showFree ? true : !isFree(r)))
     .filter((r) => selectedCategories.size === 0 || selectedCategories.has(r.category))
     .sort((a, b) => compareResults(a, b, sortBy));
 
@@ -704,6 +713,12 @@ export default function OptimizerSidebar() {
               Flat DPS
             </HeaderChip>
           </div>
+          {/* Free upgrades (reforges you already own the stone for, Skill levels) are hidden by
+              default and counted here, so they're discoverable without crowding the buy list. */}
+          <label className="flex items-center gap-1.5 text-[10px] text-neutral-700 cursor-pointer">
+            <input type="checkbox" checked={showFree} onChange={(e) => setShowFree(e.target.checked)} className="cursor-pointer" />
+            <span>Show 0-cost upgrades{freeCount > 0 && ` (${freeCount})`}</span>
+          </label>
           {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
               a tooltip or a footnote. The ranking is a single-swap search against the current build,
               so it can't see multi-piece set bonuses, attribute breakpoints, or anything it has no

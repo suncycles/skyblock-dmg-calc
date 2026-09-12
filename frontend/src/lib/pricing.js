@@ -240,6 +240,10 @@ export function lookupCandidateCost(result, itemData) {
       // treatment Full Set gives a missing item price.
       return result.gemstoneUnlockCost != null ? gemPrice + result.gemstoneUnlockCost : null;
     }
+    // Time, not coins. A real 0 rather than null, so it reads as free rather than unpriced — see
+    // withCost, which only treats a numeric cost as real.
+    case 'Skill':
+      return 0;
     case 'Essence Perk': {
       // Essence bought at the shop, priced through the same feed as everything else (the Worker
       // precomputes the cumulative coin ladder — see its computeEssencePerkCosts). The Optimizer
