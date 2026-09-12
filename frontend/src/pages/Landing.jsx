@@ -163,8 +163,32 @@ export default function Landing() {
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
+  // The potion tile's own menu. A native <select> gave keyboard and screen-reader behaviour for
+  // free but rendered an OS popup that looked nothing like the rest of the GUI, so this is a real
+  // listbox instead — the a11y contract is reimplemented below rather than dropped.
+  const [potionMenuOpen, setPotionMenuOpen] = useState(false);
+  const [potionMenuIndex, setPotionMenuIndex] = useState(0);
+  const potionMenuRef = useRef(null);
   const [showArmorOptions, setShowArmorOptions] = useState(false);
   const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
+
+  // Close the potion menu on an outside click or Escape — the two things a native <select> did
+  // that a div does not.
+  useEffect(() => {
+    if (!potionMenuOpen) return undefined;
+    const onPointerDown = (e) => {
+      if (!potionMenuRef.current?.contains(e.target)) setPotionMenuOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setPotionMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [potionMenuOpen]);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
   const [costResult, setCostResult] = useState(null);
   // Whether any currently-selected target is Mythological-typed — Challenger's/Mythos' doubled-stat
@@ -943,13 +967,89 @@ export default function Landing() {
               ? '+Spider Egg'
               : 'God Potion';
         const potionTooltip = dungeonPotion ? getDungeonPotionTooltipLines(hasJellyfishPet) : getGodPotionTooltipLines(godPotionMixin);
+        const potionOptions = dungeonPotion
+          ? [
+              { value: 'off', label: 'Off' },
+              { value: 'on', label: `Dungeon Potion (${potionTier.label})` },
+            ]
+          : [
+              { value: 'off', label: 'Off' },
+              { value: 'on', label: 'God Potion' },
+              { value: 'spider_egg', label: '+Spider Egg' },
+            ];
+        const applyPotionValue = (next) => {
+          setGodPotionActive(next !== 'off');
+          setGodPotionMixin(next === 'spider_egg' ? 'spider_egg' : 'none');
+          setPotionMenuOpen(false);
+        };
+        const openPotionMenu = () => {
+          setPotionMenuIndex(Math.max(0, potionOptions.findIndex((o) => o.value === potionValue)));
+          setPotionMenuOpen(true);
+        };
+        const onPotionKeyDown = (e) => {
+          if (!potionMenuOpen) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              openPotionMenu();
+            }
+            return;
+          }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const step = e.key === 'ArrowDown' ? 1 : -1;
+            setPotionMenuIndex((i) => (i + step + potionOptions.length) % potionOptions.length);
+          } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            applyPotionValue(potionOptions[potionMenuIndex].value);
+          }
+        };
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${godPotionActive ? 'bg-green-400' : ''}`}
+            ref={potionMenuRef}
+            role="button"
+            tabIndex={0}
+            aria-haspopup="listbox"
+            aria-expanded={potionMenuOpen}
+            aria-label={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
+            onClick={() => (potionMenuOpen ? setPotionMenuOpen(false) : openPotionMenu())}
+            onKeyDown={onPotionKeyDown}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 focus:outline focus:outline-2 focus:outline-white ${godPotionActive ? 'bg-green-400' : ''}`}
             onMouseEnter={guardHover((e) => showTooltip(potionTooltip, e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
+            {/* Opens UPWARD: this tile is the bottom row of the grid, so a downward menu would
+                fall off the panel. Same bevelled chrome as every other GUI surface. */}
+            {potionMenuOpen && (
+              <ul
+                role="listbox"
+                aria-label={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
+                className={`${toolbar} absolute bottom-full left-0 mb-1 z-50 min-w-max py-0.5 flex flex-col cursor-default`}
+                onMouseEnter={guardHover(hideTooltip)}
+              >
+                {potionOptions.map((option, i) => {
+                  const selected = option.value === potionValue;
+                  return (
+                    <li
+                      key={option.value}
+                      role="option"
+                      aria-selected={selected}
+                      onMouseEnter={() => setPotionMenuIndex(i)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyPotionValue(option.value);
+                      }}
+                      className={`px-2 py-1 text-[10px] font-bold whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        i === potionMenuIndex ? 'bg-black/25 text-black' : 'text-black/80'
+                      }`}
+                    >
+                      <span className="w-2 shrink-0">{selected ? '✔' : ''}</span>
+                      {option.label}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {/* The Dungeon Potion has its own art; the God Potion still resolves through the
                 catalog icon lookup like every other real item id. */}
             {dungeonPotion ? (
@@ -969,22 +1069,6 @@ export default function Landing() {
             <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5 pointer-events-none">
               {potionLabel}
             </span>
-            <select
-              aria-label={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
-              value={potionValue}
-              onChange={(e) => {
-                const next = e.target.value;
-                setGodPotionActive(next !== 'off');
-                setGodPotionMixin(next === 'spider_egg' ? 'spider_egg' : 'none');
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer outline-none"
-            >
-              <option value="off">Off</option>
-              <option value="on">{dungeonPotion ? `Dungeon Potion (${potionTier.label})` : 'God Potion'}</option>
-              {/* The Spider Egg mixin is a God Potion thing only — no mixins on a Dungeon Potion. */}
-              {!dungeonPotion && <option value="spider_egg">+Spider Egg</option>}
-            </select>
           </div>,
         );
         continue;
