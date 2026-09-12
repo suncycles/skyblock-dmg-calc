@@ -97,8 +97,8 @@ function HeaderChip({ active, onClick, title, children }) {
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
-        active ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+      className={`px-1.5 py-0.5 text-[10px] font-bold normal-case rounded-sm cursor-pointer transition-colors ${
+        active ? 'bg-[#8fbf3f] text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]' : 'bg-black/10 text-black/60 hover:bg-black/20 hover:text-black/80'
       }`}
     >
       {children}
@@ -675,37 +675,26 @@ export default function OptimizerSidebar() {
               )}
               <span className="truncate">Recommended Upgrades</span>
             </span>
-            <div className="flex gap-1 justify-end" onMouseDown={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                onClick={() => setSortBy('increase')}
-                title="Highest raw % DPS increase"
-                className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
-                  sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
-                }`}
-              >
-                Increase
-              </button>
-              <button
-                type="button"
-                onClick={() => setSortBy('ratio')}
-                title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
-                className={`px-1 py-0.5 text-[8px] font-bold normal-case cursor-pointer ${
-                  sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
-                }`}
-              >
-                Value
-              </button>
+            <div className="flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()}>
+              <span className="text-[10px] font-bold normal-case text-black/55 shrink-0">Sort</span>
+              <div className="flex gap-1">
+                <HeaderChip active={sortBy === 'increase'} onClick={() => setSortBy('increase')} title="Highest raw % DPS increase">
+                  Increase
+                </HeaderChip>
+                <HeaderChip active={sortBy === 'ratio'} onClick={() => setSortBy('ratio')} title="Damage increase per coin — ranks candidates by DPS gained per coin spent">
+                  Value
+                </HeaderChip>
+              </div>
             </div>
           </div>
           {/* One-click apply is this panel's most useful feature and nothing said so — the rows read
               as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
               the app means "remove this item". */}
-          <div className="text-[10px] text-neutral-700">Click a row to equip it · ✕ hides a suggestion</div>
+          <div className="text-[11px] text-black/70">Click a row to equip it · ✕ hides a suggestion</div>
           {/* Which figure the rows carry. Both can be on at once; turning both off leaves the rows
               as name-and-cost only, which is a legitimate way to read the list purely by rank. */}
-          <div className="flex items-center gap-1 text-[10px] text-neutral-700">
-            <span className="mr-0.5">Show</span>
+          <div className="flex items-center gap-1.5 text-[11px] text-black/70">
+            <span className="font-bold text-black/55 shrink-0">Show</span>
             <HeaderChip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % DPS increase on each row">
               % increase
             </HeaderChip>
@@ -715,9 +704,17 @@ export default function OptimizerSidebar() {
           </div>
           {/* Free upgrades (reforges you already own the stone for, Skill levels) are hidden by
               default and counted here, so they're discoverable without crowding the buy list. */}
-          <label className="flex items-center gap-1.5 text-[10px] text-neutral-700 cursor-pointer">
-            <input type="checkbox" checked={showFree} onChange={(e) => setShowFree(e.target.checked)} className="cursor-pointer" />
-            <span>Show 0-cost upgrades{freeCount > 0 && ` (${freeCount})`}</span>
+          <label className="flex items-center gap-1.5 text-[11px] font-bold text-black/75 cursor-pointer hover:text-black">
+            <input
+              type="checkbox"
+              checked={showFree}
+              onChange={(e) => setShowFree(e.target.checked)}
+              className="w-3.5 h-3.5 accent-[#8fbf3f] cursor-pointer shrink-0"
+            />
+            <span>
+              Show 0-cost upgrades
+              {freeCount > 0 && <span className="ml-1 px-1 rounded-sm bg-black/15 text-black/70 font-mono">{freeCount}</span>}
+            </span>
           </label>
           {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
               a tooltip or a footnote. The ranking is a single-swap search against the current build,
@@ -780,22 +777,27 @@ export default function OptimizerSidebar() {
 
         {state.status === 'ok' && (
           <div className={`${panel} p-1.5 flex flex-col gap-1.5`}>
+            {/* Unpicked chips used to be white text on a 12%-black fill — white on near-white, so
+                the filter read as a row of blank slabs. Each now keeps its own category colour as a
+                left stripe and a tinted fill whatever its state, with dark text, so the row is
+                legible before you touch it and a picked chip still reads unmistakably as picked. */}
             {availableCategories.length > 1 && (
               <div className="flex flex-wrap items-center gap-1">
+                <span className="text-[10px] font-bold text-black/55 shrink-0 mr-0.5">Filter</span>
                 {availableCategories.map((category) => {
-                  const active = selectedCategories.size === 0 || selectedCategories.has(category);
+                  const picked = selectedCategories.has(category);
+                  const color = CATEGORY_COLORS[category] || '#777777';
                   return (
                     <button
                       key={category}
                       type="button"
+                      aria-pressed={picked}
                       onClick={() => toggleCategory(category)}
-                      title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
-                      className="px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide normal-case cursor-pointer transition-opacity"
-                      style={{
-                        color: '#fff',
-                        backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
-                        opacity: active ? 1 : 0.5,
-                      }}
+                      title={picked ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
+                      className={`pl-1 pr-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide normal-case cursor-pointer rounded-sm border-l-[3px] transition-colors ${
+                        picked ? 'text-white' : 'text-black/70 hover:text-black'
+                      }`}
+                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(0,0,0,0.08)' }}
                     >
                       {category}
                     </button>
@@ -805,7 +807,7 @@ export default function OptimizerSidebar() {
                   <button
                     type="button"
                     onClick={() => setSelectedCategories(new Set())}
-                    className="px-1 py-0.5 text-[8px] font-bold uppercase text-neutral-700 hover:text-black cursor-pointer underline"
+                    className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-black/60 hover:text-black cursor-pointer underline"
                   >
                     Clear
                   </button>
