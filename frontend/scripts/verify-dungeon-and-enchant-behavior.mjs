@@ -117,34 +117,34 @@ try {
     assert.equal(finalDamage.selectBaseStats(sources, true, true, null).damage, 200, 'Dungeon on + Master Mode on -> full Master Star total');
   });
 
-  // 4. An item's own `modifiers.dungeonized` flag must come ONLY from Hypixel's real per-item
-  // ExtraAttributes.dungeon_item flag — never inferred from the catalog's "DUNGEON" category
-  // prefix (marks gear ELIGIBLE to be Dungeonized, not that this owned copy actually is) and never
-  // from masterStars>0 either (disproved against sammui's real Necron's Leggings: 4 real Master
-  // Stars alongside a real `dungeonized: false`). Both were unverified assumptions that inflated a
-  // fresh/un-dungeonized item's stats with the 10%/star Catacombs Boost even with the Dungeon
-  // toggle off.
-  await check('per-item dungeonized flag trusts only the real NBT flag', () => {
-    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', dungeonized: false }), false, 'a real, un-dungeonized copy must resolve to false');
+  // 4. How an item's own `modifiers.dungeonized` flag is decided. The rule has been wrong in both
+  // directions: it once inferred dungeonized from the "DUNGEON" category alone (inflating a fresh
+  // item's stats with the 10%/star Catacombs Boost), then over-corrected to trusting only
+  // ExtraAttributes.dungeon_item — which turns out not to be written for dungeon armour or
+  // equipment AT ALL, so nothing imported as dungeonized (user-reported 2026-09-11). What settles
+  // it now, in order: the NBT flag (still real on weapons), an explicit list of pieces that come
+  // pre-dungeonized in game, a STARRED_ id, and finally stars on a DUNGEON-category piece.
+  await check('per-item dungeonized flag uses every real signal', () => {
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', dungeonized: true }), true, 'a real dungeonized copy must resolve to true');
+    // Necron's/Maxor's/Storm's/Goldor's, Shadow Assassin, Spirit/Bonzo Mask, Bone Necklace,
+    // Shadow Assassin Cloak, Adaptive Belt and Soulweaver Gloves all come pre-dungeonized
+    // (user-confirmed 2026-09-11), so they need no per-copy evidence at all — not even stars.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', stars: 0 }), true, "Necron's is pre-dungeonized");
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SPEED_WITHER_BOOTS', stars: 0 }), true, "Maxor's is pre-dungeonized");
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BONZO_MASK', stars: 0 }), true, 'Bonzo Mask is pre-dungeonized');
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SOULWEAVER_GLOVES', stars: 0 }), true, 'Soulweaver Gloves are pre-dungeonized');
+    // A DUNGEON-category piece NOT on that list still needs real evidence — the category marks
+    // gear as eligible, and a crafted-but-unconverted copy is a real thing.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BOUNCY_BOOTS', stars: 0 }, { category: 'DUNGEON BOOTS' }), false, 'category alone is not proof');
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BOUNCY_BOOTS', stars: 5 }, { category: 'DUNGEON BOOTS' }), true, 'stars on dungeon gear are');
     // Gear-Score tiered-stat items (mob-drop-only, no non-dungeon variant) are always dungeonized
     // even when the real per-copy NBT has no `dungeon_item` key at all — see the 2026-09-03 fix
     // comment above resolveDungeonizedFlag.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SKELETON_MASTER_CHESTPLATE', dungeonized: false }), true, 'a tiered-stat item must resolve dungeonized even without the NBT flag');
 
-    // 2026-09-11: real dungeon armor/equipment carries NO dungeon_item key at all — decoded live
-    // from sammui's Necron's Leggings, Starred Spirit Mask, Starred Bone Necklace and the rest,
-    // every one of which has `upgrade_level` and no `dungeon_item`. So stars on a DUNGEON-category
-    // item are the proof instead (you cannot star a piece without dungeonizing it first)...
-    const legs = { id: 'POWER_WITHER_LEGGINGS', dungeonized: false, stars: 10 };
-    assert.equal(hypixelImport.resolveDungeonizedFlag(legs, { category: 'DUNGEON LEGGINGS' }), true, 'stars on dungeon armor prove it');
-    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SOULWEAVER_GLOVES', stars: 5 }, { category: 'DUNGEON GLOVES' }), true, 'equipment too');
-    // ...and the category on its own still is NOT proof, which was the whole point of the earlier
-    // finding: a crafted-but-never-converted piece is a real thing.
-    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', stars: 0 }, { category: 'DUNGEON LEGGINGS' }), false, 'category alone is not proof');
-    // A STARRED_ id IS the dungeonized form, so it needs no stars to qualify.
-    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'STARRED_BONE_NECKLACE', stars: 0 }), true, 'a STARRED_ id is already the dungeon form');
-    // Kuudra armor also uses upgrade_level for its stars but is not dungeon gear — the category
+    // A STARRED_ id is a Master Mode drop — dungeon gear by definition, no stars needed.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'STARRED_BONE_NECKLACE', stars: 0 }), true, 'a STARRED_ id is dungeon gear');
+    // Kuudra armour also uses upgrade_level for its stars but is not dungeon gear — the category
     // gate is what keeps it out.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'INFERNAL_CRIMSON_CHESTPLATE', stars: 10 }, { category: 'CHESTPLATE' }), false, 'Kuudra stars are not dungeon stars');
   });
