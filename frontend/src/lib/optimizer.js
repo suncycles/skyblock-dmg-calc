@@ -939,8 +939,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
       MAX_VENOMOUS_STACKS,
     );
     const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
-    const elapsedSeconds = sim.totalHits != null ? sim.timeToKillSeconds : sim.hits.length / sim.meleeHitsPerSecond;
-    return { value: elapsedSeconds > 0 ? totalDealt / elapsedSeconds : 0, sources };
+    return { value: sim.elapsedSeconds > 0 ? totalDealt / sim.elapsedSeconds : 0, sources };
   }
 
   const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
