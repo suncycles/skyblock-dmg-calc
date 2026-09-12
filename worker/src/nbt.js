@@ -160,12 +160,12 @@ export function extractItemSummary(slotItem) {
     modifier: ea.modifier || null,
     recombobulated: !!ea.rarity_upgrades,
     stars: ea.upgrade_level || ea.dungeon_item_level || 0,
-    // Hypixel's real, authoritative "this specific copy is dungeonized" flag — independent of
-    // star count (a dungeonized item can sit at 0-5 base stars same as a normal one) and of the
-    // catalog's own category (only armor pieces that are ALWAYS dungeon drops get a "DUNGEON "
-    // category prefix baked in; weapons like Terminator/Flaming Flay never do). Confirmed live:
-    // `ExtraAttributes.dungeon_item === 1` on a dungeonized Terminator/Flaming Flay with 5 stars,
-    // where masterStars/category both give no signal. See lib/hypixelImport.js's consumer.
+    // Real on WEAPONS — `ExtraAttributes.dungeon_item === 1` on a dungeonized Terminator/Flaming
+    // Flay, which carry no "DUNGEON " category prefix and so have no other signal. It is NOT on
+    // dungeon armor or equipment at all: sammui's Necron's Leggings, Starred Spirit Mask, Starred
+    // Bone Necklace etc. have no such key (nor dungeon_item_level), only `upgrade_level`. Its
+    // absence therefore means nothing on its own — lib/hypixelImport.js's resolveDungeonizedFlag
+    // is where the full rule lives, and is the only thing that should be read as the answer.
     dungeonized: !!ea.dungeon_item,
     hotPotatoBooks: ea.hot_potato_count || 0,
     // Confirmed live (2026-08-25) against a real weapon with The Art of War applied:
