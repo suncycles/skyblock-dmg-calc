@@ -737,6 +737,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               // Venomous stacking and Execute ramping baked in, so subtracting a steady-state melee
               // figure out of it would be arithmetic across two different bases. Beam itself never
               // ramps (it doesn't scale with HP% or stacks), so there's nothing to simulate for it.
+              // Procs (Venomous/Thunderlord/Fire Aspect/Crimson Swipe) ride on a melee swing or a
+              // beam proc, never on an arrow (user-specified 2026-09-11).
+              const showProcs = dpsKind !== 'bow';
               let totalDps;
               if (dpsKind === 'beam') {
                 totalDps = dps.total - dps.melee + dps.beam;
@@ -791,10 +794,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             <span className="text-right font-mono">{Math.round(dps.duplexBonusDps).toLocaleString()}</span>
                           </>
                         )}
-                        {/* Proc rows are only shown when they're actually contributing — most loadouts
-                            don't have Venomous/Thunderlord/Fire Aspect/Crimson Swipe active, and a wall
-                            of "0" rows was just clutter (user-specified 2026-08-29). */}
-                        {dps.venomous > 0 && (
+                        {/* Procs belong to Melee and Beam only, never Bow (user-specified 2026-09-11)
+                            — `showProcs` gates all four, and the same rule has to hold when Bow DPS
+                            itself gets modelled, not just for these display rows.
+                            Within Melee/Beam they're still only shown when actually contributing:
+                            most loadouts have none of them active, and a wall of "0" rows was just
+                            clutter (user-specified 2026-08-29). */}
+                        {showProcs && dps.venomous > 0 && (
                           <>
                             <span>
                               Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)
@@ -805,19 +811,19 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             <span className="text-right font-mono">{Math.round(dps.venomous).toLocaleString()}</span>
                           </>
                         )}
-                        {dps.thunderlord > 0 && (
+                        {showProcs && dps.thunderlord > 0 && (
                           <>
                             <span>Thunderlord DPS ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
                             <span className="text-right font-mono">{Math.round(dps.thunderlord).toLocaleString()}</span>
                           </>
                         )}
-                        {dps.fireAspect > 0 && (
+                        {showProcs && dps.fireAspect > 0 && (
                           <>
                             <span>Fire Aspect DPS ({DPS_HITS_PER_SECOND.fireAspect}/s)</span>
                             <span className="text-right font-mono">{Math.round(dps.fireAspect).toLocaleString()}</span>
                           </>
                         )}
-                        {dps.crimsonSwipe > 0 && (
+                        {showProcs && dps.crimsonSwipe > 0 && (
                           <>
                             <span>Crimson Swipe DPS ({DPS_HITS_PER_SECOND.crimsonSwipe}/s)</span>
                             <span className="text-right font-mono">{Math.round(dps.crimsonSwipe).toLocaleString()}</span>
@@ -867,7 +873,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                           </span>
                           {/* Bow is a declared placeholder: its own real mechanics (draw time,
                               arrow type, Duplex volleys) aren't modelled yet, and reporting the
-                              melee number under a Bow heading would read as a finished answer. */}
+                              melee number under a Bow heading would read as a finished answer.
+                              When it is built, it carries NO procs — Venomous/Thunderlord/Fire
+                              Aspect/Crimson Swipe are melee-and-beam only (see showProcs). */}
                           {dpsKind === 'bow' ? (
                             <span className="text-sm font-bold text-neutral-600 italic">Not modelled yet</span>
                           ) : (
