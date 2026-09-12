@@ -2123,7 +2123,11 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
   // (evaluateStarsCandidates has always walked the same ['weapon', ...ARMOR_SLOTS] list) — so the
   // single most common real archer setup, a 5-star dungeonized bow with non-dungeon armour, got no
   // Master Star suggestions at all (user-reported 2026-09-10).
-  for (const slot of ['weapon', ...ARMOR_SLOTS]) {
+  // Equipment joins them (user-specified 2026-09-12): a Starred Bone Necklace or Shadow Assassin
+  // Cloak is DUNGEON-category gear sitting at 5 stars, so it already passes every gate below —
+  // isStarrableItem takes any DUNGEON category, and MASTER_STAR_MIN_BASE_STARS is explicitly not
+  // restricted to armour. Only this list was keeping the four slots out.
+  for (const slot of ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item || !isStarrableItem(equipped.item)) continue;
     // Master Stars only exist on a dungeonized copy — lib/itemStatTotals.js computes a masterStarred
