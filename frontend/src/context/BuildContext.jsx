@@ -37,6 +37,7 @@ const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
 const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const MAGE_MODE_KEY = 'hexMageMode';
 const DPS_MODE_KEY = 'hexDpsMode';
+const DPS_KIND_KEY = 'hexDpsKind';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 // Dungeon Blessings (lib/dungeonBlessing.js): the four per-run slider levels, the Paul checkbox,
@@ -125,6 +126,19 @@ function loadInitialMageMode() {
 // Damage Sources' Final Damage panel around per-second damage instead of a single per-hit number.
 function loadInitialDpsMode() {
   return localStorage.getItem(DPS_MODE_KEY) === 'true';
+}
+
+// Which damage output the DPS view reports. These are alternatives, not layers: a real loadout
+// swings a weapon OR fires a bow, and a Mage staff's Beam replaces the melee hit rather than
+// stacking on top of it (user-specified 2026-09-11). Beam used to be added into the melee total
+// whenever Mage Mode was on, which is exactly the conflation this separates.
+// 'bow' is a declared placeholder — selectable and labelled as unfinished, so the state exists to
+// build into without reporting a melee number under a bow heading in the meantime.
+export const DPS_KINDS = ['melee', 'beam', 'bow'];
+
+function loadInitialDpsKind() {
+  const stored = localStorage.getItem(DPS_KIND_KEY);
+  return DPS_KINDS.includes(stored) ? stored : 'melee';
 }
 
 // Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
@@ -482,6 +496,7 @@ export function BuildProvider({ children }) {
   const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
   const [mageMode, setMageModeState] = useState(loadInitialMageMode);
   const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
+  const [dpsKind, setDpsKindState] = useState(loadInitialDpsKind);
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [blessing, setBlessingState] = useState(loadInitialBlessing);
@@ -747,6 +762,12 @@ export function BuildProvider({ children }) {
       localStorage.setItem(MAGE_MODE_KEY, String(next));
       return next;
     });
+  }, []);
+
+  const setDpsKind = useCallback((kind) => {
+    const next = DPS_KINDS.includes(kind) ? kind : 'melee';
+    setDpsKindState(next);
+    localStorage.setItem(DPS_KIND_KEY, next);
   }, []);
 
   const toggleDpsMode = useCallback(() => {
@@ -1474,6 +1495,9 @@ export function BuildProvider({ children }) {
 
     setDpsModeState(!!state.dpsMode);
     localStorage.setItem(DPS_MODE_KEY, String(!!state.dpsMode));
+    const nextDpsKind = DPS_KINDS.includes(state.dpsKind) ? state.dpsKind : 'melee';
+    setDpsKindState(nextDpsKind);
+    localStorage.setItem(DPS_KIND_KEY, nextDpsKind);
 
     const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
     setAttributesState(nextAttributes);
@@ -1568,6 +1592,8 @@ export function BuildProvider({ children }) {
         mageMode,
         toggleMageMode,
         dpsMode,
+        dpsKind,
+        setDpsKind,
         toggleDpsMode,
         attributes,
         setAttributeLevel,
