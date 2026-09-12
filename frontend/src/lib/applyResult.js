@@ -30,6 +30,7 @@ export function emptyApplyState(build) {
     loadout: build.loadout,
     playerStats: build.playerStats || {},
     godPotionActive: !!build.godPotionActive,
+    godPotionMixin: build.godPotionMixin || 'none',
     hasJellyfishPet: !!build.hasJellyfishPet,
     attributes: build.attributes || {},
     essencePerks: build.essencePerks || {},
@@ -153,6 +154,7 @@ const STEPS = {
   }),
 
   setGodPotionActive: (state, step) => ({ ...state, godPotionActive: !!step.value }),
+  setGodPotionMixin: (state, step) => ({ ...state, godPotionMixin: step.value }),
   setHasJellyfishPet: (state, step) => ({ ...state, hasJellyfishPet: !!step.value }),
   setPlayerLevel: (state, step) => ({ ...state, playerStats: { ...state.playerStats, [step.key]: step.value } }),
   setAttributeLevel: (state, step) => ({ ...state, attributes: { ...state.attributes, [step.id]: step.level } }),

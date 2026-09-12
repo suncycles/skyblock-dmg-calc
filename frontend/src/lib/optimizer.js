@@ -2442,20 +2442,63 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
   return results;
 }
 
-// The Dungeon Potion's two optimizer rows. Both only exist inside a dungeon, where the potion is
-// the Dungeon Potion rather than the God Potion (see lib/godPotion.js).
+// The potion rows. Which potion depends on the mode: inside a dungeon it's the Dungeon Potion,
+// outside it's the God Potion (see lib/godPotion.js) — never both, so the two branches are
+// exclusive rather than additive.
 //
-// "Drink Dungeon Pot" is free — a consumable you already carry — so it lands with the Skill levels
-// rather than competing on coins-per-percent. It is worth whatever tier the account can actually
-// reach, so on a Jellyfish owner it already prices the jump from nothing to Jellyfish VII.
+// Drinking is free in either case: a consumable you already carry, not a purchase, so it lands
+// with the Skill levels rather than competing on coins-per-percent. The drink row is always worth
+// whatever the account can actually reach, so on a Jellyfish owner it already prices the jump from
+// nothing straight to Jellyfish VII.
 //
-// "Jellyfish Pet" is the tier upgrade, and is deliberately measured potion-on in BOTH directions:
-// VII against Jellyfish VII (user-specified 2026-09-11). Measured against the plain baseline it
-// would read as the whole potion whenever the potion happened to be off, crediting the pet with a
-// gain that came from drinking. Priced as a level-100 Legendary, which is what petCosts holds.
-async function evaluateDungeonPotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
-  if (!modeConfig.useDungeonizedStats) return [];
+// The two UPGRADE rows — the Jellyfish pet, and the Spider Egg mixin — are deliberately measured
+// potion-on in BOTH directions (user-specified 2026-09-11 for the Jellyfish; the mixin follows the
+// same rule since it is the same shape of question). Against the plain baseline either would read
+// as the whole potion whenever the potion happened to be off, crediting an upgrade with a gain
+// that came from drinking.
+async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
   const results = [];
+  const relativeToPotionOn = async (over) => {
+    const withPot = { ...build, godPotionActive: true };
+    const before = await computeModeDamage(loadout, itemData, withPot, modeConfig, mob);
+    const after = await computeModeDamage(loadout, itemData, { ...withPot, ...over }, modeConfig, mob);
+    return { before, percentIncrease: before > 0 ? ((after - before) / before) * 100 : 0 };
+  };
+
+  if (!modeConfig.useDungeonizedStats) {
+    if (!build.godPotionActive) {
+      const value = await computeModeDamage(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
+      results.push({
+        category: 'Potion',
+        slot: 'accessory',
+        label: 'Use God Potion',
+        potionKind: 'drink',
+        value,
+        freeUpgrade: true,
+        apply: [{ type: 'setGodPotionActive', value: true }],
+      });
+    }
+    // The mixin is its own step up from a plain God Potion, and applies the potion too so clicking
+    // it from a potion-off build lands the whole thing rather than a mixin on nothing.
+    if (build.godPotionMixin !== 'spider_egg') {
+      const { percentIncrease } = await relativeToPotionOn({ godPotionMixin: 'spider_egg' });
+      if (percentIncrease > 0.001) {
+        results.push({
+          category: 'Potion',
+          slot: 'accessory',
+          label: 'Use Spider Egg Mixin',
+          potionKind: 'mixin',
+          percentIncrease,
+          value: baselineValue * (1 + percentIncrease / 100),
+          apply: [
+            { type: 'setGodPotionActive', value: true },
+            { type: 'setGodPotionMixin', value: 'spider_egg' },
+          ],
+        });
+      }
+    }
+    return results;
+  }
 
   if (!build.godPotionActive) {
     const value = await computeModeDamage(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
@@ -2471,10 +2514,7 @@ async function evaluateDungeonPotionCandidates(loadout, itemData, build, modeCon
   }
 
   if (!build.hasJellyfishPet) {
-    const withPot = { ...build, godPotionActive: true };
-    const atTier7 = await computeModeDamage(loadout, itemData, withPot, modeConfig, mob);
-    const atJellyfish = await computeModeDamage(loadout, itemData, { ...withPot, hasJellyfishPet: true }, modeConfig, mob);
-    const percentIncrease = atTier7 > 0 ? ((atJellyfish - atTier7) / atTier7) * 100 : 0;
+    const { percentIncrease } = await relativeToPotionOn({ hasJellyfishPet: true });
     if (percentIncrease > 0.001) {
       results.push({
         category: 'Potion',
@@ -2788,7 +2828,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluateDungeonPotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
+    evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
   ]);
 
   // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
@@ -2900,6 +2940,9 @@ export function applyOptimizerResult(build, result) {
       // actually take effect — same as every other swap-in step here.
       case 'setGodPotionActive':
         build.setGodPotionActive(step.value);
+        break;
+      case 'setGodPotionMixin':
+        build.setGodPotionMixin(step.value);
         break;
       case 'setHasJellyfishPet':
         build.setHasJellyfishPet(step.value);
