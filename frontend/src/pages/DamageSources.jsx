@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBuild } from '../context/BuildContext';
+import { useBuild , DPS_KINDS } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
 import {
@@ -175,6 +175,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     mageMode,
     toggleMageMode,
     dpsMode,
+    dpsKind,
+    setDpsKind,
     toggleDpsMode,
     attributes,
     miscStats,
@@ -605,6 +607,26 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
           >
             DPS
           </button>
+          {/* The three outputs are alternatives, not layers — see BuildContext's DPS_KINDS. Only
+              shown while the DPS view is on, since it says nothing about Final Damage. */}
+          {dpsMode && (
+            <div className={`${panel} flex items-center`} role="group" aria-label="DPS output">
+              {DPS_KINDS.map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setDpsKind(kind)}
+                  aria-pressed={dpsKind === kind}
+                  className={`px-3 py-2 text-sm font-bold cursor-pointer capitalize transition-[filter] ${
+                    dpsKind === kind ? 'text-black' : 'text-black/45 hover:text-black/70'
+                  }`}
+                >
+                  {kind}
+                  {kind === 'bow' && <span className="ml-1 text-[9px] font-normal align-super">WIP</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {!embedded && (
           <button
@@ -705,20 +727,27 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               // — same reason lib/optimizer.js's ranking metric switched to this (user-specified
               // 2026-09-01): computeDpsBreakdown prices Venomous at a permanent single stack, i.e.
               // literal first-hit conditions, understating it by up to 40x once stacks build.
-              let totalDps = dps.total;
-              if (sim?.hasRealHp) {
-                const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
-                const elapsedSeconds = sim.totalHits != null ? sim.timeToKillSeconds : sim.hits.length / sim.meleeHitsPerSecond;
-                if (elapsedSeconds > 0) totalDps = totalDealt / elapsedSeconds;
+              // Beam REPLACES the melee hit rather than stacking on top of it (user-specified
+              // 2026-09-11) — it used to be added into the melee total whenever Mage Mode was on,
+              // which double-counted a staff build. The procs (Venomous/Thunderlord/Fire Aspect/
+              // Crimson Swipe) stay either way: they fire per hit, whichever kind of hit it is.
+              //
+              // Beam reports the steady state rather than the simulated average, because the two
+              // aren't interchangeable terms: the simulation's number is a whole-fight average with
+              // Venomous stacking and Execute ramping baked in, so subtracting a steady-state melee
+              // figure out of it would be arithmetic across two different bases. Beam itself never
+              // ramps (it doesn't scale with HP% or stacks), so there's nothing to simulate for it.
+              let totalDps;
+              if (dpsKind === 'beam') {
+                totalDps = dps.total - dps.melee + dps.beam;
+              } else {
+                totalDps = dps.total;
+                if (sim?.hasRealHp) {
+                  const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
+                  const elapsedSeconds = sim.totalHits != null ? sim.timeToKillSeconds : sim.hits.length / sim.meleeHitsPerSecond;
+                  if (elapsedSeconds > 0) totalDps = totalDealt / elapsedSeconds;
+                }
               }
-              // Mage Beam fires alongside every melee hit (real mechanic, not Mage-Mode-specific
-              // in-game) — only added into this page's own Total DPS while Mage Mode is also
-              // toggled on, since that's when a staff/beam build's real damage output matters here
-              // (user-confirmed 2026-08-28). computeDpsBreakdown's own `total` deliberately excludes
-              // it, so every other DPS-mode consumer (Optimizer's Slayer/Diana/Dungeon-Archer
-              // metric, etc.) is unaffected. Beam isn't part of the hit-by-hit simulation above (it
-              // doesn't ramp with HP%/stacks), so it's still added as its own steady figure either way.
-              totalDps += mageMode ? dps.beam : 0;
               return (
                 <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                   <div className="flex items-center justify-between flex-wrap gap-1">
@@ -794,19 +823,20 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             <span className="text-right font-mono">{Math.round(dps.crimsonSwipe).toLocaleString()}</span>
                           </>
                         )}
-                        {mageMode && dps.beam > 0 && (
+                        {dpsKind === 'beam' && dps.beam > 0 && (
                           <>
                             <span>Mage Beam DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
                             <span className="text-right font-mono">{Math.round(dps.beam).toLocaleString()}</span>
                           </>
                         )}
                       </div>
-                      {mageMode && (
+                      {dpsKind === 'beam' && (
                         <div className="text-[10px] italic text-neutral-600">
-                          Total DPS includes Mage Beam damage, since Mage Mode is on.
+                          Total DPS counts Mage Beam in place of the {dps.isBowWeapon ? 'Arrow' : 'Melee'} hit, not on top of it — and
+                          reports the steady state rather than the fight average.
                         </div>
                       )}
-                      {sim?.hasRealHp && (
+                      {sim?.hasRealHp && dpsKind === 'melee' && (
                         <div className="text-[10px] italic text-neutral-600">
                           Total DPS is the real fight average (Venomous/Execute-Prosecute ramp up over
                           the fight) — the per-source lines above are a first-hit snapshot, so they
@@ -831,8 +861,18 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                           </div>
                         )}
                         <div className="flex items-baseline justify-between">
-                          <span className="text-sm font-bold text-black">Total DPS</span>
-                          <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
+                          <span className="text-sm font-bold text-black">
+                            Total DPS
+                            {dpsKind !== 'melee' && <span className="ml-1 font-normal capitalize text-neutral-600">({dpsKind})</span>}
+                          </span>
+                          {/* Bow is a declared placeholder: its own real mechanics (draw time,
+                              arrow type, Duplex volleys) aren't modelled yet, and reporting the
+                              melee number under a Bow heading would read as a finished answer. */}
+                          {dpsKind === 'bow' ? (
+                            <span className="text-sm font-bold text-neutral-600 italic">Not modelled yet</span>
+                          ) : (
+                            <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
+                          )}
                         </div>
                       </div>
                       {pickerOptions && (
