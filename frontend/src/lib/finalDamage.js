@@ -546,21 +546,51 @@ export const MELEE_HIT_RATE_BREAKPOINTS = [
   { threshold: 123, secondsPerHit: 0.2 },
 ];
 
+// A bow's own breakpoints — the same seven rates, reached at different Bonus Attack Speed
+// (user-specified 2026-09-11). They sit further apart than melee's, so an identical Attack Speed
+// stat fires noticeably slower from a bow: 82 is already 0.25s melee but still 0.3s drawn.
+// The 0.2s row is NOT dead despite the 100 cap below — a full Thermodynamic set raises that cap to
+// exactly 150, which is the only way to reach it, from either weapon.
+const BOW_SHOT_RATE_BREAKPOINTS = [
+  { threshold: 0, secondsPerHit: 0.5 },
+  { threshold: 12, secondsPerHit: 0.45 },
+  { threshold: 25, secondsPerHit: 0.4 },
+  { threshold: 43, secondsPerHit: 0.35 },
+  { threshold: 67, secondsPerHit: 0.3 },
+  { threshold: 100, secondsPerHit: 0.25 },
+  { threshold: 150, secondsPerHit: 0.2 },
+];
+
 // Bonus Attack Speed caps at 100, except the full 4-piece Thermodynamic Armor set raises it to 150.
+// Bows share this cap exactly (user-confirmed 2026-09-11) — only the breakpoints differ.
 const ATTACK_SPEED_CAP = 100;
 const THERMODYNAMIC_ATTACK_SPEED_CAP = 150;
 const THERMODYNAMIC_SET = ['THERMODYNAMIC_HELMET', 'THERMODYNAMIC_CHESTPLATE', 'THERMODYNAMIC_LEGGINGS', 'THERMODYNAMIC_BOOTS'];
 
-// Melee hits/second at a given Bonus Attack Speed — looked up from the real breakpoint table
-// above (not a continuous scale), capped before lookup.
-export function computeMeleeHitsPerSecond(bonusAttackSpeed, loadout) {
+function cappedAttackSpeed(bonusAttackSpeed, loadout) {
   const cap = hasFullSet(loadout, ARMOR_SLOTS, THERMODYNAMIC_SET) ? THERMODYNAMIC_ATTACK_SPEED_CAP : ATTACK_SPEED_CAP;
-  const clamped = Math.min(bonusAttackSpeed || 0, cap);
-  let secondsPerHit = MELEE_HIT_RATE_BREAKPOINTS[0].secondsPerHit;
-  for (const bp of MELEE_HIT_RATE_BREAKPOINTS) {
+  return Math.min(bonusAttackSpeed || 0, cap);
+}
+
+// Both rates are a table lookup, not a continuous scale: the value is whichever row's threshold the
+// capped Attack Speed has passed, so everything between two thresholds fires at the same rate.
+function ratePerSecond(breakpoints, clamped) {
+  let secondsPerHit = breakpoints[0].secondsPerHit;
+  for (const bp of breakpoints) {
     if (clamped >= bp.threshold) secondsPerHit = bp.secondsPerHit;
   }
   return 1 / secondsPerHit;
+}
+
+// Melee hits/second at a given Bonus Attack Speed — looked up from the real breakpoint table
+// above (not a continuous scale), capped before lookup.
+export function computeMeleeHitsPerSecond(bonusAttackSpeed, loadout) {
+  return ratePerSecond(MELEE_HIT_RATE_BREAKPOINTS, cappedAttackSpeed(bonusAttackSpeed, loadout));
+}
+
+// Bow shots/second — same cap, its own table.
+export function computeBowShotsPerSecond(bonusAttackSpeed, loadout) {
+  return ratePerSecond(BOW_SHOT_RATE_BREAKPOINTS, cappedAttackSpeed(bonusAttackSpeed, loadout));
 }
 
 // DPS Mode: turns each already-computed per-hit/per-proc damage number into damage-per-second by
@@ -663,8 +693,18 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   // (user-confirmed 2026-08-28), and notes as much on-screen.
   const beamProc = computeMageStaffBeamDamage(sources, mob, expectedArrowDamage, useDungeonizedStats, useMasterMode);
   const beam = beamProc.finalDamage * meleeHitsPerSecond;
+
+  // The same volley, fired at a bow's own rate rather than melee's (see BOW_SHOT_RATE_BREAKPOINTS).
+  // Deliberately carries NO procs — Venomous/Thunderlord/Fire Aspect/Crimson Swipe ride a melee
+  // swing or a beam, never an arrow (user-specified 2026-09-11) — so unlike `melee` this figure is
+  // the whole Bow DPS, not one term of a sum. Reported for every loadout; whether a bow is actually
+  // equipped is the caller's question to ask (see `isBowWeapon`).
+  const bowShotsPerSecond = computeBowShotsPerSecond(bonusAttackSpeed, loadout);
+  const bow = bowVolleyDamage * bowShotsPerSecond;
   return {
     melee,
+    bow,
+    bowShotsPerSecond,
     venomous,
     thunderlord,
     fireAspect,

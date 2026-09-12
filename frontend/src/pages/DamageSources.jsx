@@ -622,7 +622,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   }`}
                 >
                   {kind}
-                  {kind === 'bow' && <span className="ml-1 text-[9px] font-normal align-super">WIP</span>}
                 </button>
               ))}
             </div>
@@ -741,7 +740,11 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               // beam proc, never on an arrow (user-specified 2026-09-11).
               const showProcs = dpsKind !== 'bow';
               let totalDps;
-              if (dpsKind === 'beam') {
+              if (dpsKind === 'bow') {
+                // Bow DPS is the volley at a bow's own fire rate and nothing else — no procs, no
+                // simulation (it has no Venomous/Execute ramp to average over).
+                totalDps = dps.bow;
+              } else if (dpsKind === 'beam') {
                 totalDps = dps.total - dps.melee + dps.beam;
               } else {
                 totalDps = dps.total;
@@ -786,12 +789,23 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             (user-specified 2026-09-01). Duplex isn't a separate hit, just a
                             multiplier on this same volley, so its bonus is shown as its own line
                             broken back out of `melee` rather than double-counted. */}
-                        <span>{dps.isBowWeapon ? 'Arrow' : 'Melee'} DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
-                        <span className="text-right font-mono">{Math.round(dps.melee - dps.duplexBonusDps).toLocaleString()}</span>
+                        <span>
+                          {dpsKind === 'bow' ? 'Arrow' : dps.isBowWeapon ? 'Arrow' : 'Melee'} DPS (
+                          {round1(dpsKind === 'bow' ? dps.bowShotsPerSecond : dps.meleeHitsPerSecond)}/s)
+                        </span>
+                        <span className="text-right font-mono">
+                          {Math.round(
+                            dpsKind === 'bow' ? dps.bow - dps.duplexBonusDps * (dps.bowShotsPerSecond / dps.meleeHitsPerSecond) : dps.melee - dps.duplexBonusDps,
+                          ).toLocaleString()}
+                        </span>
                         {dps.duplexLevel > 0 && (
                           <>
-                            <span>Duplex DPS ({round1(dps.meleeHitsPerSecond)}/s)</span>
-                            <span className="text-right font-mono">{Math.round(dps.duplexBonusDps).toLocaleString()}</span>
+                            <span>Duplex DPS ({round1(dpsKind === 'bow' ? dps.bowShotsPerSecond : dps.meleeHitsPerSecond)}/s)</span>
+                            <span className="text-right font-mono">
+                              {Math.round(
+                                dpsKind === 'bow' ? dps.duplexBonusDps * (dps.bowShotsPerSecond / dps.meleeHitsPerSecond) : dps.duplexBonusDps,
+                              ).toLocaleString()}
+                            </span>
                           </>
                         )}
                         {/* Procs belong to Melee and Beam only, never Bow (user-specified 2026-09-11)
@@ -871,13 +885,12 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             Total DPS
                             {dpsKind !== 'melee' && <span className="ml-1 font-normal capitalize text-neutral-600">({dpsKind})</span>}
                           </span>
-                          {/* Bow is a declared placeholder: its own real mechanics (draw time,
-                              arrow type, Duplex volleys) aren't modelled yet, and reporting the
-                              melee number under a Bow heading would read as a finished answer.
-                              When it is built, it carries NO procs — Venomous/Thunderlord/Fire
-                              Aspect/Crimson Swipe are melee-and-beam only (see showProcs). */}
-                          {dpsKind === 'bow' ? (
-                            <span className="text-sm font-bold text-neutral-600 italic">Not modelled yet</span>
+                          {/* Bow DPS is real now (its own Attack Speed breakpoints, no procs — see
+                              finalDamage.js), but only means anything with a bow actually equipped:
+                              the same volley fired at bow rates off a sword build is a number for a
+                              loadout nobody has. */}
+                          {dpsKind === 'bow' && !dps.isBowWeapon ? (
+                            <span className="text-sm font-bold text-neutral-600 italic">No bow equipped</span>
                           ) : (
                             <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
                           )}

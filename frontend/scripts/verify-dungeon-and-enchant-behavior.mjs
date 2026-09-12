@@ -836,6 +836,48 @@ try {
     assert.equal(canApplyPurely({ apply: [{ type: 'selectItem', slot: 'weapon', item: bow }] }), true);
     assert.equal(canApplyPurely({ apply: [{ type: 'setOwnedAccessory', id: 'X', tier: 'RARE' }] }), false);
   });
+  // 31. A bow's fire rate uses its own Attack Speed breakpoints, reached later than melee's, but
+  // shares melee's cap exactly (user-specified 2026-09-11). Both tables are pinned here because
+  // both are user-supplied game data: 0.5s to 0-11, 0.45s to 12-24, 0.4s to 25-42, 0.35s to 43-66,
+  // 0.3s to 67-99, 0.25s to 100-149, 0.2s to 150+.
+  await check('Bow fire rate has its own breakpoints under the shared cap', () => {
+    const { computeBowShotsPerSecond, computeMeleeHitsPerSecond } = finalDamage;
+    const bare = {};
+    const rate = (as) => Number(computeBowShotsPerSecond(as, bare).toFixed(3));
+
+    // Each row holds from its own threshold up to one below the next — a lookup, not a curve.
+    assert.equal(rate(0), 2, '0 is 0.5s per shot');
+    assert.equal(rate(11), 2, '11 is still 0.5s');
+    assert.equal(rate(12), Number((1 / 0.45).toFixed(3)), '12 crosses to 0.45s');
+    assert.equal(rate(24), Number((1 / 0.45).toFixed(3)));
+    assert.equal(rate(25), 2.5, '25 crosses to 0.4s');
+    assert.equal(rate(42), 2.5);
+    assert.equal(rate(43), Number((1 / 0.35).toFixed(3)), '43 crosses to 0.35s');
+    assert.equal(rate(66), Number((1 / 0.35).toFixed(3)));
+    assert.equal(rate(67), Number((1 / 0.3).toFixed(3)), '67 crosses to 0.3s');
+    assert.equal(rate(99), Number((1 / 0.3).toFixed(3)));
+    assert.equal(rate(100), 4, '100 crosses to 0.25s');
+
+    // The cap is 100, so nothing past it moves the rate...
+    assert.equal(rate(149), 4, 'Attack Speed is capped at 100');
+    assert.equal(rate(10000), 4, 'and the cap is a clamp, not a bug to overflow past');
+
+    // ...which makes the 0.2s row reachable only through Thermodynamic's raised 150 cap — the one
+    // real exception, and the same one melee already has.
+    const thermo = {
+      helmet: { item: { id: 'THERMODYNAMIC_HELMET' } },
+      chestplate: { item: { id: 'THERMODYNAMIC_CHESTPLATE' } },
+      leggings: { item: { id: 'THERMODYNAMIC_LEGGINGS' } },
+      boots: { item: { id: 'THERMODYNAMIC_BOOTS' } },
+    };
+    assert.equal(Number(computeBowShotsPerSecond(150, thermo).toFixed(3)), 5, 'Thermodynamic reaches 0.2s');
+    assert.equal(Number(computeBowShotsPerSecond(149, thermo).toFixed(3)), 4, 'one short of it does not');
+
+    // The whole point of a separate table: the same stat fires slower from a bow. At 82 a melee
+    // weapon is already at 0.25s while a bow is still at 0.3s.
+    assert.equal(Number(computeMeleeHitsPerSecond(82, bare).toFixed(3)), 4);
+    assert.equal(rate(82), Number((1 / 0.3).toFixed(3)), 'the same Attack Speed is slower on a bow');
+  });
 } finally {
   await server.close();
 }
