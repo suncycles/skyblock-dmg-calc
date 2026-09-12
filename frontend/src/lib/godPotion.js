@@ -34,6 +34,43 @@ export function godPotionMixinCritDamage(mixin) {
   return GOD_POTION_MIXINS[mixin]?.critDamage || 0;
 }
 
+// Inside a dungeon the God Potion is replaced outright by the Dungeon Potion — not stacked with
+// it, and not a scaled version of it: different stats, and weaker across the board except that the
+// arrow bonus survives (user-specified 2026-09-11). Two tiers, and which one applies is decided by
+// whether the account owns a Jellyfish pet rather than by anything the player drinks.
+export const DUNGEON_POTION_TIERS = {
+  tier7: { label: 'Tier VII', strength: 40, critChance: 20, critDamage: 30, arrowDamage: 50 },
+  jellyfish: { label: 'Jellyfish VII', strength: 60, critChance: 30, critDamage: 45, arrowDamage: 75 },
+};
+
+// The tier the player actually gets. Ownership, not the equipped pet: a Jellyfish sitting in the
+// pet menu still upgrades the potion, so this must not read loadout.pet.
+export function dungeonPotionTierKey(hasJellyfishPet) {
+  return hasJellyfishPet ? 'jellyfish' : 'tier7';
+}
+
+export function dungeonPotionEffects(hasJellyfishPet) {
+  return DUNGEON_POTION_TIERS[dungeonPotionTierKey(hasJellyfishPet)];
+}
+
+export function getDungeonPotionTooltipLines(hasJellyfishPet) {
+  const tier = dungeonPotionEffects(hasJellyfishPet);
+  const lines = [
+    '§b§lDungeon Potion',
+    `§7${tier.label}${hasJellyfishPet ? '' : ' §8(a Jellyfish pet upgrades this)'}`,
+    '',
+    `§7Strength: §c+${tier.strength}`,
+    `§7Crit Chance: §9+${tier.critChance}%`,
+    `§7Crit Damage: §9+${tier.critDamage}%`,
+    `§7Bow Damage: §a+${tier.arrowDamage}% §7(bow equipped only)`,
+  ];
+  if (!hasJellyfishPet) {
+    const jelly = DUNGEON_POTION_TIERS.jellyfish;
+    lines.push('', `§8With a Jellyfish pet: §7+${jelly.strength} Str, +${jelly.critChance}% CC, +${jelly.critDamage}% CD, +${jelly.arrowDamage}% bow`);
+  }
+  return lines;
+}
+
 const BOW_CATEGORIES = new Set(['BOW', 'DUNGEON BOW']);
 
 export function isBowEquipped(loadout) {

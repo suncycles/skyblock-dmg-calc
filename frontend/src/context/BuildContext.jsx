@@ -38,6 +38,7 @@ const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const MAGE_MODE_KEY = 'hexMageMode';
 const DPS_MODE_KEY = 'hexDpsMode';
 const DPS_KIND_KEY = 'hexDpsKind';
+const HAS_JELLYFISH_PET_KEY = 'hexHasJellyfishPet';
 const ATTRIBUTES_KEY = 'hexAttributes';
 const MISC_STATS_KEY = 'hexMiscStats';
 // Dungeon Blessings (lib/dungeonBlessing.js): the four per-run slider levels, the Paul checkbox,
@@ -497,6 +498,8 @@ export function BuildProvider({ children }) {
   const [mageMode, setMageModeState] = useState(loadInitialMageMode);
   const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
   const [dpsKind, setDpsKindState] = useState(loadInitialDpsKind);
+  // Pet OWNERSHIP, not the equipped pet — it upgrades the Dungeon Potion's tier from the menu.
+  const [hasJellyfishPet, setHasJellyfishPetState] = useState(() => localStorage.getItem(HAS_JELLYFISH_PET_KEY) === 'true');
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [blessing, setBlessingState] = useState(loadInitialBlessing);
@@ -762,6 +765,11 @@ export function BuildProvider({ children }) {
       localStorage.setItem(MAGE_MODE_KEY, String(next));
       return next;
     });
+  }, []);
+
+  const setHasJellyfishPet = useCallback((value) => {
+    setHasJellyfishPetState(!!value);
+    localStorage.setItem(HAS_JELLYFISH_PET_KEY, String(!!value));
   }, []);
 
   const setDpsKind = useCallback((kind) => {
@@ -1606,6 +1614,8 @@ export function BuildProvider({ children }) {
         dpsMode,
         dpsKind,
         setDpsKind,
+        hasJellyfishPet,
+        setHasJellyfishPet,
         toggleDpsMode,
         attributes,
         setAttributeLevel,

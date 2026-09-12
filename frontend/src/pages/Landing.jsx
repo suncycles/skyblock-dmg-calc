@@ -19,7 +19,7 @@ import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { getMobModelIcon, getMobIconDataUri } from '../lib/mobIcons';
-import { getGodPotionTooltipLines } from '../lib/godPotion';
+import { getGodPotionTooltipLines, getDungeonPotionTooltipLines, dungeonPotionEffects } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { formatItemName, rarityGlowFilter } from '../lib/mcText';
 import { getDisplayTier } from '../lib/recombobulator';
@@ -107,6 +107,7 @@ export default function Landing() {
     godPotionActive,
     godPotionMixin,
     useDungeonizedStats,
+    hasJellyfishPet,
     useMasterMode,
     mageMode,
     setGodPotionActive,
@@ -919,36 +920,48 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-left: God Potion — a dropdown (Off / God Potion / +Mixin) rather than a plain on/off
-      // toggle, so a real Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) can be selected alongside
-      // turning the potion on. The <select> is a transparent overlay across the WHOLE tile rather
-      // than a strip along its bottom edge (user-specified 2026-09-10): the strip was an ~8px
-      // target on a tile that otherwise looks entirely clickable, so most of the tile did nothing.
-      // Still a real native <select>, so the picker, keyboard and screen readers all behave as they
-      // did — only the hit area changed. The caption below stays as the visible state readout and
-      // is pointer-events-none so it never eats the click.
+      // Bottom-left: the potion. Which potion depends on the Dungeon toggle — inside a dungeon it
+      // is the Dungeon Potion, a different set of effects with no mixin (see lib/godPotion.js), so
+      // the tile relabels rather than pretending one potion covers both.
+      //
+      // Styled exactly like every other tile in the grid: the same bottom-anchored white label with
+      // a drop shadow, not the black caption bar it used to carry, which was the one slot in the
+      // GUI with a solid strip across it. The <select> stays a transparent full-tile overlay, so
+      // the picker, keyboard and screen readers behave as they did (user-specified 2026-09-10) —
+      // only the chrome changed.
       if (col === 0 && row === 5) {
-        const godPotionValue = !godPotionActive ? 'off' : godPotionMixin === 'spider_egg' ? 'spider_egg' : 'on';
-        const godPotionLabel = { off: 'Off', on: 'God Potion', spider_egg: '+Spider Egg' }[godPotionValue];
+        const dungeonPotion = useDungeonizedStats;
+        const potionValue = !godPotionActive ? 'off' : godPotionMixin === 'spider_egg' ? 'spider_egg' : 'on';
+        const potionTier = dungeonPotionEffects(hasJellyfishPet);
+        const potionLabel = !godPotionActive
+          ? dungeonPotion
+            ? 'Dungeon Pot'
+            : 'God Potion'
+          : dungeonPotion
+            ? potionTier.label
+            : potionValue === 'spider_egg'
+              ? '+Spider Egg'
+              : 'God Potion';
+        const potionTooltip = dungeonPotion ? getDungeonPotionTooltipLines(hasJellyfishPet) : getGodPotionTooltipLines(godPotionMixin);
         cells.push(
           <div
             key={key}
-            className={`${slotBase} relative flex-col cursor-pointer ${godPotionActive ? 'bg-green-400' : ''}`}
-            onMouseEnter={guardHover((e) => showTooltip(getGodPotionTooltipLines(godPotionMixin), e.currentTarget))}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${godPotionActive ? 'bg-green-400' : ''}`}
+            onMouseEnter={guardHover((e) => showTooltip(potionTooltip, e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
             <WeaponIcon
-              id="GOD_POTION"
+              id={dungeonPotion ? 'DUNGEON_POTION' : 'GOD_POTION'}
               material="POTION"
-              alt="God Potion"
-              className={`${iconImg} flex-1 min-h-0 ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
+              alt={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
+              className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
             />
-            <span className="w-full shrink-0 px-0.5 text-[8px] leading-tight text-center text-white truncate bg-black/70 border-t border-black/40 pointer-events-none">
-              {godPotionLabel}
+            <span className="absolute bottom-0.5 left-0 right-0 text-center text-[8px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] truncate px-0.5 pointer-events-none">
+              {potionLabel}
             </span>
             <select
-              aria-label="God Potion"
-              value={godPotionValue}
+              aria-label={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
+              value={potionValue}
               onChange={(e) => {
                 const next = e.target.value;
                 setGodPotionActive(next !== 'off');
@@ -958,8 +971,9 @@ export default function Landing() {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer outline-none"
             >
               <option value="off">Off</option>
-              <option value="on">God Potion</option>
-              <option value="spider_egg">+Spider Egg</option>
+              <option value="on">{dungeonPotion ? `Dungeon Potion (${potionTier.label})` : 'God Potion'}</option>
+              {/* The Spider Egg mixin is a God Potion thing only — no mixins on a Dungeon Potion. */}
+              {!dungeonPotion && <option value="spider_egg">+Spider Egg</option>}
             </select>
           </div>,
         );
