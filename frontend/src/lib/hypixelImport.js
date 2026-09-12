@@ -325,8 +325,31 @@ const SPECIAL_LORE_LABELS = {
 // dungeonized regardless of that NBT flag. Extracted to its own function (rather than inlined in
 // buildItemModifiers below) so scripts/verify-dungeon-and-enchant-behavior.mjs can
 // regression-test this exact expression directly.
-export function resolveDungeonizedFlag(summary) {
-  return !!summary.dungeonized || isTieredArmorStatItem(summary.id);
+// Bug fix 2026-09-11: `dungeon_item` turns out not to exist AT ALL on real dungeon armor and
+// equipment any more. Decoded from sammui's live NBT — Starred Spirit Mask, Skeleton Master
+// Chestplate, Necron's Leggings/Boots, Starred Bone Necklace/Shadow Assassin Cloak/Adaptive Belt,
+// Soulweaver Gloves — not one carries the key, nor `dungeon_item_level`; every one carries
+// `upgrade_level` (5 or 10) instead. So the flag's absence was never evidence of anything, and the
+// earlier "disproved against Necron's Leggings: 4 Master Stars alongside a real dungeonized:false"
+// reading was reading a missing key as a negative answer. It still fires for weapons (a dungeonized
+// Terminator/Flaming Flay really does set it), which is why it stays first.
+//
+// The two signals that ARE real, both checked against that same live NBT:
+//  - a `STARRED_` id IS the dungeonized form of the item (Bone Necklace -> Starred Bone Necklace);
+//  - stars on a DUNGEON-category item, since starring requires dungeonizing first.
+// The category ALONE is still not enough, exactly as the 2026-09-02 note said — it marks gear as
+// eligible, and a crafted-but-never-converted Necron's Leggings is a real thing. Pairing it with a
+// real star count is what makes it proof. Known gap: a dungeonized piece sitting at 0 stars with a
+// non-STARRED id is indistinguishable from an unconverted one and still reads false.
+const DUNGEON_CATEGORY_PREFIX = 'DUNGEON ';
+const STARRED_ID_PREFIX = 'STARRED_';
+
+export function resolveDungeonizedFlag(summary, item) {
+  if (summary.dungeonized) return true;
+  if (isTieredArmorStatItem(summary.id)) return true;
+  if (String(summary.id || '').startsWith(STARRED_ID_PREFIX)) return true;
+  const isDungeonCategory = String(item?.category || '').toUpperCase().startsWith(DUNGEON_CATEGORY_PREFIX);
+  return isDungeonCategory && (summary.stars || 0) > 0;
 }
 
 async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
@@ -359,7 +382,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     // the real Art of Peace armor bonus.
     stars,
     masterStars,
-    dungeonized: resolveDungeonizedFlag(summary),
+    dungeonized: resolveDungeonizedFlag(summary, item),
     // Real per-copy Gear-Score data (see nbt.js) — only meaningful for the handful of tiered-stat
     // items lib/tieredArmorStats.js models, harmless/unused otherwise.
     itemTier: summary.itemTier || null,

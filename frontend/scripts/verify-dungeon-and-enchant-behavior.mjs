@@ -131,6 +131,22 @@ try {
     // even when the real per-copy NBT has no `dungeon_item` key at all — see the 2026-09-03 fix
     // comment above resolveDungeonizedFlag.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SKELETON_MASTER_CHESTPLATE', dungeonized: false }), true, 'a tiered-stat item must resolve dungeonized even without the NBT flag');
+
+    // 2026-09-11: real dungeon armor/equipment carries NO dungeon_item key at all — decoded live
+    // from sammui's Necron's Leggings, Starred Spirit Mask, Starred Bone Necklace and the rest,
+    // every one of which has `upgrade_level` and no `dungeon_item`. So stars on a DUNGEON-category
+    // item are the proof instead (you cannot star a piece without dungeonizing it first)...
+    const legs = { id: 'POWER_WITHER_LEGGINGS', dungeonized: false, stars: 10 };
+    assert.equal(hypixelImport.resolveDungeonizedFlag(legs, { category: 'DUNGEON LEGGINGS' }), true, 'stars on dungeon armor prove it');
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SOULWEAVER_GLOVES', stars: 5 }, { category: 'DUNGEON GLOVES' }), true, 'equipment too');
+    // ...and the category on its own still is NOT proof, which was the whole point of the earlier
+    // finding: a crafted-but-never-converted piece is a real thing.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', stars: 0 }, { category: 'DUNGEON LEGGINGS' }), false, 'category alone is not proof');
+    // A STARRED_ id IS the dungeonized form, so it needs no stars to qualify.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'STARRED_BONE_NECKLACE', stars: 0 }), true, 'a STARRED_ id is already the dungeon form');
+    // Kuudra armor also uses upgrade_level for its stars but is not dungeon gear — the category
+    // gate is what keeps it out.
+    assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'INFERNAL_CRIMSON_CHESTPLATE', stars: 10 }, { category: 'CHESTPLATE' }), false, 'Kuudra stars are not dungeon stars');
   });
 
   // Real, live-captured Necron's Leggings lore (sammui, 2026-09-02) — used below to pin down that
