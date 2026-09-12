@@ -580,20 +580,37 @@ const MAGE_EQUIPMENT_PROGRESSION = {
   belt: [[{ id: 'IMPLOSION_BELT' }]],
 };
 
-// Dungeon/Mage Beam's own equipment picks (user-specified, 2026-08-22) — all 4 slots covered,
-// unlike plain Mage above. Bone Necklace/Balloon Snake are sidegrades; cloak/belt/gloves are each
-// a single real pick. All real, EPIC Dungeon-tagged equipment (Balloon Snake RARE — already
-// confirmed a real sidegrade despite the rarity gap, see MAGE_EQUIPMENT_PROGRESSION above).
-// Each line's Starred variant is appended as its own tier above the base: a Master Mode drop is a
-// genuinely stronger item, not a boosted copy (Bone Necklace Defense +35 -> Starred +45; Shadow
-// Assassin Cloak EPIC Strength +20 -> Starred LEGENDARY +25), so it's the real next step in the
-// same slot and was simply missing (found 2026-09-11). Balloon Snake has no Starred form, which is
-// why only the Bone Necklace half of that tier gains one.
-const MAGE_BEAM_EQUIPMENT_PROGRESSION = {
-  necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
+// The curated dungeon equipment picks — user-specified 2026-09-11, and the ONLY equipment any
+// dungeon mode suggests. Shared by all three (Archer, Mage Beam, Mage Ability) since the lines are
+// the same; the two mage-only entries are layered on below rather than duplicated here.
+//
+// Each line carries its Starred variant as the tier ABOVE the base, in every dungeon mode: a
+// Master Mode drop is a genuinely stronger item rather than a boosted copy (Bone Necklace Defense
+// +35 -> Starred +45; Shadow Assassin Cloak EPIC Strength +20 -> Starred LEGENDARY +25). Soulweaver
+// Gloves and Balloon Snake have no Starred form, which is why only the other three gain a tier.
+//
+// Bone Necklace stays on the list for every dungeon mode even though its base block offers only
+// Crit Chance and so reads weak next to the rest (user-specified) — it is still the pick.
+const DUNGEON_EQUIPMENT_PROGRESSION = {
+  necklace: [[{ id: 'BONE_NECKLACE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
   cloak: [[{ id: 'SHADOW_ASSASSIN_CLOAK' }], [{ id: 'STARRED_SHADOW_ASSASSIN_CLOAK' }]],
   belt: [[{ id: 'ADAPTIVE_BELT' }], [{ id: 'STARRED_ADAPTIVE_BELT' }]],
   gloves: [[{ id: 'SOULWEAVER_GLOVES' }]],
+};
+
+// Balloon Snake is a mage-only sidegrade of the base necklace tier (RARE against Bone Necklace's
+// EPIC — already confirmed a real sidegrade despite the rarity gap).
+const MAGE_BEAM_EQUIPMENT_PROGRESSION = {
+  ...DUNGEON_EQUIPMENT_PROGRESSION,
+  necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
+};
+
+// Mage Ability adds the Implosion Belt, whose 1.25x is Ability Damage only (see abilityDamage.js) —
+// which is exactly why it belongs here and in no other mode. Offered alongside Adaptive Belt rather
+// than above it: they are different builds, not a progression.
+const MAGE_ABILITY_EQUIPMENT_PROGRESSION = {
+  ...MAGE_BEAM_EQUIPMENT_PROGRESSION,
+  belt: [[{ id: 'ADAPTIVE_BELT' }, { id: 'IMPLOSION_BELT' }], [{ id: 'STARRED_ADAPTIVE_BELT' }]],
 };
 
 // User-specified: no clear universal best (situational, like Slayer's pet list) — all 4 real ids
@@ -614,14 +631,16 @@ const ARMOR_PROGRESSION_BY_MODE = {
   dungeon_mage_beam: MAGE_BEAM_ARMOR_PROGRESSION,
   dungeon_mage_ability: MAGE_ABILITY_ARMOR_PROGRESSION,
 };
-// No dungeon_archer entry (user didn't specify curated equipment picks) — necklace/cloak/belt/
-// gloves fall through to "no equipment suggestions" for this mode, same as Mage's own cloak/gloves.
 const EQUIPMENT_PROGRESSION_BY_MODE = {
   slayer: SLAYER_EQUIPMENT_PROGRESSION,
   diana: DIANA_EQUIPMENT_PROGRESSION,
   mage: MAGE_EQUIPMENT_PROGRESSION,
+  dungeon_archer: DUNGEON_EQUIPMENT_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_EQUIPMENT_PROGRESSION,
-  dungeon_mage_ability: MAGE_EQUIPMENT_PROGRESSION,
+  // Was plain Mage's list (Balloon Snake/Implosion Belt only, no cloak or gloves at all) — a
+  // dungeon mode reading the overworld picks, so it never offered the dungeon lines or any
+  // Starred tier.
+  dungeon_mage_ability: MAGE_ABILITY_EQUIPMENT_PROGRESSION,
 };
 // Dungeon/Archer only (user-specified 2026-09-09, alongside the Wither rule above): while the
 // player is wearing a Catacombs boss head, the ONLY helmet worth suggesting is that same boss's
