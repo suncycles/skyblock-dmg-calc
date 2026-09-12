@@ -155,6 +155,7 @@ export default function HypixelImport() {
     importHypixelBestiaryMaxedMobs,
     importHypixelCombinedMythologicalBestiaryTiers,
     importHypixelMaxedCollectionsCount,
+    setHasJellyfishPet,
     importHypixelWeaponList,
   } = useBuild();
   const { itemData } = useItemData();
@@ -246,6 +247,7 @@ export default function HypixelImport() {
       maxedCollectionsCount,
       blessingInputs,
       essencePerks,
+      hasJellyfishPet,
     } = await mapHypixelImportToLoadout(
       rawImport,
       itemData,
@@ -269,6 +271,7 @@ export default function HypixelImport() {
     importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
     importHypixelMaxedCollectionsCount(maxedCollectionsCount);
+    setHasJellyfishPet(hasJellyfishPet);
     importHypixelWeaponList(await buildWeaponInventoryList(rawImport, itemData));
     navigate('/');
   }

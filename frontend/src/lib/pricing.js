@@ -244,6 +244,10 @@ export function lookupCandidateCost(result, itemData) {
     // withCost, which only treats a numeric cost as real.
     case 'Skill':
       return 0;
+    // Drinking is free (a consumable already in the inventory); the Jellyfish is a real pet
+    // purchase, priced as the level-100 Legendary petCosts holds.
+    case 'Potion':
+      return result.potionKind === 'jellyfish' ? priceOf(petCosts, 'JELLYFISH') : 0;
     case 'Essence Perk': {
       // Essence bought at the shop, priced through the same feed as everything else (the Worker
       // precomputes the cumulative coin ladder — see its computeEssencePerkCosts). The Optimizer

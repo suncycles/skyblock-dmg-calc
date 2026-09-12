@@ -70,6 +70,7 @@ function useCurrentBuildState(build) {
       maxedCollectionsCount: build.maxedCollectionsCount,
       blessing: build.blessing,
       essencePerks: build.essencePerks,
+      hasJellyfishPet: build.hasJellyfishPet,
     }),
     [
       build.loadout,
@@ -165,6 +166,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           state.blessing,
           state.essencePerks,
           isMiningIslandTarget,
+          state.hasJellyfishPet,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));

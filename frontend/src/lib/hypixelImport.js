@@ -615,6 +615,10 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
 
   // Real mob names the account has reached max Bestiary tier on (worker/src/index.js's
   // computeBestiaryMaxedMobs) — see lib/bestiaryStrength.js for the consumer.
+  // Dungeon Potion tier is decided by OWNING a Jellyfish, not equipping one — `raw.pets` is every
+  // pet on the account (see this file's header), so ownership is answerable straight off it.
+  const hasJellyfishPet = (raw.pets || []).some((pet) => String(pet?.type || '').toUpperCase() === 'JELLYFISH');
+
   const bestiaryMaxedMobs = Array.isArray(raw.bestiaryMaxedMobs) ? raw.bestiaryMaxedMobs : [];
 
   // Daedalus Blade/Starred Daedalus Blade's real "Combined Mythological Bestiary Tiers" ability
@@ -651,6 +655,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
     attributes,
     playerStats,
     bestiaryMaxedMobs,
+    hasJellyfishPet,
     combinedMythologicalBestiaryTiers,
     maxedCollectionsCount,
     blessingInputs,

@@ -177,6 +177,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     dpsMode,
     dpsKind,
     setDpsKind,
+    hasJellyfishPet,
     toggleDpsMode,
     attributes,
     miscStats,
@@ -314,6 +315,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         settledBlessing,
         essencePerks,
         isMiningIslandTarget,
+        hasJellyfishPet,
       ).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
@@ -372,6 +374,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         settledBlessing,
         essencePerks,
         isMiningIslandTarget,
+        hasJellyfishPet,
       ).then((r) => {
         if (tokenAt100Ref.current === token) setResultAt100(r);
       });

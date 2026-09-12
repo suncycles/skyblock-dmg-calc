@@ -909,6 +909,23 @@ try {
     assert.equal(after.playerStats.catacombsLevel, 48);
     assert.equal(before.playerStats.catacombsLevel, 47, 'apply stays pure');
   });
+  // 33. Inside a dungeon the God Potion is REPLACED by the Dungeon Potion — different stats, no
+  // mixin, and two tiers decided by owning a Jellyfish pet rather than by anything drunk
+  // (user-specified 2026-09-11). Both tiers are pinned because both are user-supplied game data.
+  await check('Dungeon Potion replaces the God Potion at two tiers', () => {
+    const { DUNGEON_POTION_TIERS, dungeonPotionEffects, GOD_POTION_STRENGTH_POTION } = godPotion;
+    assert.deepEqual(DUNGEON_POTION_TIERS.tier7, { label: 'Tier VII', strength: 40, critChance: 20, critDamage: 30, arrowDamage: 50 });
+    assert.deepEqual(DUNGEON_POTION_TIERS.jellyfish, { label: 'Jellyfish VII', strength: 60, critChance: 30, critDamage: 45, arrowDamage: 75 });
+    // Ownership picks the tier, and owning one is strictly better on every stat.
+    assert.equal(dungeonPotionEffects(false).label, 'Tier VII');
+    assert.equal(dungeonPotionEffects(true).label, 'Jellyfish VII');
+    for (const key of ['strength', 'critChance', 'critDamage', 'arrowDamage']) {
+      assert.ok(DUNGEON_POTION_TIERS.jellyfish[key] > DUNGEON_POTION_TIERS.tier7[key], `Jellyfish VII must beat Tier VII on ${key}`);
+    }
+    // It is weaker than the God Potion it replaces, which is the whole reason it can't just be a
+    // scaled copy — a dungeon run is not a God Potion run.
+    assert.ok(DUNGEON_POTION_TIERS.jellyfish.strength < GOD_POTION_STRENGTH_POTION, 'even the top dungeon tier trails the God Potion on Strength');
+  });
 } finally {
   await server.close();
 }

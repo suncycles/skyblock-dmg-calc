@@ -775,6 +775,8 @@ export function dominanceGroupKey(result) {
     // skill would be the same step twice.
     case 'Skill':
       return `Skill:${result.skillKey}`;
+    case 'Potion':
+      return `Potion:${result.potionKind}`;
     case 'Power Stone': // one global Accessory Power selection at a time
     case 'Pet Item': // one held pet item at a time
       return result.category;
@@ -939,6 +941,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     build.blessing,
     build.essencePerks,
     onMiningIsland,
+    build.hasJellyfishPet,
   );
 
   if (modeConfig.metric === 'ability') {
@@ -2439,6 +2442,57 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
   return results;
 }
 
+// The Dungeon Potion's two optimizer rows. Both only exist inside a dungeon, where the potion is
+// the Dungeon Potion rather than the God Potion (see lib/godPotion.js).
+//
+// "Drink Dungeon Pot" is free — a consumable you already carry — so it lands with the Skill levels
+// rather than competing on coins-per-percent. It is worth whatever tier the account can actually
+// reach, so on a Jellyfish owner it already prices the jump from nothing to Jellyfish VII.
+//
+// "Jellyfish Pet" is the tier upgrade, and is deliberately measured potion-on in BOTH directions:
+// VII against Jellyfish VII (user-specified 2026-09-11). Measured against the plain baseline it
+// would read as the whole potion whenever the potion happened to be off, crediting the pet with a
+// gain that came from drinking. Priced as a level-100 Legendary, which is what petCosts holds.
+async function evaluateDungeonPotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
+  if (!modeConfig.useDungeonizedStats) return [];
+  const results = [];
+
+  if (!build.godPotionActive) {
+    const value = await computeModeDamage(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
+    results.push({
+      category: 'Potion',
+      slot: 'accessory',
+      label: 'Drink Dungeon Pot',
+      potionKind: 'drink',
+      value,
+      freeUpgrade: true,
+      apply: [{ type: 'setGodPotionActive', value: true }],
+    });
+  }
+
+  if (!build.hasJellyfishPet) {
+    const withPot = { ...build, godPotionActive: true };
+    const atTier7 = await computeModeDamage(loadout, itemData, withPot, modeConfig, mob);
+    const atJellyfish = await computeModeDamage(loadout, itemData, { ...withPot, hasJellyfishPet: true }, modeConfig, mob);
+    const percentIncrease = atTier7 > 0 ? ((atJellyfish - atTier7) / atTier7) * 100 : 0;
+    if (percentIncrease > 0.001) {
+      results.push({
+        category: 'Potion',
+        slot: 'accessory',
+        label: 'Jellyfish Pet',
+        potionKind: 'jellyfish',
+        itemId: 'JELLYFISH',
+        material: 'BONE',
+        // Already relative to the potion-on baseline, so runOptimizer must not recompute it.
+        percentIncrease,
+        value: baselineValue * (1 + percentIncrease / 100),
+        apply: [{ type: 'setHasJellyfishPet', value: true }],
+      });
+    }
+  }
+  return results;
+}
+
 // Player levels that cost no coins — only time — so they belong with the free upgrades rather than
 // competing on coins-per-percent against things you can actually buy. Only the IMMEDIATE next level
 // is offered (user-specified 2026-09-11): "Catacombs 48" is an actionable next step, "Catacombs 50"
@@ -2647,6 +2701,7 @@ export const OPTIMIZER_BUILD_KEYS = [
   'useMasterMode',
   'blessing',
   'essencePerks',
+  'hasJellyfishPet',
 ];
 
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
@@ -2697,6 +2752,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     attributes,
     essencePerkUpgrades,
     skillLevels,
+    dungeonPotion,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
     evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, armorProgressionForMode(mode, loadout), 'Armor'),
@@ -2732,6 +2788,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateDungeonPotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
   ]);
 
   // Armor/equipment/pet/armor-reforge results already carry their own real percentIncrease
@@ -2774,8 +2831,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...attributes,
       ...essencePerkUpgrades,
       ...skillLevels,
+      ...dungeonPotion.filter((r) => r.percentIncrease == null),
     ]),
     ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue),
+    ...dungeonPotion.filter((r) => r.percentIncrease != null),
     ...withPercentUsing(masterStars, masterModeBaselineValue),
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
@@ -2839,6 +2898,12 @@ export function applyOptimizerResult(build, result) {
         break;
       // Essence-shop perks are normally import-only, but a suggestion the player clicks has to
       // actually take effect — same as every other swap-in step here.
+      case 'setGodPotionActive':
+        build.setGodPotionActive(step.value);
+        break;
+      case 'setHasJellyfishPet':
+        build.setHasJellyfishPet(step.value);
+        break;
       case 'setPlayerLevel':
         build.setPlayerLevel(step.key, step.value);
         break;

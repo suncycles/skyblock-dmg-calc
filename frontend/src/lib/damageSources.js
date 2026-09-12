@@ -97,6 +97,7 @@ import {
   GOD_POTION_ARCHERY_DAMAGE,
   JERRY_CANDY_STRENGTH,
   GOD_POTION_MIXINS,
+  dungeonPotionEffects,
   godPotionMixinCritDamage,
   isBowEquipped,
 } from './godPotion';
@@ -1349,6 +1350,9 @@ export async function collectDamageSources(
   // target mob at the call site and passed in, exactly as blazeCrimsonIsle above is — this
   // function never receives the mob itself.
   onMiningIsland = false,
+  // Account-wide pet OWNERSHIP, not the equipped pet — a Jellyfish in the pet menu upgrades the
+  // Dungeon Potion from Tier VII to Jellyfish VII (see lib/godPotion.js).
+  hasJellyfishPet = false,
 ) {
   const out = {
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
@@ -1461,8 +1465,19 @@ export async function collectDamageSources(
   addBaseStat(out, 'crit_damage', miscStats?.crit_damage || 0, 'Misc');
   addBaseStat(out, 'intelligence', miscStats?.intelligence || 0, 'Misc');
 
-  // God Potion's aggregate-stat pieces plus Archery IV's bow-only damage bonus.
-  if (godPotionActive) {
+  // One potion toggle, two entirely different potions: inside a dungeon the God Potion is replaced
+  // by the Dungeon Potion (user-specified 2026-09-11), which is weaker and has no mixin. Not a
+  // scaled God Potion and never both at once — see lib/godPotion.js's DUNGEON_POTION_TIERS.
+  if (godPotionActive && useDungeonizedStats) {
+    const tier = dungeonPotionEffects(hasJellyfishPet);
+    const label = `Dungeon Potion (${tier.label})`;
+    addBaseStat(out, 'strength', tier.strength, label);
+    addBaseStat(out, 'crit_chance', tier.critChance, label);
+    addBaseStat(out, 'crit_damage', tier.critDamage, label);
+    if (isBowEquipped(loadout)) {
+      out.additiveNonConditional.push({ id: 'dungeon-potion-arrow', label: `${label} Arrow Damage`, source: 'Player', value: tier.arrowDamage });
+    }
+  } else if (godPotionActive) {
     addBaseStat(out, 'strength', GOD_POTION_STRENGTH_POTION + JERRY_CANDY_STRENGTH, 'God Potion');
     addBaseStat(out, 'crit_chance', GOD_POTION_CRIT_CHANCE, 'God Potion');
     addBaseStat(out, 'crit_damage', GOD_POTION_CRIT_DAMAGE + GOD_POTION_SPIRIT_CRIT_DAMAGE, 'God Potion');
