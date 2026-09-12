@@ -750,8 +750,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 totalDps = dps.total;
                 if (sim?.hasRealHp) {
                   const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
-                  const elapsedSeconds = sim.totalHits != null ? sim.timeToKillSeconds : sim.hits.length / sim.meleeHitsPerSecond;
-                  if (elapsedSeconds > 0) totalDps = totalDealt / elapsedSeconds;
+                  if (sim.elapsedSeconds > 0) totalDps = totalDealt / sim.elapsedSeconds;
                 }
               }
               return (
@@ -858,9 +857,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       )}
                       {sim?.hasRealHp && dpsKind === 'melee' && (
                         <div className="text-[10px] italic text-neutral-600">
-                          Total DPS is the real fight average (Venomous/Execute-Prosecute ramp up over
-                          the fight) — the per-source lines above are a first-hit snapshot, so they
-                          won't sum to this exactly.
+                          Total DPS averages the simulated opening ({sim.hits.length} hit
+                          {sim.hits.length === 1 ? '' : 's'}), so Venomous stacking and Execute/Prosecute's ramp
+                          are counted — the per-source lines above are a first-hit snapshot, so they won't sum to
+                          this exactly.
                         </div>
                       )}
                       <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
@@ -922,9 +922,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             hits={sim.hits}
                             hasRealHp={sim.hasRealHp}
                             mobName={name}
-                            totalHits={sim.totalHits}
-                            timeToKillSeconds={sim.timeToKillSeconds}
-                            exceededSimCap={sim.exceededSimCap}
                             maxDps={sim.maxDps}
                             minDps={sim.minDps}
                           />

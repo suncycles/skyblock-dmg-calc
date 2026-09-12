@@ -95,16 +95,7 @@ function HitTooltip({ active, payload, label }) {
 // constant DPS number (user-specified 2026-08-31). `hasRealHp` false means no confirmed HP number
 // exists for this mob yet (docs/mob-hp-followups.md) — the sequence still simulates (holding Mob
 // HP% constant at the slider's value instead of draining a real pool), so a small note explains why.
-// Under a minute shows seconds to 1 decimal; past that, whole minutes+seconds — matches how
-// real fight lengths actually get talked about ("14.2s" for a quick kill, "3m 20s" for a slog).
-function formatDuration(seconds) {
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}m ${s}s`;
-}
-
-export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits, timeToKillSeconds, exceededSimCap, maxDps, minDps }) {
+export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps }) {
   // Split by default, aggregate on demand. Mob HP stays on by default (unchanged), but is now
   // switchable: it spans the full 0-100% height on its own axis, so against damage lines that
   // only vary by a fraction of a percent it was the only thing the eye could follow.
@@ -127,16 +118,6 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, totalHits
         <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
           Damage by Hit ({hits.length === 40 ? '1-40' : `1-${hits.length}`})
         </span>
-        {hasRealHp && totalHits != null && (
-          <span className="text-[11px] font-mono text-neutral-800">
-            <span className="font-bold">Time to Kill:</span> {totalHits.toLocaleString()} hits ({formatDuration(timeToKillSeconds)})
-          </span>
-        )}
-        {exceededSimCap && (
-          <span className="text-[11px] font-mono text-neutral-800">
-            <span className="font-bold">Time to Kill:</span> doesn't die within 10,000 hits
-          </span>
-        )}
         <div className="flex items-center gap-3 ml-auto">
           {activeSeries.length > 1 && <Toggle checked={aggregate} onChange={setAggregate} label="Aggregate" />}
           {hasRealHp && <Toggle checked={showHp} onChange={setShowHp} label="Mob HP" />}

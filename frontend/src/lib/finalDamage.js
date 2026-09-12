@@ -727,10 +727,6 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   };
 }
 
-// Safety cap on how far simulateHitByHit will run looking for a kill (see its own comment) — at a
-// typical melee rate this is still tens of minutes of simulated real time, generous for any real
-// fight without risking an effectively-unbounded loop against an edge case that never dies.
-const MAX_SIMULATED_HITS = 10000;
 
 // Real hit-by-hit fight simulation against a specific starting HP (lib/mobHp.js's
 // resolveStartingHp) — unlike computeDpsBreakdown's single steady-state DPS number, this tracks
@@ -766,7 +762,6 @@ export function simulateHitByHit(
   useDungeonizedStats = false,
   useMasterMode = false,
   hitCount = MAX_VENOMOUS_STACKS,
-  maxSearchHits = MAX_SIMULATED_HITS,
 ) {
   const bonusAttackSpeed = sources.baseStats.bonus_attack_speed || 0;
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
@@ -815,18 +810,11 @@ export function simulateHitByHit(
 
   let remainingHp = hasRealHp ? startingHp : null;
   const hits = [];
-  let totalHits = null;
-  // The graph only ever shows the first `hitCount` (40) points, but a tanky-enough mob takes far
-  // more hits than that to actually die — this loop keeps running (without recording further graph
-  // points) up to `maxSearchHits` so "hits/time to kill" reflects the real fight length, not just
-  // whatever happened to fit in the visible window. Bounded rather than unbounded so a pathological
-  // case (e.g. a Shielded mob's 1-damage-per-hit cap against a multi-million HP pool) can't loop
-  // effectively forever — exceededSimCap below tells the caller when that happened. Separate from
-  // `hitCount` specifically so optimizer.js's per-candidate average-DPS ranking (potentially
-  // hundreds of these per Optimizer pass) can cap the SEARCH itself at 40 too, not just which
-  // points get recorded — the default here (MAX_SIMULATED_HITS) is for DamageSources.jsx's own
-  // real "Time to Kill" display, which only ever runs once per visible mob per render.
-  const simCap = hasRealHp ? maxSearchHits : hitCount;
+  // The simulation only ever runs as far as the window it records. It used to keep swinging past
+  // that, unrecorded, purely to find a "Time to Kill" — removed 2026-09-11: a hits-to-kill figure
+  // is a strange thing to quote for a boss with real mechanics (phases, invulnerability windows,
+  // adds), since nothing in this model knows the fight can be interrupted at all.
+  const simCap = hitCount;
   for (let hit = 1; hit <= simCap; hit++) {
     const hpPercent = hasRealHp ? Math.max(0, Math.min(100, (remainingHp / startingHp) * 100)) : fallbackHpPercent;
     const { hitSources, executeProsecuteValue } = buildHitSources(hpPercent);
@@ -870,8 +858,8 @@ export function simulateHitByHit(
 
     let venomousDamage = 0;
     if (sources.venomousProc) {
-      // Real stacks cap at MAX_VENOMOUS_STACKS even past hit 40 (this loop runs further than that
-      // to find a real total-hits/time-to-kill — see MAX_SIMULATED_HITS below).
+      // Real stacks cap at MAX_VENOMOUS_STACKS, which is also this window's length — so the cap
+      // only binds on the final hit rather than being a ceiling the loop spends time against.
       const activeStacks = Math.min(hit, MAX_VENOMOUS_STACKS);
       const perStack = computeVenomousProcDamage(hitSources, mob, expectedArrowDamage)?.finalDamage || 0;
       venomousDamage = (perStack * activeStacks * DPS_HITS_PER_SECOND.venomous) / meleeHitsPerSecond;
@@ -901,21 +889,22 @@ export function simulateHitByHit(
       });
     }
 
+    // Still stops on death, so a mob that dies inside the window doesn't get padded with hits
+    // that never happen — the average below is then over the real, shorter fight.
     if (hasRealHp) {
       remainingHp = Math.max(0, remainingHp - totalDamage);
-      if (remainingHp <= 0) {
-        totalHits = hit;
-        break;
-      }
+      if (remainingHp <= 0) break;
     }
   }
 
-  const timeToKillSeconds = totalHits != null ? totalHits / meleeHitsPerSecond : null;
-  const exceededSimCap = hasRealHp && totalHits == null;
-  // Max/min across the same window the graph actually plots (the recorded `hits`, capped at
-  // `hitCount`) — not the full kill-search, which can run far past what's ever shown.
+  // Max/min across the same window the graph plots and the average below covers — one window for
+  // all three now that nothing runs past it.
   const maxDps = hits.length > 0 ? Math.max(...hits.map((h) => h.dps)) : null;
   const minDps = hits.length > 0 ? Math.min(...hits.map((h) => h.dps)) : null;
 
-  return { hits, hasRealHp, meleeHitsPerSecond, totalHits, timeToKillSeconds, exceededSimCap, maxDps, minDps };
+  // How long the recorded hits actually span — the denominator for a fight-average DPS. Exposed
+  // rather than left to each caller to re-derive, which is how one of them ended up dividing this
+  // window's damage by a whole-fight duration and understating DPS by ~40/totalHits.
+  const elapsedSeconds = hits.length / meleeHitsPerSecond;
+  return { hits, hasRealHp, meleeHitsPerSecond, elapsedSeconds, maxDps, minDps };
 }
