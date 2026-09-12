@@ -356,8 +356,8 @@ export default function Optimizer() {
                 <button
                   type="button"
                   onClick={() => setSortBy('increase')}
-                  className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
-                    sortBy === 'increase' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded-sm cursor-pointer transition-colors ${
+                    sortBy === 'increase' ? 'bg-[#8fbf3f] text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]' : 'bg-black/10 text-black/60 hover:bg-black/20 hover:text-black/80'
                   }`}
                 >
                   Highest Increase
@@ -366,34 +366,45 @@ export default function Optimizer() {
                   type="button"
                   onClick={() => setSortBy('ratio')}
                   title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
-                  className={`px-2 py-0.5 text-[10px] font-bold cursor-pointer ${
-                    sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black' : 'bg-black/20 text-neutral-700 hover:bg-black/30'
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded-sm cursor-pointer transition-colors ${
+                    sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]' : 'bg-black/10 text-black/60 hover:bg-black/20 hover:text-black/80'
                   }`}
                 >
                   Best Value
                 </button>
               </div>
             </div>
-            <label className="flex items-center gap-1.5 text-[11px] text-neutral-700 cursor-pointer">
-              <input type="checkbox" checked={showFree} onChange={(e) => setShowFree(e.target.checked)} className="cursor-pointer" />
-              <span>Show 0-cost upgrades{freeCount > 0 && ` (${freeCount})`}</span>
+            <label className="flex items-center gap-1.5 text-[12px] font-bold text-black/75 cursor-pointer hover:text-black">
+              <input
+                type="checkbox"
+                checked={showFree}
+                onChange={(e) => setShowFree(e.target.checked)}
+                className="w-4 h-4 accent-[#8fbf3f] cursor-pointer shrink-0"
+              />
+              <span>
+                Show 0-cost upgrades
+                {freeCount > 0 && <span className="ml-1 px-1 rounded-sm bg-black/15 text-black/70 font-mono">{freeCount}</span>}
+              </span>
             </label>
+            {/* Same two-state treatment as the floating panel — an unpicked chip keeps its category
+                colour as a stripe and stays dark-on-tint rather than white-on-near-white. */}
             {availableCategories.length > 1 && (
               <div className="flex flex-wrap items-center gap-1 pb-1">
+                <span className="text-[11px] font-bold text-black/55 shrink-0 mr-0.5">Filter</span>
                 {availableCategories.map((category) => {
-                  const active = selectedCategories.size === 0 || selectedCategories.has(category);
+                  const picked = selectedCategories.has(category);
+                  const color = CATEGORY_COLORS[category] || '#777777';
                   return (
                     <button
                       key={category}
                       type="button"
+                      aria-pressed={picked}
                       onClick={() => toggleCategory(category)}
-                      title={selectedCategories.has(category) ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
-                      className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide cursor-pointer transition-opacity"
-                      style={{
-                        color: '#fff',
-                        backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category] || '#999999' : 'rgba(0,0,0,0.12)',
-                        opacity: active ? 1 : 0.5,
-                      }}
+                      title={picked ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
+                      className={`pl-1.5 pr-2 py-0.5 text-[11px] font-bold uppercase tracking-wide cursor-pointer rounded-sm border-l-[3px] transition-colors ${
+                        picked ? 'text-white' : 'text-black/70 hover:text-black'
+                      }`}
+                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(0,0,0,0.08)' }}
                     >
                       {category}
                     </button>
