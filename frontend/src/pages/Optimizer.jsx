@@ -38,6 +38,7 @@ const CATEGORY_COLORS = {
   Stars: '#fb923c',
   Reforge: '#60a5fa',
   Recombobulator: '#818cf8',
+  'Potato Books': '#fcd34d',
   'Pet Item': '#f472b6',
   Gemstone: '#e879f9',
   'New Accessory': '#4ade80',

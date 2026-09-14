@@ -6,6 +6,8 @@
 // right precomputed key. Returns a number when priceable, or `null` when no real cost source
 // exists (the caller — lib/optimizer.js's withCost — turns `null` into the `'?'` sentinel).
 
+import { MAX_HOT_POTATO_BOOKS } from './books';
+
 export function priceOf(map, id) {
   if (id == null || !map) return null;
   const price = map[id];
@@ -207,6 +209,24 @@ export function lookupCandidateCost(result, itemData) {
     }
     case 'Recombobulator':
       return recombobulatorCost || null;
+    case 'Potato Books': {
+      // Books 1-10 are Hot Potato Books and 11-15 Fuming (lib/books.js), so a jump from `fromBooks`
+      // is priced as however many of each it actually adds. Either needed half being unpriced makes
+      // the whole row '?' rather than a total that silently leaves those books out.
+      const step = findStep(result.apply, 'setBookCount');
+      if (!step) return null;
+      const from = result.fromBooks || 0;
+      const hot = Math.max(0, Math.min(step.count, MAX_HOT_POTATO_BOOKS) - Math.min(from, MAX_HOT_POTATO_BOOKS));
+      const fuming = Math.max(0, step.count - Math.max(from, MAX_HOT_POTATO_BOOKS));
+      let total = 0;
+      for (const [count, id] of [[hot, 'HOT_POTATO_BOOK'], [fuming, 'FUMING_POTATO_BOOK']]) {
+        if (!count) continue;
+        const price = priceOf(itemPrices, id);
+        if (price == null) return null;
+        total += price * count;
+      }
+      return total;
+    }
     case 'Pet Item': {
       const step = findStep(result.apply, 'setPetItem');
       return step ? priceOf(itemPrices, step.petItemId) : null;

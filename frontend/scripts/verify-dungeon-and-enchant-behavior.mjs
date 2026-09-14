@@ -966,6 +966,28 @@ try {
     assert.equal(finalDamageDebuffMultiplier({ iceSpray: false, twilightPoison: false }), 1);
     assert.equal(finalDamageDebuffMultiplier(null), 1);
   });
+  // 35. Potato Books on the weapon are priced as two different items: books 1-10 are Hot Potato
+  // Books and 11-15 Fuming (lib/books.js), so where you START decides the cost. Also pins that an
+  // unpriced half makes the row '?' instead of a total that quietly leaves those books out, and that
+  // the new setBookCount step applies purely like every other planner step.
+  await check('Potato Books price as Hot to 10 and Fuming beyond', () => {
+    const { lookupCandidateCost } = pricing;
+    const priced = { costs: { itemPrices: { HOT_POTATO_BOOK: 100, FUMING_POTATO_BOOK: 1000 } } };
+    const row = (from) => ({ category: 'Potato Books', fromBooks: from, apply: [{ type: 'setBookCount', slot: 'weapon', count: 15 }] });
+    assert.equal(lookupCandidateCost(row(0), priced), 10 * 100 + 5 * 1000);
+    assert.equal(lookupCandidateCost(row(7), priced), 3 * 100 + 5 * 1000);
+    assert.equal(lookupCandidateCost(row(12), priced), 3 * 1000, 'past 10, only Fuming books are left to buy');
+    assert.equal(lookupCandidateCost(row(0), { costs: { itemPrices: { HOT_POTATO_BOOK: 100 } } }), null, 'a missing Fuming price is ?, not 0');
+    assert.equal(lookupCandidateCost(row(12), { costs: { itemPrices: { FUMING_POTATO_BOOK: 1000 } } }), 3 * 1000, 'an unneeded Hot price does not matter');
+
+    const { applyResultToState, canApplyPurely } = applyResult;
+    const step = { type: 'setBookCount', slot: 'weapon', count: 15 };
+    assert.equal(canApplyPurely({ apply: [step] }), true);
+    const before = { loadout: { weapon: { item: { id: 'HYPERION' }, modifiers: { books: 3 } } } };
+    const after = applyResultToState(before, { apply: [step] }, {});
+    assert.equal(after.loadout.weapon.modifiers.books, 15);
+    assert.equal(before.loadout.weapon.modifiers.books, 3, 'apply stays pure');
+  });
 } finally {
   await server.close();
 }

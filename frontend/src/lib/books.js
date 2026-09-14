@@ -4,6 +4,11 @@ import { annotateStatLines } from './statLines';
 // Equipment can't take Potato Books at all. Fuming Potato Book only raises the shared
 // application limit from 10 to 15, not a bigger per-book bonus.
 export const WEAPON_BOOK_STAT_BONUS = { strength: 2, damage: 2 };
+
+// The shared cap, and where Hot Potato Books stop and Fuming ones begin — per the note above, books
+// 1-10 are Hot and 11-15 are Fuming. lib/pricing.js prices the two halves separately on that basis.
+export const MAX_POTATO_BOOKS = 15;
+export const MAX_HOT_POTATO_BOOKS = 10;
 export const ARMOR_BOOK_STAT_BONUS = { health: 4, defense: 2 };
 
 // §e (yellow) — distinct from Gemstones' pink and Reforges' blue.

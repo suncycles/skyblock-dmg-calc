@@ -124,6 +124,8 @@ const STEPS = {
     }),
 
   toggleRecombobulated: (state, step) => withSlotModifiers(state, step.slot, (m) => ({ ...m, recombobulated: !m.recombobulated })),
+  // Mirrors BuildContext.setBookCount, which writes the count as given.
+  setBookCount: (state, step) => withSlotModifiers(state, step.slot, (m) => ({ ...m, books: step.count })),
   setRecombobulated: (state, step) => withSlotModifiers(state, step.slot, (m) => ({ ...m, recombobulated: !!step.value })),
 
   setGemstone: (state, step) => setGemstone(state, step.slot, step),
