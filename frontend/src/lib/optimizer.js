@@ -1743,11 +1743,14 @@ async function evaluateMissingEnchantCandidates(loadout, itemData, build, modeCo
 // Not a guaranteed-cheapest search ("minimize cost subject to reaching a target" is NP-hard in the
 // worst case) but a very close practical approximation with this few real candidates (~35-45 for a
 // typical weapon category). Only runs when One For All is the weapon's CURRENT ultimate (nothing to
-// beat otherwise) and only for the 'dps' metric (One For All's bonus doesn't feed Ability
-// Damage/Beam at all, so every other mode would just burn the full search for a guaranteed no-op).
+// beat otherwise), and for every metric except 'ability'. One For All isn't abilityEligible, so it
+// contributes nothing to Ability Damage and there is nothing there to beat (user-specified
+// 2026-09-14). The Beam is different: the Mage Staff Beam is a multiple of melee Final Damage, One
+// For All's +500% included — this used to be gated to 'dps' only on the claim that One For All
+// doesn't feed the Beam, so Dungeon/Mage Beam never showed it at all.
 async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, modeConfig, mob, baselineValue) {
   const weapon = loadout.weapon;
-  if (!weapon || modeConfig.metric !== 'dps') return [];
+  if (!weapon || modeConfig.metric === 'ability') return [];
   if ((weapon.modifiers.ultimateEnchantment?.id || '').toLowerCase() !== 'ultimate_one_for_all') return [];
 
   const category = resolveEnchantCategory(weapon.item.category);
