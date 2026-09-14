@@ -90,6 +90,7 @@ const ALL_ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, T
 import { derivePetDisplayName, getMaxPetLevel, MAX_GOLDEN_DRAGON_BANK_COINS, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
 import { formatItemName } from './mcText';
 import { canRecombobulate } from './recombobulator';
+import { MAX_POTATO_BOOKS } from './books';
 import { getApplicableReforges, isReforgeApplicable } from './reforgeData';
 import { FABLED_REFORGE_NAME, FABLED_CRIT_BONUS_MAX_PERCENT } from './reforges';
 import { getSpecialConfig } from './specialWeapons';
@@ -2623,10 +2624,12 @@ async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig,
 }
 
 // Recombobulator 3000: brute-forced (only ever one real choice — toggle it on) against every
-// armor/equipment slot below its rarity cap. Also a modifier change, not a gear swap.
+// weapon/armor/equipment slot below its rarity cap. Also a modifier change, not a gear swap. The
+// weapon was missing from this list until 2026-09-14: a weapon SWAP already carried an existing
+// recomb forward, but recombobulating the weapon you're holding was never suggested.
 async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
-  for (const slot of [...ARMOR_SLOTS, ...EQUIPMENT_SLOTS]) {
+  for (const slot of ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item || equipped.modifiers.recombobulated) continue;
     const baseTier = equipped.modifiers.rarityOverride || reforgeRarityFor(equipped.item.id, equipped.item.tier);
@@ -2657,6 +2660,28 @@ async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeCo
 // evaluator in the whole optimizer, since it's brute-forced across all 4 armor slots × every real
 // level found, not just next/max like the weapon evaluator below).
 const SLAYER_ARMOR_ULTIMATE_IDS = new Set(['ultimate_habanero_tactics']);
+
+// Hot/Fuming Potato Books on the weapon: one candidate taking it straight to the 15 cap, the same
+// max-tier-only shape the other brute-forced upgrades use. Weapon only — a book's armor bonus is
+// Health/Defense, which never moves this calculator's damage number. `fromBooks` rides along
+// because the price depends on where you start: books 1-10 are Hot, 11-15 Fuming (lib/pricing.js).
+async function evaluatePotatoBookCandidates(loadout, itemData, build, modeConfig, mob) {
+  const weapon = loadout.weapon;
+  const current = weapon?.modifiers?.books || 0;
+  if (!weapon?.item || current >= MAX_POTATO_BOOKS) return [];
+  const candidateLoadout = { ...loadout, weapon: { ...weapon, modifiers: { ...weapon.modifiers, books: MAX_POTATO_BOOKS } } };
+  const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+  return [
+    {
+      category: 'Potato Books',
+      slot: 'weapon',
+      label: `${formatItemName(weapon.item.name)} — Potato Books ${current} → ${MAX_POTATO_BOOKS}`,
+      value,
+      fromBooks: current,
+      apply: [{ type: 'setBookCount', slot: 'weapon', count: MAX_POTATO_BOOKS }],
+    },
+  ];
+}
 
 async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const results = [];
@@ -2828,6 +2853,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
     evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluatePotatoBookCandidates(loadout, itemData, build, modeConfig, mob),
     evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, mob),
@@ -2973,6 +2999,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'toggleRecombobulated':
         build.toggleRecombobulated(step.slot, false);
+        break;
+      case 'setBookCount':
+        build.setBookCount(step.slot, step.count);
         break;
       case 'setRecombobulated':
         build.toggleRecombobulated(step.slot, false, step.value);
