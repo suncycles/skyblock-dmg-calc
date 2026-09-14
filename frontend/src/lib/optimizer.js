@@ -1092,7 +1092,7 @@ export function carriedUltimateEnchantment(currentModifiers, item, itemData) {
   return ids.some((id) => id.toLowerCase() === wanted) ? ultimate : null;
 }
 
-async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category) {
+async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category, mode) {
   if (!progressionBySlot) return [];
   const baselineInfernalPieces = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
   const results = [];
@@ -1133,103 +1133,122 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         const lastTier = progression[progression.length - 1];
         alwaysIncludeLastTier = lastTier.some((c) => !ARMOR_VARIANT_FAMILIES.some((family) => c.id?.includes(family)));
       }
+      const evaluateCandidate = async (candidate) => {
+        // Frozen Blaze (Dungeon/Archer) is only a real sidegrade while a Blaze pet is equipped
+        // (user-specified 2026-08-29) — any candidate can carry this gate, not just Frozen Blaze.
+        if (candidate.requiresPetId && loadout.pet?.item?.petId !== candidate.requiresPetId) return null;
+        const resolved = resolveGearSummary({ id: candidate.id }, itemData);
+        if (!resolved) return null; // catalog lookup failed — skip rather than guess
+        const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
+        if (candidate.special != null) modifiers.special = candidate.special;
+        if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
+        const carriedReforge = carriedReforgeName(currentModifiers, resolved, itemData);
+        const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
+        if (carriedReforge) modifiers.reforge = carriedReforge;
+        if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
+        // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
+        // first written — a candidate with real gemstones stripped off looked artificially worse
+        // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
+        // value" bug stars had (user-confirmed 2026-08-23). Carried over, same as reforge/stars —
+        // but clipped to the candidate's own real slot count (see clipGemstonesToSlots) rather
+        // than blind, since a socket-count mismatch between old and new item can otherwise
+        // overstate a candidate's value enough to flip a real downgrade into an apparent upgrade.
+        if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
+        if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
+        // The RANKED VALUE still assumes a starrable candidate reaches its real max stars, not
+        // bare — same "real best-case" treatment as special/rarityOverride above (Crown of
+        // Avarice/David's Cloak) and pet candidates elsewhere in this file. Without this, a
+        // candidate that's a genuinely better item (e.g. Hot Crimson Helmet) but starts at 0
+        // stars looks like a sidegrade or worse against a currently-equipped item the player has
+        // already invested real stars into. Confirmed real regression case: Basic Crimson Helmet
+        // at 10 stars vs Hot Crimson Helmet at 0 stars computed as a flat 0% "improvement",
+        // silently hiding a genuine +3% once Hot is also compared at its own 10-star cap.
+        const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
+        if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
+        const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
+        const candidateBuild = withRealisticInfernalStacks(build, baselineInfernalPieces, candidateLoadout);
+        const value = await computeModeDamage(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
+        // No explicit star-count apply step needed — BuildContext's own selectItem now handles
+        // the real swap-in outcome itself (Kuudra armor resets to 0, everything else persists
+        // its current stars), the same rule whether reached from here or from Hex directly. Only
+        // the RANKED VALUE above still needs the max-stars assumption, so a Kuudra tier-up isn't
+        // hidden behind a misleadingly small 0-star comparison (see the big comment above).
+        const apply = [{ type: 'selectItem', slot, item: resolved }];
+        // Keeps the real applied outcome matching what the RANKED VALUE above assumed (see
+        // withDungeonizedIfRelevant) — without this, clicking the suggestion would land a
+        // non-dungeonized item even though its value was ranked as if it were.
+        if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
+        if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
+        if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
+        if (carriedReforge) apply.push({ type: 'applyReforge', slot, name: carriedReforge });
+        if (modifiers.gemstones.length) {
+          modifiers.gemstones.forEach((g, index) => {
+            if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
+          });
+        }
+        if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot, value: true });
+        if (carriedUltimate) {
+          apply.push({
+            type: 'applyEnchant',
+            slot,
+            id: carriedUltimate.id,
+            level: carriedUltimate.level,
+            maxLevel: carriedUltimate.maxLevel,
+            removeIds: [],
+          });
+        }
+        // A Kuudra tier-up is a craft that CONSUMES the piece already being worn, so it's priced
+        // from its real recipe (Essence + Kuudra Teeth + the coin fee) rather than the new
+        // tier's auction price — the player isn't buying a Fiery chestplate from scratch
+        // (user-specified 2026-09-08). Which piece gets consumed is stashed for lib/pricing.js
+        // to price, the same split as gemstoneOpen/gemstoneUnlockCost: only this function knows
+        // the loadout, only pricing.js knows the price feed. Scoped to a SAME-family swap —
+        // crossing to another family, or off Kuudra entirely, consumes nothing and is a plain
+        // purchase.
+        const replaces =
+          currentKuudraFamily && resolved.id !== currentId && resolved.id.includes(currentKuudraFamily)
+            ? { itemId: currentId }
+            : null;
+        return {
+          category,
+          slot,
+          label: candidate.label || formatItemName(resolved.name),
+          itemId: resolved.id,
+          material: resolved.material,
+          special: candidate.special,
+          value,
+          replaces,
+          apply,
+        };
+      };
       const evaluated = await evaluateTieredProgression(
         progression,
         currentIndex,
         (c) => c.id === currentId,
         baselineValue,
-        async (candidate) => {
-          // Frozen Blaze (Dungeon/Archer) is only a real sidegrade while a Blaze pet is equipped
-          // (user-specified 2026-08-29) — any candidate can carry this gate, not just Frozen Blaze.
-          if (candidate.requiresPetId && loadout.pet?.item?.petId !== candidate.requiresPetId) return null;
-          const resolved = resolveGearSummary({ id: candidate.id }, itemData);
-          if (!resolved) return null; // catalog lookup failed — skip rather than guess
-          const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
-          if (candidate.special != null) modifiers.special = candidate.special;
-          if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
-          const carriedReforge = carriedReforgeName(currentModifiers, resolved, itemData);
-          const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
-          if (carriedReforge) modifiers.reforge = carriedReforge;
-          if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
-          // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
-          // first written — a candidate with real gemstones stripped off looked artificially worse
-          // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
-          // value" bug stars had (user-confirmed 2026-08-23). Carried over, same as reforge/stars —
-          // but clipped to the candidate's own real slot count (see clipGemstonesToSlots) rather
-          // than blind, since a socket-count mismatch between old and new item can otherwise
-          // overstate a candidate's value enough to flip a real downgrade into an apparent upgrade.
-          if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
-          if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
-          // The RANKED VALUE still assumes a starrable candidate reaches its real max stars, not
-          // bare — same "real best-case" treatment as special/rarityOverride above (Crown of
-          // Avarice/David's Cloak) and pet candidates elsewhere in this file. Without this, a
-          // candidate that's a genuinely better item (e.g. Hot Crimson Helmet) but starts at 0
-          // stars looks like a sidegrade or worse against a currently-equipped item the player has
-          // already invested real stars into. Confirmed real regression case: Basic Crimson Helmet
-          // at 10 stars vs Hot Crimson Helmet at 0 stars computed as a flat 0% "improvement",
-          // silently hiding a genuine +3% once Hot is also compared at its own 10-star cap.
-          const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
-          if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
-          const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
-          const candidateBuild = withRealisticInfernalStacks(build, baselineInfernalPieces, candidateLoadout);
-          const value = await computeModeDamage(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
-          // No explicit star-count apply step needed — BuildContext's own selectItem now handles
-          // the real swap-in outcome itself (Kuudra armor resets to 0, everything else persists
-          // its current stars), the same rule whether reached from here or from Hex directly. Only
-          // the RANKED VALUE above still needs the max-stars assumption, so a Kuudra tier-up isn't
-          // hidden behind a misleadingly small 0-star comparison (see the big comment above).
-          const apply = [{ type: 'selectItem', slot, item: resolved }];
-          // Keeps the real applied outcome matching what the RANKED VALUE above assumed (see
-          // withDungeonizedIfRelevant) — without this, clicking the suggestion would land a
-          // non-dungeonized item even though its value was ranked as if it were.
-          if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
-          if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
-          if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
-          if (carriedReforge) apply.push({ type: 'applyReforge', slot, name: carriedReforge });
-          if (modifiers.gemstones.length) {
-            modifiers.gemstones.forEach((g, index) => {
-              if (g) apply.push({ type: 'setGemstone', slot, index, gem: g.gem, tier: g.tier });
-            });
-          }
-          if (currentModifiers?.recombobulated) apply.push({ type: 'setRecombobulated', slot, value: true });
-          if (carriedUltimate) {
-            apply.push({
-              type: 'applyEnchant',
-              slot,
-              id: carriedUltimate.id,
-              level: carriedUltimate.level,
-              maxLevel: carriedUltimate.maxLevel,
-              removeIds: [],
-            });
-          }
-          // A Kuudra tier-up is a craft that CONSUMES the piece already being worn, so it's priced
-          // from its real recipe (Essence + Kuudra Teeth + the coin fee) rather than the new
-          // tier's auction price — the player isn't buying a Fiery chestplate from scratch
-          // (user-specified 2026-09-08). Which piece gets consumed is stashed for lib/pricing.js
-          // to price, the same split as gemstoneOpen/gemstoneUnlockCost: only this function knows
-          // the loadout, only pricing.js knows the price feed. Scoped to a SAME-family swap —
-          // crossing to another family, or off Kuudra entirely, consumes nothing and is a plain
-          // purchase.
-          const replaces =
-            currentKuudraFamily && resolved.id !== currentId && resolved.id.includes(currentKuudraFamily)
-              ? { itemId: currentId }
-              : null;
-          return {
-            category,
-            slot,
-            label: candidate.label || formatItemName(resolved.name),
-            itemId: resolved.id,
-            material: resolved.material,
-            special: candidate.special,
-            value,
-            replaces,
-            apply,
-          };
-        },
+        evaluateCandidate,
         maxIndexOverride,
         alwaysIncludeLastTier,
       );
       slotResults.push(...evaluated);
+      // Slayer only (user-specified 2026-09-14): the no-skip window above is about Kuudra POWER
+      // tiers. Warden, Primordial and Crown of Avarice are separate helmets the Crimson chain lists
+      // as reference points, not steps you craft through — yet the window hid them from almost every
+      // Crimson tier: Primordial sits beside base Crimson (below Hot/Burning/Fiery/Infernal, and the
+      // walk never goes below the worn tier), Warden beside Fiery (reachable only from a max-star
+      // Fiery). So every non-Kuudra candidate in the chain is evaluated from ANY Crimson tier, above
+      // or below, and kept only when it genuinely beats what's worn — evaluateTieredProgression's
+      // own "> baseline" filter is the whole "is it a real upgrade" conditional. One flat tier, no
+      // window. Anything the window already evaluated is dropped by the dedupe below. Only from the
+      // chain's first Kuudra tier on: what comes before it (Tarantula Helmet) is the route INTO
+      // Crimson, not an alternative to it — exempting it too surfaced a max-star Tarantula Helmet
+      // as a "+9%" upgrade over a fresh Hot Crimson one.
+      if (mode === 'slayer' && currentKuudraFamily) {
+        const isKuudra = (c) => ARMOR_VARIANT_FAMILIES.some((family) => c.id?.includes(family));
+        const firstKuudraTier = progression.findIndex((tier) => tier.some(isKuudra));
+        const tierLockExempt = progression.slice(Math.max(0, firstKuudraTier)).flat().filter((c) => !isKuudra(c));
+        slotResults.push(...(await evaluateTieredProgression([tierLockExempt], -1, () => false, baselineValue, evaluateCandidate)));
+      }
     }
     // Named chains can share prefix tiers (every Kuudra family's helmet chain starts at the same
     // Tarantula Helmet tier; every other Kuudra slot's chain starts at the same Shadow Assassin ->
@@ -2829,7 +2848,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     dungeonPotion,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
-    evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, armorProgressionForMode(mode, loadout), 'Armor'),
+    evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, ARMOR_SLOTS, armorProgressionForMode(mode, loadout), 'Armor', mode),
     evaluateItemSlotCandidates(
       loadout,
       itemData,
