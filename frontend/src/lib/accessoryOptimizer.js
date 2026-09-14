@@ -246,9 +246,10 @@ const CATEGORY_LABELS = {
 // — a new object reference — naturally drops every entry tied to the old catalog with no manual
 // invalidation) then by a JSON digest of every other input that can change the real output. Nothing
 // about the ~2,000-call search below needs to happen again if the player revisits this exact
-// loadout/build/mode/mob/candidate-set — which happens routinely, since Optimizer.jsx and
-// OptimizerSidebar.jsx both call this independently for the same account on the same page load
-// (user-specified 2026-09-01, recommendation #3). Capped at a handful of entries since a real
+// loadout/build/mode/mob/candidate-set — which happens routinely: the Landing column and the
+// /optimizer page each mount their own Recommended Upgrades panel (components/UpgradesPanel.jsx), and
+// toggling back to an earlier loadout or mode asks the same question again (user-specified
+// 2026-09-01, recommendation #3). Capped at a handful of entries since a real
 // session only ever revisits a couple of loadouts, not to bound unrelated memory growth.
 const accessoryEvalCache = new WeakMap();
 const ACCESSORY_EVAL_CACHE_MAX_ENTRIES = 8;
