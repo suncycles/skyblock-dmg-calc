@@ -103,6 +103,13 @@ async function runBatched(items, worker, concurrency = 8) {
   return { done, ok };
 }
 
+// compress-icons.mjs converts every baked icon to WebP at the end of the pipeline and deletes the
+// PNG, so this has to accept either extension or every later run re-downloads what it already has.
+function hasBakedIcon(id) {
+  const base = path.join(OUT_DIR, id.toLowerCase());
+  return existsSync(`${base}.png`) || existsSync(`${base}.webp`);
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
 
@@ -112,7 +119,7 @@ async function main() {
   const armorStoneIds = Object.values(stones)
     .filter(isArmorStone)
     .map((s) => s.internalName)
-    .filter((id) => id && !existsSync(path.join(OUT_DIR, `${id.toLowerCase()}.png`)));
+    .filter((id) => id && !hasBakedIcon(id));
 
   console.log(`${armorStoneIds.length} armor reforge stones missing an icon...`);
   const result = await runBatched(armorStoneIds, async (id) => {

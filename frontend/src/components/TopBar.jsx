@@ -11,16 +11,16 @@ const MENU_SECTIONS = [
     title: 'Build',
     links: [
       { to: '/hypixel-import', label: 'Import from Hypixel', icon: '/images/manual/cmd.webp' },
-      { to: '/compare', label: 'Compare', icon: '/images/manual/Armor_Stand.png' },
+      { to: '/compare', label: 'Compare', icon: '/images/manual/Armor_Stand.webp' },
       { to: '/optimizer', label: 'Damage Optimizer', icon: '/images/manual/dmg.webp' },
     ],
   },
   {
     title: 'Guides',
     links: [
-      { to: '/tutorial', label: 'Tutorial', icon: '/images/manual/tutorial_icon.png' },
-      { to: '/examples', label: 'Examples', icon: '/images/manual/Armor_Stand.png' },
-      { to: '/resources', label: 'Calculations', icon: '/images/manual/calculations_icon.png' },
+      { to: '/tutorial', label: 'Tutorial', icon: '/images/manual/tutorial_icon.webp' },
+      { to: '/examples', label: 'Examples', icon: '/images/manual/Armor_Stand.webp' },
+      { to: '/resources', label: 'Calculations', icon: '/images/manual/calculations_icon.webp' },
     ],
   },
 ];

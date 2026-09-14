@@ -126,6 +126,13 @@ async function runBatched(items, worker, concurrency = 8) {
   return { done, ok };
 }
 
+// This script writes PNG, but compress-icons.mjs converts every baked icon to WebP at the end of
+// the pipeline and deletes the PNG — so "do I already have this one?" has to accept either
+// extension, or every later run would re-download all several hundred head renders.
+function hasBakedIcon(id) {
+  return existsSync(path.join(OUT_DIR, `${id}.png`)) || existsSync(path.join(OUT_DIR, `${id}.webp`));
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const weapons = JSON.parse(readFileSync(path.join(DATA_DIR, 'weapons.json'), 'utf8'));
@@ -135,7 +142,7 @@ async function main() {
   const powerStones = JSON.parse(readFileSync(path.join(DATA_DIR, 'powerStones.json'), 'utf8'));
 
   const skullItems = [...weapons, ...armor, ...equipment, ...petItems, ...powerStones].filter(
-    (item) => item.material === 'SKULL' && !existsSync(path.join(OUT_DIR, `${item.id}.png`)),
+    (item) => item.material === 'SKULL' && !hasBakedIcon(item.id),
   );
   console.log(`${skullItems.length} skull-based weapon/armor/equipment/pet-item items missing an icon...`);
   const itemResult = await runBatched(skullItems, async (item) => {
@@ -147,7 +154,7 @@ async function main() {
 
   const petsRes = await fetch(NEU_PETNUMS_URL);
   const pets = await petsRes.json();
-  const petIds = Object.keys(pets).filter((id) => !existsSync(path.join(OUT_DIR, `${id}.png`)));
+  const petIds = Object.keys(pets).filter((id) => !hasBakedIcon(id));
   console.log(`${petIds.length} pets missing an icon...`);
   const petResult = await runBatched(petIds, async (petId) => {
     for (const ordinal of RARITY_ORDINALS) {
