@@ -68,6 +68,26 @@ function compareResults(a, b, sortBy) {
   return b.percentIncrease - a.percentIncrease;
 }
 
+// The two sort toggles. Mirrors OptimizerSidebar's HeaderChip, including why the ON state sets its
+// colour inline: index.css relights every `text-black` to near-white, which on this light-green
+// fill would leave the active chip at ~1.9:1 contrast.
+function SortChip({ active, onClick, title, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-pressed={active}
+      className={`px-2 py-0.5 text-[11px] font-bold rounded-sm cursor-pointer transition-colors border ${
+        active ? 'bg-[#8fbf3f] border-[#b6e06a]' : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20 hover:text-white'
+      }`}
+      style={active ? { color: '#11150c' } : undefined}
+    >
+      {children}
+    </button>
+  );
+}
+
 // One shared row style for every candidate — gear-slot picks (Weapon/Armor/Equipment/Pet) and the
 // brute-forced categories (Enchant/Reforge/Stars/...) alike — now that they all rank together in
 // one list instead of two separate sections. Shows an icon when the candidate is a real catalog
@@ -125,7 +145,7 @@ function UpgradeRow({ result, onSwapIn, onSkip }) {
         type="button"
         onClick={() => onSkip(result)}
         title="Skip — hide this suggestion for now"
-        className="shrink-0 px-2.5 flex items-center justify-center text-neutral-700 hover:text-black hover:bg-black/15 cursor-pointer border-l border-black/20"
+        className="shrink-0 px-2.5 flex items-center justify-center text-neutral-700 hover:text-white hover:bg-white/15 cursor-pointer border-l border-white/15"
       >
         ✕
       </button>
@@ -353,44 +373,43 @@ export default function Optimizer() {
             <div className="flex items-center justify-between pb-1 mb-0.5 border-b border-neutral-500/40">
               <span className="text-[13px] font-bold text-black uppercase tracking-wide">Recommended Upgrades</span>
               <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSortBy('increase')}
-                  className={`px-2 py-0.5 text-[11px] font-bold rounded-sm cursor-pointer transition-colors ${
-                    sortBy === 'increase' ? 'bg-[#8fbf3f] text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]' : 'bg-black/10 text-black/60 hover:bg-black/20 hover:text-black/80'
-                  }`}
-                >
+                <SortChip active={sortBy === 'increase'} onClick={() => setSortBy('increase')}>
                   Highest Increase
-                </button>
-                <button
-                  type="button"
+                </SortChip>
+                <SortChip
+                  active={sortBy === 'ratio'}
                   onClick={() => setSortBy('ratio')}
                   title="Damage increase per coin — ranks candidates by DPS gained per coin spent"
-                  className={`px-2 py-0.5 text-[11px] font-bold rounded-sm cursor-pointer transition-colors ${
-                    sortBy === 'ratio' ? 'bg-[#8fbf3f] text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]' : 'bg-black/10 text-black/60 hover:bg-black/20 hover:text-black/80'
-                  }`}
                 >
                   Best Value
-                </button>
+                </SortChip>
               </div>
             </div>
-            <label className="flex items-center gap-1.5 text-[12px] font-bold text-black/75 cursor-pointer hover:text-black">
+            {/* Same treatment as the floating panel's: a full bordered row that lights up when on,
+                rather than a bare checkbox in a line of text. It's the control people miss. */}
+            <label
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-sm border cursor-pointer transition-colors self-start min-w-[240px] ${
+                showFree ? 'bg-[#8fbf3f]/25 border-[#8fbf3f]' : 'bg-white/5 border-white/20 hover:bg-white/10'
+              }`}
+            >
               <input
                 type="checkbox"
                 checked={showFree}
                 onChange={(e) => setShowFree(e.target.checked)}
                 className="w-4 h-4 accent-[#8fbf3f] cursor-pointer shrink-0"
               />
-              <span>
-                Show 0-cost upgrades
-                {freeCount > 0 && <span className="ml-1 px-1 rounded-sm bg-black/15 text-black/70 font-mono">{freeCount}</span>}
-              </span>
+              <span className="text-[12px] font-bold text-white">Show 0-cost upgrades</span>
+              {freeCount > 0 && (
+                <span className="ml-auto px-1.5 rounded-sm bg-[#8fbf3f] text-[11px] font-mono font-bold shrink-0" style={{ color: '#11150c' }}>
+                  {freeCount}
+                </span>
+              )}
             </label>
             {/* Same two-state treatment as the floating panel — an unpicked chip keeps its category
                 colour as a stripe and stays dark-on-tint rather than white-on-near-white. */}
             {availableCategories.length > 1 && (
               <div className="flex flex-wrap items-center gap-1 pb-1">
-                <span className="text-[11px] font-bold text-black/55 shrink-0 mr-0.5">Filter</span>
+                <span className="text-[11px] font-bold text-white/60 shrink-0 mr-0.5">Filter</span>
                 {availableCategories.map((category) => {
                   const picked = selectedCategories.has(category);
                   const color = CATEGORY_COLORS[category] || '#777777';
@@ -402,9 +421,9 @@ export default function Optimizer() {
                       onClick={() => toggleCategory(category)}
                       title={picked ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
                       className={`pl-1.5 pr-2 py-0.5 text-[11px] font-bold uppercase tracking-wide cursor-pointer rounded-sm border-l-[3px] transition-colors ${
-                        picked ? 'text-white' : 'text-black/70 hover:text-black'
+                        picked ? 'text-white' : 'text-white/75 hover:text-white'
                       }`}
-                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(0,0,0,0.08)' }}
+                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(255,255,255,0.10)' }}
                     >
                       {category}
                     </button>
@@ -414,7 +433,7 @@ export default function Optimizer() {
                   <button
                     type="button"
                     onClick={() => setSelectedCategories(new Set())}
-                    className="px-1.5 py-0.5 text-[9px] font-bold uppercase text-neutral-700 hover:text-black cursor-pointer underline"
+                    className="px-1.5 py-0.5 text-[9px] font-bold uppercase text-neutral-700 hover:text-white cursor-pointer underline"
                   >
                     Clear
                   </button>

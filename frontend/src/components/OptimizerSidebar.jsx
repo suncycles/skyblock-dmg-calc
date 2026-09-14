@@ -81,11 +81,12 @@ const RESIZE_HANDLES = [
 // nothing about the panel looked resizable until you happened to graze an edge. Every handle now
 // lights up on hover, and the bottom-right corner carries a permanently visible gripper — the same
 // three diagonal ticks a native <textarea> uses, which reads as "drag to resize" without a label.
-const HANDLE_HOVER = 'lg:transition-colors lg:hover:bg-black/25';
+const HANDLE_HOVER = 'lg:transition-colors lg:hover:bg-white/20';
 
+// Light ticks, not dark: this panel paints a near-black solid surface (index.css's .opaque-panel).
 const CORNER_GRIP_STYLE = {
   backgroundImage:
-    'linear-gradient(135deg, transparent 0 45%, rgba(0,0,0,0.5) 45% 55%, transparent 55% 70%, rgba(0,0,0,0.5) 70% 80%, transparent 80%)',
+    'linear-gradient(135deg, transparent 0 45%, rgba(255,255,255,0.45) 45% 55%, transparent 55% 70%, rgba(255,255,255,0.45) 70% 80%, transparent 80%)',
 };
 
 // Same small chip the Increase/Value sort buttons use, reused for the per-row figure toggles so
@@ -97,9 +98,13 @@ function HeaderChip({ active, onClick, title, children }) {
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`px-1.5 py-0.5 text-[10px] font-bold normal-case rounded-sm cursor-pointer transition-colors ${
-        active ? 'bg-[#8fbf3f] text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.35)]' : 'bg-black/10 text-black/60 hover:bg-black/20 hover:text-black/80'
+      className={`px-2 py-0.5 text-[10px] font-bold normal-case rounded-sm cursor-pointer transition-colors border ${
+        active ? 'bg-[#8fbf3f] border-[#b6e06a]' : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20 hover:text-white'
       }`}
+      // index.css relights every `text-black` to near-white, which on this light-green fill would
+      // leave the ON state at ~1.9:1 — the opposite of what an active chip needs. Set directly so
+      // the relighting rule can't reach it.
+      style={active ? { color: '#11150c' } : undefined}
     >
       {children}
     </button>
@@ -259,7 +264,7 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
         type="button"
         onClick={() => onSkip(result)}
         title="Skip — hide this suggestion for now"
-        className="shrink-0 px-2 flex items-center justify-center text-neutral-700 hover:text-black hover:bg-black/15 cursor-pointer border-l border-black/20"
+        className="shrink-0 px-2 flex items-center justify-center text-neutral-700 hover:text-white hover:bg-white/15 cursor-pointer border-l border-white/15"
       >
         ✕
       </button>
@@ -676,7 +681,7 @@ export default function OptimizerSidebar() {
               <span className="truncate">Recommended Upgrades</span>
             </span>
             <div className="flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()}>
-              <span className="text-[10px] font-bold normal-case text-black/55 shrink-0">Sort</span>
+              <span className="text-[10px] font-bold normal-case text-white/60 shrink-0">Sort</span>
               <div className="flex gap-1">
                 <HeaderChip active={sortBy === 'increase'} onClick={() => setSortBy('increase')} title="Highest raw % DPS increase">
                   Increase
@@ -690,11 +695,11 @@ export default function OptimizerSidebar() {
           {/* One-click apply is this panel's most useful feature and nothing said so — the rows read
               as a static readout, and the ✕ means "hide this suggestion" while ✕ everywhere else in
               the app means "remove this item". */}
-          <div className="text-[11px] text-black/70">Click a row to equip it · ✕ hides a suggestion</div>
+          <div className="text-[11px] text-white/75">Click a row to equip it · ✕ hides a suggestion</div>
           {/* Which figure the rows carry. Both can be on at once; turning both off leaves the rows
               as name-and-cost only, which is a legitimate way to read the list purely by rank. */}
-          <div className="flex items-center gap-1.5 text-[11px] text-black/70">
-            <span className="font-bold text-black/55 shrink-0">Show</span>
+          <div className="flex items-center gap-1.5 text-[11px] text-white/75">
+            <span className="font-bold text-white/60 shrink-0">Show</span>
             <HeaderChip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % DPS increase on each row">
               % increase
             </HeaderChip>
@@ -703,18 +708,26 @@ export default function OptimizerSidebar() {
             </HeaderChip>
           </div>
           {/* Free upgrades (reforges you already own the stone for, Skill levels) are hidden by
-              default and counted here, so they're discoverable without crowding the buy list. */}
-          <label className="flex items-center gap-1.5 text-[11px] font-bold text-black/75 cursor-pointer hover:text-black">
+              default and counted here, so they're discoverable without crowding the buy list. This
+              is the one control people miss, so it gets a full bordered row that lights up when on
+              rather than a bare checkbox in a line of text. */}
+          <label
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-sm border cursor-pointer transition-colors ${
+              showFree ? 'bg-[#8fbf3f]/25 border-[#8fbf3f]' : 'bg-white/5 border-white/20 hover:bg-white/10'
+            }`}
+          >
             <input
               type="checkbox"
               checked={showFree}
               onChange={(e) => setShowFree(e.target.checked)}
-              className="w-3.5 h-3.5 accent-[#8fbf3f] cursor-pointer shrink-0"
+              className="w-4 h-4 accent-[#8fbf3f] cursor-pointer shrink-0"
             />
-            <span>
-              Show 0-cost upgrades
-              {freeCount > 0 && <span className="ml-1 px-1 rounded-sm bg-black/15 text-black/70 font-mono">{freeCount}</span>}
-            </span>
+            <span className="text-[11px] font-bold text-white">Show 0-cost upgrades</span>
+            {freeCount > 0 && (
+              <span className="ml-auto px-1.5 rounded-sm bg-[#8fbf3f] text-[10px] font-mono font-bold shrink-0" style={{ color: '#11150c' }}>
+                {freeCount}
+              </span>
+            )}
           </label>
           {/* Deliberately louder than the hint above it — amber, bordered, its own block rather than
               a tooltip or a footnote. The ranking is a single-swap search against the current build,
@@ -783,7 +796,7 @@ export default function OptimizerSidebar() {
                 legible before you touch it and a picked chip still reads unmistakably as picked. */}
             {availableCategories.length > 1 && (
               <div className="flex flex-wrap items-center gap-1">
-                <span className="text-[10px] font-bold text-black/55 shrink-0 mr-0.5">Filter</span>
+                <span className="text-[10px] font-bold text-white/60 shrink-0 mr-0.5">Filter</span>
                 {availableCategories.map((category) => {
                   const picked = selectedCategories.has(category);
                   const color = CATEGORY_COLORS[category] || '#777777';
@@ -795,9 +808,9 @@ export default function OptimizerSidebar() {
                       onClick={() => toggleCategory(category)}
                       title={picked ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
                       className={`pl-1 pr-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide normal-case cursor-pointer rounded-sm border-l-[3px] transition-colors ${
-                        picked ? 'text-white' : 'text-black/70 hover:text-black'
+                        picked ? 'text-white' : 'text-white/75 hover:text-white'
                       }`}
-                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(0,0,0,0.08)' }}
+                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(255,255,255,0.10)' }}
                     >
                       {category}
                     </button>
@@ -807,7 +820,7 @@ export default function OptimizerSidebar() {
                   <button
                     type="button"
                     onClick={() => setSelectedCategories(new Set())}
-                    className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-black/60 hover:text-black cursor-pointer underline"
+                    className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/70 hover:text-white cursor-pointer underline"
                   >
                     Clear
                   </button>
