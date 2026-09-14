@@ -5,10 +5,10 @@ export const FALLBACK_ICON =
 // A few item ids diverge from the icon file names (e.g. shovel's real id is "SPADE").
 const MATERIAL_ALIASES = { SPADE: 'SHOVEL' };
 
-// Local icons are stored Title_Cased (e.g. "Diamond_Sword.png"); the worker already
+// Local icons are stored Title_Cased (e.g. "Diamond_Sword.webp"); the worker already
 // normalizes NEU-REPO's namespaced itemid to upper snake case before this sees it.
 export function getWeaponIcon(material) {
-  if (!material) return '/images/vanilla/default.png';
+  if (!material) return '/images/vanilla/default.webp';
   const normalized = material
     .toUpperCase()
     .split('_')
@@ -19,13 +19,13 @@ export function getWeaponIcon(material) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('_');
-  return `/images/vanilla/${titleCased}.png`;
+  return `/images/vanilla/${titleCased}.webp`;
 }
 
 // Bespoke SkyBlock art from Hypixel's resource pack, keyed by item id — falls back to getWeaponIcon(material) if none exists.
 export function getSkyblockIcon(id) {
   if (!id) return null;
-  return `/images/skyblock/${id.toUpperCase()}.png`;
+  return `/images/skyblock/${id.toUpperCase()}.webp`;
 }
 
 // Hand-provided override for ids the automated bake pipeline can't produce a real render for
@@ -33,45 +33,45 @@ export function getSkyblockIcon(id) {
 // frontend/public/images/manual/README.md) — checked before the auto-baked skyblock icon.
 export function getManualIcon(id) {
   if (!id) return null;
-  return `/images/manual/${id.toUpperCase()}.png`;
+  return `/images/manual/${id.toUpperCase()}.webp`;
 }
 
 // Real per-gem, per-tier gemstone art from the Hypixel resource pack.
 export function getGemstoneIcon(gemId, tier) {
   if (!gemId || !tier) return null;
-  return `/images/gemstones/${gemId.toUpperCase()}_${tier.toUpperCase()}.png`;
+  return `/images/gemstones/${gemId.toUpperCase()}_${tier.toUpperCase()}.webp`;
 }
 
 // Reforge stone icons, added manually (not in the bundled resource-pack subset) — falls back to CATEGORY_ICONS.Reforges if missing.
 export function getReforgeStoneIcon(stoneId) {
   if (!stoneId) return null;
-  return `/images/reforgestones/${stoneId.toLowerCase()}.png`;
+  return `/images/reforgestones/${stoneId.toLowerCase()}.webp`;
 }
 
 // Chest-inventory chrome shared by every grid page: glass panes for "empty"/"filler" slots, a Barrier for "close".
 export const SLOT_TEXTURES = {
-  empty: '/images/vanilla/Gray_Stained_Glass_Pane.png',
-  filler: '/images/vanilla/Magenta_Stained_Glass_Pane.png',
-  close: '/images/vanilla/Barrier.png',
-  emptyGemSlot: '/images/vanilla/Light_Gray_Stained_Glass_Pane.png',
+  empty: '/images/vanilla/Gray_Stained_Glass_Pane.webp',
+  filler: '/images/vanilla/Magenta_Stained_Glass_Pane.webp',
+  close: '/images/vanilla/Barrier.webp',
+  emptyGemSlot: '/images/vanilla/Light_Gray_Stained_Glass_Pane.webp',
 };
 
 // Icons for the item-detail screen's category buttons.
 export const CATEGORY_ICONS = {
-  Enchantments: '/images/vanilla/Enchanting_Table.png',
-  'Ultimate Enchantments': '/images/vanilla/Book_and_Quill.png',
-  Gemstones: '/images/gemstones/RUBY_PERFECT.png',
-  Books: '/images/vanilla/Book.png',
-  Modifiers: '/images/vanilla/Recombobulator_3000.png',
-  Reforges: '/images/vanilla/Luxurious_Spool.png',
-  'Item Upgrades': '/images/vanilla/Dragon_Essence.png',
-  Special: '/images/vanilla/Nether_Star.png',
-  Clean: '/images/vanilla/Sponge.png',
+  Enchantments: '/images/vanilla/Enchanting_Table.webp',
+  'Ultimate Enchantments': '/images/vanilla/Book_and_Quill.webp',
+  Gemstones: '/images/gemstones/RUBY_PERFECT.webp',
+  Books: '/images/vanilla/Book.webp',
+  Modifiers: '/images/vanilla/Recombobulator_3000.webp',
+  Reforges: '/images/vanilla/Luxurious_Spool.webp',
+  'Item Upgrades': '/images/vanilla/Dragon_Essence.webp',
+  Special: '/images/vanilla/Nether_Star.webp',
+  Clean: '/images/vanilla/Sponge.webp',
 };
 
-export const ENCHANTED_BOOK_ICON = '/images/vanilla/Enchanted_Book.png';
+export const ENCHANTED_BOOK_ICON = '/images/vanilla/Enchanted_Book.webp';
 
 // Shared placeholder icon for the Art of War/Art of Peace one-time toggles.
-export const ART_OF_WAR_ICON = '/images/vanilla/Book_and_Quill.png';
+export const ART_OF_WAR_ICON = '/images/vanilla/Book_and_Quill.webp';
 
-export const ANVIL_ICON = '/images/vanilla/Anvil.png';
+export const ANVIL_ICON = '/images/vanilla/Anvil.webp';

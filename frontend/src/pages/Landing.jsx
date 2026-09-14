@@ -938,7 +938,7 @@ export default function Landing() {
             onMouseEnter={guardHover((e) => showTooltip(['§c§lHard Reset Everything', '§7Wipes your current build, saved', '§7Loadouts, and every other saved', '§7setting. Cannot be undone.'], e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
-            <img src="/images/vanilla/Barrier.png" alt="Hard Reset Everything" className="w-[70%] h-[70%] object-contain pixelated" />
+            <img src="/images/vanilla/Barrier.webp" alt="Hard Reset Everything" className="w-[70%] h-[70%] object-contain pixelated" />
           </div>,
         );
         continue;
@@ -1054,7 +1054,7 @@ export default function Landing() {
                 catalog icon lookup like every other real item id. */}
             {dungeonPotion ? (
               <img
-                src="/images/manual/dpot.png"
+                src="/images/manual/dpot.webp"
                 alt="Dungeon Potion"
                 className={`${iconImg} ${godPotionActive ? '' : 'opacity-50 grayscale'}`}
               />
@@ -1093,13 +1093,13 @@ export default function Landing() {
           <span className="text-[10px] font-bold text-black uppercase tracking-wide">Loadout</span>
           <div className="flex flex-wrap gap-1.5">
             <ToolbarButton
-              icon="/images/ui/hypixel.png"
+              icon="/images/ui/hypixel.webp"
               label="Import from Hypixel"
               shortLabel="Hypixel"
               onClick={() => navigate('/hypixel-import')}
             />
             <ToolbarButton
-              icon="/images/ui/loadouts.png"
+              icon="/images/ui/loadouts.webp"
               label="Loadouts"
               shortLabel="Loadouts"
               onClick={() => setShowLoadoutsPanel((v) => !v)}
@@ -1111,13 +1111,13 @@ export default function Landing() {
               onClick={handleCalculateSetupCost}
             />
             <ToolbarButton
-              icon="/images/ui/export.png"
+              icon="/images/ui/export.webp"
               label={exportStatus || 'Export to Clipboard'}
               shortLabel={exportStatus || 'Export'}
               onClick={handleExportLoadout}
             />
             <ToolbarButton
-              icon="/images/ui/import.png"
+              icon="/images/ui/import.webp"
               label={importStatus || 'Import from Clipboard'}
               shortLabel={importStatus || 'Import'}
               onClick={handleImportLoadout}

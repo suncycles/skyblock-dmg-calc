@@ -573,7 +573,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               mageMode ? 'hover:brightness-110' : 'brightness-50'
             }`}
           >
-            <img src="/images/manual/mage_mode.png" alt="" className="w-5 h-5" />
+            <img src="/images/manual/mage_mode.webp" alt="" className="w-5 h-5" />
             <Keyworded text="Mage" />
           </button>
           <button

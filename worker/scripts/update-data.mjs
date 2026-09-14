@@ -57,6 +57,10 @@ step('apply-skull-head-icons.mjs', () => runNode('apply-skull-head-icons.mjs'));
 step('apply-armor-reforge-stone-skulls.mjs', () => runNode('apply-armor-reforge-stone-skulls.mjs'));
 step('apply-equipment-reforge-stone-skulls.mjs', () => runNode('apply-equipment-reforge-stone-skulls.mjs'));
 
+// Last, after every step that can write an icon: the steps above emit PNG because that's what
+// their sources hand them, and lib/icons.js addresses all of it as WebP.
+step('compress-icons.mjs', () => runNode('compress-icons.mjs'));
+
 console.log('\n=== Done. Changed files (review before committing): ===');
 try {
   execFileSync('git', ['status', '--short', '--', 'worker/src/data', 'frontend/public/images'], {
