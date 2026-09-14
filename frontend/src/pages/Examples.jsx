@@ -87,7 +87,7 @@ const EXAMPLES = [
     code: 'eqkoDoFi',
     title: 'Midgame Crimson Eman',
     category: 'Eman',
-    image: '/examples/midgame-crimson-eman.png',
+    image: '/examples/midgame-crimson-eman.jpg',
     weapon: 'Atomsplit Katana',
     pet: 'Ankylosaurus',
     petItem: null,
