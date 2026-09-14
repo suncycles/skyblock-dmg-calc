@@ -312,6 +312,7 @@ function loadInitialDebuffs() {
     const parsed = JSON.parse(stored);
     return {
       iceSpray: !!parsed?.iceSpray,
+      twilightPoison: !!parsed?.twilightPoison,
       lastBreath: Math.max(0, Math.min(LAST_BREATH_MAX_LEVEL, Math.floor(Number(parsed?.lastBreath) || 0))),
       lethality: Math.max(0, Math.min(LETHALITY_MAX_STACKS, Math.floor(Number(parsed?.lethality) || 0))),
     };
@@ -635,6 +636,7 @@ export function BuildProvider({ children }) {
   }, []);
 
   const setIceSpray = useCallback((value) => updateDebuffs({ iceSpray: !!value }), [updateDebuffs]);
+  const setTwilightPoison = useCallback((value) => updateDebuffs({ twilightPoison: !!value }), [updateDebuffs]);
   const setLastBreathLevel = useCallback(
     (value) => updateDebuffs({ lastBreath: Math.max(0, Math.min(LAST_BREATH_MAX_LEVEL, Math.floor(Number(value) || 0))) }),
     [updateDebuffs],
@@ -1681,6 +1683,7 @@ export function BuildProvider({ children }) {
         blessing,
         debuffs,
         setIceSpray,
+        setTwilightPoison,
         setLastBreathLevel,
         setLethalityStacks,
         essencePerks,

@@ -32,7 +32,7 @@ import { getBestiaryStrengthBonus } from './bestiaryStrength';
 import { hasFullSet, computeCrimsonSwipeInfo, FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 import { computeMobDamageReduction, computeMobMagicResistance, computeMobDefenseMultiplier } from './mobDefenses';
-import { mobDefenseDebuffMultiplier, iceSprayMultiplier } from './mobDebuffs';
+import { mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier } from './mobDebuffs';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -244,9 +244,9 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   // separate application needed there.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
   // Last Breath/Lethality shred the Defense STAT before its curve (lib/mobDebuffs.js); Ice Spray
-  // is a flat external multiplier and belongs at this same last step.
+  // and Twilight Arrow Poison are flat external multipliers and belong at this same last step.
   const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode, mobDefenseDebuffMultiplier(sources.debuffs));
-  const debuffMultiplier = iceSprayMultiplier(sources.debuffs);
+  const debuffMultiplier = finalDamageDebuffMultiplier(sources.debuffs);
   const preCritDamage = initialDamage * additiveMultiplier * weaponBonusMultiplier * multiplicativeMultiplier + bonusModifiers;
   const finalDamage = Math.floor(
     preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100) * mobDefenseMultiplier * debuffMultiplier,
@@ -393,7 +393,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
       (1 - damageReductionPercent / 100) *
       (1 - magicResistancePercent / 100) *
       mobDefenseMultiplier *
-      iceSprayMultiplier(sources.debuffs),
+      finalDamageDebuffMultiplier(sources.debuffs),
   );
 
   return {

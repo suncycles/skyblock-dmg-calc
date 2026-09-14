@@ -28,8 +28,9 @@ import { anyMiningIslandTarget } from '../lib/miningIslands';
 import { computeMobDefense, computeMobDefenseMultiplier } from '../lib/mobDefenses';
 import {
   mobDefenseDebuffMultiplier,
-  iceSprayMultiplier,
+  finalDamageDebuffMultiplier,
   ICE_SPRAY_MULTIPLIER,
+  TWILIGHT_ARROW_POISON_MULTIPLIER,
   LAST_BREATH_MAX_LEVEL,
   LAST_BREATH_PERCENT_PER_LEVEL,
   LETHALITY_MAX_STACKS,
@@ -218,6 +219,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     setPaulBuff,
     debuffs,
     setIceSpray,
+    setTwilightPoison,
     setLastBreathLevel,
     setLethalityStacks,
     setAccessoryMagicalPower,
@@ -1421,6 +1423,19 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                     <span className="text-neutral-600 italic"> (x{ICE_SPRAY_MULTIPLIER} final damage)</span>
                   </span>
                 </label>
+                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="twilight-poison">
+                  <input
+                    id="twilight-poison"
+                    type="checkbox"
+                    checked={!!debuffs.twilightPoison}
+                    onChange={(e) => setTwilightPoison(e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    Twilight Arrow Poison
+                    <span className="text-neutral-600 italic"> (x{TWILIGHT_ARROW_POISON_MULTIPLIER} final damage)</span>
+                  </span>
+                </label>
                 <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="last-breath">
                   <span className="flex justify-between">
                     <span>Last Breath</span>
@@ -1461,7 +1476,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 </label>
                 <div className="text-[10px] text-neutral-600 leading-snug border-t border-neutral-500/40 pt-1.5">
                   Mob Defense x{round2(mobDefenseDebuffMultiplier(debuffs))} &middot; Final damage x
-                  {round2(iceSprayMultiplier(debuffs))}
+                  {round2(finalDamageDebuffMultiplier(debuffs))}
                   {/* Only 7 mobs in the app have a published Defense at all (lib/mobDefenses.js) —
                       without this the two sliders look broken against everything else. */}
                   <div className="italic mt-0.5">
