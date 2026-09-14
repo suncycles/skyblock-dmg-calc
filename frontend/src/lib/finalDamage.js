@@ -32,6 +32,7 @@ import { getBestiaryStrengthBonus } from './bestiaryStrength';
 import { hasFullSet, computeCrimsonSwipeInfo, FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 import { computeMobDamageReduction, computeMobMagicResistance, computeMobDefenseMultiplier } from './mobDefenses';
+import { mobDefenseDebuffMultiplier, iceSprayMultiplier } from './mobDebuffs';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -242,12 +243,17 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   // this melee finalDamage (DPS breakdown's procs, Mage Beam) automatically inherits them too, no
   // separate application needed there.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
-  const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode);
+  // Last Breath/Lethality shred the Defense STAT before its curve (lib/mobDebuffs.js); Ice Spray
+  // is a flat external multiplier and belongs at this same last step.
+  const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode, mobDefenseDebuffMultiplier(sources.debuffs));
+  const debuffMultiplier = iceSprayMultiplier(sources.debuffs);
   const preCritDamage = initialDamage * additiveMultiplier * weaponBonusMultiplier * multiplicativeMultiplier + bonusModifiers;
-  const finalDamage = Math.floor(preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100) * mobDefenseMultiplier);
+  const finalDamage = Math.floor(
+    preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100) * mobDefenseMultiplier * debuffMultiplier,
+  );
   // Same formula as finalDamage, minus the Crit Damage factor — a non-critical hit's real damage.
   // Stored for computeDpsBreakdown's crit-chance-weighted DPS below; not shown as its own panel.
-  const finalDamageNonCrit = Math.floor(preCritDamage * (1 - damageReductionPercent / 100) * mobDefenseMultiplier);
+  const finalDamageNonCrit = Math.floor(preCritDamage * (1 - damageReductionPercent / 100) * mobDefenseMultiplier * debuffMultiplier);
 
   return {
     initialDamage,
@@ -379,14 +385,15 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   // Resistance is Ability-damage-only — all three lib/mobDefenses.js, all direct final multipliers.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
   const magicResistancePercent = computeMobMagicResistance(mob);
-  const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode);
+  const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode, mobDefenseDebuffMultiplier(sources.debuffs));
   const finalDamage = Math.floor(
     initialDamage *
       additiveMultiplier *
       multiplicativeMultiplier *
       (1 - damageReductionPercent / 100) *
       (1 - magicResistancePercent / 100) *
-      mobDefenseMultiplier,
+      mobDefenseMultiplier *
+      iceSprayMultiplier(sources.debuffs),
   );
 
   return {

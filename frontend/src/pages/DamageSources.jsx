@@ -26,6 +26,15 @@ import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { anyMiningIslandTarget } from '../lib/miningIslands';
 import { computeMobDefense, computeMobDefenseMultiplier } from '../lib/mobDefenses';
+import {
+  mobDefenseDebuffMultiplier,
+  iceSprayMultiplier,
+  ICE_SPRAY_MULTIPLIER,
+  LAST_BREATH_MAX_LEVEL,
+  LAST_BREATH_PERCENT_PER_LEVEL,
+  LETHALITY_MAX_STACKS,
+  LETHALITY_PERCENT_PER_STACK,
+} from '../lib/mobDebuffs';
 import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../lib/armorSetBonuses';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { MOB_TYPE_SYMBOLS, STAT_SYMBOLS } from '../lib/damageSymbols';
@@ -86,14 +95,21 @@ const ENRICHMENT_TYPES = [
 // only when it's actually non-zero, which is the handful of Catacombs mobs with a published
 // number (and, for most of those, only in Master Mode). Replaces a stale "not implemented yet"
 // notice that survived the feature actually shipping.
-function MobDefenseNote({ name, types, masterMode }) {
+function MobDefenseNote({ name, types, masterMode, debuffs }) {
   const mob = { name, types };
   const defense = computeMobDefense(mob, masterMode);
   if (!defense) return null;
+  // Last Breath/Lethality shred this stat (lib/mobDebuffs.js), so the figure shown is the one the
+  // damage numbers on this page were actually computed with, not the mob's undebuffed sheet value.
+  const shred = mobDefenseDebuffMultiplier(debuffs);
+  const effective = Math.round(defense * shred);
   return (
     <div className="text-[11px] text-neutral-700 flex items-baseline justify-between border-t border-neutral-500/40 pt-1 mt-0.5">
-      <span>Mob Defense ({defense.toLocaleString()})</span>
-      <span className="font-mono">{round4(computeMobDefenseMultiplier(mob, masterMode))}x</span>
+      <span>
+        Mob Defense ({defense.toLocaleString()}
+        {shred < 1 && <span className="text-amber-300"> &rarr; {effective.toLocaleString()}</span>})
+      </span>
+      <span className="font-mono">{round4(computeMobDefenseMultiplier(mob, masterMode, shred))}x</span>
     </div>
   );
 }
@@ -200,6 +216,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     essencePerks,
     setBlessingLevel,
     setPaulBuff,
+    debuffs,
+    setIceSpray,
+    setLastBreathLevel,
+    setLethalityStacks,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
     setAccessoryEnrichmentType,
@@ -223,14 +243,18 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     swarmMobs,
     comboKills,
     legionPlayers,
-    blessing,
   });
   const settledMiscStats = appliedMisc.miscStats;
   const settledInfernalCrimsonStacks = appliedMisc.infernalCrimsonStacks;
   const settledSwarmMobs = appliedMisc.swarmMobs;
   const settledComboKills = appliedMisc.comboKills;
   const settledLegionPlayers = appliedMisc.legionPlayers;
-  const settledBlessing = appliedMisc.blessing;
+  // Blessings and Debuffs moved out of MISC into their own Dungeon-only row (user-specified
+  // 2026-09-14), so each owns its own Apply press rather than riding on the MISC panel's.
+  const [appliedBlessing, applyBlessing, blessingDirty] = useConfirmedValues({ blessing });
+  const settledBlessing = appliedBlessing.blessing;
+  const [appliedDebuffs, applyDebuffs, debuffsDirty] = useConfirmedValues({ debuffs });
+  const settledDebuffs = appliedDebuffs.debuffs;
 
   // Swaps in a saved loadout without leaving this page — loadFullState updates BuildContext's
   // `loadout` (and everything else this page reads), which the recalculation effect below is
@@ -316,6 +340,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         essencePerks,
         isMiningIslandTarget,
         hasJellyfishPet,
+        settledDebuffs,
       ).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
@@ -336,6 +361,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     settledComboKills,
     settledLegionPlayers,
     settledBlessing,
+    settledDebuffs,
+    hasJellyfishPet,
     essencePerks,
     effectiveBlazeCrimsonIsle,
     isMiningIslandTarget,
@@ -375,6 +402,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         essencePerks,
         isMiningIslandTarget,
         hasJellyfishPet,
+        settledDebuffs,
       ).then((r) => {
         if (tokenAt100Ref.current === token) setResultAt100(r);
       });
@@ -396,6 +424,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     settledComboKills,
     settledLegionPlayers,
     settledBlessing,
+    settledDebuffs,
+    hasJellyfishPet,
     essencePerks,
     blazeCrimsonIsle,
     isMiningIslandTarget,
@@ -1013,7 +1043,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                         </span>
                       </div>
                     )}
-                    <MobDefenseNote name={name} types={types} masterMode={useMasterMode} />
+                    <MobDefenseNote name={name} types={types} masterMode={useMasterMode} debuffs={settledDebuffs} />
                   </>
                 )}
               </div>
@@ -1095,7 +1125,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                         </div>
                       )}
                     </div>
-                    <MobDefenseNote name={name} types={types} masterMode={useMasterMode} />
+                    <MobDefenseNote name={name} types={types} masterMode={useMasterMode} debuffs={settledDebuffs} />
                   </>
                 )}
               </div>
@@ -1294,51 +1324,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   </span>
                 </label>
               )}
-              {/* Dungeon Blessings are a Catacombs-run thing, so the whole block only exists while
-                  the Dungeon toggle is on (user-specified 2026-09-10). The two effectiveness
-                  inputs above the sliders are read-only: they come from the account on import
-                  (Mimic Shard level, Forbidden Blessing perk), not from typing. */}
-              {useDungeonizedStats && (
-                <>
-                  <div className="border-t border-neutral-500/40 pt-2 mt-1 text-[11px] font-bold text-black uppercase tracking-wide">
-                    Dungeon Blessings
-                  </div>
-                  <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="paul-buff">
-                    <input id="paul-buff" type="checkbox" checked={!!blessing.paulBuff} onChange={(e) => setPaulBuff(e.target.checked)} className="mt-0.5 shrink-0" />
-                    <span>Paul Buff</span>
-                  </label>
-                  <div className="text-[10px] text-neutral-600 leading-snug">
-                    Effectiveness ×{round2(computeBlessingMultiplier(blessing, attributes))}
-                    <span className="italic">
-                      {' '}
-                      (Mimic {attributes.mimic || 0}/{MIMIC_SHARD_MAX_LEVEL} · Forbidden {blessing.forbiddenBlessingLevel}/
-                      {FORBIDDEN_BLESSING_MAX_LEVEL})
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-neutral-600 leading-snug">
-                    Master Skull ×{masterSkullStrengthMultiplier(blessing.masterSkullTier)}
-                    <span className="italic"> (Tier {blessing.masterSkullTier || '—'}, Strength only)</span>
-                  </div>
-                  {DUNGEON_BLESSINGS.map((b) => (
-                    <label key={b.id} className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor={`blessing-${b.id}`}>
-                      <span className="flex justify-between">
-                        <span>{b.label}</span>
-                        <span className="font-mono">{blessing.levels[b.id]}</span>
-                      </span>
-                      <input
-                        id={`blessing-${b.id}`}
-                        type="range"
-                        min={BLESSING_MIN_LEVEL}
-                        max={BLESSING_MAX_LEVEL}
-                        step="1"
-                        value={blessing.levels[b.id]}
-                        onChange={(e) => setBlessingLevel(b.id, e.target.value)}
-                        className="w-full"
-                      />
-                    </label>
-                  ))}
-                </>
-              )}
               {/* Always rendered, not only while dirty — a button that appears out of nowhere the
                   first time you type is worse than one that's visibly waiting, and a stable slot
                   keeps the panel from reflowing mid-edit. */}
@@ -1356,6 +1341,147 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               </button>
             </div>
           </div>
+
+          {/* Buffs on the player (left) and debuffs on the target (right), as one half-and-half row
+              directly under (Base) Stats. Both halves are Catacombs-only mechanics, so the whole
+              row only exists while the Dungeon toggle is on (user-specified 2026-09-14). Each half
+              owns its own Apply press — they used to ride on the MISC panel's, which stopped
+              making sense once they left that panel. */}
+          {useDungeonizedStats && (
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+              <div className={`${panel} p-3 flex-1 flex flex-col gap-2`}>
+                <div className={sectionTitle}>Dungeon Blessings</div>
+                {/* Read-only: both come from the account on import (Mimic Shard level, Forbidden
+                    Blessing perk), not from typing. */}
+                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="paul-buff">
+                  <input
+                    id="paul-buff"
+                    type="checkbox"
+                    checked={!!blessing.paulBuff}
+                    onChange={(e) => setPaulBuff(e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>Paul Buff</span>
+                </label>
+                <div className="text-[10px] text-neutral-600 leading-snug">
+                  Effectiveness x{round2(computeBlessingMultiplier(blessing, attributes))}
+                  <span className="italic">
+                    {' '}
+                    (Mimic {attributes.mimic || 0}/{MIMIC_SHARD_MAX_LEVEL} &middot; Forbidden {blessing.forbiddenBlessingLevel}/
+                    {FORBIDDEN_BLESSING_MAX_LEVEL})
+                  </span>
+                </div>
+                <div className="text-[10px] text-neutral-600 leading-snug">
+                  Master Skull x{masterSkullStrengthMultiplier(blessing.masterSkullTier)}
+                  <span className="italic"> (Tier {blessing.masterSkullTier || '\u2014'}, Strength only)</span>
+                </div>
+                {DUNGEON_BLESSINGS.map((b) => (
+                  <label key={b.id} className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor={`blessing-${b.id}`}>
+                    <span className="flex justify-between">
+                      <span>{b.label}</span>
+                      <span className="font-mono">{blessing.levels[b.id]}</span>
+                    </span>
+                    <input
+                      id={`blessing-${b.id}`}
+                      type="range"
+                      min={BLESSING_MIN_LEVEL}
+                      max={BLESSING_MAX_LEVEL}
+                      step="1"
+                      value={blessing.levels[b.id]}
+                      onChange={(e) => setBlessingLevel(b.id, e.target.value)}
+                      className="w-full"
+                    />
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  onClick={applyBlessing}
+                  disabled={!blessingDirty}
+                  className={`mt-auto w-full px-2 py-1.5 text-[12px] font-bold cursor-pointer transition-colors ${
+                    blessingDirty ? 'bg-green-400 text-black hover:brightness-110' : 'bg-neutral-800 text-neutral-500 cursor-default'
+                  }`}
+                >
+                  {blessingDirty ? 'Apply changes' : 'Applied'}
+                </button>
+              </div>
+
+              <div className={`${panel} p-3 flex-1 flex flex-col gap-2`}>
+                <div className={sectionTitle}>Debuffs</div>
+                <div className="text-[11px] text-neutral-700 leading-snug -mt-1 mb-1">Applied to the target, not to you.</div>
+                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="ice-spray">
+                  <input
+                    id="ice-spray"
+                    type="checkbox"
+                    checked={!!debuffs.iceSpray}
+                    onChange={(e) => setIceSpray(e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    Ice Spray
+                    <span className="text-neutral-600 italic"> (x{ICE_SPRAY_MULTIPLIER} final damage)</span>
+                  </span>
+                </label>
+                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="last-breath">
+                  <span className="flex justify-between">
+                    <span>Last Breath</span>
+                    <span className="font-mono">{debuffs.lastBreath}</span>
+                  </span>
+                  <input
+                    id="last-breath"
+                    type="range"
+                    min="0"
+                    max={LAST_BREATH_MAX_LEVEL}
+                    step="1"
+                    value={debuffs.lastBreath}
+                    onChange={(e) => setLastBreathLevel(e.target.value)}
+                    className="w-full"
+                  />
+                  <span className="text-[10px] text-neutral-600 italic">
+                    -{LAST_BREATH_PERCENT_PER_LEVEL}% Defense per level
+                  </span>
+                </label>
+                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="lethality-stacks">
+                  <span className="flex justify-between">
+                    <span>Lethality Stacks</span>
+                    <span className="font-mono">{debuffs.lethality}</span>
+                  </span>
+                  <input
+                    id="lethality-stacks"
+                    type="range"
+                    min="0"
+                    max={LETHALITY_MAX_STACKS}
+                    step="1"
+                    value={debuffs.lethality}
+                    onChange={(e) => setLethalityStacks(e.target.value)}
+                    className="w-full"
+                  />
+                  <span className="text-[10px] text-neutral-600 italic">
+                    -{LETHALITY_PERCENT_PER_STACK}% Defense per stack
+                  </span>
+                </label>
+                <div className="text-[10px] text-neutral-600 leading-snug border-t border-neutral-500/40 pt-1.5">
+                  Mob Defense x{round2(mobDefenseDebuffMultiplier(debuffs))} &middot; Final damage x
+                  {round2(iceSprayMultiplier(debuffs))}
+                  {/* Only 7 mobs in the app have a published Defense at all (lib/mobDefenses.js) —
+                      without this the two sliders look broken against everything else. */}
+                  <div className="italic mt-0.5">
+                    The two Defense sliders only change anything against a mob with a real Defense stat &mdash; the
+                    Catacombs bosses, Angry Archaeologist and Lost Adventurer.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={applyDebuffs}
+                  disabled={!debuffsDirty}
+                  className={`mt-auto w-full px-2 py-1.5 text-[12px] font-bold cursor-pointer transition-colors ${
+                    debuffsDirty ? 'bg-green-400 text-black hover:brightness-110' : 'bg-neutral-800 text-neutral-500 cursor-default'
+                  }`}
+                >
+                  {debuffsDirty ? 'Apply changes' : 'Applied'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className={`${panel} p-3 flex items-center gap-3`}>
             <div className="text-[13px] font-bold text-black uppercase tracking-wide">Magical Power</div>

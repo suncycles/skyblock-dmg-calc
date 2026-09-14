@@ -68,6 +68,8 @@ try {
   const petData = await server.ssrLoadModule('/src/lib/petData.js');
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
+  const mobDebuffs = await server.ssrLoadModule('/src/lib/mobDebuffs.js');
+  const mobDefenses = await server.ssrLoadModule('/src/lib/mobDefenses.js');
   const armorSlots = await server.ssrLoadModule('/src/lib/armorSlots.js');
   const optimizer = await server.ssrLoadModule('/src/lib/optimizer.js');
   const pricing = await server.ssrLoadModule('/src/lib/pricing.js');
@@ -925,6 +927,41 @@ try {
     // It is weaker than the God Potion it replaces, which is the whole reason it can't just be a
     // scaled copy — a dungeon run is not a God Potion run.
     assert.ok(DUNGEON_POTION_TIERS.jellyfish.strength < GOD_POTION_STRENGTH_POTION, 'even the top dungeon tier trails the God Potion on Strength');
+  });
+  // 34. Last Breath and Lethality cut the mob's Defense STAT, and they are MULTIPLICATIVE with each
+  // other, not additive (user-confirmed 2026-09-14) — the difference at max is 68% off vs 86% off,
+  // which on Master Necron is a 2.8x damage swing vs a 5.6x one. Both are pinned, along with the
+  // fact that a Defense cut feeds `1 - Def/(100+Def)` rather than scaling damage directly.
+  await check('Defense debuffs are multiplicative and feed the Defense curve', () => {
+    const { mobDefenseDebuffMultiplier, iceSprayMultiplier, ICE_SPRAY_MULTIPLIER } = mobDebuffs;
+    const { computeMobDefenseMultiplier } = mobDefenses;
+    const maxed = { iceSpray: false, lastBreath: 5, lethality: 4 };
+    // 0.5 * 0.64 — NOT 1 - (0.5 + 0.36).
+    assert.ok(Math.abs(mobDefenseDebuffMultiplier(maxed) - 0.32) < 1e-9, 'max debuffs leave 32% of Defense');
+    assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lastBreath: 5 }) - 0.5) < 1e-9);
+    assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lethality: 4 }) - 0.64) < 1e-9);
+    assert.equal(mobDefenseDebuffMultiplier(null), 1, 'no debuffs is an exact no-op');
+    // Out-of-range input clamps rather than inverting the multiplier.
+    assert.equal(mobDefenseDebuffMultiplier({ lastBreath: 99, lethality: 99 }), mobDefenseDebuffMultiplier(maxed));
+
+    // The curve, not the damage: Master Necron's 2100 Defense at 0.32 is 672, and
+    // 1 - 672/772 = 0.1295 — a 2.85x gain over the undebuffed 1 - 2100/2200 = 0.0455.
+    const necron = { name: 'Necron', types: [] };
+    const plain = computeMobDefenseMultiplier(necron, true);
+    const shredded = computeMobDefenseMultiplier(necron, true, mobDefenseDebuffMultiplier(maxed));
+    assert.ok(Math.abs(plain - (1 - 2100 / 2200)) < 1e-9);
+    assert.ok(Math.abs(shredded - (1 - 672 / 772)) < 1e-9);
+    assert.ok(shredded / plain > 2.8 && shredded / plain < 2.9, 'max Defense shred is worth ~2.85x, not ~5.6x');
+
+    // A mob with no published Defense is untouched however far the sliders go — the honest result
+    // for the 200-odd mobs with no real number, and the reason the panel says so.
+    const zombie = { name: 'Zombie', types: [] };
+    assert.equal(computeMobDefenseMultiplier(zombie, true, mobDefenseDebuffMultiplier(maxed)), 1);
+
+    // Ice Spray is the one debuff that does apply to every target, as a flat final multiplier.
+    assert.equal(iceSprayMultiplier({ iceSpray: true }), ICE_SPRAY_MULTIPLIER);
+    assert.equal(iceSprayMultiplier({ iceSpray: false }), 1);
+    assert.equal(iceSprayMultiplier(null), 1);
   });
 } finally {
   await server.close();

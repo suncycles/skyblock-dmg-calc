@@ -1353,8 +1353,17 @@ export async function collectDamageSources(
   // Account-wide pet OWNERSHIP, not the equipped pet — a Jellyfish in the pet menu upgrades the
   // Dungeon Potion from Tier VII to Jellyfish VII (see lib/godPotion.js).
   hasJellyfishPet = false,
+  // Player-applied debuffs on the TARGET — { iceSpray, lastBreath, lethality }, see
+  // lib/mobDebuffs.js. Nothing here touches the player's own stats, so this is stashed on the
+  // result untouched for finalDamage.js to apply alongside the mob's own Defense/Damage
+  // Reduction, exactly as isGriffinPet below is.
+  debuffs = null,
 ) {
   const out = {
+    // Gated on the Dungeon toggle exactly as the blessings below are, and for the same reason:
+    // all three are Catacombs mechanics, and their panel is hidden outside a dungeon. A hidden
+    // control that still moved the damage number would be a trap.
+    debuffs: useDungeonizedStats ? debuffs : null,
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
     // the full loadout) can check weapon-specific target restrictions — see DAGGER_LINE_WEAPON_IDS.
     weaponId: loadout.weapon?.item?.id ?? null,

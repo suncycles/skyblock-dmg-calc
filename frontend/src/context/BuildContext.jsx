@@ -14,6 +14,7 @@ import {
   FORBIDDEN_BLESSING_MAX_LEVEL,
   emptyBlessingLevels,
 } from '../lib/dungeonBlessing';
+import { emptyDebuffs, LAST_BREATH_MAX_LEVEL, LETHALITY_MAX_STACKS } from '../lib/mobDebuffs';
 import { MASTER_SKULL_MAX_TIER } from '../lib/masterSkull';
 import { ARMOR_VARIANT_FAMILIES } from '../lib/armorVariants';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
@@ -46,6 +47,8 @@ const MISC_STATS_KEY = 'hexMiscStats';
 const BLESSING_KEY = 'hexDungeonBlessing';
 // Essence-shop perk levels, {perkKey: level} — imported from the account, never typed by hand.
 const ESSENCE_PERKS_KEY = 'hexEssencePerks';
+// Player-applied debuffs on the target (lib/mobDebuffs.js): Ice Spray, Last Breath, Lethality.
+const DEBUFFS_KEY = 'hexMobDebuffs';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 const MOB_HP_SELECTIONS_KEY = 'hexMobHpSelections';
 const INFERNAL_CRIMSON_STACKS_KEY = 'hexInfernalCrimsonStacks';
@@ -302,6 +305,22 @@ function loadInitialBlessing() {
   }
 }
 
+function loadInitialDebuffs() {
+  const stored = localStorage.getItem(DEBUFFS_KEY);
+  if (!stored) return emptyDebuffs();
+  try {
+    const parsed = JSON.parse(stored);
+    return {
+      iceSpray: !!parsed?.iceSpray,
+      lastBreath: Math.max(0, Math.min(LAST_BREATH_MAX_LEVEL, Math.floor(Number(parsed?.lastBreath) || 0))),
+      lethality: Math.max(0, Math.min(LETHALITY_MAX_STACKS, Math.floor(Number(parsed?.lethality) || 0))),
+    };
+  } catch (err) {
+    console.error('Failed to parse saved mob debuff state:', err);
+    return emptyDebuffs();
+  }
+}
+
 function loadInitialMiscStats() {
   const stored = localStorage.getItem(MISC_STATS_KEY);
   if (!stored) return { strength: 0, crit_damage: 0, intelligence: 0 };
@@ -503,6 +522,7 @@ export function BuildProvider({ children }) {
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [blessing, setBlessingState] = useState(loadInitialBlessing);
+  const [debuffs, setDebuffsState] = useState(loadInitialDebuffs);
   const [essencePerks, setEssencePerksState] = useState(loadInitialEssencePerks);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
   const [mobHpSelections, setMobHpSelectionsState] = useState(loadInitialMobHpSelections);
@@ -603,6 +623,26 @@ export function BuildProvider({ children }) {
   );
 
   const setPaulBuff = useCallback((value) => updateBlessing({ paulBuff: !!value }), [updateBlessing]);
+
+  // One setter for the whole debuff block, same shape as updateBlessing above — the Ice Spray
+  // checkbox and the two sliders all live in one persisted object.
+  const updateDebuffs = useCallback((patch) => {
+    setDebuffsState((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem(DEBUFFS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setIceSpray = useCallback((value) => updateDebuffs({ iceSpray: !!value }), [updateDebuffs]);
+  const setLastBreathLevel = useCallback(
+    (value) => updateDebuffs({ lastBreath: Math.max(0, Math.min(LAST_BREATH_MAX_LEVEL, Math.floor(Number(value) || 0))) }),
+    [updateDebuffs],
+  );
+  const setLethalityStacks = useCallback(
+    (value) => updateDebuffs({ lethality: Math.max(0, Math.min(LETHALITY_MAX_STACKS, Math.floor(Number(value) || 0))) }),
+    [updateDebuffs],
+  );
 
   // Imported from the account, but editable afterwards on the Player Levels page — a manually
   // built loadout has no import to get them from. The Mimic shard is deliberately NOT here: it's a
@@ -1639,6 +1679,10 @@ export function BuildProvider({ children }) {
         combinedMythologicalBestiaryTiers,
         maxedCollectionsCount,
         blessing,
+        debuffs,
+        setIceSpray,
+        setLastBreathLevel,
+        setLethalityStacks,
         essencePerks,
         importHypixelEssencePerks,
         setEssencePerkLevel,
