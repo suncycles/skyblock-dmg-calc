@@ -30,11 +30,9 @@ const MENU_SECTIONS = [
 // "check the menu/Tutorial" nudge below only ever shows once, on a genuinely first visit.
 const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 
-// Stacking: the bar (z-[1100]), the drawer's scrim (z-[1100]) and the drawer itself (z-[1110]) all
-// sit ABOVE the floating Recommended Upgrades window (lg:z-[1000], see OptimizerSidebar.jsx) —
-// user-specified 2026-09-10. That window is otherwise the topmost thing on the page, but the app
-// chrome has to win: it's how you navigate away, and a draggable panel parked over the menu button
-// would be a trap. Everything else still renders under the panel.
+// Stacking: the bar (z-[1100]), the drawer's scrim (z-[1100]) and the drawer itself (z-[1110]) sit
+// above everything on the page, the Armor/Equipment Options dialogs (z-[999]) included — the app
+// chrome has to win, since it's how you navigate away.
 //
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
 // route without each page re-declaring it. Deliberately a plain modern navbar rather than the

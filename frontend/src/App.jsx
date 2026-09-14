@@ -42,6 +42,8 @@ const AccessoryTuning = lazy(() => import('./pages/AccessoryTuning'));
 const PlayerLevels = lazy(() => import('./pages/PlayerLevels'));
 const TargetMobPicker = lazy(() => import('./pages/TargetMobPicker'));
 const Attributes = lazy(() => import('./pages/Attributes'));
+const DungeonBlessings = lazy(() => import('./pages/DungeonBlessings'));
+const Debuffs = lazy(() => import('./pages/Debuffs'));
 const LoadoutLoader = lazy(() => import('./pages/LoadoutLoader'));
 const HypixelImport = lazy(() => import('./pages/HypixelImport'));
 const ImportShortcut = lazy(() => import('./pages/ImportShortcut'));
@@ -105,6 +107,8 @@ export default function App() {
                     <Route path="/player-levels" element={<PlayerLevels />} />
                     <Route path="/target-mob" element={<TargetMobPicker />} />
                     <Route path="/attributes" element={<Attributes />} />
+                    <Route path="/blessings" element={<DungeonBlessings />} />
+                    <Route path="/debuffs" element={<Debuffs />} />
                     <Route path="/loadout/:code" element={<LoadoutLoader />} />
                     <Route path="/hypixel-import" element={<HypixelImport />} />
                     <Route path="/import/:username" element={<ImportShortcut />} />

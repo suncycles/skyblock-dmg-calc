@@ -108,19 +108,44 @@ export const OPTIMIZER_MODES = [
   { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability' },
 ];
 
-// Shared between OptimizerSidebar.jsx (the embedded Landing panel) and Optimizer.jsx (the
-// dedicated page) so picking a mode in either place — or navigating away and back to either —
-// keeps the same selection instead of each resetting to Slayer independently.
-const OPTIMIZER_MODE_KEY = 'hexOptimizerMode';
-const SELECTABLE_MODE_IDS = new Set(OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => m.id));
+// The Recommended Upgrades panel's mode is "auto" unless the player pins one. Auto follows what the
+// page is already showing (user-specified 2026-09-14) — the Dungeon, Mage and DPS toggles, then the
+// target — so the list can't be ranking for a different kind of content than the damage number
+// beside it. Inside a dungeon, Mage splits by which figure is on screen: the Beam output while DPS
+// is showing it, Ability Damage otherwise. Outside one, a Mythological target is a Diana hunt and
+// anything else ranks as Slayer.
+export const AUTO_OPTIMIZER_MODE = 'auto';
 
-export function loadOptimizerMode() {
-  const stored = localStorage.getItem(OPTIMIZER_MODE_KEY);
-  return stored && SELECTABLE_MODE_IDS.has(stored) ? stored : 'slayer';
+export function resolveOptimizerMode({ useDungeonizedStats, mageMode, dpsMode, dpsKind }, mobTypes) {
+  if (useDungeonizedStats) {
+    if (!mageMode) return 'dungeon_archer';
+    return dpsMode && dpsKind === 'beam' ? 'dungeon_mage_beam' : 'dungeon_mage_ability';
+  }
+  if (mageMode) return 'mage';
+  return mobTypes?.includes('Mythological') ? 'diana' : 'slayer';
 }
 
-export function saveOptimizerMode(mode) {
-  localStorage.setItem(OPTIMIZER_MODE_KEY, mode);
+// A pinned mode survives reloads. Anything unrecognized reads as auto — including the old
+// 'hexOptimizerMode' key, deliberately not migrated: every value there was a manual pick made before
+// auto existed, and auto derives the same answer from the toggles in the usual case.
+const OPTIMIZER_MODE_OVERRIDE_KEY = 'hexOptimizerModeOverride';
+const SELECTABLE_MODE_IDS = new Set(OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => m.id));
+
+export function loadOptimizerModeOverride() {
+  try {
+    const stored = localStorage.getItem(OPTIMIZER_MODE_OVERRIDE_KEY);
+    return stored && SELECTABLE_MODE_IDS.has(stored) ? stored : AUTO_OPTIMIZER_MODE;
+  } catch {
+    return AUTO_OPTIMIZER_MODE;
+  }
+}
+
+export function saveOptimizerModeOverride(mode) {
+  try {
+    localStorage.setItem(OPTIMIZER_MODE_OVERRIDE_KEY, mode);
+  } catch {
+    // Storage blocked — the pick still holds for this visit.
+  }
 }
 
 // Which real damage number each mode optimizes — reuses this app's existing melee DPS / Ability

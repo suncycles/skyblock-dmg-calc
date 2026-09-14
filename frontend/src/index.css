@@ -3,12 +3,17 @@
 /* Site-wide +15% scale — `zoom` (not `transform: scale`) so every dimension (text, padding,
    gaps, icon sizes, arbitrary px values) grows together in lockstep, the same way a real browser
    zoom does, which is what actually guarantees every component's spacing stays proportionally
-   correct without hand-editing the dozens of files that use fixed/arbitrary Tailwind sizes. No
-   vw/vh units exist anywhere in this codebase (checked — see components/PageBackground.jsx's own
-   comment on why), so there's nothing here that resolves against the raw viewport and could drift
-   out of proportion. */
+   correct without hand-editing the dozens of files that use fixed/arbitrary Tailwind sizes. The
+   catch: vh/vw units resolve against the UNZOOMED viewport. Most uses here are harmless because
+   they only set a floor or a cap (min-h-screen on page wrappers, a handful of max-width: ...vw
+   limits). Anything that must actually fit the visible screen divides by --page-zoom below — see
+   Landing.jsx's sticky Recommended Upgrades column. */
 html {
-  zoom: 1.15;
+  /* A variable, not a bare number, because CSS lengths don't see through zoom: 100vh still
+     resolves to the UNZOOMED viewport, so anything sized off vh (Landing's sticky Recommended
+     Upgrades column) divides by this to get the height that's actually visible. */
+  --page-zoom: 1.15;
+  zoom: var(--page-zoom);
   /* Reserves clearance for the fixed h-12 TopBar (components/TopBar.jsx) whenever the browser
      auto-scrolls to bring a focused/anchored element into view (e.g. EntryScreen's autoFocus
      username input) — without this, a short viewport whose content doesn't fully fit (now more

@@ -26,29 +26,11 @@ import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { anyMiningIslandTarget } from '../lib/miningIslands';
 import { computeMobDefense, computeMobDefenseMultiplier } from '../lib/mobDefenses';
-import {
-  mobDefenseDebuffMultiplier,
-  finalDamageDebuffMultiplier,
-  ICE_SPRAY_MULTIPLIER,
-  TWILIGHT_ARROW_POISON_MULTIPLIER,
-  LAST_BREATH_MAX_LEVEL,
-  LAST_BREATH_PERCENT_PER_LEVEL,
-  LETHALITY_MAX_STACKS,
-  LETHALITY_PERCENT_PER_STACK,
-} from '../lib/mobDebuffs';
+import { mobDefenseDebuffMultiplier } from '../lib/mobDebuffs';
 import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../lib/armorSetBonuses';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { MOB_TYPE_SYMBOLS, STAT_SYMBOLS } from '../lib/damageSymbols';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
-import {
-  DUNGEON_BLESSINGS,
-  BLESSING_MIN_LEVEL,
-  BLESSING_MAX_LEVEL,
-  MIMIC_SHARD_MAX_LEVEL,
-  FORBIDDEN_BLESSING_MAX_LEVEL,
-  computeBlessingMultiplier,
-} from '../lib/dungeonBlessing';
-import { masterSkullStrengthMultiplier } from '../lib/masterSkull';
 import NumberInput from '../components/NumberInput';
 import PageHeader from '../components/PageHeader';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
@@ -121,8 +103,6 @@ function MobDefenseNote({ name, types, masterMode, debuffs }) {
 // headline now says out loud (meleeDamageQualifiers).
 const MOB_HP_PERCENT = 100;
 
-// The blessing effectiveness readout only ever needs 2dp (1.815 max, 1.2 minimum).
-const round2 = (n) => Math.round(n * 100) / 100;
 
 // The MISC panel's values reach the calculation on an explicit Apply press, not a timer
 // (user-specified 2026-09-10, replacing the 3s debounce that came before it). These are the
@@ -173,7 +153,7 @@ function Section({ title, subtitle, children, empty }) {
 // Nx multiplicative sources, and a collapsed-by-default situational list for sources not resolvable to a fixed value.
 // `embedded` (used by pages/Landing.jsx to merge the gear and damage-calculation screens into one
 // page) skips the standalone page's PageHeader/full-screen sizing and the "Optimize damage" link
-// (Landing.jsx already has both a header and its own OptimizerSidebar) — everything else renders
+// (Landing.jsx already has both a header and its own Recommended Upgrades panel) — everything else renders
 // identically either way, including the Mage/DPS toggles, now inline instead of in PageHeader's
 // `right` slot so they're the same markup in both contexts.
 export default function DamageSources({ embedded = false, hideSticky = false }) {
@@ -215,13 +195,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     maxedCollectionsCount,
     blessing,
     essencePerks,
-    setBlessingLevel,
-    setPaulBuff,
     debuffs,
-    setIceSpray,
-    setTwilightPoison,
-    setLastBreathLevel,
-    setLethalityStacks,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
     setAccessoryEnrichmentType,
@@ -251,12 +225,12 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const settledSwarmMobs = appliedMisc.swarmMobs;
   const settledComboKills = appliedMisc.comboKills;
   const settledLegionPlayers = appliedMisc.legionPlayers;
-  // Blessings and Debuffs moved out of MISC into their own Dungeon-only row (user-specified
-  // 2026-09-14), so each owns its own Apply press rather than riding on the MISC panel's.
-  const [appliedBlessing, applyBlessing, blessingDirty] = useConfirmedValues({ blessing });
-  const settledBlessing = appliedBlessing.blessing;
-  const [appliedDebuffs, applyDebuffs, debuffsDirty] = useConfirmedValues({ debuffs });
-  const settledDebuffs = appliedDebuffs.debuffs;
+  // Blessings and Debuffs are edited on their own pages, reached from their board tiles
+  // (user-specified 2026-09-14), so nothing on this page edits them and there's nothing left to
+  // confirm — read live. The `settled` names stay so every call site and dependency array keeps
+  // reading one name for the value the calculation uses.
+  const settledBlessing = blessing;
+  const settledDebuffs = debuffs;
 
   // Swaps in a saved loadout without leaving this page — loadFullState updates BuildContext's
   // `loadout` (and everything else this page reads), which the recalculation effect below is
@@ -1344,160 +1318,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
             </div>
           </div>
 
-          {/* Buffs on the player (left) and debuffs on the target (right), as one half-and-half row
-              directly under (Base) Stats. Both halves are Catacombs-only mechanics, so the whole
-              row only exists while the Dungeon toggle is on (user-specified 2026-09-14). Each half
-              owns its own Apply press — they used to ride on the MISC panel's, which stopped
-              making sense once they left that panel. */}
-          {useDungeonizedStats && (
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch">
-              <div className={`${panel} p-3 flex-1 flex flex-col gap-2`}>
-                <div className={sectionTitle}>Dungeon Blessings</div>
-                {/* Read-only: both come from the account on import (Mimic Shard level, Forbidden
-                    Blessing perk), not from typing. */}
-                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="paul-buff">
-                  <input
-                    id="paul-buff"
-                    type="checkbox"
-                    checked={!!blessing.paulBuff}
-                    onChange={(e) => setPaulBuff(e.target.checked)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <span>Paul Buff</span>
-                </label>
-                <div className="text-[10px] text-neutral-600 leading-snug">
-                  Effectiveness x{round2(computeBlessingMultiplier(blessing, attributes))}
-                  <span className="italic">
-                    {' '}
-                    (Mimic {attributes.mimic || 0}/{MIMIC_SHARD_MAX_LEVEL} &middot; Forbidden {blessing.forbiddenBlessingLevel}/
-                    {FORBIDDEN_BLESSING_MAX_LEVEL})
-                  </span>
-                </div>
-                <div className="text-[10px] text-neutral-600 leading-snug">
-                  Master Skull x{masterSkullStrengthMultiplier(blessing.masterSkullTier)}
-                  <span className="italic"> (Tier {blessing.masterSkullTier || '\u2014'}, Strength only)</span>
-                </div>
-                {DUNGEON_BLESSINGS.map((b) => (
-                  <label key={b.id} className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor={`blessing-${b.id}`}>
-                    <span className="flex justify-between">
-                      <span>{b.label}</span>
-                      <span className="font-mono">{blessing.levels[b.id]}</span>
-                    </span>
-                    <input
-                      id={`blessing-${b.id}`}
-                      type="range"
-                      min={BLESSING_MIN_LEVEL}
-                      max={BLESSING_MAX_LEVEL}
-                      step="1"
-                      value={blessing.levels[b.id]}
-                      onChange={(e) => setBlessingLevel(b.id, e.target.value)}
-                      className="w-full"
-                    />
-                  </label>
-                ))}
-                <button
-                  type="button"
-                  onClick={applyBlessing}
-                  disabled={!blessingDirty}
-                  className={`mt-auto w-full px-2 py-1.5 text-[12px] font-bold cursor-pointer transition-colors ${
-                    blessingDirty ? 'bg-green-400 text-black hover:brightness-110' : 'bg-neutral-800 text-neutral-500 cursor-default'
-                  }`}
-                >
-                  {blessingDirty ? 'Apply changes' : 'Applied'}
-                </button>
-              </div>
-
-              <div className={`${panel} p-3 flex-1 flex flex-col gap-2`}>
-                <div className={sectionTitle}>Debuffs</div>
-                <div className="text-[11px] text-neutral-700 leading-snug -mt-1 mb-1">Applied to the target, not to you.</div>
-                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="ice-spray">
-                  <input
-                    id="ice-spray"
-                    type="checkbox"
-                    checked={!!debuffs.iceSpray}
-                    onChange={(e) => setIceSpray(e.target.checked)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <span>
-                    Ice Spray
-                    <span className="text-neutral-600 italic"> (x{ICE_SPRAY_MULTIPLIER} final damage)</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="twilight-poison">
-                  <input
-                    id="twilight-poison"
-                    type="checkbox"
-                    checked={!!debuffs.twilightPoison}
-                    onChange={(e) => setTwilightPoison(e.target.checked)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <span>
-                    Twilight Arrow Poison
-                    <span className="text-neutral-600 italic"> (x{TWILIGHT_ARROW_POISON_MULTIPLIER} final damage)</span>
-                  </span>
-                </label>
-                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="last-breath">
-                  <span className="flex justify-between">
-                    <span>Last Breath</span>
-                    <span className="font-mono">{debuffs.lastBreath}</span>
-                  </span>
-                  <input
-                    id="last-breath"
-                    type="range"
-                    min="0"
-                    max={LAST_BREATH_MAX_LEVEL}
-                    step="1"
-                    value={debuffs.lastBreath}
-                    onChange={(e) => setLastBreathLevel(e.target.value)}
-                    className="w-full"
-                  />
-                  <span className="text-[10px] text-neutral-600 italic">
-                    -{LAST_BREATH_PERCENT_PER_LEVEL}% Defense per level
-                  </span>
-                </label>
-                <label className="flex flex-col gap-0.5 text-[12px] text-black" htmlFor="lethality-stacks">
-                  <span className="flex justify-between">
-                    <span>Lethality Stacks</span>
-                    <span className="font-mono">{debuffs.lethality}</span>
-                  </span>
-                  <input
-                    id="lethality-stacks"
-                    type="range"
-                    min="0"
-                    max={LETHALITY_MAX_STACKS}
-                    step="1"
-                    value={debuffs.lethality}
-                    onChange={(e) => setLethalityStacks(e.target.value)}
-                    className="w-full"
-                  />
-                  <span className="text-[10px] text-neutral-600 italic">
-                    -{LETHALITY_PERCENT_PER_STACK}% Defense per stack
-                  </span>
-                </label>
-                <div className="text-[10px] text-neutral-600 leading-snug border-t border-neutral-500/40 pt-1.5">
-                  Mob Defense x{round2(mobDefenseDebuffMultiplier(debuffs))} &middot; Final damage x
-                  {round2(finalDamageDebuffMultiplier(debuffs))}
-                  {/* Only 7 mobs in the app have a published Defense at all (lib/mobDefenses.js) —
-                      without this the two sliders look broken against everything else. */}
-                  <div className="italic mt-0.5">
-                    The two Defense sliders only change anything against a mob with a real Defense stat &mdash; the
-                    Catacombs bosses, Angry Archaeologist and Lost Adventurer.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={applyDebuffs}
-                  disabled={!debuffsDirty}
-                  className={`mt-auto w-full px-2 py-1.5 text-[12px] font-bold cursor-pointer transition-colors ${
-                    debuffsDirty ? 'bg-green-400 text-black hover:brightness-110' : 'bg-neutral-800 text-neutral-500 cursor-default'
-                  }`}
-                >
-                  {debuffsDirty ? 'Apply changes' : 'Applied'}
-                </button>
-              </div>
-            </div>
-          )}
-
           <div className={`${panel} p-3 flex items-center gap-3`}>
             <div className="text-[13px] font-bold text-black uppercase tracking-wide">Magical Power</div>
             <span className="font-mono text-[13px] text-black">{loadout.accessory?.modifiers?.magicalPower || 0}</span>
@@ -1647,8 +1467,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         </div>
       )}
 
-      {/* Bottom-LEFT, not a full-width bar: keeps clear of GlobalFooter's bottom-right cluster and
-          OptimizerSidebar's lg:right-4 rail. Only on Landing (`embedded`) — the standalone
+      {/* Bottom-LEFT, not a full-width bar: keeps clear of GlobalFooter's bottom-right cluster. Only
+          on Landing (`embedded`) — the standalone
           /damage-sources page already has these numbers at the top of the viewport. */}
       {embedded && stickyHeadline && !hideSticky && (
         <button
