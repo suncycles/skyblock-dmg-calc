@@ -33,10 +33,21 @@ export function TooltipProvider({ children }) {
       pointerPosRef.current = { x: point.clientX, y: point.clientY };
     }
     document.addEventListener('mousemove', onPointerMove);
+    // mouseout and mouseover too, in the capture phase. React doesn't fire onMouseEnter from
+    // mousemove: moving between elements, it derives BOTH onMouseLeave and onMouseEnter from the
+    // `mouseout` of the element being left (and uses `mouseover` only when entering from outside
+    // the window) — and the browser dispatches both before mousemove. Tracking mousemove alone
+    // meant showTooltip read the PREVIOUS position, so a jump onto a tile opened its tooltip
+    // wherever the pointer had last been (measured: exactly the prior spot, every time). Both
+    // events already carry the new coordinates, and capture runs ahead of React's own listener.
+    document.addEventListener('mouseout', onPointerMove, true);
+    document.addEventListener('mouseover', onPointerMove, true);
     document.addEventListener('touchstart', onPointerMove);
     document.addEventListener('touchmove', onPointerMove);
     return () => {
       document.removeEventListener('mousemove', onPointerMove);
+      document.removeEventListener('mouseout', onPointerMove, true);
+      document.removeEventListener('mouseover', onPointerMove, true);
       document.removeEventListener('touchstart', onPointerMove);
       document.removeEventListener('touchmove', onPointerMove);
     };
@@ -114,33 +125,60 @@ export function TooltipProvider({ children }) {
   );
 }
 
-// Opens offset from the cursor (+50 right, -50 up — above and to the right of the pointer, out
-// from under it) rather than anchored to the hovered element's own bounding box, then clamped
-// back on-screen exactly like the old anchor-rect version was.
-const CURSOR_OFFSET_X = 50;
-const CURSOR_OFFSET_Y = -50;
+// Minecraft's own offset for item tooltips — just up and to the right of the pointer, close enough
+// to read as attached while staying out from under it. Was +50/-50, which the zoom bug below meant
+// never actually rendered as written.
+const CURSOR_OFFSET_X = 12;
+const CURSOR_OFFSET_Y = -12;
+const EDGE_MARGIN = 4;
+
+// index.css zooms the whole page (html { zoom: var(--page-zoom) }). Pointer coordinates arrive in
+// zoomed screen pixels, but a position: fixed element's left/top are CSS pixels that the zoom then
+// scales AGAIN — so an unconverted clientX put the tooltip 15% further out than the pointer, the
+// gap growing toward the right and bottom of the screen (measured: +122px instead of +50 halfway
+// across, and below the cursor where it was meant to be above). Read live rather than hardcoded so
+// this can't drift from the stylesheet.
+function pageZoom() {
+  const z = parseFloat(getComputedStyle(document.documentElement).zoom);
+  return z > 0 ? z : 1;
+}
 
 function TooltipEl({ lines, point }) {
   const elRef = useRef(null);
-  const [pos, setPos] = useState({ left: point.x + CURSOR_OFFSET_X, top: point.y + CURSOR_OFFSET_Y });
 
   useLayoutEffect(() => {
     const el = elRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    let left = point.x + CURSOR_OFFSET_X;
-    if (left + rect.width > window.innerWidth) {
-      left = point.x - rect.width - 8;
+    const zoom = pageZoom();
+    // Everything here is in unzoomed CSS pixels: pointer and viewport divided by the zoom, and the
+    // element measured with offsetWidth/offsetHeight (layout size, unlike getBoundingClientRect).
+    function place(clientX, clientY) {
+      const x = clientX / zoom;
+      const y = clientY / zoom;
+      const width = el.offsetWidth;
+      const height = el.offsetHeight;
+      let left = x + CURSOR_OFFSET_X;
+      if (left + width > window.innerWidth / zoom - EDGE_MARGIN) left = x - width - CURSOR_OFFSET_X;
+      let top = y + CURSOR_OFFSET_Y;
+      if (top + height > window.innerHeight / zoom - EDGE_MARGIN) top = window.innerHeight / zoom - height - EDGE_MARGIN;
+      el.style.left = `${Math.max(EDGE_MARGIN, left)}px`;
+      el.style.top = `${Math.max(EDGE_MARGIN, top)}px`;
     }
-    let top = point.y + CURSOR_OFFSET_Y;
-    if (top + rect.height > window.innerHeight) {
-      top = window.innerHeight - rect.height - 4;
+    // Before paint, so the tooltip never flashes at its unplaced position.
+    place(point.x, point.y);
+    // Then follows the pointer for as long as it's open — it used to open wherever the pointer
+    // entered and stay there, so on a big tile (Target Mob, the weapons list) it was soon nowhere
+    // near the cursor. Written straight to the element, not through state: this fires on every
+    // mousemove, and nothing about the tooltip's content changes while it follows.
+    function onMove(e) {
+      place(e.clientX, e.clientY);
     }
-    setPos({ left: Math.max(4, left), top: Math.max(4, top) });
+    document.addEventListener('mousemove', onMove);
+    return () => document.removeEventListener('mousemove', onMove);
   }, [point, lines]);
 
   return (
-    <div ref={elRef} className="mc-tooltip" style={{ left: pos.left, top: pos.top }}>
+    <div ref={elRef} className="mc-tooltip">
       <McTooltipLines parsedLines={lines} />
     </div>
   );
