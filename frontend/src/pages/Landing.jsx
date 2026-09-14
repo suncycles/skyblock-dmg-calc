@@ -32,7 +32,9 @@ import { formatCoinsShort } from '../lib/damageFormat';
 import { ENTRY_DISMISSED_KEY, SHOW_ENTRY_EVENT } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
-import OptimizerSidebar from '../components/OptimizerSidebar';
+import UpgradesPanel from '../components/UpgradesPanel';
+import { DUNGEON_BLESSINGS, computeBlessingMultiplier } from '../lib/dungeonBlessing';
+import { hasAnyDebuff, mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier } from '../lib/mobDebuffs';
 import ArmorOptions from './ArmorOptions';
 import EquipmentOptions from './EquipmentOptions';
 
@@ -115,6 +117,8 @@ export default function Landing() {
     editAllArmor,
     editAllEquipment,
     attributes,
+    blessing,
+    debuffs,
     miscStats,
     mobHpPercent,
     infernalCrimsonStacks,
@@ -901,6 +905,53 @@ export default function Landing() {
       }
       if (col >= 5 && col <= 7 && row >= 1 && row <= 4) continue;
 
+      // Row 5, columns B and C: Dungeon Blessings and Debuffs. Only while the Dungeon toggle is on —
+      // both are Catacombs mechanics and inert outside one (lib/damageSources.js) — and otherwise both
+      // cells fall through to the ordinary empty slot. Board tiles rather than panels inside the
+      // damage breakdown, like everything else you set on this screen (user-specified 2026-09-14);
+      // lit green when something is active, the same cue the Attributes tile uses.
+      if (useDungeonizedStats && row === 5 && (col === 1 || col === 2)) {
+        const isBlessings = col === 1;
+        let lit;
+        let tooltipLines;
+        if (isBlessings) {
+          const active = DUNGEON_BLESSINGS.filter((b) => (blessing.levels?.[b.id] || 0) > 0);
+          lit = active.length > 0 || !!blessing.paulBuff;
+          tooltipLines = [
+            '§d§lDungeon Blessings',
+            ...active.map((b) => `§7${b.label} §f${blessing.levels[b.id]}`),
+            ...(blessing.paulBuff ? ['§6Paul Buff'] : []),
+            `§8Effectiveness x${Math.round(computeBlessingMultiplier(blessing, attributes) * 100) / 100}`,
+            ...(lit ? [] : ['§8None active — click to edit']),
+          ];
+        } else {
+          lit = hasAnyDebuff(debuffs);
+          tooltipLines = lit
+            ? [
+                '§c§lDebuffs',
+                `§7Mob Defense §fx${Math.round(mobDefenseDebuffMultiplier(debuffs) * 100) / 100}`,
+                `§7Final damage §fx${Math.round(finalDamageDebuffMultiplier(debuffs) * 100) / 100}`,
+              ]
+            : ['§7Debuffs', '§8None active — click to edit'];
+        }
+        const path = isBlessings ? '/blessings' : '/debuffs';
+        const handleHover = (e) => showTooltip(tooltipLines, e.currentTarget);
+        cells.push(
+          <div
+            key={key}
+            className={`${slotBase} relative cursor-pointer hover:brightness-110 ${lit ? 'bg-green-400' : ''}`}
+            onClick={handleTapOrActivate(path, handleHover, () => navigate(path))}
+            onMouseEnter={guardHover(handleHover)}
+            onMouseLeave={guardHover(hideTooltip)}
+          >
+            <span className="text-[9px] font-bold text-white text-center px-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+              {isBlessings ? 'Blessings' : 'Debuffs'}
+            </span>
+          </div>,
+        );
+        continue;
+      }
+
       // Column D, row 5 (right below Pet): Attributes — plain text tile, account-wide rather than tied to an item.
       if (col === 3 && row === 5) {
         const leveledCount = Object.values(attributes).filter((v) => v > 0).length;
@@ -1084,11 +1135,18 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
+      {/* Below xl everything stacks in DOM order — toolbar, board, Recommended Upgrades, the jump
+          button, the breakdown — so the panel lands directly under the board. At xl the panel moves
+          into its own right-hand column spanning every row, sticky, so it stays beside whatever
+          you're reading (user-specified 2026-09-14). It used to be a floating window that covered
+          the board and the player model; docked, it can't cover anything. 700 + 340 + gap keeps
+          clear of the edges at 1280px even with index.css's site-wide 1.15 zoom. */}
+      <div className="w-full flex flex-col items-center xl:grid xl:grid-cols-[minmax(0,700px)_340px] xl:justify-center xl:items-start xl:gap-x-4">
       {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow
           above the grid (not fixed/pinned over content), so it can never overlap the central GUI
           regardless of viewport size: flow-stacked elements simply can't occupy the same space.
           Centered to match the grid below instead of hugging the left edge on wide viewports. */}
-      <div className="w-full flex justify-center mb-1.5">
+      <div className="w-full flex justify-center mb-1.5 xl:col-start-1">
         <div className={`z-10 flex flex-col gap-1.5 p-2 max-w-full ${toolbar}`}>
           <span className="text-[10px] font-bold text-black uppercase tracking-wide">Loadout</span>
           <div className="flex flex-wrap gap-1.5">
@@ -1204,20 +1262,24 @@ export default function Landing() {
       {/* min-w 340 (was 380): at 380 the board overflowed a 375px phone viewport, so the Target
           Mob panel and the whole right-hand column sat off-screen behind a horizontal scrollbar
           most people never find. 340 fits the narrowest common viewport whole. */}
-      <div className="w-full max-w-[700px] overflow-x-auto">
+      <div className="w-full max-w-[700px] overflow-x-auto xl:col-start-1">
         <div className="grid grid-cols-9 grid-rows-6 gap-[3px] w-full min-w-[340px] aspect-[9/6] bg-[#c6c6c6]/75 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-2">
           {cells}
         </div>
       </div>
 
-      {/* Placed here (not at the top of the page) so its own in-flow position on narrower/mobile
-          layouts — where OptimizerSidebar renders as an ordinary block instead of a fixed sidebar
-          — lands directly below the gear grid, per its own responsive behavior. */}
-      <OptimizerSidebar />
+      <aside className="w-full max-w-[700px] mt-4 xl:mt-0 xl:max-w-none xl:col-start-2 xl:row-start-1 xl:row-span-4 xl:self-stretch">
+        {/* Height divides by --page-zoom: with index.css's site-wide zoom, 100vh is the unzoomed
+            viewport, so an undivided cap was ~15% taller than the screen and the panel's title slid
+            up under the top bar while stuck. */}
+        <div className="xl:sticky xl:top-16 xl:max-h-[calc(100vh/var(--page-zoom)_-_5.5rem)] xl:overflow-y-auto">
+          <UpgradesPanel variant="column" />
+        </div>
+      </aside>
 
       <button
         ref={setJumpButtonEl}
-        className="mt-3 px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer flex items-center gap-2"
+        className="mt-3 xl:col-start-1 xl:justify-self-center px-8 py-3 text-lg font-bold text-white bg-[#3a8f3a] border-[3px] border-t-[#6fd66f] border-l-[#6fd66f] border-b-[#1f4f1f] border-r-[#1f4f1f] outline outline-2 outline-black shadow-[0_3px_0_0_#000] active:shadow-none active:translate-y-[3px] hover:brightness-110 cursor-pointer flex items-center gap-2"
         onClick={() => damageSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
       >
         <img src="/images/manual/dmg.webp" alt="" className="w-6 h-6 pixelated" />
@@ -1226,10 +1288,12 @@ export default function Landing() {
 
       {/* Merged inline (see the lazy DamageSources import above) instead of a separate route —
           equipping gear above and reading its damage breakdown below now happen on one page. */}
-      <div ref={damageSectionRef} className="w-full mt-6 pt-6 border-t-2 border-white/10 flex flex-col items-center">
+      <div ref={damageSectionRef} className="w-full mt-6 pt-6 border-t-2 border-white/10 flex flex-col items-center xl:col-start-1">
         <Suspense fallback={<div className="text-sm text-neutral-400">Loading damage calculation...</div>}>
           <DamageSources embedded hideSticky={jumpButtonVisible} />
         </Suspense>
+      </div>
+
       </div>
 
       {showArmorOptions && <ArmorOptions onClose={() => setShowArmorOptions(false)} />}
