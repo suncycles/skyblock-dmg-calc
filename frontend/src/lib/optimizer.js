@@ -707,16 +707,16 @@ function withCost(result, itemData) {
   };
 }
 
-// Drops a candidate when another real-cost option in the same mutually-exclusive group (same
-// slot's gear pick, same reforge slot, same gemstone socket, same enchant id on the same item,
-// same attribute, ...) is both cheaper (or equal) AND a bigger increase (or equal), strictly
-// better on at least one axis — i.e. never recommend something dominated by a real alternative for
-// the same choice (user-confirmed 2026-08-27). Candidates with no real cost ('?') never dominate
-// and are never dropped — an unconfirmed cost can't be shown to be strictly worse. `groupKeyFn`
-// defaults to "the whole list is one group", correct for an already slot-scoped list like
-// runOptimizer's `slots[slot]`; the mixed `otherResults` list needs per-category keys instead
-// (see dominanceGroupKey) since most of those categories aren't mutually exclusive with each other.
-function dropDominated(results, groupKeyFn = () => '_') {
+// Drops a candidate when another real-cost option in the same group — a higher or lower tier of the
+// SAME option: the same gem in the same socket, the same enchant id on the same item, the same
+// attribute (see dominanceGroupKey) — is both cheaper (or equal) AND a bigger increase (or equal),
+// strictly better on at least one axis (user-confirmed 2026-08-27). Candidates with no real cost
+// ('?') never dominate and are never dropped — an unconfirmed cost can't be shown to be strictly
+// worse. `groupKeyFn` is required: this used to default to "the whole list is one group" for
+// runOptimizer's per-slot gear lists, which is exactly the one-upgrade-per-slot pruning that hid
+// real alternatives (a Warden behind a cheaper, stronger helmet) — removed 2026-09-14, and no
+// default left behind to bring it back.
+function dropDominated(results, groupKeyFn) {
   const byGroup = new Map();
   for (const r of results) {
     if (typeof r.cost !== 'number') continue; // unpriced — can't dominate, can't be judged dominated
@@ -778,15 +778,11 @@ export function dominanceGroupKey(result) {
       return `Skill:${result.skillKey}`;
     case 'Potion':
       return `Potion:${result.potionKind}`;
-    case 'Power Stone': // one global Accessory Power selection at a time
-    case 'Pet Item': // one held pet item at a time
-      return result.category;
-    case 'Reforge':
-    case 'Stars':
-    case 'Master Stars':
-    case 'Full Set':
-    case 'Enchant Set':
-      return `${result.category}:${result.slot}`;
+    // No slot-level or single-choice groups. Reforge/Stars/Master Stars/Full Set/Enchant Set used
+    // to be grouped per slot, and Power Stone/Pet Item as one global pick — pruning "the worse
+    // option for this slot" is one-upgrade-per-slot behaviour, and it silently hid real
+    // alternatives. Removed entirely (user-specified 2026-09-14). Every group left above only ever
+    // compares levels or tiers of the SAME option.
     default:
       return null;
   }
@@ -2933,7 +2929,9 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     ...armorReforges,
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
-  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = dropDominated(slots[slot].map((r) => withCost(r, itemData)));
+  // Priced but never pruned: every real gear alternative for a slot is shown, not just the ones no
+  // other pick for that slot beats on both cost and % (see dropDominated — user-specified 2026-09-14).
+  for (const slot of OPTIMIZER_GEAR_SLOTS) slots[slot] = slots[slot].map((r) => withCost(r, itemData));
 
   return {
     baselineValue,
