@@ -933,7 +933,7 @@ try {
   // which on Master Necron is a 2.8x damage swing vs a 5.6x one. Both are pinned, along with the
   // fact that a Defense cut feeds `1 - Def/(100+Def)` rather than scaling damage directly.
   await check('Defense debuffs are multiplicative and feed the Defense curve', () => {
-    const { mobDefenseDebuffMultiplier, iceSprayMultiplier, ICE_SPRAY_MULTIPLIER } = mobDebuffs;
+    const { mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier, ICE_SPRAY_MULTIPLIER, TWILIGHT_ARROW_POISON_MULTIPLIER } = mobDebuffs;
     const { computeMobDefenseMultiplier } = mobDefenses;
     const maxed = { iceSpray: false, lastBreath: 5, lethality: 4 };
     // 0.5 * 0.64 — NOT 1 - (0.5 + 0.36).
@@ -958,10 +958,13 @@ try {
     const zombie = { name: 'Zombie', types: [] };
     assert.equal(computeMobDefenseMultiplier(zombie, true, mobDefenseDebuffMultiplier(maxed)), 1);
 
-    // Ice Spray is the one debuff that does apply to every target, as a flat final multiplier.
-    assert.equal(iceSprayMultiplier({ iceSpray: true }), ICE_SPRAY_MULTIPLIER);
-    assert.equal(iceSprayMultiplier({ iceSpray: false }), 1);
-    assert.equal(iceSprayMultiplier(null), 1);
+    // The two flat multipliers are the debuffs that apply to every target, Defense or not — and
+    // they are multiplicative with each other, so both on is 1.21 rather than 1.2.
+    assert.equal(finalDamageDebuffMultiplier({ iceSpray: true }), ICE_SPRAY_MULTIPLIER);
+    assert.equal(finalDamageDebuffMultiplier({ twilightPoison: true }), TWILIGHT_ARROW_POISON_MULTIPLIER);
+    assert.ok(Math.abs(finalDamageDebuffMultiplier({ iceSpray: true, twilightPoison: true }) - 1.21) < 1e-9, 'both flat debuffs compose to 1.21');
+    assert.equal(finalDamageDebuffMultiplier({ iceSpray: false, twilightPoison: false }), 1);
+    assert.equal(finalDamageDebuffMultiplier(null), 1);
   });
 } finally {
   await server.close();
