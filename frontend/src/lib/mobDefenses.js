@@ -66,7 +66,12 @@ export function computeMobDefense(mob, masterMode) {
 }
 
 // mult = 1 - Defense/(100+Defense) — 1 (no-op) at the real Defense=0 default every other mob has.
-export function computeMobDefenseMultiplier(mob, masterMode) {
-  const defense = computeMobDefense(mob, masterMode);
+//
+// `defenseMultiplier` is the player's own Defense-shredding debuffs (lib/mobDebuffs.js's Last
+// Breath and Lethality) and scales the Defense STAT before this formula, not the result: the
+// curve is what turns a Defense cut into damage, so the two are not interchangeable. At Defense=0
+// it stays an exact no-op however low the debuffs push it.
+export function computeMobDefenseMultiplier(mob, masterMode, defenseMultiplier = 1) {
+  const defense = computeMobDefense(mob, masterMode) * defenseMultiplier;
   return 1 - defense / (100 + defense);
 }

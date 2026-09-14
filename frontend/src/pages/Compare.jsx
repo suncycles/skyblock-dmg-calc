@@ -71,6 +71,9 @@ function useCurrentBuildState(build) {
       blessing: build.blessing,
       essencePerks: build.essencePerks,
       hasJellyfishPet: build.hasJellyfishPet,
+      // Target-side debuffs (lib/mobDebuffs.js) — same reasoning as the blessing block: both sides
+      // of a comparison face the same debuffed mob, so this is account/run state, not gear state.
+      debuffs: build.debuffs,
     }),
     [
       build.loadout,
@@ -90,6 +93,8 @@ function useCurrentBuildState(build) {
       build.maxedCollectionsCount,
       build.blessing,
       build.essencePerks,
+      build.debuffs,
+      build.hasJellyfishPet,
       build.blazeCrimsonIsle,
       build.bestiaryMaxedMobs,
     ],
@@ -136,6 +141,8 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           maxedCollectionsCount: currentState.maxedCollectionsCount,
           blessing: currentState.blessing,
           essencePerks: currentState.essencePerks,
+          debuffs: currentState.debuffs,
+          hasJellyfishPet: currentState.hasJellyfishPet,
           ...decoded,
         };
         if (cancelled || tokensRef.current[selection] !== token) return;
@@ -167,6 +174,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           state.essencePerks,
           isMiningIslandTarget,
           state.hasJellyfishPet,
+          state.debuffs,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));

@@ -35,6 +35,7 @@ export function emptyApplyState(build) {
     attributes: build.attributes || {},
     essencePerks: build.essencePerks || {},
     blessing: build.blessing || null,
+    debuffs: build.debuffs || null,
   };
 }
 
