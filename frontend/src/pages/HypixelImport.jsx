@@ -157,6 +157,7 @@ export default function HypixelImport() {
     importHypixelMaxedCollectionsCount,
     setHasJellyfishPet,
     importHypixelWeaponList,
+    setGodPotionActive,
   } = useBuild();
   const { itemData } = useItemData();
   const [username, setUsername] = useState(location.state?.username || '');
@@ -272,6 +273,9 @@ export default function HypixelImport() {
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
     importHypixelMaxedCollectionsCount(maxedCollectionsCount);
     setHasJellyfishPet(hasJellyfishPet);
+    // A fresh import turns God Potion on (user-specified 2026-09-15). Picking a Catacombs target
+    // mob still turns it back off on its own — see BuildContext's toggleTargetMob.
+    setGodPotionActive(true);
     importHypixelWeaponList(await buildWeaponInventoryList(rawImport, itemData));
     navigate('/');
   }

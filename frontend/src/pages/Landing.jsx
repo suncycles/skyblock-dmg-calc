@@ -17,6 +17,7 @@ import {
   applyTierBoost,
 } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
+import { computePlayerDefense } from '../lib/playerDefense';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
@@ -490,7 +491,10 @@ export default function Landing() {
     const { item: pet, modifiers } = loadout.pet;
     const rawLoreData = await fetchNeuItem(petLoreItemId(pet.petId, applyTierBoost(loadout.pet, itemData).item.tier));
     const rawLore = rawLoreData && rawLoreData.lore && rawLoreData.lore.length > 0 ? rawLoreData : false;
-    const lines = buildPetTooltipLines(pet, modifiers, itemData, rawLore);
+    // Ankylosaurus's Armored Tank turns Defense into Strength, so the tooltip needs the same
+    // Defense the damage calculation uses — see lib/playerDefense.js.
+    const playerDefense = await computePlayerDefense(loadout, itemData, playerStats, attributes, godPotionActive);
+    const lines = buildPetTooltipLines(pet, modifiers, itemData, rawLore, playerDefense);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 

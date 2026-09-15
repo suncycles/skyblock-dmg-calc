@@ -599,6 +599,8 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   if (typeof raw.skills?.enchanting === 'number') playerStats.enchantingLevel = raw.skills.enchanting;
   if (typeof raw.skills?.combat === 'number') playerStats.combatLevel = raw.skills.combat;
   if (typeof raw.skills?.foraging === 'number') playerStats.foragingLevel = raw.skills.foraging;
+  // Feeds Defense, which only the Ankylosaurus pet reads — see lib/playerDefense.js.
+  if (typeof raw.skills?.mining === 'number') playerStats.miningLevel = raw.skills.mining;
   if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
   if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
   if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
