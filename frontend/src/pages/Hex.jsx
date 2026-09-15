@@ -12,7 +12,7 @@ import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { SLOT_TEXTURES, CATEGORY_ICONS } from '../lib/icons';
 import { buildFullItemTooltipLines } from '../lib/itemTooltip';
-import { computeBasePetStats, computeItemChimeraBonus, computeManticoreClawBonus } from '../lib/petData';
+import { computeBasePetStats, computeItemChimeraBonus, computeManticoreClawBonus, petItemStatContext } from '../lib/petData';
 import { MOB_TYPES } from '../lib/mobTypes';
 import WeaponIcon from '../components/WeaponIcon';
 import { reforgeRarityFor } from '../lib/dungeonHeads';
@@ -174,7 +174,6 @@ export default function Hex() {
     const basePetStats = computeBasePetStats(loadout, itemData);
     const chimeraBonus = computeItemChimeraBonus(loadout[slot], basePetStats);
     const manticoreClawBonus = computeManticoreClawBonus(loadout[slot], basePetStats);
-    const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
     const lines = await buildFullItemTooltipLines(
       item,
       loadout[slot].modifiers,
@@ -185,7 +184,7 @@ export default function Hex() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      potatoBookDoubled,
+      petItemStatContext(loadout.pet),
       isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);

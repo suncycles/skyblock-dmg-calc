@@ -60,11 +60,15 @@ export async function buildFullItemTooltipLines(
   chimeraBonus,
   generalsMedallionDigits,
   manticoreClawBonus,
-  potatoBookDoubled,
+  // The equipped pet's effects on this item's stats — lib/petData.js's petItemStatContext(pet), the
+  // same object lib/damageSources.js feeds its own stat totals, so the tooltip and the damage
+  // number can't disagree (Legendary Blaze's doubled Potato Books, Blaze's Bling Armor).
+  petItemCtx,
   isMythologicalTarget,
   maxedCollectionsCount,
 ) {
   if (!item || !modifiers) return [];
+  const { potatoBookDoubled = false, blingArmorPercent = 0 } = petItemCtx || {};
   // rarityOverride corrects for the item's real current tier when it differs from the bundled data (e.g. David's Cloak, which upgrades via Hunting milestones rather than a real recomb).
   const baseTier = modifiers.rarityOverride || item.tier;
   const displayTier = getDisplayTier(item, modifiers);
@@ -81,6 +85,7 @@ export async function buildFullItemTooltipLines(
     manticoreClawBonus,
     potatoBookDoubled,
     maxedCollectionsCount,
+    blingArmorPercent,
   });
   const isMythological = isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id);
 

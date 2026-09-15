@@ -75,6 +75,37 @@ export function applyAnkylosaurusMax(petId, stats) {
 
 // Standard Hypixel legacy pet-rarity ordinal scheme ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
 export const PET_RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'];
+
+// Blaze pet's "Bling Armor": "Upgrades Blaze Armor stats and ability by {1}%", where {1} is 0.4% per
+// pet level — NEU-REPO's petnums.json BLAZE otherNums[1] is 0.4 at level 1 and 40 at level 100 for
+// RARE, EPIC and LEGENDARY; COMMON and UNCOMMON don't have the perk at all. Scales the armor's RAW
+// base stats (user-specified 2026-09-15), for both Blaze and Frozen Blaze Armor.
+export const BLING_ARMOR_PERCENT_PER_LEVEL = 0.4;
+const BLING_ARMOR_PET_TIERS = new Set(['RARE', 'EPIC', 'LEGENDARY']);
+export const BLING_ARMOR_ITEM_IDS = new Set(
+  ['BLAZE', 'FROZEN_BLAZE'].flatMap((line) => ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'].map((piece) => `${line}_${piece}`)),
+);
+
+export function computeBlingArmorPercent(pet) {
+  if (pet?.item?.petId !== 'BLAZE' || !BLING_ARMOR_PET_TIERS.has(pet.item.tier)) return 0;
+  return BLING_ARMOR_PERCENT_PER_LEVEL * (pet.modifiers?.level || 0);
+}
+
+// The multiplier on one item's raw base stats — 1 for anything that isn't Blaze/Frozen Blaze Armor.
+// Mirrors lib/dungeonHeads.js's dungeonHeadBaseStatMultiplier, applied at the same point.
+export function blingArmorBaseStatMultiplier(itemId, blingArmorPercent) {
+  return blingArmorPercent && BLING_ARMOR_ITEM_IDS.has(itemId) ? 1 + blingArmorPercent / 100 : 1;
+}
+
+// The equipped pet's effects on OTHER items' stats, as computeItemStatTotals ctx. One place for
+// these, because every stat total — the damage calculation and every tooltip — has to agree on them:
+// the Legendary Blaze's doubled Potato Books used to be re-derived inline at eight call sites.
+export function petItemStatContext(pet) {
+  return {
+    potatoBookDoubled: pet?.item?.petId === 'BLAZE' && pet?.item?.tier === 'LEGENDARY',
+    blingArmorPercent: computeBlingArmorPercent(pet),
+  };
+}
 const PET_RARITY_ORDINALS = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4, MYTHIC: 5 };
 
 const PET_ID_DISPLAY_NAME_OVERRIDES = {

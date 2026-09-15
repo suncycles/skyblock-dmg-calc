@@ -1035,6 +1035,30 @@ try {
     assert.equal(findRagnarock([], { weapon: equipped }), equipped, 'an equipped one when nothing is imported');
     assert.equal(findRagnarock(null, { weapon: { item: { id: 'HYPERION' } } }), null);
   });
+  // 38. Blaze pet's Bling Armor (lib/petData.js), user-specified 2026-09-15: +0.4% per pet level to
+  // Blaze and Frozen Blaze Armor's RAW base stats, for a Rare/Epic/Legendary Blaze (NEU petnums has
+  // the perk from Rare up). Applied to pristine, so it only ever touches those eight pieces.
+  await check('Blaze Bling Armor scales Blaze and Frozen Blaze armor base stats', async () => {
+    const { computeBlingArmorPercent, petItemStatContext } = petData;
+    const blaze = (tier, level) => ({ item: { petId: 'BLAZE', tier }, modifiers: { level } });
+    assert.equal(computeBlingArmorPercent(blaze('LEGENDARY', 100)), 40);
+    assert.equal(computeBlingArmorPercent(blaze('RARE', 50)), 20);
+    assert.equal(computeBlingArmorPercent(blaze('UNCOMMON', 100)), 0, 'Common/Uncommon Blaze has no Bling Armor');
+    assert.equal(computeBlingArmorPercent({ item: { petId: 'GOLDEN_DRAGON', tier: 'LEGENDARY' }, modifiers: { level: 100 } }), 0);
+    assert.equal(computeBlingArmorPercent(null), 0);
+    assert.deepEqual(petItemStatContext(blaze('LEGENDARY', 100)), { potatoBookDoubled: true, blingArmorPercent: 40 });
+    assert.deepEqual(petItemStatContext(blaze('EPIC', 100)), { potatoBookDoubled: false, blingArmorPercent: 40 }, 'books double only at Legendary');
+
+    const lore = ['§7Defense: §a+180', '§7Strength: §c+40', '§7Speed: §a+2'];
+    const frozen = { id: 'FROZEN_BLAZE_CHESTPLATE', tier: 'LEGENDARY', category: 'CHESTPLATE', lore };
+    const t = await itemStatTotals.computeItemStatTotals(frozen, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, { blingArmorPercent: 40 });
+    assert.equal(t.strength.pristine, 56, '40 Strength x 1.4');
+    assert.equal(t.defense.nonDungeonStarred, 252, '180 Defense x 1.4');
+    const plain = await itemStatTotals.computeItemStatTotals({ ...frozen, id: 'SHADOW_ASSASSIN_CHESTPLATE' }, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, { blingArmorPercent: 40 });
+    assert.equal(plain.strength.pristine, 40, 'no other armor is touched');
+    const noPet = await itemStatTotals.computeItemStatTotals(frozen, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, {});
+    assert.equal(noPet.strength.pristine, 40, 'no Blaze pet, no boost');
+  });
 } finally {
   await server.close();
 }
