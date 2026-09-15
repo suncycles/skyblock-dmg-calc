@@ -48,7 +48,7 @@ export async function computeRagnarockStrength(entry, loadout, itemData, playerS
     tamingLevel: playerStats?.tamingLevel,
     wolfSlayerLevel: playerStats?.wolfSlayerLevel,
     generalsMedallionDigits: playerStats?.generalsMedallionDigits,
-    ...petItemStatContext(loadout?.pet),
+    ...petItemStatContext(loadout?.pet, itemData),
     maxedCollectionsCount,
     essencePerks,
     chimeraBonus: computeItemChimeraBonus(entry, basePetStats) || undefined,

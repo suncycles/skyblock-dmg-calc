@@ -72,6 +72,7 @@ import {
   computeItemChimeraBonus,
   petItemStatContext,
   computeManticoreClawBonus,
+  applyTierBoost,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
 import { fetchNeuItem } from './neuItems';
@@ -679,7 +680,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
   // Potato Books, and a Rare+ Blaze's Bling Armor scales Blaze/Frozen Blaze Armor's raw base stats.
   // Every computeItemStatTotals call below gets both — the Chimera/Manticore ones included, since
   // their totals are diffed against the base totals and a missing input would show up as a delta.
-  const { potatoBookDoubled, blingArmorPercent } = petItemStatContext(loadout.pet);
+  const { potatoBookDoubled, blingArmorPercent } = petItemStatContext(loadout.pet, itemData);
 
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
@@ -1379,6 +1380,9 @@ export async function collectDamageSources(
   // Ragnarock whose own Strength its buff copies.
   importedWeapons = null,
 ) {
+  // A held Tier Boost raises the pet's rarity. Resolved once here, so every pet read below — its
+  // stat curve, rarity-gated perks, lore, and the petEntriesCache key — sees the boosted rarity.
+  loadout = { ...loadout, pet: applyTierBoost(loadout.pet, itemData) };
   const out = {
     // Applies in every mode: the Debuffs tile is shown whether or not the Dungeon toggle is on
     // (user-specified 2026-09-15), and a visible control that silently did nothing outside a

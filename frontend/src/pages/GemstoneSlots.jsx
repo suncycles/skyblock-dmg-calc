@@ -53,7 +53,7 @@ export default function GemstoneSlots() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      petItemStatContext(loadout.pet),
+      petItemStatContext(loadout.pet, itemData),
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

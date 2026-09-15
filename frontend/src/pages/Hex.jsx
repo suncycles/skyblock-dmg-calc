@@ -184,7 +184,7 @@ export default function Hex() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      petItemStatContext(loadout.pet),
+      petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);

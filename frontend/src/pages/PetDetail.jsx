@@ -4,7 +4,7 @@ import { useItemData } from '../context/ItemDataContext';
 import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine, MC_COLORS } from '../lib/mcText';
-import { petLoreItemId, buildPetTooltipLines, getMaxPetLevel, MAX_PET_LEVEL } from '../lib/petData';
+import { petLoreItemId, buildPetTooltipLines, getMaxPetLevel, MAX_PET_LEVEL, applyTierBoost } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { parseShorthandNumber } from '../lib/numberInput';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -37,7 +37,9 @@ export default function PetDetail() {
   const goldCollection = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.goldCollection) || 0;
   const maxLevel = pet ? getMaxPetLevel(pet.petId) : MAX_PET_LEVEL;
 
-  const loreId = pet ? petLoreItemId(pet.petId, pet.tier) : null;
+  // A held Tier Boost raises the rarity — lore and name color follow it (lib/petData.js's applyTierBoost).
+  const tier = loadout.pet ? applyTierBoost(loadout.pet, itemData).item.tier : null;
+  const loreId = pet ? petLoreItemId(pet.petId, tier) : null;
   const [rawLore, setRawLore] = useState(null); // null = loading, false = fetch failed, {displayname, lore} = real data
   useEffect(() => {
     if (!loreId) return;
@@ -86,7 +88,7 @@ export default function PetDetail() {
             <div className={`${slotBase} w-20 h-20 shrink-0`}>
               <WeaponIcon id={pet.petId} material={pet.material} alt={pet.name} className="w-[75%] h-[75%] object-contain pixelated" />
             </div>
-            <div className="font-bold text-base leading-tight" style={{ color: MC_COLORS[rarityColorCode(pet.tier)] }}>
+            <div className="font-bold text-base leading-tight" style={{ color: MC_COLORS[rarityColorCode(tier)] }}>
               {formatItemName(pet.name)}
             </div>
           </div>

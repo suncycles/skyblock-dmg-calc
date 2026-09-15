@@ -100,11 +100,29 @@ export function blingArmorBaseStatMultiplier(itemId, blingArmorPercent) {
 // The equipped pet's effects on OTHER items' stats, as computeItemStatTotals ctx. One place for
 // these, because every stat total — the damage calculation and every tooltip — has to agree on them:
 // the Legendary Blaze's doubled Potato Books used to be re-derived inline at eight call sites.
-export function petItemStatContext(pet) {
+export function petItemStatContext(pet, itemData) {
+  const boosted = applyTierBoost(pet, itemData);
   return {
-    potatoBookDoubled: pet?.item?.petId === 'BLAZE' && pet?.item?.tier === 'LEGENDARY',
-    blingArmorPercent: computeBlingArmorPercent(pet),
+    potatoBookDoubled: boosted?.item?.petId === 'BLAZE' && boosted?.item?.tier === 'LEGENDARY',
+    blingArmorPercent: computeBlingArmorPercent(boosted),
   };
+}
+
+// Tier Boost pet item: raises the pet's rarity by one (user-specified 2026-09-15). A pet already at
+// its highest rarity — the highest petnums.json has data for — is left as it is.
+// The stored loadout keeps the pet's own rarity plus the held item, the same way Hypixel's API and
+// loadout links do, so this runs at read time. It returns the boosted pet with the item consumed
+// (petItem: null), so calling it again on its own result does nothing — collectDamageSources applies
+// it once up front, and the helpers it then calls (computeBasePetStats, petItemStatContext) apply it
+// again harmlessly.
+export const TIER_BOOST_ID = 'PET_ITEM_TIER_BOOST';
+
+export function applyTierBoost(loadoutPet, itemData) {
+  if (loadoutPet?.modifiers?.petItem !== TIER_BOOST_ID) return loadoutPet;
+  const { item, modifiers } = loadoutPet;
+  const next = PET_RARITY_ORDER[PET_RARITY_ORDER.indexOf(item.tier) + 1];
+  const tier = next && getAvailableRarities(itemData?.pets, item.petId).includes(next) ? next : item.tier;
+  return { item: { ...item, tier }, modifiers: { ...modifiers, petItem: null } };
 }
 const PET_RARITY_ORDINALS = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4, MYTHIC: 5 };
 
@@ -240,7 +258,7 @@ export function computeEquippedPetStats(loadout, itemData, essencePerks) {
 // general (that was the wrong generalization the previous version of this comment made).
 export function computeBasePetStats(loadout, itemData, essencePerks) {
   if (!loadout.pet) return null;
-  const { item: pet, modifiers } = loadout.pet;
+  const { item: pet, modifiers } = applyTierBoost(loadout.pet, itemData);
   const maxLevel = getMaxPetLevel(pet.petId);
   const levels = itemData.pets?.[pet.petId]?.[pet.tier];
   let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
@@ -343,13 +361,15 @@ export function substitutePetLore(loreLines, level, statValues, otherNumValues) 
 export function buildPetTooltipLines(pet, modifiers, itemData, rawLore) {
   const level = modifiers?.level ?? 0;
   const maxLevel = getMaxPetLevel(pet.petId);
-  const tierColor = rarityColorCode(pet.tier);
+  // The caller fetches rawLore for this same boosted rarity; the Held Item line below still shows the Tier Boost.
+  const { tier } = applyTierBoost({ item: pet, modifiers }, itemData).item;
+  const tierColor = rarityColorCode(tier);
   if (rawLore === null || rawLore === undefined) return [`§${tierColor}§l${pet.name}`, '', '§7Loading...'];
   if (rawLore === false) return [`§${tierColor}§l[Lvl ${level}] ${pet.name}`, '§7No lore available.'];
 
   const petItemId = modifiers?.petItem;
   const petItem = petItemId ? (itemData.petItems || []).find((i) => i.id === petItemId) : null;
-  const levels = itemData.pets?.[pet.petId]?.[pet.tier];
+  const levels = itemData.pets?.[pet.petId]?.[tier];
   let stats = computeAllPetStats(levels, level, maxLevel);
   stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers?.goldCollection);
   const statBoost = petItem ? parsePetItemStatBoost(petItem.lore) : null;

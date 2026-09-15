@@ -1059,6 +1059,27 @@ try {
     const noPet = await itemStatTotals.computeItemStatTotals(frozen, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, {});
     assert.equal(noPet.strength.pristine, 40, 'no Blaze pet, no boost');
   });
+  // 39. Tier Boost pet item (lib/petData.js), user-specified 2026-09-15: raises the pet's rarity by
+  // one; a pet already at its highest rarity is unchanged. Applied at read time, so it must be
+  // idempotent — collectDamageSources applies it, then calls helpers that apply it again.
+  await check('Tier Boost raises pet rarity by one, capped at the pet\'s highest rarity', async () => {
+    const { applyTierBoost, computeBasePetStats, petItemStatContext, TIER_BOOST_ID } = petData;
+    const levels = (strength) => ({ 1: { statNums: { STRENGTH: strength / 100 }, otherNums: [] }, 100: { statNums: { STRENGTH: strength }, otherNums: [] } });
+    const itemData = { pets: { BLAZE: { EPIC: levels(10), LEGENDARY: levels(20) }, BAT: { LEGENDARY: levels(30), MYTHIC: levels(40) } }, petItems: [] };
+    const pet = (petId, tier, petItem = TIER_BOOST_ID) => ({ item: { petId, tier }, modifiers: { level: 100, petItem } });
+
+    const boosted = applyTierBoost(pet('BLAZE', 'EPIC'), itemData);
+    assert.equal(boosted.item.tier, 'LEGENDARY');
+    assert.equal(applyTierBoost(boosted, itemData).item.tier, 'LEGENDARY', 'applying twice must not boost twice');
+    assert.equal(applyTierBoost(pet('BLAZE', 'LEGENDARY'), itemData).item.tier, 'LEGENDARY', 'highest rarity: no change');
+    assert.equal(applyTierBoost(pet('BAT', 'LEGENDARY'), itemData).item.tier, 'MYTHIC', 'Legendary goes to Mythic when the pet has one');
+    const unboosted = pet('BLAZE', 'EPIC', null);
+    assert.equal(applyTierBoost(unboosted, itemData), unboosted, 'no Tier Boost: untouched');
+    assert.equal(applyTierBoost(null, itemData), null);
+
+    assert.equal(computeBasePetStats({ pet: pet('BLAZE', 'EPIC') }, itemData).STRENGTH, 20, 'stats come from the boosted rarity');
+    assert.equal(petItemStatContext(pet('BLAZE', 'EPIC'), itemData).potatoBookDoubled, true, 'Epic Blaze + Tier Boost doubles books like a Legendary');
+  });
 } finally {
   await server.close();
 }
