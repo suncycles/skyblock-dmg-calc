@@ -965,6 +965,8 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     onMiningIsland,
     build.hasJellyfishPet,
     build.debuffs,
+    build.buffs,
+    build.importedWeapons,
   );
 
   if (modeConfig.metric === 'ability') {
@@ -2816,6 +2818,8 @@ export const OPTIMIZER_BUILD_KEYS = [
   'essencePerks',
   'hasJellyfishPet',
   'debuffs',
+  'buffs',
+  'importedWeapons',
 ];
 
 export async function runOptimizer(loadout, itemData, build, mode, mob) {

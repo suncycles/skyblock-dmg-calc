@@ -36,6 +36,8 @@ export function emptyApplyState(build) {
     essencePerks: build.essencePerks || {},
     blessing: build.blessing || null,
     debuffs: build.debuffs || null,
+    buffs: build.buffs || null,
+    importedWeapons: build.importedWeapons || [],
   };
 }
 

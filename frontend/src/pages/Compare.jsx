@@ -74,6 +74,10 @@ function useCurrentBuildState(build) {
       // Target-side debuffs (lib/mobDebuffs.js) — same reasoning as the blessing block: both sides
       // of a comparison face the same debuffed mob, so this is account/run state, not gear state.
       debuffs: build.debuffs,
+      // Item buffs and the imported weapon list they read Ragnarock's Strength from — account state,
+      // same as the debuffs above.
+      buffs: build.buffs,
+      importedWeapons: build.importedWeapons,
     }),
     [
       build.loadout,
@@ -94,6 +98,8 @@ function useCurrentBuildState(build) {
       build.blessing,
       build.essencePerks,
       build.debuffs,
+      build.buffs,
+      build.importedWeapons,
       build.hasJellyfishPet,
       build.blazeCrimsonIsle,
       build.bestiaryMaxedMobs,
@@ -142,6 +148,8 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           blessing: currentState.blessing,
           essencePerks: currentState.essencePerks,
           debuffs: currentState.debuffs,
+          buffs: currentState.buffs,
+          importedWeapons: currentState.importedWeapons,
           hasJellyfishPet: currentState.hasJellyfishPet,
           ...decoded,
         };
@@ -175,6 +183,8 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           isMiningIslandTarget,
           state.hasJellyfishPet,
           state.debuffs,
+          state.buffs,
+          state.importedWeapons,
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));

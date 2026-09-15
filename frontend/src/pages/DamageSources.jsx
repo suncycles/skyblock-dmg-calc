@@ -196,6 +196,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     blessing,
     essencePerks,
     debuffs,
+    buffs,
+    importedWeapons,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
     setAccessoryEnrichmentType,
@@ -317,6 +319,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         isMiningIslandTarget,
         hasJellyfishPet,
         settledDebuffs,
+        buffs,
+        importedWeapons,
       ).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
@@ -339,6 +343,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     settledBlessing,
     settledDebuffs,
     hasJellyfishPet,
+    buffs,
+    importedWeapons,
     essencePerks,
     effectiveBlazeCrimsonIsle,
     isMiningIslandTarget,
@@ -379,6 +385,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         isMiningIslandTarget,
         hasJellyfishPet,
         settledDebuffs,
+        buffs,
+        importedWeapons,
       ).then((r) => {
         if (tokenAt100Ref.current === token) setResultAt100(r);
       });
@@ -402,6 +410,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     settledBlessing,
     settledDebuffs,
     hasJellyfishPet,
+    buffs,
+    importedWeapons,
     essencePerks,
     blazeCrimsonIsle,
     isMiningIslandTarget,
