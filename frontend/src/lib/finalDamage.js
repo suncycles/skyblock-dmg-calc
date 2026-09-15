@@ -611,6 +611,11 @@ export const DPS_HITS_PER_SECOND = {
   crimsonSwipe: 1,
 };
 
+// Crimson Swipe's opening proc: the fight's first hit always procs Swipe, at double damage
+// (user-specified 2026-09-15). Only simulateHitByHit models a fight's first hit; the steady-state
+// DPS above is every hit after it, the same way it leaves out First Strike.
+export const CRIMSON_SWIPE_FIRST_HIT_MULTIPLIER = 2;
+
 // Duplex (Reiterate) ultimate enchant, bow-only: a guaranteed extra arrow dealing +4%/level of
 // the first arrow's damage — real lore, confirmed level 1-5: 4/8/12/16/20% (level 5 -> 1.2x DPS,
 // user-confirmed 2026-08-29). https://hypixelskyblock.minecraft.wiki/w/Duplex
@@ -789,7 +794,9 @@ export function simulateHitByHit(
   const crimsonSwipeRate = swipeInfo ? DPS_HITS_PER_SECOND.crimsonSwipe / meleeHitsPerSecond : 0;
   let fireAspectAcc = 0;
   let thunderlordAcc = 0;
-  let crimsonSwipeAcc = 0;
+  // The fight's first hit always procs Crimson Swipe (user-specified 2026-09-15) — primed so hit 1
+  // crosses 1, and every later Swipe keeps the 1/s cadence counted from that opening proc.
+  let crimsonSwipeAcc = swipeInfo ? 1 - crimsonSwipeRate : 0;
 
   const rate = sources.executeProsecuteRate;
   function buildHitSources(hpPercent) {
@@ -860,6 +867,8 @@ export function simulateHitByHit(
       if (crimsonSwipeAcc >= 1) {
         crimsonSwipeAcc -= 1;
         crimsonSwipeDamage = computeCrimsonSwipeDamage(mob, expectedArrowDamage, swipeInfo, steady.additivePercent)?.finalDamage || 0;
+        // ...and that opening Swipe deals double damage — the first hit's only (user-specified 2026-09-15).
+        if (hit === 1) crimsonSwipeDamage *= CRIMSON_SWIPE_FIRST_HIT_MULTIPLIER;
       }
     }
 

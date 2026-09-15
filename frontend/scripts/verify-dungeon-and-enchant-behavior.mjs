@@ -1080,6 +1080,35 @@ try {
     assert.equal(computeBasePetStats({ pet: pet('BLAZE', 'EPIC') }, itemData).STRENGTH, 20, 'stats come from the boosted rarity');
     assert.equal(petItemStatContext(pet('BLAZE', 'EPIC'), itemData).potatoBookDoubled, true, 'Epic Blaze + Tier Boost doubles books like a Legendary');
   });
+  // 40. Crimson Swipe's opening proc (lib/finalDamage.js's simulateHitByHit), user-specified
+  // 2026-09-15: the fight's first hit always procs Swipe, at double damage; every later Swipe keeps
+  // the 1/s cadence at the normal amount.
+  await check('Crimson Swipe procs on the first hit at double damage', () => {
+    const { simulateHitByHit } = finalDamage;
+    const stats = { damage: 100, strength: 100, crit_damage: 100, crit_chance: 100, bonus_attack_speed: 0 };
+    const sources = {
+      baseStats: stats,
+      dungeonizedBaseStats: stats,
+      masterDungeonizedBaseStats: stats,
+      mythologicalBaseStats: stats,
+      mythologicalDungeonizedBaseStats: stats,
+      mythologicalMasterDungeonizedBaseStats: stats,
+      additiveNonConditional: [{ id: 'flat', value: 100 }],
+      additiveConditional: [],
+      multiplicative: [],
+      hasFinalDestinationFullSet: false,
+      bestiaryMaxedMobs: null,
+    };
+    const crimson = Object.fromEntries(['helmet', 'chestplate', 'leggings', 'boots'].map((slot) => [slot, { item: { id: `INFERNAL_CRIMSON_${slot.toUpperCase()}` } }]));
+    const mob = { name: 'Zombie', types: [] };
+    const swipes = simulateHitByHit(sources, mob, crimson, null, 100).hits.map((h) => h.crimsonSwipeDamage);
+    const later = swipes.slice(1).filter((d) => d > 0);
+    assert.ok(swipes[0] > 0, 'hit 1 procs Swipe');
+    assert.ok(later.length > 0, 'Swipe keeps proccing after the first hit');
+    assert.ok(later.every((d) => d === later[0]), 'every later Swipe is the normal amount');
+    assert.equal(swipes[0], later[0] * 2, 'only the opening Swipe is doubled');
+    assert.ok(simulateHitByHit(sources, mob, {}, null, 100).hits.every((h) => h.crimsonSwipeDamage === 0), 'no Crimson armor, no Swipe');
+  });
 } finally {
   await server.close();
 }
