@@ -66,6 +66,8 @@ try {
   const masterSkull = await server.ssrLoadModule('/src/lib/masterSkull.js');
   const recombobulator = await server.ssrLoadModule('/src/lib/recombobulator.js');
   const petData = await server.ssrLoadModule('/src/lib/petData.js');
+  const playerStatsModule = await server.ssrLoadModule('/src/lib/playerStats.js');
+  const playerDefense = await server.ssrLoadModule('/src/lib/playerDefense.js');
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
   const mobDebuffs = await server.ssrLoadModule('/src/lib/mobDebuffs.js');
@@ -1108,6 +1110,33 @@ try {
     assert.ok(later.every((d) => d === later[0]), 'every later Swipe is the normal amount');
     assert.equal(swipes[0], later[0] * 2, 'only the opening Swipe is doubled');
     assert.ok(simulateHitByHit(sources, mob, {}, null, 100).hits.every((h) => h.crimsonSwipeDamage === 0), 'no Crimson armor, no Swipe');
+  });
+  // 41. The player's Defense (lib/playerDefense.js), user-specified 2026-09-15 — Mining Level
+  // (+1/level to 14, +2 after: 106 at 60), God Potion's 66, armor, and Unlimited Fortitude's
+  // +0.2%/level on the total. Nothing on screen shows it; its only consumer is Ankylosaurus's
+  // Armored Tank, whose own lore is "Gain {0}% of your Defense as Strength. (Max +500)".
+  await check('Player Defense feeds Ankylosaurus Armored Tank, capped at +500 Strength', () => {
+    const { computeMiningDefenseBonus, MAX_MINING_LEVEL } = playerStatsModule;
+    const { combinePlayerDefense, GOD_POTION_DEFENSE, UNLIMITED_FORTITUDE_RATE } = playerDefense;
+    const { computeAnkylosaurusStrength, ANKYLOSAURUS_MAX_STRENGTH } = petData;
+
+    assert.equal(computeMiningDefenseBonus(MAX_MINING_LEVEL), 106, 'Mining 60 grants 106 Defense');
+    assert.equal(computeMiningDefenseBonus(14), 14, '+1/level through 14');
+    assert.equal(computeMiningDefenseBonus(15), 16, '+2/level from 15');
+    assert.equal(GOD_POTION_DEFENSE, 66);
+    assert.equal(UNLIMITED_FORTITUDE_RATE, 0.2);
+
+    assert.equal(combinePlayerDefense(0, { miningLevel: 60 }, null, false), 106, 'Mining alone');
+    assert.equal(combinePlayerDefense(0, null, null, true), 66, 'God Potion alone');
+    assert.equal(combinePlayerDefense(828, { miningLevel: 60 }, null, true), 1000, 'armor + Mining + God Potion');
+    assert.equal(combinePlayerDefense(100, null, { fortitude: 10 }, false), 102, 'Unlimited Fortitude 10 is +2%');
+
+    // otherNums[0] is the pet's own rate: 0.5 at level 1, 50 at level 100 (0.5% per pet level).
+    assert.equal(computeAnkylosaurusStrength(1000, [50]), 500, '1000 Defense at level 100 lands exactly on the cap');
+    assert.equal(computeAnkylosaurusStrength(500, [50]), 250, 'half the Defense, half the Strength');
+    assert.equal(computeAnkylosaurusStrength(1000, [25]), 250, 'half the pet level, half the conversion');
+    assert.equal(computeAnkylosaurusStrength(4000, [50]), ANKYLOSAURUS_MAX_STRENGTH, 'never past +500');
+    assert.equal(computeAnkylosaurusStrength(1000, []), 0, 'no pet numbers, no Strength');
   });
 } finally {
   await server.close();

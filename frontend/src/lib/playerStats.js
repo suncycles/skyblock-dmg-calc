@@ -103,6 +103,16 @@ export function computeEnchantingAbilityDamageBonus(level) {
   return clamped * ENCHANTING_ABILITY_DAMAGE_PERCENT_PER_LEVEL;
 }
 
+// Mining Level Defense reward: +1/level for 1-14, +2/level for 15-60 — 106 at max
+// (user-specified 2026-09-15), the same two-rate shape Alchemy/Enchanting use above. Defense is
+// never shown anywhere; its only consumer is the Ankylosaurus pet's Armored Tank perk, which turns
+// it into Strength (see lib/playerDefense.js).
+export const MAX_MINING_LEVEL = 60;
+export function computeMiningDefenseBonus(level) {
+  const clamped = Math.max(0, Math.min(MAX_MINING_LEVEL, level || 0));
+  return Math.min(clamped, 14) * 1 + Math.max(0, clamped - 14) * 2;
+}
+
 export const MAX_TARANTULA_SLAYER_LEVEL = 9;
 
 // Tarantula Broodfather (Spider) Slayer Crit Damage reward: +1/level for 1-4, +2/level for 5-7,

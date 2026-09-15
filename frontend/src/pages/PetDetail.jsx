@@ -5,6 +5,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode, formatItemName, parseMinecraftLine, MC_COLORS } from '../lib/mcText';
 import { petLoreItemId, buildPetTooltipLines, getMaxPetLevel, MAX_PET_LEVEL, applyTierBoost } from '../lib/petData';
+import { computePlayerDefense } from '../lib/playerDefense';
 import { fetchNeuItem } from '../lib/neuItems';
 import { parseShorthandNumber } from '../lib/numberInput';
 import { SLOT_TEXTURES } from '../lib/icons';
@@ -22,7 +23,7 @@ const slotBase =
 export default function PetDetail() {
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { loadout, setPetLevel, setPetItem, setPetBankCoins, setPetGoldCollection } = useBuild();
+  const { loadout, setPetLevel, setPetItem, setPetBankCoins, setPetGoldCollection, playerStats, attributes, godPotionActive } = useBuild();
   const { hideTooltip } = useTooltip();
 
   // Clears any hover tooltip left over from the previous page (a click-driven route change doesn't fire mouseleave).
@@ -53,10 +54,24 @@ export default function PetDetail() {
     };
   }, [loreId]);
 
+  // Ankylosaurus's Armored Tank turns the player's Defense into Strength, so this tooltip needs the
+  // same Defense the damage calculation uses (lib/playerDefense.js). Async because armor stat
+  // totals are — 0 until it resolves, which only affects that one pet.
+  const [playerDefense, setPlayerDefense] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    computePlayerDefense(loadout, itemData, playerStats, attributes, godPotionActive).then((defense) => {
+      if (!cancelled) setPlayerDefense(defense);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadout, itemData, playerStats, attributes, godPotionActive]);
+
   const tooltipLines = useMemo(() => {
     if (!pet || !loadout.pet) return [];
-    return buildPetTooltipLines(pet, loadout.pet.modifiers, itemData, rawLore);
-  }, [pet, loadout.pet, itemData, rawLore]);
+    return buildPetTooltipLines(pet, loadout.pet.modifiers, itemData, rawLore, playerDefense);
+  }, [pet, loadout.pet, itemData, rawLore, playerDefense]);
 
   if (!pet) {
     return (

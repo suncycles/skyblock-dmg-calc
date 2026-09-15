@@ -64,13 +64,23 @@ export function applyLionPrimalForce(petId, stats, otherNums) {
   return { ...stats, STRENGTH: (stats.STRENGTH || 0) + primalForce };
 }
 
-// Ankylosaurus: assumed always at its real max (+500 Strength), ignoring its actual
-// "Unyielding"/"Clubbed Tail" perks per instruction.
+// Ankylosaurus's Armored Tank, real lore: "Gain {0}% of your Defense as Strength. (Max +500)" —
+// {0} is petnums' otherNums[0], 0.5 at level 1 and 50 at level 100, i.e. 0.5% of Defense per pet
+// level (user-specified 2026-09-15, matching the pet's own numbers). The Defense it reads is
+// lib/playerDefense.js's, the only thing in this app that stat feeds. This used to be hardcoded at
+// the +500 ceiling, which silently assumed 1000 Defense on every account.
+// Its other two perks (Unyielding, Clubbed Tail) stay unmodelled per instruction.
 export const ANKYLOSAURUS_MAX_STRENGTH = 500;
 
-export function applyAnkylosaurusMax(petId, stats) {
+export function computeAnkylosaurusStrength(playerDefense, otherNums) {
+  const percent = otherNums?.[0] || 0;
+  return Math.min(ANKYLOSAURUS_MAX_STRENGTH, ((playerDefense || 0) * percent) / 100);
+}
+
+export function applyAnkylosaurusStrength(petId, stats, playerDefense, otherNums) {
   if (petId !== 'ANKYLOSAURUS') return stats;
-  return { ...stats, STRENGTH: (stats.STRENGTH || 0) + ANKYLOSAURUS_MAX_STRENGTH };
+  const strength = computeAnkylosaurusStrength(playerDefense, otherNums);
+  return strength ? { ...stats, STRENGTH: (stats.STRENGTH || 0) + strength } : stats;
 }
 
 // Standard Hypixel legacy pet-rarity ordinal scheme ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
@@ -236,23 +246,15 @@ export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
   return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level, maxLevel));
 }
 
-// Full pet-stat pipeline: computeBasePetStats (see below) plus Ankylosaurus's Unyielding, the one
-// thing Chimera/Manticore still don't copy — it invents a Strength stat on a pet whose curve has
-// none at all, unlike everything else in the pipeline (see the comment below for why that's the
-// one real exception).
-export function computeEquippedPetStats(loadout, itemData, essencePerks) {
-  if (!loadout.pet) return null;
-  return applyAnkylosaurusMax(loadout.pet.item.petId, computeBasePetStats(loadout, itemData, essencePerks));
-}
-
 // What Chimera and Manticore Claw copy onto an item: the pet's real stat total — curve, Golden
 // Dragon's Shining Scales, the held Pet Item's boost, Lion's Primal Force — with exactly one
 // exception. Confirmed with the user (2026-08-22) against real Chimera behavior: a Golden Dragon
 // holding Hephaestus Remedies (+100% Strength) copies that boosted total onto the weapon, not the
 // pre-item number an earlier version of this function stopped at.
-// The one thing still excluded: Ankylosaurus's Unyielding, which invents a Strength stat on a pet
-// whose own curve has none at all (applyAnkylosaurusMax, only in computeEquippedPetStats above) —
-// that's not "this pet's stats boosted", it's a stat that doesn't exist being added from nowhere.
+// The one thing still excluded: Ankylosaurus's Armored Tank, which invents a Strength stat on a pet
+// whose own curve has none at all (computeAnkylosaurusStrength, applied by damageSources.js as its
+// own base-stat line) — that's not "this pet's stats boosted", it's a stat that doesn't exist being
+// added from nowhere, and it's derived from the PLAYER's Defense rather than from the pet at all.
 // Every other perk here (Shining Scales, Primal Force, the pet item) boosts a stat already on the
 // pet's own line, which is the real, verified distinction — not "abilities vs. base stats" in
 // general (that was the wrong generalization the previous version of this comment made).
@@ -358,7 +360,7 @@ export function substitutePetLore(loreLines, level, statValues, otherNumValues) 
 // Landing's hover tooltip. `rawLore` is fetchNeuItem's result (or `false` for a failed fetch,
 // `null`/`undefined` while loading) — left to the caller since PetDetail keeps it in state
 // while Landing fetches it fresh per hover.
-export function buildPetTooltipLines(pet, modifiers, itemData, rawLore) {
+export function buildPetTooltipLines(pet, modifiers, itemData, rawLore, playerDefense = 0) {
   const level = modifiers?.level ?? 0;
   const maxLevel = getMaxPetLevel(pet.petId);
   // The caller fetches rawLore for this same boosted rarity; the Held Item line below still shows the Tier Boost.
@@ -376,7 +378,7 @@ export function buildPetTooltipLines(pet, modifiers, itemData, rawLore) {
   stats = applyPetItemStatBoost(stats, statBoost);
   const otherNums = computeOtherNums(levels, level, maxLevel);
   stats = applyLionPrimalForce(pet.petId, stats, otherNums);
-  stats = applyAnkylosaurusMax(pet.petId, stats);
+  stats = applyAnkylosaurusStrength(pet.petId, stats, playerDefense, otherNums);
   const lore = substitutePetLore(rawLore.lore, level, stats, otherNums);
   const title = (rawLore.displayname || `§${tierColor}§l${pet.name}`).replace('{LVL}', String(level));
   const heldItemLines = petItem

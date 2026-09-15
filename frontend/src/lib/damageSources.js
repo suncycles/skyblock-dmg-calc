@@ -67,7 +67,7 @@ import {
   getMaxPetLevel,
   applyGoldenDragonShiningScales,
   applyLionPrimalForce,
-  applyAnkylosaurusMax,
+  computeAnkylosaurusStrength,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
   computeItemChimeraBonus,
   petItemStatContext,
@@ -75,6 +75,7 @@ import {
   applyTierBoost,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
+import { combinePlayerDefense } from './playerDefense';
 import { fetchNeuItem } from './neuItems';
 import {
   computeCombatLevelBonus,
@@ -597,9 +598,10 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       out.enderDragonSuperiorPercent = ENDER_DRAGON_SUPERIOR_PERCENT;
     }
 
-    // Ankylosaurus: assumed always at its real max (+500 Strength), ignoring its actual
-    // "Unyielding"/"Clubbed Tail" perks per instruction.
-    stats = applyAnkylosaurusMax(pet.petId, stats);
+    // Ankylosaurus's Armored Tank is NOT applied here: it converts the player's Defense into
+    // Strength, and Defense isn't known until the gear loop below has run. It's added in
+    // collectDamageSources instead, as its own base-stat line — see computeAnkylosaurusStrength.
+    out.petOtherNums = otherNums;
 
     // Lion's First Pounce: multiplies First Strike/Triple Strike's bonus — Rare 1.8x, Epic/Legendary 2x.
     if (pet.petId === 'LION') {
@@ -682,6 +684,12 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
   // their totals are diffed against the base totals and a missing input would show up as a delta.
   const { potatoBookDoubled, blingArmorPercent } = petItemStatContext(loadout.pet, itemData);
 
+  // The armor half of the player's Defense (lib/playerDefense.js) — never displayed, and read by
+  // exactly one thing: Ankylosaurus's Armored Tank. Summed off the totals this loop already
+  // computes rather than by a second pass over the four pieces, which every Optimizer candidate
+  // would have paid for.
+  out.armorDefense = 0;
+
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped) continue;
@@ -696,6 +704,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       maxedCollectionsCount,
       essencePerks,
     });
+    // ponytail: armor only, as specified — equipment and accessories carry real Defense too.
+    if (ARMOR_SLOTS.includes(slot)) out.armorDefense += totals.defense?.nonDungeonStarred || 0;
     for (const statKey of TRACKED_STATS) {
       const t = totals[statKey];
       // dungeonStarred/masterStarred fall back to nonDungeonStarred itself when the item isn't
@@ -1463,6 +1473,16 @@ export async function collectDamageSources(
     // — see lib/essencePerks.js.
     essencePerks,
   );
+  // The player's Defense, and the only thing in this app that reads it: Ankylosaurus's Armored
+  // Tank converts a share of it into Strength (lib/petData.js's computeAnkylosaurusStrength).
+  // Computed here rather than inside collectBaseStats because it needs that function's finished
+  // armor total AND the Mining Level / God Potion / Unlimited Fortitude inputs, which only this
+  // scope has. Deliberately never added to baseStats — Defense itself is invisible to the user.
+  out.playerDefense = combinePlayerDefense(out.armorDefense, playerStats, attributes, godPotionActive);
+  if (loadout.pet?.item?.petId === 'ANKYLOSAURUS') {
+    const armoredTank = computeAnkylosaurusStrength(out.playerDefense, out.petOtherNums);
+    addBaseStat(out, 'strength', armoredTank, 'Ankylosaurus (Armored Tank)');
+  }
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');

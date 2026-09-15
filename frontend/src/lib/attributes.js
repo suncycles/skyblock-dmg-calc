@@ -86,6 +86,12 @@ export const ATTACK_SPEED_SHARD_RATE = 1; // Bonus Attack Speed %/level, "+1%-10
 // MIMIC_SHARD_PERCENT_PER_LEVEL, the rate this mirrors). It lives here, with the other shards,
 // rather than beside the blessings it feeds — it's an attribute the player levels like any other.
 export const MIMIC_SHARD_RATE = 1; // % blessing effectiveness/level
+// "End Stone Protector" shard, ability name "Unlimited Fortitude" (NEU-REPO attribute_shards.json:
+// internalName ATTRIBUTE_SHARD_FORTITUDE, rarity LEGENDARY — 24 shards to level 10, the same ladder
+// the Worker's own cost table already walks). Hypixel keys it `fortitude` in member.attributes.stacks,
+// which is this id, so the import needs no remap. Grants Defense, which only the Ankylosaurus pet
+// reads — see lib/playerDefense.js.
+export const UNLIMITED_FORTITUDE_RATE = 0.2; // % Defense/level
 
 // Non-Ruler/Elemental/Echo attributes needing a single number input — shared shape for pages/Attributes.jsx to render generically.
 export const OTHER_ATTRIBUTES = [
@@ -100,6 +106,7 @@ export const OTHER_ATTRIBUTES = [
   { id: 'dominance', name: 'Dominance', rate: DOMINANCE_RATE, unit: '%' },
   { id: 'attack_speed', name: 'Attack Speed', rate: ATTACK_SPEED_SHARD_RATE, unit: '%' },
   { id: 'mimic', name: 'Mimic', rate: MIMIC_SHARD_RATE, unit: '% blessings' },
+  { id: 'fortitude', name: 'Unlimited Fortitude', rate: UNLIMITED_FORTITUDE_RATE, unit: '% defense' },
 ];
 
 export const ATTRIBUTE_IDS = [

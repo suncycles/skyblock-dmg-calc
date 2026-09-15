@@ -79,6 +79,7 @@ import {
   MAX_TAMING_LEVEL,
   MAX_ALCHEMY_LEVEL,
   MAX_ENCHANTING_LEVEL,
+  MAX_MINING_LEVEL,
   MAX_WOLF_SLAYER_LEVEL,
   MAX_TARANTULA_SLAYER_LEVEL,
   MAX_BLAZE_SLAYER_LEVEL,
@@ -2598,6 +2599,9 @@ const SKILL_LEVEL_CANDIDATES = [
   { key: 'tamingLevel', name: 'Taming', max: MAX_TAMING_LEVEL },
   { key: 'alchemyLevel', name: 'Alchemy', max: MAX_ALCHEMY_LEVEL },
   { key: 'enchantingLevel', name: 'Enchanting', max: MAX_ENCHANTING_LEVEL },
+  // Only moves damage with an Ankylosaurus equipped (it feeds Defense, which only that pet reads —
+  // lib/playerDefense.js); the shared percentIncrease filter drops it for every other loadout.
+  { key: 'miningLevel', name: 'Mining', max: MAX_MINING_LEVEL },
   { key: 'wolfSlayerLevel', name: 'Wolf Slayer', max: MAX_WOLF_SLAYER_LEVEL },
   { key: 'tarantulaSlayerLevel', name: 'Tarantula Slayer', max: MAX_TARANTULA_SLAYER_LEVEL },
   { key: 'blazeSlayerLevel', name: 'Blaze Slayer', max: MAX_BLAZE_SLAYER_LEVEL },

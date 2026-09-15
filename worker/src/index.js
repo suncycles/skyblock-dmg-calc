@@ -654,6 +654,9 @@ const ATTRIBUTE_SHARD_IDS = {
   // "Faker", internalName ATTRIBUTE_SHARD_FAKER;1, rarity EPIC (same 32-shards-to-10 ladder the
   // rest of this function already walks).
   mimic: "ATTRIBUTE_SHARD_FAKER",
+  // "End Stone Protector", ability name "Unlimited Fortitude" — LEGENDARY, so 24 shards to level
+  // 10. Grants Defense, which only the Ankylosaurus pet reads (frontend/src/lib/playerDefense.js).
+  fortitude: "ATTRIBUTE_SHARD_FORTITUDE",
 };
 
 // Real total shard count to reach an attribute's own max level (always 10 — every rarity in
@@ -1762,6 +1765,9 @@ async function handleHypixelImport(url, env) {
       enchanting: computeSkillLevel(experience.SKILL_ENCHANTING || 0, leveling.leveling_xp, skillCap("enchanting", leveling.leveling_caps.enchanting)),
       combat: computeSkillLevel(experience.SKILL_COMBAT || 0, leveling.leveling_xp, skillCap("combat", leveling.leveling_caps.combat)),
       foraging: computeSkillLevel(experience.SKILL_FORAGING || 0, leveling.leveling_xp, skillCap("foraging", leveling.leveling_caps.foraging)),
+      // Mining feeds the player's Defense, which only the Ankylosaurus pet reads — see
+      // frontend/src/lib/playerDefense.js.
+      mining: computeSkillLevel(experience.SKILL_MINING || 0, leveling.leveling_xp, skillCap("mining", leveling.leveling_caps.mining)),
       taming: computeSkillLevel(experience.SKILL_TAMING || 0, leveling.leveling_xp, skillCap("taming", leveling.leveling_caps.taming)),
       // Catacombs uses its own XP-cost table (leveling.catacombs), not the shared skill one.
       catacombs: computeSkillLevel(

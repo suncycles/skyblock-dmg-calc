@@ -9,6 +9,7 @@ import {
   MAX_BLAZE_SLAYER_LEVEL,
   MAX_ALCHEMY_LEVEL,
   MAX_ENCHANTING_LEVEL,
+  MAX_MINING_LEVEL,
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
 import { LONESOME_MINER_MAX_LEVEL, MINING_ISLANDS_LABEL } from '../lib/miningIslands';
@@ -51,6 +52,7 @@ export default function PlayerLevels() {
     setBlazeSlayerLevel,
     setAlchemyLevel,
     setEnchantingLevel,
+    setMiningLevel,
     setGeneralsMedallionDigits,
     setLonesomeMinerLevel,
     toggleBlazetekkHamRadio,
@@ -171,6 +173,13 @@ export default function PlayerLevels() {
             onChange={setEnchantingLevel}
             className={inputClass}
           />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="mining-level">
+            Mining Level <span className="text-xs text-neutral-600">(Only used by Ankylosaurus)</span>
+          </label>
+          <NumberInput id="mining-level" max={MAX_MINING_LEVEL} value={playerStats.miningLevel} onChange={setMiningLevel} className={inputClass} />
         </div>
 
         <div className="flex items-center justify-between gap-2">
