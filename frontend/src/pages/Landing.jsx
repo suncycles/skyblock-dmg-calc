@@ -14,6 +14,7 @@ import {
   computeItemChimeraBonus,
   computeManticoreClawBonus,
   petItemStatContext,
+  applyTierBoost,
 } from '../lib/petData';
 import { fetchNeuItem } from '../lib/neuItems';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
@@ -394,7 +395,7 @@ export default function Landing() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      petItemStatContext(loadout.pet),
+      petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
@@ -419,7 +420,7 @@ export default function Landing() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      petItemStatContext(loadout.pet),
+      petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
@@ -473,7 +474,7 @@ export default function Landing() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      petItemStatContext(loadout.pet),
+      petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
@@ -487,7 +488,7 @@ export default function Landing() {
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
     const { item: pet, modifiers } = loadout.pet;
-    const rawLoreData = await fetchNeuItem(petLoreItemId(pet.petId, pet.tier));
+    const rawLoreData = await fetchNeuItem(petLoreItemId(pet.petId, applyTierBoost(loadout.pet, itemData).item.tier));
     const rawLore = rawLoreData && rawLoreData.lore && rawLoreData.lore.length > 0 ? rawLoreData : false;
     const lines = buildPetTooltipLines(pet, modifiers, itemData, rawLore);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
@@ -759,7 +760,7 @@ export default function Landing() {
                 material="BONE"
                 alt={loadout.pet.item.name}
                 className={iconImg}
-                style={{ filter: rarityGlowFilter(loadout.pet.item.tier) }}
+                style={{ filter: rarityGlowFilter(applyTierBoost(loadout.pet, itemData).item.tier) }}
               />
             ) : (
               <img src={SLOT_TEXTURES.emptyGemSlot} alt="" className={slotFillImg} />

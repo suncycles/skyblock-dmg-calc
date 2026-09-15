@@ -49,7 +49,7 @@ export default function StarringPicker() {
       chimeraBonus,
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
-      petItemStatContext(loadout.pet),
+      petItemStatContext(loadout.pet, itemData),
     ).then((lines) => {
       if (!cancelled) setTooltipLines(lines);
     });
