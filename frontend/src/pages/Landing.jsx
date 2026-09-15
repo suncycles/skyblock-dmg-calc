@@ -35,6 +35,7 @@ import EntryScreen from '../components/EntryScreen';
 import UpgradesPanel from '../components/UpgradesPanel';
 import { DUNGEON_BLESSINGS, computeBlessingMultiplier } from '../lib/dungeonBlessing';
 import { hasAnyDebuff, mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier } from '../lib/mobDebuffs';
+import { BUFF_ITEMS } from '../lib/buffs';
 import ArmorOptions from './ArmorOptions';
 import EquipmentOptions from './EquipmentOptions';
 
@@ -119,6 +120,7 @@ export default function Landing() {
     attributes,
     blessing,
     debuffs,
+    buffs,
     miscStats,
     mobHpPercent,
     infernalCrimsonStacks,
@@ -905,23 +907,28 @@ export default function Landing() {
       }
       if (col >= 5 && col <= 7 && row >= 1 && row <= 4) continue;
 
-      // Row 5, columns B and C: Dungeon Blessings and Debuffs. Only while the Dungeon toggle is on —
-      // both are Catacombs mechanics and inert outside one (lib/damageSources.js) — and otherwise both
-      // cells fall through to the ordinary empty slot. Board tiles rather than panels inside the
-      // damage breakdown, like everything else you set on this screen (user-specified 2026-09-14);
-      // lit green when something is active, the same cue the Attributes tile uses.
-      if (useDungeonizedStats && row === 5 && (col === 1 || col === 2)) {
+      // Row 5, columns B and C: Buff/Blessing and Debuffs, shown in every mode (user-specified
+      // 2026-09-15) — item buffs and debuffs apply everywhere; only the Dungeon Blessings inside the
+      // first page are Dungeon-gated. Board tiles rather than panels inside the damage breakdown, like
+      // everything else you set on this screen; lit green when something is active, the same cue the
+      // Attributes tile uses.
+      if (row === 5 && (col === 1 || col === 2)) {
         const isBlessings = col === 1;
         let lit;
         let tooltipLines;
         if (isBlessings) {
-          const active = DUNGEON_BLESSINGS.filter((b) => (blessing.levels?.[b.id] || 0) > 0);
-          lit = active.length > 0 || !!blessing.paulBuff;
+          const activeBuffs = BUFF_ITEMS.filter((b) => buffs?.[b.id]);
+          // Blessings only count while they can apply — outside a dungeon they're inert, so they
+          // neither light the tile nor list in its tooltip.
+          const activeBlessings = useDungeonizedStats ? DUNGEON_BLESSINGS.filter((b) => (blessing.levels?.[b.id] || 0) > 0) : [];
+          const paulBuff = useDungeonizedStats && !!blessing.paulBuff;
+          lit = activeBuffs.length > 0 || activeBlessings.length > 0 || paulBuff;
           tooltipLines = [
-            '§d§lDungeon Blessings',
-            ...active.map((b) => `§7${b.label} §f${blessing.levels[b.id]}`),
-            ...(blessing.paulBuff ? ['§6Paul Buff'] : []),
-            `§8Effectiveness x${Math.round(computeBlessingMultiplier(blessing, attributes) * 100) / 100}`,
+            '§d§lBuff/Blessing',
+            ...activeBuffs.map((b) => `§a${b.label}`),
+            ...activeBlessings.map((b) => `§7${b.label} Blessing §f${blessing.levels[b.id]}`),
+            ...(paulBuff ? ['§6Paul Buff'] : []),
+            ...(useDungeonizedStats ? [`§8Blessing effectiveness x${Math.round(computeBlessingMultiplier(blessing, attributes) * 100) / 100}`] : []),
             ...(lit ? [] : ['§8None active — click to edit']),
           ];
         } else {
@@ -945,7 +952,7 @@ export default function Landing() {
             onMouseLeave={guardHover(hideTooltip)}
           >
             <span className="text-[9px] font-bold text-white text-center px-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-              {isBlessings ? 'Blessings' : 'Debuffs'}
+              {isBlessings ? 'Buff/Blessing' : 'Debuffs'}
             </span>
           </div>,
         );

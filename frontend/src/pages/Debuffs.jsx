@@ -17,10 +17,10 @@ const translucentPanel =
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // Debuffs applied to the TARGET (lib/mobDebuffs.js) — reached from the Debuffs tile on the gear
-// board, which only appears while the Dungeon toggle is on. Same move and same live-apply behavior
-// as the Dungeon Blessings page.
+// board, which shows in every mode and applies in every mode (user-specified 2026-09-15). Same
+// live-apply behavior as the Buff/Blessing page.
 export default function Debuffs() {
-  const { debuffs, setIceSpray, setTwilightPoison, setLastBreathLevel, setLethalityStacks, useDungeonizedStats } = useBuild();
+  const { debuffs, setIceSpray, setTwilightPoison, setLastBreathLevel, setLethalityStacks } = useBuild();
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
@@ -28,11 +28,6 @@ export default function Debuffs() {
 
       <div className={`${translucentPanel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
         <div className="text-[12px] text-neutral-700 leading-snug -mt-1">Applied to the target, not to you.</div>
-        {!useDungeonizedStats && (
-          <div className="text-[12px] text-amber-300 border border-amber-400/40 bg-amber-400/10 rounded px-2 py-1.5">
-            Debuffs only apply while the Dungeon toggle is on.
-          </div>
-        )}
 
         <label className="flex items-center gap-2 text-sm text-black" htmlFor="ice-spray">
           <input

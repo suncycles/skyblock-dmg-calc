@@ -15,6 +15,7 @@ import {
   emptyBlessingLevels,
 } from '../lib/dungeonBlessing';
 import { emptyDebuffs, LAST_BREATH_MAX_LEVEL, LETHALITY_MAX_STACKS } from '../lib/mobDebuffs';
+import { emptyBuffs, BUFF_ITEMS } from '../lib/buffs';
 import { MASTER_SKULL_MAX_TIER } from '../lib/masterSkull';
 import { ARMOR_VARIANT_FAMILIES } from '../lib/armorVariants';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
@@ -49,6 +50,8 @@ const BLESSING_KEY = 'hexDungeonBlessing';
 const ESSENCE_PERKS_KEY = 'hexEssencePerks';
 // Player-applied debuffs on the target (lib/mobDebuffs.js): Ice Spray, Last Breath, Lethality.
 const DEBUFFS_KEY = 'hexMobDebuffs';
+// Item buffs (lib/buffs.js): Ragnarock, Sword of Bad Health, Weirder Tuba — on/off toggles.
+const BUFFS_KEY = 'hexBuffs';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 const MOB_HP_SELECTIONS_KEY = 'hexMobHpSelections';
 const INFERNAL_CRIMSON_STACKS_KEY = 'hexInfernalCrimsonStacks';
@@ -305,6 +308,16 @@ function loadInitialBlessing() {
   }
 }
 
+function loadInitialBuffs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BUFFS_KEY) || 'null');
+    return Object.fromEntries(BUFF_ITEMS.map((b) => [b.id, !!parsed?.[b.id]]));
+  } catch (err) {
+    console.error('Failed to parse saved item buffs:', err);
+    return emptyBuffs();
+  }
+}
+
 function loadInitialDebuffs() {
   const stored = localStorage.getItem(DEBUFFS_KEY);
   if (!stored) return emptyDebuffs();
@@ -524,6 +537,7 @@ export function BuildProvider({ children }) {
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
   const [blessing, setBlessingState] = useState(loadInitialBlessing);
   const [debuffs, setDebuffsState] = useState(loadInitialDebuffs);
+  const [buffs, setBuffsState] = useState(loadInitialBuffs);
   const [essencePerks, setEssencePerksState] = useState(loadInitialEssencePerks);
   const [mobHpPercent, setMobHpPercentState] = useState(loadInitialMobHpPercent);
   const [mobHpSelections, setMobHpSelectionsState] = useState(loadInitialMobHpSelections);
@@ -637,6 +651,15 @@ export function BuildProvider({ children }) {
 
   const setIceSpray = useCallback((value) => updateDebuffs({ iceSpray: !!value }), [updateDebuffs]);
   const setTwilightPoison = useCallback((value) => updateDebuffs({ twilightPoison: !!value }), [updateDebuffs]);
+
+  // One toggle setter for every item buff (lib/buffs.js) — same persisted-object shape as debuffs.
+  const setBuff = useCallback((id, value) => {
+    setBuffsState((prev) => {
+      const next = { ...prev, [id]: !!value };
+      localStorage.setItem(BUFFS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
   const setLastBreathLevel = useCallback(
     (value) => updateDebuffs({ lastBreath: Math.max(0, Math.min(LAST_BREATH_MAX_LEVEL, Math.floor(Number(value) || 0))) }),
     [updateDebuffs],
@@ -1682,6 +1705,8 @@ export function BuildProvider({ children }) {
         maxedCollectionsCount,
         blessing,
         debuffs,
+        buffs,
+        setBuff,
         setIceSpray,
         setTwilightPoison,
         setLastBreathLevel,

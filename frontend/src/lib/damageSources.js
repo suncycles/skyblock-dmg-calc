@@ -1,3 +1,4 @@
+import { computeBuffGrants, computeRagnarockStrength, findRagnarock } from './buffs';
 import { STAT_LABELS } from './reforgeData';
 import { computeItemStatTotals } from './itemStatTotals';
 import { computeCatacombsBoostPercent } from './dungeonize';
@@ -1186,7 +1187,7 @@ async function collectPetEntriesInto(pet, modifiers, itemData, out) {
 // Account-wide Attributes (lib/attributes.js), read from BuildContext state rather than the
 // loadout. The Echo chain is computed once and applied to every Ruler/Strength-Elemental
 // attribute's value before it's pushed/summed.
-function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks) {
+function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks, buffGrants = []) {
   if (!attributes) return;
 
   const echoOfRulerBoost = computeEchoBoost(ECHO_OF_RULER_RATE, attributes.echo_of_ruler, attributes.echo_of_echoes);
@@ -1275,6 +1276,13 @@ function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, 
     });
   }
 
+  // Item buffs — Ragnarock, Sword of Bad Health, Weirder Tuba (lib/buffs.js). Flat grants in every
+  // mode, placed with the other flat grants: before the Dungeon Blessings' percentages, Master
+  // Skull and Unlimited Power below, so those scale a buff's Strength like any other flat Strength.
+  // That ordering is this file's existing "flat before percentages" rule, not a separately confirmed
+  // mechanic — say so if a buff should sit outside those multipliers.
+  for (const grant of buffGrants) addBaseStat(out, grant.stat, grant.value, grant.label);
+
   // Dungeon Blessings (lib/dungeonBlessing.js) — Catacombs-run buffs, so only while the Dungeon
   // toggle is on. Every flat grant lands before any of the percentages, so a blessing's own %
   // compounds on its flat grant (and on the other blessings') exactly as the real buff does. Placed
@@ -1358,12 +1366,17 @@ export async function collectDamageSources(
   // result untouched for finalDamage.js to apply alongside the mob's own Defense/Damage
   // Reduction, exactly as isGriffinPet below is.
   debuffs = null,
+  // Item buffs — { ragnarock, swordOfBadHealth, weirderTuba } toggles, see lib/buffs.js.
+  buffs = null,
+  // The last import's weapon inventory ({item, modifiers} entries) — only read to find the
+  // Ragnarock whose own Strength its buff copies.
+  importedWeapons = null,
 ) {
   const out = {
-    // Gated on the Dungeon toggle exactly as the blessings below are, and for the same reason:
-    // all three are Catacombs mechanics, and their panel is hidden outside a dungeon. A hidden
-    // control that still moved the damage number would be a trap.
-    debuffs: useDungeonizedStats ? debuffs : null,
+    // Applies in every mode: the Debuffs tile is shown whether or not the Dungeon toggle is on
+    // (user-specified 2026-09-15), and a visible control that silently did nothing outside a
+    // dungeon would be a trap.
+    debuffs,
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
     // the full loadout) can check weapon-specific target restrictions — see DAGGER_LINE_WEAPON_IDS.
     weaponId: loadout.weapon?.item?.id ?? null,
@@ -1910,7 +1923,12 @@ export async function collectDamageSources(
 
   await collectPetEntries(loadout, itemData, out);
 
-  collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks);
+  // Item buffs (lib/buffs.js). Ragnarock's grant is worked out from the axe itself, so that pipeline
+  // call is only paid for while its buff is actually on.
+  const ragnarockStrength = buffs?.ragnarock
+    ? await computeRagnarockStrength(findRagnarock(importedWeapons, loadout), loadout, itemData, playerStats, maxedCollectionsCount, essencePerks)
+    : 0;
+  collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks, computeBuffGrants(buffs, ragnarockStrength));
 
   // Final-multiplier "stat boost" perks: applied last, on the fully-summed combat-stat totals
   // only (never Damage) — same mechanism as Unlimited Power/Energy above. Extended to

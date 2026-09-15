@@ -69,6 +69,7 @@ try {
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
   const mobDebuffs = await server.ssrLoadModule('/src/lib/mobDebuffs.js');
+  const buffsModule = await server.ssrLoadModule('/src/lib/buffs.js');
   const mobDefenses = await server.ssrLoadModule('/src/lib/mobDefenses.js');
   const armorSlots = await server.ssrLoadModule('/src/lib/armorSlots.js');
   const optimizer = await server.ssrLoadModule('/src/lib/optimizer.js');
@@ -1010,6 +1011,29 @@ try {
       assert.equal(got, expected, why);
       assert.ok(ids.has(got), `${got} must be a real optimizer mode`);
     }
+  });
+  // 37. Item buffs (lib/buffs.js), user-specified 2026-09-15: flat grants in every mode. Ragnarock
+  // copies 1.5x the axe's own Strength (so nothing without an axe), Sword of Bad Health is its +100
+  // cap, and the Weirder Tuba grants three stats. Also pins which Ragnarock the buff reads.
+  await check('Item buffs grant their stats, Ragnarock from the axe itself', () => {
+    const { computeBuffGrants, findRagnarock, RAGNAROCK_ID } = buffsModule;
+    const sum = (grants) => grants.reduce((m, g) => ({ ...m, [g.stat]: (m[g.stat] || 0) + g.value }), {});
+    assert.deepEqual(computeBuffGrants(null), []);
+    assert.deepEqual(computeBuffGrants({ ragnarock: false, swordOfBadHealth: false, weirderTuba: false }, 300), [], 'toggled off is inert');
+    assert.deepEqual(sum(computeBuffGrants({ ragnarock: true }, 240)), { strength: 360 }, '1.5x the axe Strength');
+    assert.deepEqual(computeBuffGrants({ ragnarock: true }, 0), [], 'no axe to copy, no Ragnarock buff');
+    assert.deepEqual(sum(computeBuffGrants({ swordOfBadHealth: true })), { strength: 100 });
+    assert.deepEqual(sum(computeBuffGrants({ weirderTuba: true })), { strength: 40, crit_damage: 10, bonus_attack_speed: 5 });
+    assert.deepEqual(
+      sum(computeBuffGrants({ ragnarock: true, swordOfBadHealth: true, weirderTuba: true }, 100)),
+      { strength: 290, crit_damage: 10, bonus_attack_speed: 5 },
+      'they stack',
+    );
+    const imported = { item: { id: RAGNAROCK_ID }, modifiers: {} };
+    const equipped = { item: { id: RAGNAROCK_ID }, modifiers: { reforge: 'fabled' } };
+    assert.equal(findRagnarock([{ item: { id: 'HYPERION' } }, imported], { weapon: equipped }), imported, 'the imported axe wins');
+    assert.equal(findRagnarock([], { weapon: equipped }), equipped, 'an equipped one when nothing is imported');
+    assert.equal(findRagnarock(null, { weapon: { item: { id: 'HYPERION' } } }), null);
   });
 } finally {
   await server.close();
