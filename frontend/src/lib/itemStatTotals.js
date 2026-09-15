@@ -13,6 +13,7 @@ import { parseEnchantStatBonus } from './enchantStats';
 import { MYTHOLOGICAL_STAT_DOUBLE_IDS } from './armorSetBonuses';
 import { computeTieredPristineStat } from './tieredArmorStats';
 import { dungeonHeadBaseStatMultiplier } from './dungeonHeads';
+import { blingArmorBaseStatMultiplier } from './petData';
 
 // The single canonical per-item stat computation — the ONLY place "how much of stat X does this
 // item really have" gets computed. Both the tooltip renderer (itemTooltip.js) and the damage calc
@@ -87,7 +88,8 @@ function round1(n) {
 }
 
 // ctx: { catacombsLevel, tamingLevel, wolfSlayerLevel, chimeraBonus, generalsMedallionDigits,
-//        manticoreClawBonus, potatoBookDoubled, maxedCollectionsCount }
+//        manticoreClawBonus, potatoBookDoubled, maxedCollectionsCount, blingArmorPercent }
+//   (potatoBookDoubled/blingArmorPercent come from lib/petData.js's petItemStatContext)
 // Returns, per STAT_LABELS key:
 //   pristine    — the item's own unmodified lore value (0 if it has no such line).
 //   hiddenBase  — pristine + gemstones + reforge + books + Art of War/Peace + special (Midas
@@ -110,6 +112,7 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
     manticoreClawBonus,
     potatoBookDoubled = false,
     maxedCollectionsCount = 0,
+    blingArmorPercent = 0,
     essencePerks = null,
   } = ctx;
 
@@ -143,7 +146,11 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
     // 1x for everything else. Applied to the pristine value specifically, so every boost below —
     // stars, the Catacombs Stats Boost, reforge, gems — compounds on the doubled base rather than
     // being doubled itself.
-    const pristine = (tieredPristine ?? (parseBaseStatValue(lore, statKey) || 0)) * dungeonHeadBaseStatMultiplier(item.id);
+    // A Blaze pet's Bling Armor scales Blaze/Frozen Blaze Armor's raw base the same way (lib/petData.js).
+    const pristine =
+      (tieredPristine ?? (parseBaseStatValue(lore, statKey) || 0)) *
+      dungeonHeadBaseStatMultiplier(item.id) *
+      blingArmorBaseStatMultiplier(item.id, blingArmorPercent);
     const hiddenBase = sumSources(
       { [statKey]: pristine },
       gemstoneBonus,

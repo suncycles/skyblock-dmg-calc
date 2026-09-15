@@ -3,7 +3,7 @@
 // apply in every mode (user-specified 2026-09-15), as flat grants to the player's base stats.
 
 import { computeItemStatTotals } from './itemStatTotals';
-import { computeBasePetStats, computeItemChimeraBonus } from './petData';
+import { computeBasePetStats, computeItemChimeraBonus, petItemStatContext } from './petData';
 
 export const RAGNAROCK_ID = 'RAGNAROCK_AXE';
 // Ragnarock's ability: "gain 1.5x this weapon's Strength". The axe's own real Strength — reforge,
@@ -48,7 +48,7 @@ export async function computeRagnarockStrength(entry, loadout, itemData, playerS
     tamingLevel: playerStats?.tamingLevel,
     wolfSlayerLevel: playerStats?.wolfSlayerLevel,
     generalsMedallionDigits: playerStats?.generalsMedallionDigits,
-    potatoBookDoubled: loadout?.pet?.item?.petId === 'BLAZE' && loadout?.pet?.item?.tier === 'LEGENDARY',
+    ...petItemStatContext(loadout?.pet),
     maxedCollectionsCount,
     essencePerks,
     chimeraBonus: computeItemChimeraBonus(entry, basePetStats) || undefined,

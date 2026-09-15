@@ -70,6 +70,7 @@ import {
   applyAnkylosaurusMax,
   DRAGONS_GREED_MAX_STRENGTH_PERCENT,
   computeItemChimeraBonus,
+  petItemStatContext,
   computeManticoreClawBonus,
 } from './petData';
 import { parsePetItemStatBoost, applyPetItemStatBoost } from './petItemEffects';
@@ -674,8 +675,11 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     }
   }
 
-  // Legendary Blaze pet doubles the Hot/Fuming Potato Book bonus on both weapons and armor.
-  const potatoBookDoubled = loadout.pet?.item?.petId === 'BLAZE' && loadout.pet?.item?.tier === 'LEGENDARY';
+  // The equipped pet's effects on gear stats (lib/petData.js): a Legendary Blaze doubles Hot/Fuming
+  // Potato Books, and a Rare+ Blaze's Bling Armor scales Blaze/Frozen Blaze Armor's raw base stats.
+  // Every computeItemStatTotals call below gets both — the Chimera/Manticore ones included, since
+  // their totals are diffed against the base totals and a missing input would show up as a delta.
+  const { potatoBookDoubled, blingArmorPercent } = petItemStatContext(loadout.pet);
 
   for (const slot of GEAR_SLOTS) {
     const equipped = loadout[slot];
@@ -687,6 +691,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       wolfSlayerLevel,
       generalsMedallionDigits,
       potatoBookDoubled,
+      blingArmorPercent,
       maxedCollectionsCount,
       essencePerks,
     });
@@ -759,6 +764,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
         essencePerks,
         generalsMedallionDigits,
         potatoBookDoubled,
+        blingArmorPercent,
         maxedCollectionsCount,
       });
       const chimeraLabel = `${slotLabel} (Chimera)`;
@@ -784,6 +790,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
         generalsMedallionDigits,
         manticoreClawBonus: manticoreBonus,
         potatoBookDoubled,
+        blingArmorPercent,
         maxedCollectionsCount,
       });
       const manticoreLabel = `${slotLabel} (Manticore Claw)`;
