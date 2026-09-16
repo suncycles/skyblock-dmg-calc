@@ -116,7 +116,7 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
       <div className="flex items-baseline justify-between flex-wrap gap-x-3">
         <span className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
-          Damage by Hit ({hits.length === 40 ? '1-40' : `1-${hits.length}`})
+          Damage by Hit (0-{hits.length - 1})
         </span>
         <div className="flex items-center gap-3 ml-auto">
           {activeSeries.length > 1 && <Toggle checked={aggregate} onChange={setAggregate} label="Aggregate" />}

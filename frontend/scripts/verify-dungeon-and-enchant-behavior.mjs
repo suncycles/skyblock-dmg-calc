@@ -1110,6 +1110,16 @@ try {
     assert.ok(later.every((d) => d === later[0]), 'every later Swipe is the normal amount');
     assert.equal(swipes[0], later[0] * 2, 'only the opening Swipe is doubled');
     assert.ok(simulateHitByHit(sources, mob, {}, null, 100).hits.every((h) => h.crimsonSwipeDamage === 0), 'no Crimson armor, no Swipe');
+
+    // The graph's x axis is 0-based (user-specified 2026-09-15): x=0 is the opening hit, against a
+    // mob still at full HP, so the HP line drops at x=1 instead of x=2. Numbering only — the
+    // doubled opening Swipe above still lands on that first recorded row.
+    const sim = simulateHitByHit(sources, mob, crimson, 10_000_000, 100);
+    assert.equal(sim.hits[0].hit, 0, 'the hit counter starts at 0');
+    assert.equal(sim.hits[0].hpPercent, 100, 'and the mob is at full HP there');
+    assert.equal(sim.hits[1].hit, 1, 'the next hit is 1, with damage already applied');
+    assert.ok(sim.hits[1].hpPercent < 100, 'the HP line drops at x=1');
+    assert.ok(sim.hits[0].crimsonSwipeDamage > 0, 'the doubled opening Swipe is on the x=0 row');
   });
   // 41. The player's Defense (lib/playerDefense.js), user-specified 2026-09-15 — Mining Level
   // (+1/level to 14, +2 after: 106 at 60), God Potion's 66, armor, and Unlimited Fortitude's

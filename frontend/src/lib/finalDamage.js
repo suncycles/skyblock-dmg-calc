@@ -892,7 +892,12 @@ export function simulateHitByHit(
 
     if (hit <= hitCount) {
       hits.push({
-        hit,
+        // Recorded 0-based for display (user-specified 2026-09-15). Each row is "this hit is about
+        // to land": hpPercent is the mob's HP BEFORE it. Numbering from 1 therefore drew the fight
+        // starting at 100% HP on x=1 and only showed the opening hit's damage landing at x=2; at 0,
+        // x=0 is the full-HP opening hit and the HP line drops at x=1. The loop stays 1-based —
+        // First Strike's opening window and Crimson Swipe's doubled first proc both key off `hit`.
+        hit: hit - 1,
         hpPercent,
         meleeDamage,
         executeProsecuteValue,
