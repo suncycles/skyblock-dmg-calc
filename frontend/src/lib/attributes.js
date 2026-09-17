@@ -92,6 +92,10 @@ export const MIMIC_SHARD_RATE = 1; // % blessing effectiveness/level
 // which is this id, so the import needs no remap. Grants Defense, which only the Ankylosaurus pet
 // reads — see lib/playerDefense.js.
 export const UNLIMITED_FORTITUDE_RATE = 0.2; // % Defense/level
+// "Hideonring" shard (RARE): +1 Accessory Bag slot per level, 10 at max. Not a damage stat — it's
+// here because the Optimizer charges a new accessory for the bag slot it needs, and this is the
+// cheapest slot on the market. See lib/accessorySlots.js.
+export const ACCESSORY_SIZE_RATE = 1; // bag slots/level
 
 // Non-Ruler/Elemental/Echo attributes needing a single number input — shared shape for pages/Attributes.jsx to render generically.
 export const OTHER_ATTRIBUTES = [
@@ -107,6 +111,7 @@ export const OTHER_ATTRIBUTES = [
   { id: 'attack_speed', name: 'Attack Speed', rate: ATTACK_SPEED_SHARD_RATE, unit: '%' },
   { id: 'mimic', name: 'Mimic', rate: MIMIC_SHARD_RATE, unit: '% blessings' },
   { id: 'fortitude', name: 'Unlimited Fortitude', rate: UNLIMITED_FORTITUDE_RATE, unit: '% defense' },
+  { id: 'accessory_size', name: 'Accessory Size', rate: ACCESSORY_SIZE_RATE, unit: ' bag slots' },
 ];
 
 export const ATTRIBUTE_IDS = [

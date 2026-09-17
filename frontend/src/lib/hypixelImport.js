@@ -585,6 +585,10 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
         // Persisted so the Damage Optimizer's Magical Power section can rank real missing/
         // upgradeable accessories later without a separate account fetch (see lib/accessoryOptimizer.js).
         ownedAccessories: raw.accessory.owned || [],
+        // How big the bag is — see lib/accessorySlots.js, which turns these into free slots and,
+        // when there are none, the coin cost of the next one.
+        bagUpgradesPurchased: raw.accessory.bagUpgradesPurchased || 0,
+        redstoneCollection: raw.accessory.redstoneCollection || 0,
       },
     };
   }

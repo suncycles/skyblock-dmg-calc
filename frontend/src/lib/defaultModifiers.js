@@ -77,5 +77,9 @@ export function emptyAccessoryModifiers() {
     // without a separate account fetch. null (not []) when no import has ever populated this —
     // distinguishes "never imported" from "imported, account owns zero accessories".
     ownedAccessories: null,
+    // Accessory Bag size inputs, imported only (see lib/accessorySlots.js): Jacobus purchases
+    // (+2 slots each) and the Redstone Dust collection total (6 slots per collection tier).
+    bagUpgradesPurchased: 0,
+    redstoneCollection: 0,
   };
 }
