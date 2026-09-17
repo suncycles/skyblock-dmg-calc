@@ -1148,6 +1148,35 @@ try {
     assert.equal(computeAnkylosaurusStrength(4000, [50]), ANKYLOSAURUS_MAX_STRENGTH, 'never past +500');
     assert.equal(computeAnkylosaurusStrength(1000, []), 0, 'no pet numbers, no Strength');
   });
+  // 42. Picking a Slayer boss defaults to its highest tier (user-specified 2026-09-17) — the Tier
+  // I-V ladder only. Every other tiered mob is tiered by spawn rarity or variant, where there's no
+  // "highest" to assume, so those still need an explicit pick.
+  await check('Slayer bosses default to their highest tier, other tiered mobs do not', async () => {
+    const { resolveStartingHp, defaultTierSelection } = await server.ssrLoadModule('/src/lib/mobHp.js');
+
+    assert.equal(defaultTierSelection('Voidgloom Seraph'), 'Tier IV');
+    assert.equal(defaultTierSelection('Revenant Horror'), 'Tier V');
+    assert.equal(defaultTierSelection('Tarantula Broodfather'), 'Tier V');
+    assert.equal(defaultTierSelection('Sven Packmaster'), 'Tier IV');
+    assert.equal(defaultTierSelection('Inferno Demonlord'), 'Tier IV');
+    assert.equal(defaultTierSelection('Quazii'), 'Tier IV', 'the Attunement variants count too');
+    assert.equal(defaultTierSelection('Typhoeus'), 'Tier IV');
+
+    assert.equal(resolveStartingHp('Voidgloom Seraph', false, ''), 210_000_000, 'no pick -> Tier IV HP');
+    assert.equal(resolveStartingHp('Revenant Horror', false, undefined), 10_000_000, 'no pick -> Tier V HP');
+    assert.equal(resolveStartingHp('Voidgloom Seraph', false, 'Tier II'), 12_000_000, 'an explicit pick still wins');
+    assert.equal(resolveStartingHp('Voidgloom Seraph', false, 'Tier IX'), 210_000_000, 'a stale pick falls back to the default');
+
+    // Rarity/variant-tiered mobs are untouched: no default, still null without a pick.
+    assert.equal(defaultTierSelection('Minos Inquisitor'), null, 'spawn rarities are not a Slayer ladder');
+    assert.equal(defaultTierSelection('Zealot'), null, 'nor are variants');
+    assert.equal(resolveStartingHp('Minos Inquisitor', false, ''), null);
+    assert.equal(resolveStartingHp('Zealot', false, ''), null);
+    assert.equal(resolveStartingHp('Minos Inquisitor', false, 'Mythic'), 80_000_000, 'an explicit pick still resolves');
+    // Flat and dungeon mobs are unaffected by any of this.
+    assert.equal(resolveStartingHp('Conjoined Brood', false, ''), 20_000_000, 'flat HP still resolves');
+    assert.equal(resolveStartingHp('Necron', true, ''), 1_400_000_000, 'single-floor dungeon HP still resolves');
+  });
 } finally {
   await server.close();
 }
