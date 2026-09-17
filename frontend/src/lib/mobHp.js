@@ -1,21 +1,8 @@
-// Mob HP — base health for every mob, sourced from hypixelskyblock.minecraft.wiki's per-mob
-// wikitext (same wiki lib/mobTypes.js and lib/mobLocations.js were built from), parsed
-// programmatically from its {{Stat|hp}}/InfoboxMobStats/Mob Variants templates — not
-// approximated. A mob absent from MOB_HP has no exact number confirmed yet (see
-// docs/mob-hp-followups.md for what's outstanding and why).
-//
-// Three shapes:
-//  - flat:    { hp: 100 }                                      — a single constant HP.
-//  - tiered:  { tiers: [{ label: 'Tier I', hp: 500 }, ...] }    — Slayer bosses (Tier I-V),
-//             Kuudra-family redirects, Mythological burrow mobs (tiered by spawn rarity, not
-//             a Slayer-style tier — check the label), and a few named boss variants.
+// Base HP per mob, in three shapes:
+//  - flat:    { hp: 100 }
+//  - tiered:  { tiers: [{ label: 'Tier I', hp: 500 }, ...] }
 //  - dungeon: { dungeon: { normal: { I: hp, ... }, master: { I: hp, ... } } }
-//             — Catacombs mobs, keyed by roman-numeral floor within each of the two Modes.
-//             Not every mob has every floor (e.g. Apostle only spawns on Master VII).
-//
-// A mid-fight phase transformation (mob name "X (Phase 2)", e.g. Bonzo/The Professor) never gets
-// its own MOB_HP entry — resolveStartingHp below falls back to the base name's entry, since a
-// phase change isn't a new encounter with its own HP pool.
+// A mob with no entry has no known HP. An "X (Phase 2)" name resolves to its base entry.
 import MOB_HP from './mobHp.json';
 
 export { MOB_HP };
@@ -32,27 +19,15 @@ export function isDungeonMobHp(entry) {
   return !!entry && !!entry.dungeon;
 }
 
-// A "(Phase N)" name (lib/mobTypes.js's Bonzo (Phase 2)/The Professor (Phase 2), etc.) is a real
-// mid-fight transformation — a different combat type and model, hence its own MOB_TYPES/
-// mobModelIcons entry — but not a separate encounter with its own HP pool: the transition happens
-// at a % HP threshold within the SAME fight, so its starting HP is definitionally its base phase's.
-// Stripped here so a new phase entry never needs (and can't drift from) its own duplicated MOB_HP
-// number — user-specified 2026-09-01: "phase 2 should stem from the initial entry itself."
+// Strips a "(Phase N)" suffix: a phase shares the base name's HP pool.
 function stripPhaseSuffix(mobName) {
   return mobName.replace(/\s*\(Phase \d+\)$/, '');
 }
 
-// Fixed display order for dungeon floor keys — JSON key order should already match this (the
-// wiki-fetch pass wrote them low-to-high), but a consumer picking a floor to show in a dropdown
-// shouldn't depend on that; this guarantees "I" before "II" regardless.
+// Display order for dungeon floor keys.
 const FLOOR_ORDER = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
-// The floor choices available for a dungeon-shaped mob in the given Mode, in display order — null
-// when the mob isn't dungeon-shaped or has no entries for that Mode. Used to render a Floor picker
-// (lib/mobHp.js's resolveStartingHp's `floor` argument) for a mob that spawns on more than one
-// floor with a different HP each time, e.g. Angry Archaeologist (every floor) vs Bonzo (Floor 1
-// only, where this always returns a single-entry array — same data, no separate "unambiguous" path
-// needed since the picker component itself only renders when there's more than one option).
+// Floor choices for a dungeon-shaped mob in the given Mode, in display order; null otherwise.
 export function getFloorOptions(mobName, useMasterMode) {
   const entry = MOB_HP[mobName] || MOB_HP[stripPhaseSuffix(mobName)];
   if (!isDungeonMobHp(entry)) return null;
@@ -61,37 +36,24 @@ export function getFloorOptions(mobName, useMasterMode) {
   return FLOOR_ORDER.filter((f) => modeTable[f] != null);
 }
 
-// The tier choices available for a tiered mob (Slayer bosses Tier I-V, Mythological burrow mobs by
-// spawn rarity, etc.) — null when the mob isn't tiered. Returns the raw {label, hp} entries in
-// their stored (already-ordered) sequence.
+// Tier choices for a tiered mob as {label, hp} entries in stored order; null otherwise.
 export function getTierOptions(mobName) {
   const entry = MOB_HP[mobName] || MOB_HP[stripPhaseSuffix(mobName)];
   if (!isTieredMobHp(entry)) return null;
   return entry.tiers;
 }
 
-// The tier a Slayer boss defaults to when the user hasn't picked one: its highest
-// (user-specified 2026-09-17). Slayer bosses are exactly the tiered mobs whose tiers are the
-// "Tier I-V" ladder — Revenant Horror, Tarantula Broodfather, Sven Packmaster, Voidgloom Seraph,
-// Inferno Demonlord, and its two Attunement variants Quazii and Typhoeus. Matched on the labels
-// rather than a hardcoded name list so a future Slayer lands on this automatically.
-// Every OTHER tiered mob is deliberately excluded and still resolves to null without a choice:
-// their "tiers" are spawn rarities (Minos Inquisitor: Legendary/Mythic) or variants (Zealot:
-// Regular/Ender Chest/Special), where there's no "highest" to assume — and for a couple of them
-// (Splitter Spider) the last entry isn't even the biggest HP.
+// Highest tier of a Slayer boss — the tiered mobs whose labels form the "Tier I-V" ladder.
+// Tiered mobs labelled by spawn rarity or variant return null.
 export function defaultTierSelection(mobName) {
   const tiers = getTierOptions(mobName);
   if (!tiers || tiers.length < 2) return null;
   return tiers.every((t) => /^Tier /.test(t.label)) ? tiers[tiers.length - 1].label : null;
 }
 
-// A real starting HP for the hit-by-hit DPS simulation (lib/finalDamage.js's simulateHitByHit).
-// Flat mobs always resolve. Dungeon/tiered mobs resolve unconditionally when there's exactly one
-// floor/tier on the relevant side (e.g. Bonzo's single Floor-1 entry, Apostle's single Master-VII
-// entry). When there's more than one, `selection` — a floor roman numeral ("III") or a tier label
-// ("Tier III"), from a Floor/Tier picker the caller renders using getFloorOptions/getTierOptions —
-// picks the specific one. Without a selection a Slayer boss falls back to its highest tier (see
-// defaultTierSelection); anything else still returns null rather than silently guessing.
+// Starting HP for the hit-by-hit simulation. Flat mobs, and dungeon/tiered mobs with a single
+// floor/tier, always resolve; otherwise `selection` picks the floor ("III") or tier ("Tier III").
+// A Slayer boss without a selection uses its highest tier; anything else returns null.
 export function resolveStartingHp(mobName, useMasterMode, selection) {
   const entry = MOB_HP[mobName] || MOB_HP[stripPhaseSuffix(mobName)];
   if (isFlatMobHp(entry)) return entry.hp;

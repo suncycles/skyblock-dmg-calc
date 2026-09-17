@@ -1,17 +1,11 @@
-// Canonical default modifiers shape per loadout entry type — single source of truth shared by
-// BuildContext (fresh-equip state) and lib/loadoutCode.js (omitting default-valued fields from
-// exported links, since most items only touch a handful of these).
+// Default modifiers per loadout entry type, shared by BuildContext and lib/loadoutCode.js.
 
 export function emptyModifiers() {
   return {
     hexEnchantments: [], // [{id, level, maxLevel}], normal enchants
     ultimateEnchantment: null, // {id, level, maxLevel} | null
     gemstones: [],
-    // Real per-slot-index unlock state from a Hypixel import (lib/hypixelImport.js's
-    // extractGemstoneSlotState) — [] (nothing known-unlocked) for a manual/fresh item, matching
-    // real Skyblock's own default (gemstone slots start locked). A slot already holding a gem is
-    // always treated as unlocked regardless of this array (see optimizer.js's
-    // evaluateGemstoneCandidates), so this only matters for a currently-empty slot.
+    // Slot indices known to be unlocked; a slot holding a gem counts as unlocked regardless.
     gemstoneSlotsUnlocked: [],
     books: 0, // Hot/Fuming Potato Book count, 0-15
     artOfWar: false, // +5 Strength, weapons only
@@ -24,17 +18,14 @@ export function emptyModifiers() {
     dungeonized: false, // Catacombs-level-scaled stat lines — see lib/dungeonize.js
     dungeonizeOldCurve: false, // true = pre-0.26.1 curve, false = current
     masterStars: 0, // Dungeonize-only stars, 5%/star up to 5 — see lib/starring.js. Always 0 unless dungeonized.
-    // Real per-copy Gear-Score data for the handful of tiered-stat items (Skeleton Master/Zombie
-    // Knight — see lib/tieredArmorStats.js) — which Floor the drop came from (1-10) and its real
-    // stat boost %. null/0 (no override) for every other item, and for a manually-built copy of
-    // one of these items too (no real drop data to assume) — falls back to the catalog's own
-    // pristine lore value.
+    // Per-copy Gear Score data for tiered-stat items (lib/tieredArmorStats.js): the drop's floor
+    // 1-10 and its stat boost %. null/0 falls back to the catalog's pristine lore value.
     itemTier: null,
     baseStatBoostPercentage: 0,
   };
 }
 
-// Pets' own modifiers shape: just a level and optional held pet item, no enchants/gemstones/reforges.
+// Pet modifiers: level and optional held pet item.
 export function emptyPetModifiers() {
   return {
     level: 1,
@@ -44,7 +35,7 @@ export function emptyPetModifiers() {
   };
 }
 
-// Accessory Powers' own modifiers shape: chosen power id, Magical Power, and Tuning Point allocation.
+// Accessory Power modifiers: power id, Magical Power, and Tuning Point allocation.
 export function emptyAccessoryModifiers() {
   return {
     magicalPower: 0,
@@ -58,27 +49,15 @@ export function emptyAccessoryModifiers() {
       bonus_attack_speed: 0,
       intelligence: 0,
     },
-    // Accessory Bag Enrichment count and which stat they're all currently set to — see
-    // lib/damageSources.js's Enrichments source line. 'none' covers enrichments on a stat this
-    // calculator doesn't track (e.g. Magic Find): they still count toward the total but add nothing.
+    // Enrichment count and the stat they are all set to; 'none' = a stat this app doesn't track.
     enrichmentCount: 0,
     enrichmentType: 'none',
-    // Sum of every individually-owned accessory's own real stat line (Shark Tooth Necklace's
-    // Strength, Red Claw's Crit Damage, Day/Night Crystal's Strength+Defense, ...) — computed by
-    // the worker from the account's real Accessory Bag lore during Hypixel import (see
-    // worker/src/index.js's computeLiveAccessoryStats), not manually enterable (279 real
-    // accessories isn't a reasonable manual-entry surface). {statKey: value}, empty for a
-    // from-scratch build. Replaces the old flat "Talisman Bonuses"/Red Claw manual inputs, which
-    // only covered a handful of items by name instead of every real accessory generically.
+    // Each owned accessory's own stat line, summed as {statKey: value}, filled by Hypixel import.
     individualAccessoryStats: {},
-    // Real accessory id/tier/recombobulated list from the account's Accessory Bag + Inventory
-    // (see worker/src/index.js's `owned`), persisted from whatever Hypixel import last ran so the
-    // Damage Optimizer's Magical Power section can rank real missing/upgradeable accessories
-    // without a separate account fetch. null (not []) when no import has ever populated this —
-    // distinguishes "never imported" from "imported, account owns zero accessories".
+    // Owned accessory id/tier/recombobulated records from the last Hypixel import.
+    // null (not []) means no import has ever populated it.
     ownedAccessories: null,
-    // Accessory Bag size inputs, imported only (see lib/accessorySlots.js): Jacobus purchases
-    // (+2 slots each) and the Redstone Dust collection total (6 slots per collection tier).
+    // Accessory Bag size inputs from import: Jacobus purchases and Redstone Dust collection total.
     bagUpgradesPurchased: 0,
     redstoneCollection: 0,
   };
