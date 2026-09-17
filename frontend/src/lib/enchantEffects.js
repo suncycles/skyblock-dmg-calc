@@ -1,32 +1,24 @@
-/* Real per-level enchant effect text, sourced directly from NEU-REPO's enchanted-book item
-   files (items/{ID};{level}.json). Primary source is the Worker's own daily-refreshed cache
-   (enchantsMeta.levelData — see worker/src/index.js's buildEnchantLevelData/resolveEnchantLevelData,
-   merged into the same `enchants` object /api/items already returns), so a real page load never
-   blocks on live raw.githubusercontent.com requests at all (user-specified 2026-09-01). Falls back
-   to fetching directly from raw.githubusercontent.com only when the server cache is missing an id
-   (a brand-new enchant added since the last daily refresh, or the Worker's own refresh degraded to
-   stale/empty) — same probing this always did before it moved server-side. */
+/* Per-level enchant effect text from NEU-REPO's enchanted-book item files (items/{ID};{level}.json).
+   The primary source is the Worker's cache (enchantsMeta.levelData, merged into the `enchants`
+   object /api/items returns), so a page load never blocks on raw.githubusercontent.com. Falls back
+   to fetching directly only when the server cache is missing an id — a new enchant, or a degraded
+   refresh. */
 
 const NEU_ITEMS_BASE = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items';
-// Safety ceiling only, never the primary probe target — see probeLevels below. NEU-REPO's own
-// enchants.json ships a max_xp_table_levels map, but it's the enchant TABLE's cap (obtainable via
-// Bookshelves alone), not the real achievable max: verified live 2026-09-01 that
-// max_xp_table_levels.power = 5 while POWER;7.json (and SHARPNESS;7.json) both return 200 OK —
-// Skyblock's anvil-combining mechanic pushes some enchants past their table cap. Trusting the field
-// as a hard ceiling would silently truncate real, in-game-obtainable levels (e.g. a real Power VII
-// weapon showing as Power V) — used below only as a head start, always extended further if the top
-// of that range actually succeeds.
+// A safety ceiling, never the primary probe target — see probeLevels below. NEU-REPO's
+// enchants.json ships max_xp_table_levels, but that is the enchant TABLE's cap rather than the
+// achievable max: Power and Sharpness both have real level 7 files despite a table cap of 5, since
+// anvil-combining pushes some enchants past it. Used as a head start, always extended when the top
+// of the range succeeds.
 const MAX_PROBE_LEVEL = 10;
 
 const levelsCache = new Map(); // enchantId -> Promise<Array<{level, lore}>>
 const PERSIST_PREFIX = 'enchantLevels:';
 
-// NEU-REPO's per-level lore is static, so a resolved probe is safe to keep across page loads —
-// without this, every hard reload re-probes up to 10 raw.githubusercontent.com requests per
-// distinct enchant on the weapon, right on the Optimizer's critical path (Enchant/Ultimate
-// Enchant candidates await this). Only successful (non-empty) probes are persisted — an empty
-// result more often means a transient network failure than a real "no levels exist" case, and
-// caching that permanently would silently break the enchant forever instead of just once.
+// NEU-REPO's per-level lore is static, so a resolved probe is kept across page loads; without it
+// every hard reload re-probes up to 10 requests per enchant on the Optimizer's critical path. Only
+// successful, non-empty probes are persisted: an empty result is more often a transient network
+// failure than a real "no levels exist", and caching that would break the enchant permanently.
 function loadPersistedLevels(id) {
   try {
     const raw = localStorage.getItem(PERSIST_PREFIX + id);
@@ -45,11 +37,10 @@ function savePersistedLevels(id, levels) {
   }
 }
 
-// Mirrors worker/src/index.js's fetchEnchantLevel — a 404 is the only response that really means
-// "this level doesn't exist"; a rate-limit, 5xx or dropped connection used to read the same way
-// and silently truncate the enchant. Not retried, for the same reason as the worker's copy: the
-// usual cause is the host throttling us, and retrying adds load. Reports UNKNOWN instead, so a
-// partial probe is kept but never persisted as if it were the complete list.
+// Mirrors worker/src/index.js's fetchEnchantLevel: a 404 is the only response meaning the level
+// doesn't exist, while a rate-limit, 5xx or dropped connection would otherwise truncate the enchant.
+// Not retried, since the usual cause is throttling and retrying adds load; reports UNKNOWN instead,
+// so a partial probe is used but never persisted as complete.
 const LEVEL_UNKNOWN = Symbol('enchant-level-unknown');
 
 async function fetchLevel(fileId, level) {
@@ -75,13 +66,10 @@ function lookupMaxTableLevel(enchantsMeta, fileId) {
   return table[fileId] ?? table[fileId.toLowerCase()] ?? table[fileId.toUpperCase()] ?? 0;
 }
 
-// Starts the probe at the enchant table's own known max instead of always guessing 10 — most
-// enchants cap exactly there, eliminating every guaranteed-404 request beyond it on a cold cache
-// (recommendation #5, user-specified 2026-09-01). That max understates a handful of real enchants
-// (Power/Sharpness reach VII in Skyblock — see MAX_PROBE_LEVEL's comment), so this never treats it
-// as a hard ceiling: it keeps probing one level past the last real success, so a level beyond the
-// table max still gets found, just at the cost of one request per extra level instead of a blind
-// batch of 10 up front.
+// Starts at the enchant table's known max rather than guessing 10, which removes the guaranteed
+// 404s beyond it on a cold cache. That max understates a few enchants (Power and Sharpness reach
+// VII), so it is never treated as a ceiling: probing continues one level past the last success, at
+// one request per extra level instead of a blind batch of 10.
 async function probeLevels(fileId, enchantsMeta) {
   let level = Math.max(lookupMaxTableLevel(enchantsMeta, fileId), 1);
   const results = await Promise.all(Array.from({ length: level }, (_, i) => fetchLevel(fileId, i + 1)));
@@ -95,13 +83,10 @@ async function probeLevels(fileId, enchantsMeta) {
   const complete = !results.includes(LEVEL_UNKNOWN);
   const found = results.filter((r) => r && r !== LEVEL_UNKNOWN);
   if (found.length > 0) return { levels: found, complete };
-  // The head-start above assumes real levels start at 1 and go up — true for every normal
-  // combinable enchant, but not for a rare one dropped pre-leveled directly from a boss with no
-  // lower levels at all: "The One" (ultimate_the_one) only has real data at ULTIMATE_THE_ONE;4 and
-  // ;5 — levels 1-3 flat-out don't exist (verified live 2026-09-01), so starting the probe at 1
-  // finds nothing and gives up before ever trying 4. Falls back to a full blind sweep of every
-  // level up to the ceiling only when the head start found nothing at all, so this never costs
-  // extra requests for the common (starts-at-1) case.
+  // The head start assumes levels begin at 1, which fails for an enchant dropped pre-leveled with no
+  // lower levels: "The One" has data only at ULTIMATE_THE_ONE;4 and ;5, so starting at 1 finds
+  // nothing and gives up before trying 4. Falls back to a blind sweep up to the ceiling only when
+  // the head start found nothing, so the common case costs no extra requests.
   const fullSweep = await Promise.all(Array.from({ length: MAX_PROBE_LEVEL }, (_, i) => fetchLevel(fileId, i + 1)));
   return {
     levels: fullSweep.filter((r) => r && r !== LEVEL_UNKNOWN),
@@ -127,9 +112,9 @@ function resolveAlternateFileId(enchantsMeta, id) {
   return null;
 }
 
-// Venomous: user-confirmed real numbers (walk speed reduction %, damage %/s per hit) — NEU-REPO's
-// community data is stale as of this writing (pre-rebalance 1-6 numbers, no level 7 entry at all),
-// so this bypasses the live fetch below entirely rather than surfacing wrong/missing data.
+// Venomous' numbers (walk speed reduction %, damage %/s per hit) are hardcoded: NEU-REPO's data is
+// stale, carrying pre-rebalance values for 1-6 and no level 7 at all, so this bypasses the fetch
+// rather than surfacing wrong or missing data.
 const VENOMOUS_LEVELS = [
   { walkSpeed: 2, damage: 0.2 },
   { walkSpeed: 4, damage: 0.4 },
@@ -294,10 +279,9 @@ const MISSING_CATEGORY_ENCHANTS = {
   BOOTS: ['ultimate_habanero_tactics'],
 };
 
-// The inverse of MISSING_CATEGORY_ENCHANTS above — enchants NEU-REPO's per-category lists WRONGLY
-// include. User-confirmed: neither Chimera (2026-08-29) nor Swarm (2026-08-30) can actually be
-// applied to a Bow in-game, despite NEU-REPO's own BOW category list including both
-// 'ultimate_chimera' and 'ultimate_swarm'.
+// The inverse of MISSING_CATEGORY_ENCHANTS: enchants NEU-REPO's per-category lists wrongly include.
+// Neither Chimera nor Swarm can be applied to a Bow in-game, though NEU-REPO's BOW list carries
+// both 'ultimate_chimera' and 'ultimate_swarm'.
 const EXCLUDED_CATEGORY_ENCHANTS = {
   BOW: ['ultimate_chimera', 'ultimate_swarm'],
 };

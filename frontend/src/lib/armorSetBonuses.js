@@ -4,10 +4,10 @@
 
 import { VARIANT_TIERS, getEquippedVariantTier } from './armorVariants';
 
-// Final Destination's Vivacious Darkness set bonus: +30 Strength, +20 Attack Speed (both
-// unconditional) and +100% damage against Ender-type mobs. The Soulflow-cost/sneaking gate is
-// assumed always active. Real lore also lists +10 Speed, a 1.25x Intelligence multiplier, and
-// +200 Ferocity against Endermen specifically — none of those are tracked anywhere in this app.
+// Final Destination's Vivacious Darkness: +30 Strength and +20 Attack Speed, plus +100% damage
+// against Ender mobs. The Soulflow cost and sneaking gate are assumed always active. Its lore also
+// lists +10 Speed, a 1.25x Intelligence multiplier and +200 Ferocity against Endermen, none of
+// which this app tracks.
 export const FINAL_DESTINATION_SET = [
   'FINAL_DESTINATION_HELMET',
   'FINAL_DESTINATION_CHESTPLATE',
@@ -18,9 +18,8 @@ export const FINAL_DESTINATION_STRENGTH = 30;
 export const FINAL_DESTINATION_ATTACK_SPEED = 20;
 export const FINAL_DESTINATION_ENDER_DAMAGE_PERCENT = 100;
 
-// Vanquished's 1.1x is an undocumented hidden bonus (not stated in-game) — Damage Sources
-// shows Final Damage both with and without it rather than silently folding it in. User-confirmed:
-// the bonus only actually procs against Inferno Demonlord, not universally.
+// Vanquished's 1.1x is an undocumented hidden bonus, so Damage Sources shows Final Damage with and
+// without it rather than folding it in silently. It only procs against Inferno Demonlord.
 export const VANQUISHED_SET = [
   'VANQUISHED_MAGMA_NECKLACE',
   'VANQUISHED_GHAST_CLOAK',
@@ -31,15 +30,13 @@ export const VANQUISHED_SET_MULTIPLIER = 1.1;
 export const VANQUISHED_SET_ID = 'vanquished-set-hidden-bonus';
 export const VANQUISHED_SET_CONDITION = 'Inferno Demonlord';
 
-// Diana's Mythological Ritual reward armor (see optimizer.js's MYTHOLOGICAL_ARMOR_TIER) — its
-// Mythos' Might doubling only applies to what a piece itself contributes, so a single-piece swap
-// away from a real Kuudra family (losing that family's own set bonus, e.g. Infernal Crimson's
-// stacking damage) nets NEGATIVE even though the full 4-piece set is a real, large upgrade
-// (user-confirmed 2026-08-27: >16% better than a full Hot Crimson set) — same "can't see a
-// lumpy payoff one slot at a time" problem Vanquished/Final Destination already solve below via
-// a dedicated full-set candidate, not the per-slot evaluator. Challenger's (EPIC) is the cheaper,
-// lower-stat rung of the same armor — it has the same Mythos' Might doubling ability (confirmed
-// live in its own real lore), just smaller base Health/Defense/Strength than Mythos (LEGENDARY).
+// Diana's Mythological Ritual reward armor (see optimizer.js's MYTHOLOGICAL_ARMOR_TIER). Mythos'
+// Might doubles only what a piece itself contributes, so swapping one piece away from a Kuudra
+// family — losing that family's set bonus, such as Infernal Crimson's stacking damage — nets
+// negative even though the full 4-piece set is a large upgrade. That is why it has a dedicated
+// full-set candidate rather than going through the per-slot evaluator. Challenger's (EPIC) is the
+// cheaper rung of the same armor, with the same doubling ability and smaller base stats than Mythos
+// (LEGENDARY).
 export const MYTHOS_ARMOR_SET = ['MYTHOS_HELMET', 'MYTHOS_CHESTPLATE', 'MYTHOS_LEGGINGS', 'MYTHOS_BOOTS'];
 export const CHALLENGER_ARMOR_SET = ['CHALLENGER_HELMET', 'CHALLENGER_CHESTPLATE', 'CHALLENGER_LEGGINGS', 'CHALLENGER_BOOTS'];
 
@@ -51,11 +48,10 @@ export const MONSTER_HUNTER_MULTIPLIER = 1.25;
 export const MONSTER_RAIDER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'TARANTULA_BOOTS'];
 export const MONSTER_RAIDER_MULTIPLIER = 1.35;
 
-// Skeleton Master: a BOW-only damage multiplier, and the only set here that scales per piece
-// rather than all-or-nothing — 1.05x each, so a partial set is still worth something, plus a
-// separate 1.25x once all 4 are worn (user-provided 2026-09-05). Full set is therefore
-// 1.05^4 * 1.25 = 1.5194x, not 1.25x. Gated on an equipped bow (godPotion.js's isBowEquipped),
-// so it contributes nothing to a melee build wearing the same armor.
+// Skeleton Master: a bow-only multiplier, and the only set here that scales per piece rather than
+// all-or-nothing — 1.05x each, so a partial set still counts, plus a separate 1.25x at 4 pieces, for
+// 1.05^4 * 1.25 = 1.5194x. Gated on an equipped bow (godPotion.js's isBowEquipped), so it adds
+// nothing to a melee build in the same armor.
 export const SKELETON_MASTER_SET = [
   'SKELETON_MASTER_HELMET',
   'SKELETON_MASTER_CHESTPLATE',
@@ -66,13 +62,11 @@ export const SKELETON_MASTER_PER_PIECE_MULTIPLIER = 1.05;
 export const SKELETON_MASTER_FULL_SET_MULTIPLIER = 1.25;
 export const SKELETON_MASTER_FULL_SET_PIECES = 4;
 
-// Maxor's Armor — "Speed Wither" is Hypixel's own internal name for the set, which is why the real
-// ids read SPEED_WITHER_* rather than MAXOR_* (same four-way naming the other Wither sets use:
-// POWER = Necron's, WISE = Storm's, TANK = Goldor's — see optimizer.js's WITHER_ARMOR_PREFIXES).
-// Each piece grants +5% arrow damage, ADDITIVE (user-specified 2026-09-11) — so a full set is a
-// flat +20% summed in with every other additive % source, NOT the compounding per-piece multiplier
-// Skeleton Master above uses. Bow-only, and like Skeleton Master the condition is on the equipped
-// WEAPON rather than the target, so it's gated with isBowEquipped instead of being a conditional.
+// Maxor's Armor: "Speed Wither" is Hypixel's internal name for the set, hence the SPEED_WITHER_*
+// ids (the other three are POWER = Necron's, WISE = Storm's, TANK = Goldor's — see optimizer.js's
+// WITHER_ARMOR_PREFIXES). Each piece grants +5% arrow damage, additive, so a full set is a flat +20%
+// summed with every other additive source rather than the compounding per-piece multiplier Skeleton
+// Master uses. Bow-only, and gated on the weapon rather than the target, so isBowEquipped decides it.
 export const MAXOR_SET = ['SPEED_WITHER_HELMET', 'SPEED_WITHER_CHESTPLATE', 'SPEED_WITHER_LEGGINGS', 'SPEED_WITHER_BOOTS'];
 export const MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE = 5;
 
@@ -115,11 +109,9 @@ export const SUPERIOR_DRAGON_SET = [
 ];
 export const SUPERIOR_DRAGON_STAT_BOOST_PERCENT = 5;
 
-// Tuxedo: 3 independent tiers (Boots/Chestplate/Leggings each — no Helmet exists). Each tier's own
-// bonus only applies once all 3 of THAT tier's pieces are worn together (user-confirmed
-// 2026-08-23, correcting an earlier "any single piece" reading). Only one tier can ever be
-// complete at a time — Boots/Chestplate/Leggings is only 3 slots total, so two different full
-// tiers can't be worn simultaneously.
+// Tuxedo: three independent tiers (Boots, Chestplate, Leggings; there is no Helmet). Each tier's
+// bonus applies only with all 3 of that tier's pieces worn. Only one tier can ever be complete,
+// since the three slots can't hold two full tiers at once.
 export const TUXEDO_SLOTS = ['boots', 'chestplate', 'leggings'];
 export const TUXEDO_TIERS = [
   { name: 'Elegant', ids: ['ELEGANT_TUXEDO_BOOTS', 'ELEGANT_TUXEDO_CHESTPLATE', 'ELEGANT_TUXEDO_LEGGINGS'], damagePercent: 150 },
@@ -127,13 +119,11 @@ export const TUXEDO_TIERS = [
   { name: 'Cheap', ids: ['CHEAP_TUXEDO_BOOTS', 'CHEAP_TUXEDO_CHESTPLATE', 'CHEAP_TUXEDO_LEGGINGS'], damagePercent: 50 },
 ];
 
-// Magma Lord/Thunder Armor + their matching Necklace (Magma Lord Necklace = MAGMA_LORD_GAUNTLET,
-// Thunderbolt Necklace = THUNDERBOLT_NECKLACE — real ids confirmed against worker/src/data/
-// equipment.json): each piece independently grants a flat, melee-only additive damage bonus
-// against Magmatic mobs (not Ability Damage eligible) — user-confirmed per-piece values. The
-// necklace's own real lore states a different multiplier (1.3x/1.1x) than the matching armor's
-// (itself written as "1.3x"/"1.2x"), but the user confirmed every piece in each set — including
-// the necklace — uses the same flat per-piece percentage as the rest of that set.
+// Magma Lord/Thunder Armor plus their matching necklaces (Magma Lord Necklace = MAGMA_LORD_GAUNTLET,
+// Thunderbolt Necklace = THUNDERBOLT_NECKLACE): each piece independently grants a flat, melee-only
+// additive bonus against Magmatic mobs, not eligible for Ability Damage. The necklaces' lore states
+// different multipliers from the armor's, but every piece in each set applies the same flat
+// per-piece percentage.
 export const MAGMA_LORD_SET = ['MAGMA_LORD_HELMET', 'MAGMA_LORD_CHESTPLATE', 'MAGMA_LORD_LEGGINGS', 'MAGMA_LORD_BOOTS'];
 export const MAGMA_LORD_NECKLACE_ID = 'MAGMA_LORD_GAUNTLET';
 export const MAGMA_LORD_PERCENT_PER_PIECE = 30;

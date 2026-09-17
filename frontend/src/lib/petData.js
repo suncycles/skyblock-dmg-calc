@@ -2,14 +2,14 @@ import { formatItemName, rarityColorCode } from './mcText.js';
 import { parsePetItemStatBoost, applyPetItemStatBoost, extractPetItemEffectLines } from './petItemEffects.js';
 import { computeInfusedDragonCritDamage } from './essencePerks';
 
-/* Pet stats, sourced from NEU-REPO's constants/petnums.json (worker forwards it live under
-   itemData.pets) — shaped { [petId]: { [rarity]: { "1": {statNums, otherNums}, "100": {...} } } }.
-   Only levels 1 and 100 are given; everything in between is linearly interpolated here.
+/* Pet stats from NEU-REPO's constants/petnums.json (the worker forwards it as itemData.pets),
+   shaped { [petId]: { [rarity]: { "1": {statNums, otherNums}, "100": {...} } } }. Only levels 1 and
+   100 are given; everything between is interpolated here.
 
-   Pets aren't NEU-REPO `items/` entries under their plain id, but do exist under the legacy
-   Hypixel "<PETID>;<rarityOrdinal>" id scheme (e.g. "WOLF;4" = Legendary Wolf), with real lore
-   templated with {LVL}, {STAT_NAME}, and {0}/{1}/{2}... ability-number placeholders — fetched
-   on demand via lib/neuItems.js's fetchNeuItem, substituted here using interpolated values. */
+   Pets have no NEU-REPO `items/` entry under their plain id, but do exist under the legacy
+   "<PETID>;<rarityOrdinal>" scheme ("WOLF;4" is a Legendary Wolf), with lore templated on {LVL},
+   {STAT_NAME} and {0}/{1}/{2} ability numbers — fetched on demand via lib/neuItems.js's
+   fetchNeuItem and substituted here with the interpolated values. */
 
 export const MAX_PET_LEVEL = 100; // default cap — 3 dragon pets go higher, see EXTENDED_MAX_LEVELS below
 
@@ -26,11 +26,9 @@ export const SHINING_SCALES_STRENGTH_PER_DIGIT = 11.1;
 export const SHINING_SCALES_MAGIC_FIND_PER_DIGIT = 2.2; // not tracked — reference only
 export const SHINING_SCALES_MAX_GOLD_COLLECTION = 100_000_000;
 
-// Legendary Treasure's %damage-per-million-bank-coins bonus caps out per the item's own real lore
-// (a "(Max +X%)" clause — see lib/damageSources.js's GOLDEN_DRAGON_TREASURE_RE), not at a fixed
-// coin amount — 1b is just comfortably past that cap for any real rarity, so "assume max
-// effectiveness" defaults (a fresh pet pick, or an optimizer candidate) can use one flat number
-// without checking which cap applies.
+// Legendary Treasure's %damage-per-million-bank-coins bonus caps per the item's own lore (a
+// "(Max +X%)" clause, see lib/damageSources.js's GOLDEN_DRAGON_TREASURE_RE) rather than at a fixed
+// coin amount, so 1b is past that cap for any rarity and serves as the assume-max default.
 export const MAX_GOLDEN_DRAGON_BANK_COINS = 1_000_000_000;
 
 function goldCollectionDigits(goldCollection) {
@@ -64,12 +62,10 @@ export function applyLionPrimalForce(petId, stats, otherNums) {
   return { ...stats, STRENGTH: (stats.STRENGTH || 0) + primalForce };
 }
 
-// Ankylosaurus's Armored Tank, real lore: "Gain {0}% of your Defense as Strength. (Max +500)" —
-// {0} is petnums' otherNums[0], 0.5 at level 1 and 50 at level 100, i.e. 0.5% of Defense per pet
-// level (user-specified 2026-09-15, matching the pet's own numbers). The Defense it reads is
-// lib/playerDefense.js's, the only thing in this app that stat feeds. This used to be hardcoded at
-// the +500 ceiling, which silently assumed 1000 Defense on every account.
-// Its other two perks (Unyielding, Clubbed Tail) stay unmodelled per instruction.
+// Ankylosaurus's Armored Tank, from its lore: "Gain {0}% of your Defense as Strength. (Max +500)".
+// {0} is petnums' otherNums[0] — 0.5 at level 1, 50 at level 100, i.e. 0.5% of Defense per pet
+// level. The Defense it reads is lib/playerDefense.js's, the only thing that stat feeds. Its other
+// two perks, Unyielding and Clubbed Tail, are not modelled.
 export const ANKYLOSAURUS_MAX_STRENGTH = 500;
 
 export function computeAnkylosaurusStrength(playerDefense, otherNums) {
@@ -86,10 +82,10 @@ export function applyAnkylosaurusStrength(petId, stats, playerDefense, otherNums
 // Standard Hypixel legacy pet-rarity ordinal scheme ("WOLF;0" = Common ... "WOLF;4" = Legendary, "GRIFFIN;5" = Mythic).
 export const PET_RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'];
 
-// Blaze pet's "Bling Armor": "Upgrades Blaze Armor stats and ability by {1}%", where {1} is 0.4% per
-// pet level — NEU-REPO's petnums.json BLAZE otherNums[1] is 0.4 at level 1 and 40 at level 100 for
-// RARE, EPIC and LEGENDARY; COMMON and UNCOMMON don't have the perk at all. Scales the armor's RAW
-// base stats (user-specified 2026-09-15), for both Blaze and Frozen Blaze Armor.
+// Blaze pet's Bling Armor: "Upgrades Blaze Armor stats and ability by {1}%", where {1} is 0.4% per
+// pet level (petnums.json's BLAZE otherNums[1] runs 0.4 at level 1 to 40 at level 100 for RARE,
+// EPIC and LEGENDARY; COMMON and UNCOMMON lack the perk). Scales the raw base stats of both Blaze
+// and Frozen Blaze Armor.
 export const BLING_ARMOR_PERCENT_PER_LEVEL = 0.4;
 const BLING_ARMOR_PET_TIERS = new Set(['RARE', 'EPIC', 'LEGENDARY']);
 export const BLING_ARMOR_ITEM_IDS = new Set(
@@ -108,8 +104,7 @@ export function blingArmorBaseStatMultiplier(itemId, blingArmorPercent) {
 }
 
 // The equipped pet's effects on OTHER items' stats, as computeItemStatTotals ctx. One place for
-// these, because every stat total — the damage calculation and every tooltip — has to agree on them:
-// the Legendary Blaze's doubled Potato Books used to be re-derived inline at eight call sites.
+// them, because every stat total — the damage calculation and every tooltip — has to agree.
 export function petItemStatContext(pet, itemData) {
   const boosted = applyTierBoost(pet, itemData);
   return {
@@ -118,13 +113,12 @@ export function petItemStatContext(pet, itemData) {
   };
 }
 
-// Tier Boost pet item: raises the pet's rarity by one (user-specified 2026-09-15). A pet already at
-// its highest rarity — the highest petnums.json has data for — is left as it is.
-// The stored loadout keeps the pet's own rarity plus the held item, the same way Hypixel's API and
-// loadout links do, so this runs at read time. It returns the boosted pet with the item consumed
-// (petItem: null), so calling it again on its own result does nothing — collectDamageSources applies
-// it once up front, and the helpers it then calls (computeBasePetStats, petItemStatContext) apply it
-// again harmlessly.
+// Tier Boost pet item: raises the pet's rarity by one. A pet already at its highest rarity — the
+// highest petnums.json has data for — is left as it is.
+// The stored loadout keeps the pet's own rarity plus the held item, as Hypixel's API and loadout
+// links do, so this runs at read time. It returns the boosted pet with the item consumed
+// (petItem: null), so applying it to its own result is a no-op: collectDamageSources applies it once
+// up front, and the helpers it calls apply it again harmlessly.
 export const TIER_BOOST_ID = 'PET_ITEM_TIER_BOOST';
 
 export function applyTierBoost(loadoutPet, itemData) {
@@ -201,11 +195,10 @@ export function computeAllPetStats(levels, level, maxLevel = MAX_PET_LEVEL) {
   return result;
 }
 
-// Chimera ultimate enchant: copies a fraction (20%/level, 100% at max level 5) of the active
-// pet's *entire* stat spread onto the equipped weapon's own base stats — not just
-// Strength/Crit Chance/Crit Damage, so pet-only stats like Attack Speed or Magic Find show up
-// as brand-new lines on the weapon's tooltip too. Maps petnums.json's own uppercase stat keys
-// to this app's lowercase STAT_LABELS keys (lib/reforgeData.js).
+// Chimera ultimate enchant: copies a fraction of the active pet's entire stat spread (20% per
+// level, 100% at level 5) onto the weapon's base stats — not just Strength/Crit Chance/Crit Damage,
+// so pet-only stats like Attack Speed or Magic Find appear as new lines on the weapon's tooltip.
+// Maps petnums.json's uppercase stat keys to this app's lowercase STAT_LABELS keys.
 export const CHIMERA_PERCENT_PER_LEVEL = 20;
 
 const PET_STAT_KEY_MAP = {
@@ -220,10 +213,8 @@ const PET_STAT_KEY_MAP = {
   INTELLIGENCE: 'intelligence',
   SPEED: 'speed',
   FEROCITY: 'ferocity',
-  // Ability Damage was missing from this map, so neither Chimera nor Manticore Claw copied it even
-  // though the pet data carries it (Crow/Sheep and friends) and the rest of the pipeline already
-  // tracks it end to end (damageSources.js's TRACKED_STATS, damageFormat's BASE_STAT_KEYS).
-  // User-confirmed 2026-09-05 that both should copy it, same as every other stat here.
+  // Ability Damage is copied by both Chimera and Manticore Claw, like every other stat here; the pet
+  // data carries it (Crow, Sheep) and the rest of the pipeline tracks it end to end.
   ABILITY_DAMAGE: 'ability_damage',
 };
 
@@ -246,28 +237,22 @@ export function computeOtherNums(levels, level, maxLevel = MAX_PET_LEVEL) {
   return level1.map((v, i) => interpolateValue(v, level100[i] ?? v, level, maxLevel));
 }
 
-// What Chimera and Manticore Claw copy onto an item: the pet's real stat total — curve, Golden
-// Dragon's Shining Scales, the held Pet Item's boost, Lion's Primal Force — with exactly one
-// exception. Confirmed with the user (2026-08-22) against real Chimera behavior: a Golden Dragon
-// holding Hephaestus Remedies (+100% Strength) copies that boosted total onto the weapon, not the
-// pre-item number an earlier version of this function stopped at.
-// The one thing still excluded: Ankylosaurus's Armored Tank, which invents a Strength stat on a pet
-// whose own curve has none at all (computeAnkylosaurusStrength, applied by damageSources.js as its
-// own base-stat line) — that's not "this pet's stats boosted", it's a stat that doesn't exist being
-// added from nowhere, and it's derived from the PLAYER's Defense rather than from the pet at all.
-// Every other perk here (Shining Scales, Primal Force, the pet item) boosts a stat already on the
-// pet's own line, which is the real, verified distinction — not "abilities vs. base stats" in
-// general (that was the wrong generalization the previous version of this comment made).
+// What Chimera and Manticore Claw copy onto an item: the pet's full stat total — its curve, Golden
+// Dragon's Shining Scales, the held Pet Item's boost and Lion's Primal Force. A Golden Dragon
+// holding Hephaestus Remedies (+100% Strength) copies the boosted total, not the pre-item number.
+// The one exclusion is Ankylosaurus's Armored Tank: it invents a Strength stat on a pet whose curve
+// has none, derived from the PLAYER's Defense rather than from the pet, and damageSources.js adds it
+// as its own base-stat line (computeAnkylosaurusStrength). Every other perk here boosts a stat
+// already on the pet's own line, which is the distinction — not "abilities vs. base stats".
 export function computeBasePetStats(loadout, itemData, essencePerks) {
   if (!loadout.pet) return null;
   const { item: pet, modifiers } = applyTierBoost(loadout.pet, itemData);
   const maxLevel = getMaxPetLevel(pet.petId);
   const levels = itemData.pets?.[pet.petId]?.[pet.tier];
   let stats = computeAllPetStats(levels, modifiers.level, maxLevel);
-  // Infused Dragon (Dragon essence shop) adds Crit Damage to the Ender Dragon's RAW base stats —
-  // folded in here, before Shining Scales / the held pet item / Lion's Primal Force, so a
-  // %-Crit-Damage pet item boosts the combined total the way it does the pet's printed stats
-  // (user-specified 2026-09-10). See lib/essencePerks.js.
+  // Infused Dragon (Dragon essence shop) adds Crit Damage to the Ender Dragon's raw base stats,
+  // folded in before Shining Scales, the held pet item and Primal Force, so a %-Crit-Damage pet item
+  // boosts the combined total as it does the pet's printed stats. See lib/essencePerks.js.
   const infusedDragon = computeInfusedDragonCritDamage(essencePerks, pet.petId);
   if (infusedDragon) stats = { ...stats, CRIT_DAMAGE: (stats.CRIT_DAMAGE || 0) + infusedDragon };
   stats = applyGoldenDragonShiningScales(pet.petId, stats, modifiers.goldCollection);
@@ -279,11 +264,10 @@ export function computeBasePetStats(loadout, itemData, essencePerks) {
   return applyLionPrimalForce(pet.petId, stats, otherNums);
 }
 
-// Daedalus Blade/Starred Daedalus Blade's real lore: "copies the base Combat stats of your active
-// pet" unconditionally — an intrinsic, always-on Chimera 5 (100% of pet stats) baked into the
-// weapon itself, independent of whether the real Chimera enchant is also applied. User-confirmed
-// 2026-08-25: stacks additively with a real Chimera 5 enchant to 200% (10 combined "levels" through
-// the same linear formula), not a separate flat bonus of its own.
+// Daedalus Blade and Starred Daedalus Blade "copy the base Combat stats of your active pet"
+// unconditionally: an intrinsic, always-on Chimera 5 baked into the weapon, independent of the real
+// enchant. It stacks additively with a real Chimera 5 to 200% — 10 combined levels through the same
+// linear formula — rather than adding a separate flat bonus.
 const DAEDALUS_BLADE_IDS = ['DAEDALUS_AXE', 'STARRED_DAEDALUS_AXE'];
 const DAEDALUS_BLADE_INTRINSIC_CHIMERA_LEVEL = 5;
 
@@ -356,10 +340,9 @@ export function substitutePetLore(loreLines, level, statValues, otherNumValues) 
   return removeAddToPetMenuHint(substituted);
 }
 
-// The full real-lore-with-stats-substituted tooltip, shared by PetDetail's side panel and
-// Landing's hover tooltip. `rawLore` is fetchNeuItem's result (or `false` for a failed fetch,
-// `null`/`undefined` while loading) — left to the caller since PetDetail keeps it in state
-// while Landing fetches it fresh per hover.
+// The full lore-with-stats-substituted tooltip, shared by PetDetail's side panel and Landing's hover
+// tooltip. `rawLore` is fetchNeuItem's result, `false` for a failed fetch and null/undefined while
+// loading — left to the caller, since PetDetail keeps it in state while Landing fetches per hover.
 export function buildPetTooltipLines(pet, modifiers, itemData, rawLore, playerDefense = 0) {
   const level = modifiers?.level ?? 0;
   const maxLevel = getMaxPetLevel(pet.petId);

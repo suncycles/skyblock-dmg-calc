@@ -1,28 +1,19 @@
-// Magical Power ("MP") Optimizer — ranks real accessories the player doesn't yet own (or could
-// upgrade) by the DPS increase from the resulting MP gain, reusing lib/optimizer.js's "evaluate
-// one change against the real baseline" pipeline. Catalog data (real accessory names/rarities,
-// upgrade-family exclusivity, duplicates, "of Power" Perfect Gemstone rarity upgrades, and
-// non-recombobulatable ids) lives in worker/src/data/accessoryFamilies.json — see its own
-// `_source` field for provenance (transcribed from SkyHelper/SkyCrypt's open "missing talismans"
-// dataset, plus manual wiki research for the parts that dataset didn't have).
+// Magical Power Optimizer: ranks accessories the player doesn't own, or could upgrade, by the DPS
+// increase from the resulting MP gain, through lib/optimizer.js's "one change against the baseline"
+// pipeline. Catalog data — names, rarities, upgrade-family exclusivity, duplicates, "of Power"
+// Perfect Gemstone upgrades and non-recombobulatable ids — lives in
+// worker/src/data/accessoryFamilies.json.
 //
-// Magical Power's effect is modeled two ways, matching exactly what the rest of the app already
-// tracks per accessory: the Accessory Power stat multiplier (via the player's chosen Power Stone,
-// scaled by total MP) and each individually-owned accessory's own real stat line (Shark Tooth's
-// Strength, Red Claw's Crit Damage, ... — see worker/src/index.js's computeLiveAccessoryStats,
-// imported into modifiers.individualAccessoryStats). The account's CURRENT accessories' totals come
-// from a real Hypixel import, same as `owned` below; a "New Accessory" (`kind: 'missing'`) candidate
-// the player doesn't yet own has no live per-instance lore to read, but its own stat line is still a
-// fixed, real, per-tier constant baked into the item's own static definition (see worker/src/
-// index.js's ACCESSORY_INNATE_STATS_BY_ID, computed from the SAME catalog lore this file already
-// gets via itemData) — evaluateAccessoryCandidates below adds it on top of the account's real
-// current total, not a guessed number. Recombobulate/Perfect-Gemstone/Accessory-Upgrade candidates
-// (upgrading an already-owned copy to a new tier or a new item id) don't get the tier-up's stat
-// DELTA yet — a real, documented gap, see the comment at that call site.
+// Magical Power is modeled the same two ways the rest of the app tracks it: the Accessory Power
+// stat multiplier scaled by total MP, and each owned accessory's own stat line
+// (modifiers.individualAccessoryStats, filled by import). A "New Accessory" candidate has no owned
+// copy to read, so its stat line comes from the catalog's fixed per-tier constants
+// (worker/src/index.js's ACCESSORY_INNATE_STATS_BY_ID) and is added on top of the account's total.
 //
-// TEMPORARY IMPLEMENTATION — known scope limits:
-// - non_recombobulatable_ids is a curated, non-exhaustive list (4 confirmed real ids) — not every
-//   one of the ~280 real accessories has been individually checked.
+// Known scope limits:
+// - Recombobulate, Perfect-Gemstone and Accessory-Upgrade candidates don't model the tier-up's own
+//   stat delta, which would need a family+rarity -> item-id lookup this data doesn't provide.
+// - non_recombobulatable_ids is a curated list of 4 ids, not a check of all ~280 accessories.
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { bumpRarity, canRecombobulate } from './recombobulator';
@@ -43,9 +34,8 @@ export const MAGICAL_POWER_BY_RARITY = {
   VERY_SPECIAL: 5,
 };
 
-// Real coin cost per accessory candidate, mirroring lib/optimizer.js's withCost/lookupCandidateCost
-// for gear. A generic MP-sweep candidate isn't a real, priceable item, so it always falls through
-// to null/'?' below.
+// Coin cost per accessory candidate, mirroring lib/optimizer.js's withCost/lookupCandidateCost for
+// gear. A generic MP-sweep candidate isn't a priceable item and falls through to null/'?'.
 function lookupAccessoryCost(candidate, itemData) {
   const itemPrices = itemData?.costs?.itemPrices || {};
   if (candidate.kind === 'missing') {
@@ -63,8 +53,8 @@ function lookupAccessoryCost(candidate, itemData) {
     return itemData?.costs?.recombobulatorCost || null;
   }
   if (candidate.kind === 'gemstone-upgrade') {
-    // The specific Perfect Gemstone type needed isn't tracked in our data — priced at the
-    // cheapest real type as a floor/lower-bound (a real market price, not a guessed number).
+    // The specific Perfect Gemstone type needed isn't tracked here, so this is priced at the
+    // cheapest type as a lower bound.
     const perGem = cheapestPerfectGemstonePrice(itemData);
     return perGem != null && candidate.gemstonesNeeded ? perGem * candidate.gemstonesNeeded : null;
   }
@@ -76,10 +66,8 @@ function withCost(result, cost) {
   return { ...result, cost: hasRealCost ? cost : '?', ratio: hasRealCost ? result.percentIncrease / cost : null };
 }
 
-// Fallback candidates when no real account is on file (see buildAccessoryCandidates below):
-// hypothetical flat MP increases in +10 steps, so the optimizer can still show Magical Power's
-// real DPS effect in the abstract ("if MP went up by N") without knowing which real accessories
-// would supply it.
+// Fallback candidates when no account is on file: hypothetical flat MP increases in +10 steps, so
+// the optimizer can still show Magical Power's effect without knowing which accessories supply it.
 const GENERIC_MP_STEPS = [10, 20, 30, 40, 50];
 export function buildGenericMpCandidates() {
   return GENERIC_MP_STEPS.map((mpGain) => ({
@@ -91,10 +79,9 @@ export function buildGenericMpCandidates() {
 }
 
 // Union-find over talisman_upgrades (each lower tier redundantly lists every tier above it, so a
-// plain "is this id a key/value" check isn't enough) — returns Map<id, Set<everyIdInItsFamily>>,
-// including the target id itself. An id absent from talisman_upgrades entirely is its own
-// singleton family (most of the catalog — only ~90 of the ~280 real accessories are part of an
-// upgrade chain at all).
+// key/value check isn't enough), returning Map<id, Set<everyIdInItsFamily>> including the id itself.
+// An id absent from talisman_upgrades is its own singleton family, which covers most of the catalog:
+// only ~90 of ~280 accessories belong to an upgrade chain.
 function buildFamilyGroups(upgrades) {
   const parent = new Map();
   function find(x) {
@@ -172,12 +159,10 @@ export function buildAccessoryCandidates(owned, families) {
     let fromId = null;
     let fromRecombobulated = false;
     for (const [ownedId, { tier, recombobulated }] of ownedByCanonical.entries()) {
-      // A lower tier of the SAME real upgrade family the player already owns a higher tier of
-      // (e.g. Frozen Chicken when Fried Frozen Chicken is owned) must never itself surface as a
-      // separate "missing" candidate — only relevant here for currentTierMp's baseline, which
-      // already covers it via familyMembers' union-find over talisman_upgrades. `fromId` tracks
-      // WHICH owned id supplied that baseline, so a real net upgrade cost (see lookupAccessoryCost)
-      // can be priced against it instead of the higher tier's full price.
+      // A lower tier of a family the player already owns a higher tier of (Frozen Chicken under Fried
+      // Frozen Chicken) must never surface as its own "missing" candidate; it matters here only for
+      // currentTierMp's baseline, which familyMembers already covers. `fromId` records which owned id
+      // supplied that baseline, so lookupAccessoryCost can price the net upgrade.
       const mp = MAGICAL_POWER_BY_RARITY[tier] || 0;
       if (members.has(ownedId) && mp > currentTierMp) {
         currentTierMp = mp;
@@ -186,10 +171,8 @@ export function buildAccessoryCandidates(owned, families) {
       }
     }
     if (fromId) {
-      // A real Recombobulator use carries over through the family's crafting upgrade — the
-      // resulting higher tier keeps the bump instead of losing it, same "carry the owned piece's
-      // persistent upgrades onto the new candidate" rule lib/optimizer.js's gear-slot evaluators
-      // already use for reforges/gemstones/recomb on armor and weapon swaps.
+      // A Recombobulator use carries through the family's crafting upgrade, so the higher tier keeps
+      // the bump — the same carry-over rule the gear-slot evaluators use for reforges and gemstones.
       const resultRarity = fromRecombobulated && canRecombobulate(meta.rarity) ? bumpRarity(meta.rarity) : meta.rarity;
       const mpGain = (MAGICAL_POWER_BY_RARITY[resultRarity] || 0) - currentTierMp;
       if (mpGain > 0) {
@@ -220,10 +203,9 @@ export function buildAccessoryCandidates(owned, families) {
       }
       continue; // Recombobulator doesn't apply to these two rarity jumps — real mechanic is gemstones only.
     }
-    // Real Recombobulator use is a one-time-per-item flag, independent of tier — an item's
-    // CURRENT tier already reflects any past recomb bump, so `canRecombobulate(tier)` alone
-    // can't tell a never-recombed EPIC from an already-recombed RARE-into-EPIC. Skip anything
-    // the account's real copy has already used its recomb on.
+    // Recombobulator use is a one-time per-item flag independent of tier: an item's current tier
+    // already reflects any past bump, so canRecombobulate(tier) alone can't tell a never-recombed
+    // EPIC from a recombed RARE. Anything the account's copy has already used it on is skipped.
     if (recombobulated || nonRecomb.has(id) || !canRecombobulate(tier)) continue;
     const nextTier = bumpRarity(tier);
     const mpGain = (MAGICAL_POWER_BY_RARITY[nextTier] || 0) - (MAGICAL_POWER_BY_RARITY[tier] || 0);
@@ -243,15 +225,10 @@ const CATEGORY_LABELS = {
   generic: 'Magical Power (generic)',
 };
 
-// Full result cache, keyed by itemData reference (a WeakMap outer layer means an itemData refresh
-// — a new object reference — naturally drops every entry tied to the old catalog with no manual
-// invalidation) then by a JSON digest of every other input that can change the real output. Nothing
-// about the ~2,000-call search below needs to happen again if the player revisits this exact
-// loadout/build/mode/mob/candidate-set — which happens routinely: the Landing column and the
-// /optimizer page each mount their own Recommended Upgrades panel (components/UpgradesPanel.jsx), and
-// toggling back to an earlier loadout or mode asks the same question again (user-specified
-// 2026-09-01, recommendation #3). Capped at a handful of entries since a real
-// session only ever revisits a couple of loadouts, not to bound unrelated memory growth.
+// Result cache keyed by itemData reference (a WeakMap, so a catalog refresh drops the old entries)
+// then by a JSON digest of every other input that changes the output. The Landing column and the
+// /optimizer page each mount their own panel, and toggling back to an earlier loadout asks the same
+// question again, so the ~2,000-call search is worth memoizing. Capped at a handful of entries.
 const accessoryEvalCache = new WeakMap();
 const ACCESSORY_EVAL_CACHE_MAX_ENTRIES = 8;
 
@@ -266,15 +243,12 @@ function accessoryEvalCacheKey(loadout, build, mode, mob, candidates) {
   });
 }
 
-// Runs every candidate from buildAccessoryCandidates through the real damage pipeline, varying
-// Magical Power on top of the player's current loadout/mode/mob — same "one change at a time
-// against baseline" evaluation lib/optimizer.js's other candidates use. Both the baseline and
-// every candidate auto-spend their Tuning Points optimally (see lib/tuningOptimizer.js) rather
-// than carrying over whatever was manually allocated, so the comparison is apples-to-apples: full
-// optimal tuning is computed once at the current MP for the baseline; each candidate then only
-// needs a cheap top-up search over its own small extra point delta on top of that baseline
-// allocation (a full from-scratch search per candidate would mean tens of thousands of real
-// pipeline evaluations across ~90 candidates — this keeps it to a few hundred).
+// Runs every candidate through the damage pipeline, varying Magical Power on top of the current
+// loadout, mode and mob — the same one-change-against-baseline evaluation lib/optimizer.js uses.
+// Baseline and candidates both auto-spend Tuning Points optimally (lib/tuningOptimizer.js) rather
+// than carrying a manual allocation, so the comparison is like for like: the full optimal tuning is
+// computed once at current MP, then each candidate only needs a cheap top-up over its own extra
+// points. A from-scratch search per candidate would be tens of thousands of pipeline evaluations.
 export async function evaluateAccessoryCandidates(loadout, itemData, build, mode, mob, candidates) {
   let innerCache = accessoryEvalCache.get(itemData);
   if (!innerCache) {
@@ -296,16 +270,14 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   const modeConfig = getModeConfig(mode, build.useMasterMode);
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
   const currentMp = accessorySlot.modifiers.magicalPower || 0;
-  // Includes the Tuning Box attribute's own flat point grant (see computeTotalTuningPoints) for
-  // an accurate absolute baseline total — the attribute-derived portion cancels out of `extraPoints`
-  // below either way, since it's added equally to both the current and candidate totals.
+  // Includes the Tuning Box attribute's flat point grant (computeTotalTuningPoints) for an accurate
+  // absolute total; that portion cancels out of `extraPoints`, being added to both sides.
   const currentPoints = computeTotalTuningPoints(currentMp, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
 
   const { allocation: baselineTuning, nextStat: baselineNextStat } = await computeOptimalTuning(loadout, itemData, build, modeConfig, mob, currentPoints);
   const tunedLoadout = { ...loadout, accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, tuning: baselineTuning } } };
-  // Reuses the same evaluation topUpTuning below needs (real Crit Chance and whether an Overload
-  // bow is equipped) — computeModeDamageAndSources costs nothing extra over computeModeDamage since
-  // baselineValue has to be computed here either way.
+  // Reuses what topUpTuning needs below (Crit Chance, whether an Overload bow is equipped);
+  // computeModeDamageAndSources costs nothing extra, since baselineValue is computed here anyway.
   const { value: baselineValue, sources: tunedSources } = await computeModeDamageAndSources(tunedLoadout, itemData, build, modeConfig, mob);
   const tunedCritChance = tunedSources.baseStats.crit_chance || 0;
   const hasOverload = (tunedSources.overloadBonusPercent || 0) > 0;
@@ -324,15 +296,11 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
     );
     const extraPoints = newPoints - currentPoints;
     const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints, tunedCritChance, hasOverload, baselineNextStat) : baselineTuning;
-    // A brand-new accessory (not yet owned) carries its own real innate stat line (Shark Tooth
-    // Necklace's Strength, Red Claw's Crit Damage, ...) on top of its Magical Power contribution —
-    // see worker/src/index.js's ACCESSORY_INNATE_STATS_BY_ID, additive onto whatever the account's
-    // OTHER real owned accessories already contribute (individualAccessoryStats is a running sum
-    // across the whole bag, not per-item). Recombobulate/Perfect-Gemstone/Accessory-Upgrade
-    // candidates all upgrade an ALREADY-owned copy whose current-tier stat is already counted in
-    // that real sum — the tier-up's stat DELTA isn't modeled here (would need a reliable
-    // family+rarity -> item-id lookup this data doesn't confirm), a real, documented gap rather
-    // than a guess.
+    // A new accessory carries its own innate stat line (Shark Tooth Necklace's Strength, Red Claw's
+    // Crit Damage) on top of its Magical Power, added onto what the account's other accessories
+    // already contribute — individualAccessoryStats is a running sum across the bag, not per item.
+    // Recombobulate/Perfect-Gemstone/Accessory-Upgrade candidates upgrade an owned copy whose
+    // current-tier stat is already in that sum, and the tier-up's own delta is not modeled.
     const innateStats = candidate.kind === 'missing' ? itemData.accessoryInnateStats?.[candidate.id] : null;
     const individualAccessoryStats = innateStats
       ? { ...accessorySlot.modifiers.individualAccessoryStats }
@@ -353,9 +321,8 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
     if (percentIncrease <= 0.001) continue;
     // A brand-new accessory also has to fit in the bag: with no free slot, the cheapest slot on the
-    // market is part of what it really costs (user-specified 2026-09-17, lib/accessorySlots.js).
-    // Upgrade/Recombobulate/Perfect-Gemstone candidates reuse the slot their accessory already
-    // occupies, so they carry no slot cost.
+    // market is part of its cost (lib/accessorySlots.js). Upgrade, Recombobulate and Perfect-Gemstone
+    // candidates reuse the slot their accessory already occupies, so they carry no slot cost.
     const slot = candidate.kind === 'missing' ? slotCostForNewAccessory(slotState, itemData) : null;
     const itemCost = lookupAccessoryCost(candidate, itemData);
     const cost = typeof itemCost === 'number' && typeof slot?.coins === 'number' ? itemCost + slot.coins : itemCost;
@@ -375,17 +342,14 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
         apply: [
           { type: 'setAccessoryMagicalPower', mp: currentMp + candidate.mpGain },
           { type: 'setAccessoryTuning', tuning: candidateTuning },
-          // Real accessories only (not the generic +MP steps, which have no real id to "own") —
-          // marks it owned/upgraded so buildAccessoryCandidates treats it as real going forward
-          // (excluded from New Accessory, offered for Recombobulate next, etc.) instead of
-          // silently re-offering the same Magical Power gain again next run.
+          // Real accessories only, not the generic +MP steps: marks it owned so
+          // buildAccessoryCandidates treats it as such next run rather than re-offering the same gain.
           ...(candidate.kind !== 'generic'
             ? [{ type: 'setOwnedAccessory', id: candidate.id, tier: candidate.rarity, recombobulated: candidate.nextRecombobulated }]
             : []),
-          // An 'upgrade' candidate's higher tier is a DIFFERENT real item id than the one it
-          // replaces (unlike Recombobulate/Perfect-Gemstone, which keep the same id) — drop the
-          // now-gone lower tier's ownership record so it doesn't keep surfacing stale
-          // Recombobulate/Perfect-Gemstone suggestions for an item the player no longer has.
+          // An 'upgrade' candidate's higher tier is a different item id than the one it replaces,
+          // unlike Recombobulate and Perfect-Gemstone, so the lower tier's ownership record is dropped
+          // to stop stale suggestions for an item the player no longer has.
           ...(candidate.kind === 'upgrade' ? [{ type: 'removeOwnedAccessory', id: candidate.fromId }] : []),
         ],
       }, cost),
@@ -395,21 +359,17 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   return { baselineValue, currentMp, results };
 }
 
-// For the small deltas (0-2 points is typical) a single accessory's MP gain produces, `nextStat`
-// (computeOptimalTuning's own last-round marginal-value winner, a free byproduct of the baseline
-// search the caller already ran) is reused directly instead of re-testing every stat from scratch —
-// on a smooth multiplicative formula, the winning stat essentially never flips over 1-2 more points
-// (user-specified 2026-09-01, recommendation #2). A larger jump (a big generic MP-sweep candidate,
-// or the baseline search never having run at all — `nextStat` null, e.g. currentPoints was 0) falls
-// back to the original one-quick-round re-test across every damage-relevant stat, since the
-// marginal ranking gets less reliable extrapolated over many points.
+// For the small deltas a single accessory's MP gain produces (0-2 points typically), `nextStat` —
+// computeOptimalTuning's last-round marginal winner, a byproduct of the baseline search — is reused
+// rather than re-testing every stat, since on a smooth multiplicative formula the winner doesn't
+// flip over 1-2 points. A larger jump, or a null `nextStat` when the baseline search never ran,
+// falls back to a one-round re-test across every damage-relevant stat.
 const TOP_UP_DIRECT_THRESHOLD = 2;
 
-// `tunedCritChance`/`hasOverload` come from the baseline evaluation the caller already ran (see
-// evaluateAccessoryCandidates) — same formula-verified exclusions as computeOptimalTuning
-// (tuningOptimizer.js): Ability Damage only reads Intelligence, the 'dps' metric never reads
-// Intelligence, and a Crit Chance already at/past its real cap (100%, or 200% with Overload) can't
-// gain from more of it.
+// `tunedCritChance`/`hasOverload` come from the baseline evaluation the caller already ran, with the
+// same exclusions as computeOptimalTuning (tuningOptimizer.js): Ability Damage reads only
+// Intelligence, the 'dps' metric never reads it, and Crit Chance at its cap (100%, or 200% with
+// Overload) gains nothing from more.
 async function topUpTuning(loadout, itemData, build, modeConfig, mob, baseTuning, extraPoints, tunedCritChance, hasOverload, nextStat) {
   if (modeConfig.metric === 'ability') {
     return { ...baseTuning, intelligence: (baseTuning.intelligence || 0) + extraPoints };

@@ -44,9 +44,8 @@ const HitSimulationGraph = lazy(() => import('../components/HitSimulationGraph')
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
-// Small-caps "eyebrow" header shared by every panel on this page (Section's own title plus the
-// few one-off panels below it) so the dense stat page reads as consistently-structured sections
-// instead of a pile of bolded labels at varying sizes.
+// Small-caps eyebrow header shared by every panel on this page, so the dense stat page reads as
+// consistent sections rather than bolded labels at varying sizes.
 const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
 
 // Final Destination's Ender-only Strength/Attack Speed (see finalDamage.js's selectBaseStats) —
@@ -74,10 +73,8 @@ const ENRICHMENT_TYPES = [
   { key: 'none', label: 'None', symbol: '✕', color: '#666666' },
 ];
 
-// The mob's real Defense stat and the final multiplier it applies (lib/mobDefenses.js) — shown
-// only when it's actually non-zero, which is the handful of Catacombs mobs with a published
-// number (and, for most of those, only in Master Mode). Replaces a stale "not implemented yet"
-// notice that survived the feature actually shipping.
+// The mob's Defense stat and the multiplier it applies (lib/mobDefenses.js), shown only when
+// non-zero — the handful of Catacombs mobs with a published number, mostly in Master Mode.
 function MobDefenseNote({ name, types, masterMode, debuffs }) {
   const mob = { name, types };
   const defense = computeMobDefense(mob, masterMode);
@@ -97,21 +94,17 @@ function MobDefenseNote({ name, types, masterMode, debuffs }) {
   );
 }
 
-// The Mob HP% slider was removed (user-specified 2026-09-05), so every figure on this page is
-// computed at full HP — see BuildContext's PINNED_MOB_HP_PERCENT, which keeps the Optimizer in
-// agreement. That also means First Strike/Triple Strike always apply, which the Final Damage
-// headline now says out loud (meleeDamageQualifiers).
+// Every figure on this page is computed at full HP — see BuildContext's PINNED_MOB_HP_PERCENT,
+// which keeps the Optimizer in agreement. First Strike and Triple Strike therefore always apply,
+// which the Final Damage headline says out loud (meleeDamageQualifiers).
 const MOB_HP_PERCENT = 100;
 
 
-// The MISC panel's values reach the calculation on an explicit Apply press, not a timer
-// (user-specified 2026-09-10, replacing the 3s debounce that came before it). These are the
-// free-typed stat fields and dragged sliders, so recalculating per keystroke queued a full
-// collectDamageSources pass each time — but a timer meant the page silently changed under you
-// three seconds after you stopped, with no way to say "now". A button makes the commit moment
-// yours. The panel's own controls always show the live value, so typing stays responsive; only the
-// copy feeding the calculation waits for the press. The Blaze checkbox stays outside this: it's a
-// discrete toggle with no "still editing" state to confirm.
+// The MISC panel's values reach the calculation on an explicit Apply press rather than a timer.
+// These are free-typed fields and dragged sliders, so recalculating per keystroke queues a full
+// collectDamageSources pass each time, while a timer changes the page under you seconds after you
+// stop. The panel's controls always show the live value; only the copy feeding the calculation
+// waits. The Blaze checkbox stays outside this, being a discrete toggle.
 function useConfirmedValues(live) {
   const [applied, setApplied] = useState(live);
   // Compared by serialising — this is five small numbers plus one flat object, and `live` is a
@@ -149,13 +142,12 @@ function Section({ title, subtitle, children, empty }) {
   );
 }
 
-// Cross-loadout damage-source breakdown: (Base) stats, non-conditional/conditional % additive damage,
-// Nx multiplicative sources, and a collapsed-by-default situational list for sources not resolvable to a fixed value.
-// `embedded` (used by pages/Landing.jsx to merge the gear and damage-calculation screens into one
-// page) skips the standalone page's PageHeader/full-screen sizing and the "Optimize damage" link
-// (Landing.jsx already has both a header and its own Recommended Upgrades panel) — everything else renders
-// identically either way, including the Mage/DPS toggles, now inline instead of in PageHeader's
-// `right` slot so they're the same markup in both contexts.
+// Cross-loadout damage-source breakdown: base stats, non-conditional and conditional % additive
+// damage, Nx multiplicative sources, and a collapsed situational list for sources with no fixed
+// value.
+// `embedded` (pages/Landing.jsx) drops the standalone page's PageHeader, full-screen sizing and
+// "Optimize damage" link, since Landing has its own; everything else renders identically, including
+// the Mage and DPS toggles.
 export default function DamageSources({ embedded = false, hideSticky = false }) {
   const navigate = useNavigate();
   const {
@@ -227,10 +219,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const settledSwarmMobs = appliedMisc.swarmMobs;
   const settledComboKills = appliedMisc.comboKills;
   const settledLegionPlayers = appliedMisc.legionPlayers;
-  // Blessings and Debuffs are edited on their own pages, reached from their board tiles
-  // (user-specified 2026-09-14), so nothing on this page edits them and there's nothing left to
-  // confirm — read live. The `settled` names stay so every call site and dependency array keeps
-  // reading one name for the value the calculation uses.
+  // Blessings and Debuffs are edited on their own pages, so nothing here edits them and there is
+  // nothing to confirm — they are read live. The `settled` names stay so every call site keeps one
+  // name for the value the calculation uses.
   const settledBlessing = blessing;
   const settledDebuffs = debuffs;
 
@@ -271,14 +262,11 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   // already reflects this per-mob; this just keeps the (Base) Stats panel's displayed total and
   // source breakdown consistent with it rather than silently disagreeing).
   const isEnderTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Ender'));
-  // Blaze pet's "In Crimson Isle" bonus (BLAZE_CRIMSON_ISLE_PERCENT) is real-life gated on the
-  // player's actual location, which this app doesn't model — but Infernal/Magmatic-typed mobs are
-  // only ever fought there, so targeting one is a real, non-guessed signal to turn the bonus on
-  // automatically rather than relying on the player to remember the manual checkbox (user-specified
-  // 2026-09-01). OR'd with the manual toggle rather than replacing it — a manual "on" still counts
-  // for non-Infernal/Magmatic targets fought on Crimson Isle for other reasons.
-  // Same shape as isCrimsonIsleTarget below — a target-derived gate, computed here because
-  // collectDamageSources never sees the mob itself. See lib/miningIslands.js.
+  // The Blaze pet's Crimson Isle bonus is gated on the player's location, which this app doesn't
+  // model — but Infernal and Magmatic mobs are only fought there, so targeting one turns it on.
+  // OR'd with the manual toggle rather than replacing it, since a manual "on" still counts for other
+  // targets fought on Crimson Isle. Same target-derived shape as isCrimsonIsleTarget below, computed
+  // here because collectDamageSources never sees the mob itself.
   const isMiningIslandTarget = anyMiningIslandTarget(targetMobs);
 
   const isCrimsonIsleTarget = targetMobs.some((name) => {
@@ -289,12 +277,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   useEffect(() => {
     setResult(null);
-    // Debounced like Optimizer.jsx's own recompute effect — this fires on every keystroke of a
-    // free-typed stat/attribute field (this effect's deps include several), so an undebounced call
-    // queues up a full collectDamageSources pass per keystroke instead of one after typing settles
-    // (user-specified 2026-09-02, following a performance audit). The 200ms cleanup below also
-    // means React StrictMode's dev-only mount→cleanup→mount double-invoke cancels the first
-    // timeout before it ever fires, instead of running the real pipeline twice on every mount.
+    // Debounced: this effect's deps include several free-typed fields, so an undebounced call queues
+    // a full collectDamageSources pass per keystroke. The 200ms cleanup also means React StrictMode's
+    // dev-only double mount cancels the first timeout rather than running the pipeline twice.
     const handle = setTimeout(() => {
       const token = ++tokenRef.current;
       collectDamageSources(
@@ -548,10 +533,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     return isMythologicalTarget ? result.mythologicalDungeonizedBaseStats[key] : result.dungeonizedBaseStats[key];
   }
 
-  // Headline for the sticky readout (embedded/Landing only). Damage has always recalculated
-  // live, but the number sat ~1.5 screens below the gear grid, so editing gear and reading its
-  // effect were never on screen at the same time — every change cost a scroll down and back.
-  // Reuses the numbers already computed above rather than re-deriving anything.
+  // Headline for the sticky readout (embedded/Landing only), so the damage number stays on screen
+  // beside the gear grid. Reuses the numbers computed above rather than re-deriving them.
   const stickyHeadline = (() => {
     if (targetMobs.length === 0 || !result) return null;
     if (mageMode) {
@@ -741,24 +724,16 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 }
               }
 
-              // Once a real starting HP is known, Total DPS shows the true average across the whole
-              // simulated fight (Venomous stacking up, Execute/Prosecute ramping with real draining
-              // HP%, First Strike/Triple Strike's opening bonus) instead of a fixed-snapshot number
-              // — same reason lib/optimizer.js's ranking metric switched to this (user-specified
-              // 2026-09-01): computeDpsBreakdown prices Venomous at a permanent single stack, i.e.
-              // literal first-hit conditions, understating it by up to 40x once stacks build.
-              // Beam REPLACES the melee hit rather than stacking on top of it (user-specified
-              // 2026-09-11) — it used to be added into the melee total whenever Mage Mode was on,
-              // which double-counted a staff build. The procs (Venomous/Thunderlord/Fire Aspect/
-              // Crimson Swipe) stay either way: they fire per hit, whichever kind of hit it is.
+              // With a known starting HP, Total DPS is the average across the simulated fight —
+              // Venomous stacking, Execute/Prosecute ramping with draining HP%, the opening-hit
+              // bonus — rather than a snapshot, which prices Venomous at a single permanent stack.
+              // Beam REPLACES the melee hit rather than stacking on it; the procs
+              // (Venomous/Thunderlord/Fire Aspect/Crimson Swipe) stay either way, since they fire
+              // per hit whichever kind it is.
               //
-              // Beam reports the steady state rather than the simulated average, because the two
-              // aren't interchangeable terms: the simulation's number is a whole-fight average with
-              // Venomous stacking and Execute ramping baked in, so subtracting a steady-state melee
-              // figure out of it would be arithmetic across two different bases. Beam itself never
-              // ramps (it doesn't scale with HP% or stacks), so there's nothing to simulate for it.
-              // Procs (Venomous/Thunderlord/Fire Aspect/Crimson Swipe) ride on a melee swing or a
-              // beam proc, never on an arrow (user-specified 2026-09-11).
+              // Beam reports the steady state rather than the simulated average: the two are
+              // different bases, so subtracting a steady-state melee figure out of a fight average
+              // would mix them. Beam never ramps with HP% or stacks, so there is nothing to simulate.
               const showProcs = dpsKind !== 'bow';
               let totalDps;
               if (dpsKind === 'bow') {
@@ -804,11 +779,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   ) : (
                     <>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[12px] text-neutral-700">
-                        {/* Melee vs Arrow are mutually exclusive labels for the same DPS source — a
-                            real loadout only ever has one weapon equipped, never both at once
-                            (user-specified 2026-09-01). Duplex isn't a separate hit, just a
-                            multiplier on this same volley, so its bonus is shown as its own line
-                            broken back out of `melee` rather than double-counted. */}
+                        {/* Melee and Arrow are mutually exclusive labels for the same DPS source: a
+                            loadout holds one weapon. Duplex isn't a separate hit but a multiplier on
+                            the same volley, so its bonus is broken out of `melee` rather than
+                            double-counted. */}
                         <span>
                           {dpsKind === 'bow' ? 'Arrow' : dps.isBowWeapon ? 'Arrow' : 'Melee'} DPS (
                           {round1(dpsKind === 'bow' ? dps.bowShotsPerSecond : dps.meleeHitsPerSecond)}/s)
@@ -828,12 +802,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             </span>
                           </>
                         )}
-                        {/* Procs belong to Melee and Beam only, never Bow (user-specified 2026-09-11)
-                            — `showProcs` gates all four, and the same rule has to hold when Bow DPS
-                            itself gets modelled, not just for these display rows.
-                            Within Melee/Beam they're still only shown when actually contributing:
-                            most loadouts have none of them active, and a wall of "0" rows was just
-                            clutter (user-specified 2026-08-29). */}
+                        {/* Procs belong to Melee and Beam only, never Bow — `showProcs` gates all
+                            four, and the same rule holds when Bow DPS itself gets modelled. Within
+                            Melee and Beam they show only while contributing, since most loadouts
+                            have none active. */}
                         {showProcs && dps.venomous > 0 && (
                           <>
                             <span>
@@ -885,10 +857,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                         </div>
                       )}
                       <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                        {/* The per-hit melee number the non-DPS view headlines, repeated here: DPS
-                            mode otherwise only showed rates, so there was nowhere to read what one
-                            swing actually hits for. Melee only — Venomous/Fire Aspect/Thunderlord/
-                            Crimson Swipe are separate procs and already have their own DPS rows. */}
+                        {/* The per-hit melee number the non-DPS view headlines, repeated here so DPS
+                            mode isn't rates alone. Melee only — the procs have their own rows. */}
                         {finalDamage && (
                           <div className="flex items-baseline justify-between">
                             <span className="text-sm font-bold text-black">

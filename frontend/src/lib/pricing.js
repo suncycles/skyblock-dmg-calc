@@ -1,10 +1,9 @@
-// Real coin cost per Optimizer candidate — a thin lookup against the Worker-precomputed
-// `itemData.costs` bundle (see worker/src/index.js's resolveCosts), not a client-side computation.
-// Coin cost is loadout-independent (a Dragon Claw costs the same no matter whose item it reforges),
-// so the actual coin math — real prices × Essence/material sums for Stars, etc. — happens once
-// server-side per price-refresh cycle; this module just matches a candidate's category to the
-// right precomputed key. Returns a number when priceable, or `null` when no real cost source
-// exists (the caller — lib/optimizer.js's withCost — turns `null` into the `'?'` sentinel).
+// Coin cost per Optimizer candidate: a lookup against the Worker-precomputed `itemData.costs` bundle
+// (worker/src/index.js's resolveCosts) rather than a client-side computation. Coin cost is
+// loadout-independent, so the arithmetic — prices times Essence and material sums for Stars and the
+// rest — happens once per refresh cycle server-side, and this module matches a candidate's category
+// to the right precomputed key. Returns a number when priceable, or null when no cost source exists;
+// lib/optimizer.js's withCost turns null into the '?' sentinel.
 
 import { MAX_HOT_POTATO_BOOKS } from './books';
 
@@ -14,10 +13,9 @@ export function priceOf(map, id) {
   return typeof price === 'number' && price > 0 ? price : null;
 }
 
-// The 12 real Perfect Gemstone types. accessoryFamilies.json's perfect_gemstone_rarity_upgrades
-// only tracks how MANY Perfect Gemstones a rarity jump needs, not which specific type — priced at
-// the cheapest real type as a floor/lower-bound (a real market price, not a guessed mechanic)
-// rather than picking one arbitrarily. Used by accessoryOptimizer.js's gemstone-upgrade candidates.
+// The 12 Perfect Gemstone types. accessoryFamilies.json's perfect_gemstone_rarity_upgrades tracks
+// how many Perfect Gemstones a rarity jump needs but not which type, so the jump is priced at the
+// cheapest type as a lower bound. Used by accessoryOptimizer.js's gemstone-upgrade candidates.
 const PERFECT_GEMSTONE_IDS = [
   'PERFECT_AMBER_GEM',
   'PERFECT_AMETHYST_GEM',
@@ -39,9 +37,9 @@ export function cheapestPerfectGemstonePrice(itemData) {
   return prices.length > 0 ? Math.min(...prices) : null;
 }
 
-// Master Star levels 1-5 each consume one specific real item (user-confirmed source:
-// pricesV2.json) — a flat cost, the same for every piece of gear, unlike base Stars' per-item
-// Essence costs. Cumulative cost to reach `count` Master Stars is the sum of levels 1..count.
+// Master Star levels 1-5 each consume one specific item, at a flat cost that is the same for every
+// piece of gear, unlike base Stars' per-item Essence costs. Cumulative cost to reach `count` is the
+// sum of levels 1..count.
 const MASTER_STAR_ITEM_IDS = ['FIRST_MASTER_STAR', 'SECOND_MASTER_STAR', 'THIRD_MASTER_STAR', 'FOURTH_MASTER_STAR', 'FIFTH_MASTER_STAR'];
 
 export function masterStarCost(count, itemPrices) {
@@ -59,12 +57,10 @@ function findStep(apply, type) {
   return (apply || []).find((s) => s.type === type);
 }
 
-// A few enchants' top level isn't sold as a normal enchanted book at all — it's applied by
-// consuming one specific, single-use special item instead, so there's no
-// `ENCHANTMENT_<name>_<level>` price entry for it (confirmed: pricesV2.json has no
-// ENCHANTMENT_ENDER_SLAYER_7/SMITE_7/VENOMOUS_7/BANE_OF_ARTHROPODS_7 despite each being a real,
-// obtainable level — Venomous 7 has no NEU-REPO item file at all, but is still a real level, see
-// enchantEffects.js's hardcoded VENOMOUS_LEVELS). User-confirmed 2026-09-01/2026-09-02.
+// A few enchants' top level is applied by consuming a single-use item rather than a book, so no
+// ENCHANTMENT_<name>_<level> price exists for Ender Slayer 7, Smite 7, Venomous 7 or Bane of
+// Arthropods 7, despite each being obtainable. Venomous 7 has no NEU-REPO item file either — see
+// enchantEffects.js's VENOMOUS_LEVELS.
 const SPECIAL_ENCHANT_LEVEL_ITEMS = {
   ender_slayer: { 7: 'ENDSTONE_IDOL' },
   smite: { 7: 'SEVERED_HAND' },
@@ -81,13 +77,12 @@ export function enchantPrice(itemPrices, id, level) {
   return priceOf(itemPrices, `ENCHANTMENT_${id.toUpperCase()}_${level}`);
 }
 
-// Real coin cost of tiering a Kuudra armor piece up from `fromItemId` to `toItemId` — the sum of
-// every prestige hop between them. A tier-up is a craft that consumes the piece being worn plus a
-// fixed material list, so this is what a player actually spends; the two tiers' auction prices
-// never enter into it (user-specified 2026-09-08). `prestigeCosts` is the Worker's own
-// { <sourceId>: { to, coins } } map (see its computePrestigeCosts) — walking `to` covers a
-// multi-tier jump as naturally as a single step. null when the chain doesn't reach `toItemId`
-// (different family, non-Kuudra item, missing data), which leaves the caller on market pricing.
+// Coin cost of tiering a Kuudra armor piece from `fromItemId` to `toItemId`: the sum of every
+// prestige hop between them. A tier-up is a craft consuming the worn piece plus a fixed material
+// list, so that is what a player spends; the two tiers' auction prices never enter into it.
+// `prestigeCosts` is the Worker's { <sourceId>: { to, coins } } map, so walking `to` covers a
+// multi-tier jump as easily as one step. null when the chain doesn't reach `toItemId` (a different
+// family, a non-Kuudra item, missing data), which leaves the caller on market pricing.
 export function prestigeUpgradeCost(fromItemId, toItemId, prestigeCosts) {
   if (!fromItemId || !toItemId || !prestigeCosts) return null;
   let total = 0;
@@ -108,26 +103,21 @@ export function lookupCandidateCost(result, itemData) {
   if (!costs) return null;
   const { itemPrices = {}, reforgeCosts = {}, recombobulatorCost = null, petCosts = {}, starCosts = {}, prestigeCosts = {}, attributeCosts = {} } = costs;
 
-  // Crown of Avarice's "Coins Consumed" and Midas Sword/Staff's "Price Paid at Dark Auction" are
-  // both a literal count of coins actually spent/fed into the item (gone, not held) — cost is the
-  // item's own real market price (buying it bare) PLUS that counter, 1 coin counted = 1 coin spent
-  // (user-confirmed), since a player has to acquire the item itself before investing coins into it.
-  // Must be checked before the general Weapon/Armor-category branch below since these candidates
-  // carry those categories too. David's Cloak's `special` is a real Strength bonus value and
-  // Daedalus Blade's is a Bestiary Tier count — neither is a coin amount, deliberately excluded
-  // (stays unpriced) rather than misread as coins. Emerald Blade's "Coins in Purse" is a live
-  // balance check, not coins spent (you keep them) — not part of this set for that reason, and not
-  // currently offered as an Optimizer candidate anyway.
+  // Crown of Avarice's "Coins Consumed" and Midas Sword/Staff's "Price Paid" are both a count of
+  // coins actually spent into the item, so cost is the item's market price plus that counter, 1 coin
+  // counted being 1 coin spent. Checked before the general Weapon/Armor branch below, since these
+  // candidates carry those categories too. David's Cloak's `special` is a Strength value and Daedalus
+  // Blade's a Bestiary Tier count — neither is coins, so both stay unpriced rather than misread.
+  // Emerald Blade's "Coins in Purse" is a balance check rather than coins spent, so it is excluded.
   const COIN_DENOMINATED_SPECIAL_IDS = new Set(['CROWN_OF_AVARICE', 'MIDAS_SWORD', 'STARRED_MIDAS_SWORD', 'MIDAS_STAFF', 'STARRED_MIDAS_STAFF']);
   if (COIN_DENOMINATED_SPECIAL_IDS.has(result.itemId) && result.special != null) {
     const basePrice = priceOf(itemPrices, result.itemId);
     return (basePrice || 0) + result.special;
   }
 
-  // Some candidates are deliberately unpriceable rather than merely unpriced — "Max Golden Dragon"
-  // (lib/optimizer.js) is the pet plus a 1b bank and a maxed Gold collection, and there's no coin
-  // figure that means "get there". Flagged at the source so it can't be confused with a genuine
-  // price-feed miss.
+  // Some candidates are unpriceable rather than merely unpriced: "Max Golden Dragon" is the pet plus
+  // a 1b bank and a maxed Gold collection, and no coin figure means "get there". Flagged at the
+  // source so it isn't confused with a price-feed miss.
   if (result.unpriced) return null;
 
   switch (result.category) {
@@ -136,11 +126,9 @@ export function lookupCandidateCost(result, itemData) {
     case 'Equipment': {
       const step = findStep(result.apply, 'selectItem');
       if (!step) return null;
-      // A Kuudra armor tier-up isn't bought — it's crafted, consuming the piece already worn plus
-      // a fixed recipe (lib/optimizer.js sets `result.replaces` for exactly those candidates), so
-      // it's priced from that recipe rather than either tier's auction price
-      // (user-specified 2026-09-08). Falls through to the plain market price when the prestige
-      // chain doesn't cover this swap — every other gear swap really is just bought outright.
+      // A Kuudra tier-up is crafted rather than bought, consuming the worn piece plus a fixed recipe
+      // (lib/optimizer.js sets `result.replaces` for those candidates), so it is priced from that
+      // recipe. Falls through to the market price when the prestige chain doesn't cover the swap.
       const prestige = prestigeUpgradeCost(result.replaces?.itemId, step.item.id, prestigeCosts);
       if (prestige != null) return prestige;
       return priceOf(itemPrices, step.item.id);

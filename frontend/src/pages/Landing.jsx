@@ -42,43 +42,35 @@ import { BUFF_ITEMS } from '../lib/buffs';
 import ArmorOptions from './ArmorOptions';
 import EquipmentOptions from './EquipmentOptions';
 
-// Lazy — same reasoning as every other route in App.jsx: keeps Landing's own (highest-traffic)
-// bundle small. Merged inline below the gear grid (see the `embedded` prop) instead of behind a
-// route change, so equipping gear and reading its damage numbers happen on one continuous page.
+// Lazy, like every route in App.jsx, to keep Landing's bundle small. Merged inline below the gear
+// grid (see the `embedded` prop) rather than behind a route change, so equipping gear and reading
+// its damage numbers happen on one page.
 const DamageSources = lazy(() => import('./DamageSources'));
 
-// Darkens a slot's background once an item's equipped (replacing the old flat green highlight) —
-// applied as an inline style so it wins over the themed bg-[#8b8b8b] override without needing a
-// per-theme "equipped" color of its own.
+// Darkens a slot's background once an item is equipped, as an inline style so it wins over the
+// themed bg-[#8b8b8b] override without a per-theme "equipped" colour.
 const EQUIPPED_BG_STYLE = { backgroundColor: 'rgba(0,0,0,0.4)' };
 
 const slotBase =
   'flex items-center justify-center bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
-// Same bordered-panel look as the main chest-GUI grid (and every other page's Back button) —
-// reused here so Export/Import/Loadouts stay visually consistent and theme-aware instead of a
-// generic floating pill that can wash out against a busy background gif.
+// The same bordered-panel look as the chest-GUI grid, so Export/Import/Loadouts stay theme-aware
+// rather than floating pills that wash out against a busy background.
 const toolbar =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
-// Stylized X in place of the old 🗑️ emoji — same square Minecraft-button bevel and literal
-// bg-[#c6c6c6]/border-t-white/etc classes as every other panel/slot (so it reskins per-theme
-// exactly like the rest of the GUI, rather than a hardcoded color of its own), with just a
-// faint red tint layered on top via an inset box-shadow so it still reads as "remove". High
-// z-index so it always sits above every other slot element, including the Target Mob tile's
-// stacked overlapping mob renders.
-// remove-btn-square opts this element out of Aurora/Nova/Inferno's rounded-panel corners
-// (see index.css) — it should stay a plain square X on every theme, not just the flatter ones.
-// w-5 on touch-sized viewports (16px was well under any sane tap target, sitting on the corner of
-// a cell whose whole body is also tappable); back to the tighter 16px once there's a real cursor.
-// An accidental remove is recoverable either way — TopBar's undo covers it.
+// The remove button: the same square Minecraft bevel and literal bg-[#c6c6c6]/border-t-white
+// classes as every other panel, so it reskins per theme, with a faint red inset shadow so it still
+// reads as "remove". High z-index to sit above every other slot element, including the Target Mob
+// tile's stacked mob renders. remove-btn-square opts it out of the rounded-panel corners some themes
+// apply (see index.css). w-5 on touch viewports, since 16px is under a sane tap target on a cell
+// whose whole body is also tappable; 16px once there is a cursor.
 const removeBtn =
   'remove-btn-square absolute -top-1.5 -right-1.5 z-30 w-5 h-5 sm:w-4 sm:h-4 flex items-center justify-center text-[10px] font-bold leading-none text-black bg-[#c6c6c6] border-2 border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-1 outline-black shadow-[inset_0_0_0_20px_rgba(220,38,38,0.22)] hover:brightness-110 cursor-pointer';
 
-// Every Loadout-toolbar button is the same shape; below `sm` it drops to the short label, so six
-// buttons collapse from ~600px of stacked rows on a phone to two compact ones. Deliberately NOT
-// icon-only there — six unlabeled boxes (export vs. import especially) is the same guessing game
-// the Item Menu's unlabeled icons used to be.
+// Every Loadout-toolbar button shares this shape; below `sm` it drops to the short label, collapsing
+// six buttons from stacked rows into two compact ones. Not icon-only there: six unlabelled boxes,
+// export against import especially, are a guessing game.
 function ToolbarButton({ icon, label, shortLabel, onClick, pixelated }) {
   return (
     <button
@@ -95,9 +87,8 @@ function ToolbarButton({ icon, label, shortLabel, onClick, pixelated }) {
   );
 }
 
-// Session-scoped (not persisted across browser restarts) so every "Back" navigation within the
-// app doesn't re-show the entry screen — only a genuinely fresh visit does. Cleared per-tab.
-// (Key itself lives in lib/entryScreen.js — TopBar.jsx's brand link needs it too.)
+// Session-scoped rather than persisted, so a "Back" navigation doesn't re-show the entry screen but
+// a fresh visit does. The key lives in lib/entryScreen.js, since TopBar.jsx's brand link needs it.
 
 // One-page character screen: 6 rows x 9 columns, real chest-GUI styling. Column B: equipment
 // slots. Column C: armor slots. Column D: accessories/weapon/pet. Columns F/G/H: decorative
@@ -139,18 +130,16 @@ export default function Landing() {
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const { confirmDialog, alertDialog } = useConfirmDialog();
   const damageSectionRef = useRef(null);
-  // The sticky damage readout (rendered by DamageSources) is a fixed overlay in the bottom band —
-  // the same band this page's "View Damage Breakdown" button sits in at the default scroll
-  // position. It covered 199x47px of the button, and the button's own centre stopped hit-testing
-  // to the button. The two do the same job, so exactly one is ever needed: the readout hides while
-  // the button is on screen. Observed HERE rather than inside DamageSources because a plain ref
-  // passed into a lazy child is read once, before the child's effect can see it attached — a
-  // callback ref into state fires exactly when the node lands, with no timing hole.
+  // The sticky damage readout (rendered by DamageSources) is a fixed overlay in the bottom band, the
+  // same band this page's "View Damage Breakdown" button occupies at the default scroll position, and
+  // it covered the button. The two do the same job, so the readout hides while the button is on
+  // screen. Observed here rather than inside DamageSources because a ref passed into a lazy child is
+  // read before the child's effect sees it attached; a callback ref into state fires when the node
+  // lands.
   const [jumpButtonEl, setJumpButtonEl] = useState(null);
   const [jumpButtonVisible, setJumpButtonVisible] = useState(false);
-  // A plain rect check on scroll rather than IntersectionObserver: same result, and it can be
-  // verified directly (an IO callback never fires inside the headless preview surface used to
-  // test this, so an IO-based version was untestable). One passive listener for one element.
+  // A rect check on scroll rather than IntersectionObserver: same result, and testable — an IO
+  // callback never fires inside the headless preview surface used to verify this.
   useEffect(() => {
     if (!jumpButtonEl) return;
     const update = () => {
@@ -172,9 +161,9 @@ export default function Landing() {
   const [newLoadoutName, setNewLoadoutName] = useState('');
   const [saveStatus, setSaveStatus] = useState(null);
   const [showEntry, setShowEntry] = useState(() => sessionStorage.getItem(ENTRY_DISMISSED_KEY) !== '1');
-  // The potion tile's own menu. A native <select> gave keyboard and screen-reader behaviour for
-  // free but rendered an OS popup that looked nothing like the rest of the GUI, so this is a real
-  // listbox instead — the a11y contract is reimplemented below rather than dropped.
+  // The potion tile's own menu. A native <select> gives keyboard and screen-reader behaviour for free
+  // but renders an OS popup unlike the rest of the GUI, so this is a real listbox with that
+  // behaviour reimplemented below.
   const [potionMenuOpen, setPotionMenuOpen] = useState(false);
   const [potionMenuIndex, setPotionMenuIndex] = useState(0);
   const potionMenuRef = useRef(null);
@@ -209,11 +198,10 @@ export default function Landing() {
     setCostResult((prev) => (prev ? null : computeLoadoutCostBreakdown(loadout, attributes, itemData)));
   }
 
-  // Wipes every bit of this app's own localStorage (current build, saved Loadouts, theme — all of
-  // it, not just the equipped gear) and reloads so every context re-initializes from a genuinely
-  // blank slate, same as a brand-new visitor. Deliberately localStorage.clear() rather than
-  // removing a hand-picked list of hex*/skydmg* keys — guaranteed to stay comprehensive as the app
-  // grows new persisted state, at the cost of also clearing anything else this origin might store.
+  // Wipes this app's localStorage — current build, saved Loadouts, theme — and reloads, so every
+  // context re-initializes as for a new visitor. localStorage.clear() rather than a hand-picked key
+  // list, so it stays comprehensive as new persisted state appears, at the cost of clearing anything
+  // else this origin stores.
   async function handleHardReset() {
     if (!(await confirmDialog('Hard reset EVERYTHING? This permanently deletes your current build, all saved Loadouts, and every other saved setting. This cannot be undone.'))) return;
     localStorage.clear();
@@ -225,9 +213,8 @@ export default function Landing() {
     setShowEntry(false);
   }
 
-  // TopBar.jsx's brand/logo click — brings the entry screen back even while already mounted on
-  // "/" (a plain navigate("/") is a no-op in that case, so the initial-state read above never
-  // re-runs on its own).
+  // TopBar.jsx's brand click brings the entry screen back while already on "/", where a plain
+  // navigate("/") is a no-op and the initial-state read never re-runs.
   useEffect(() => {
     function handleShowEntry() {
       setShowEntry(true);
@@ -402,9 +389,8 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
-  // Same per-item tooltip build as handleWeaponHover, just against an imported-weapons-list entry
-  // instead of the equipped weapon — the easy-access list next to the Weapon slot (user-specified
-  // 2026-09-01).
+  // The same per-item tooltip build as handleWeaponHover, against an imported-weapons-list entry
+  // rather than the equipped weapon.
   async function handleImportedWeaponHover(entry, e) {
     const anchor = e.currentTarget;
     const token = ++hoverTokenRef.current;
@@ -427,8 +413,8 @@ export default function Landing() {
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
 
-  // The tile can only paint one number (Skyblock Level), but Combat/Catacombs/Taming/Wolf Slayer
-  // all feed the damage formula too — previously every one of them cost a click to even see.
+  // The tile paints one number (Skyblock Level), but Combat, Catacombs, Taming and Wolf Slayer feed
+  // the damage formula too, so the tooltip lists them.
   function handleLevelsHover(e) {
     showTooltip(
       [
@@ -786,13 +772,10 @@ export default function Landing() {
         continue;
       }
 
-      // Column E, rows 1-4 (immediately right of Weapon): the easy-access imported-weapons list —
-      // every real weapon lib/hypixelImport.js's buildWeaponInventoryList found in the account's
-      // inventory on the last Hypixel import, not just whichever one got equipped, so swapping
-      // between real owned weapons doesn't need a full re-import each time (user-specified
-      // 2026-09-01). One spanning tile (same row-span-4 treatment as the Target Mob block below)
-      // holding a small scrollable icon grid — a name+level row per weapon (like the Weapon
-      // candidate list on the Review Import screen) doesn't fit a 1-column-wide cell.
+      // Column E, rows 1-4, beside Weapon: the imported-weapons list — every weapon
+      // lib/hypixelImport.js's buildWeaponInventoryList found in the account's inventory, not only the
+      // equipped one, so swapping between owned weapons needs no re-import. One spanning tile holding
+      // a scrollable icon grid, since a name-and-level row per weapon doesn't fit a 1-column cell.
       if (col === 4 && row === 1) {
         cells.push(
           <div key={key} className={`${slotBase} relative row-span-4 p-1`}>
@@ -910,11 +893,10 @@ export default function Landing() {
       }
       if (col >= 5 && col <= 7 && row >= 1 && row <= 4) continue;
 
-      // Row 5, columns B and C: Buff/Blessing and Debuffs, shown in every mode (user-specified
-      // 2026-09-15) — item buffs and debuffs apply everywhere; only the Dungeon Blessings inside the
-      // first page are Dungeon-gated. Board tiles rather than panels inside the damage breakdown, like
-      // everything else you set on this screen; lit green when something is active, the same cue the
-      // Attributes tile uses.
+      // Row 5, columns B and C: Buff/Blessing and Debuffs, shown in every mode — item buffs and
+      // debuffs apply everywhere, and only the Dungeon Blessings inside the first page are
+      // Dungeon-gated. Board tiles rather than panels in the damage breakdown, lit green when
+      // something is active, the same cue the Attributes tile uses.
       if (row === 5 && (col === 1 || col === 2)) {
         const isBlessings = col === 1;
         let lit;
@@ -985,10 +967,9 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-right of the Target Mob block: Hard Reset — a real Barrier block texture (Minecraft's
-      // own "destructive, no going back" icon) so it reads as dangerous at a glance, distinct from
-      // every other slot's item icon. Gated behind confirmDialog (handleHardReset) since this wipes
-      // every bit of this app's own localStorage, not just the current loadout.
+      // Bottom-right of the Target Mob block: Hard Reset, drawn with a Barrier block texture so it
+      // reads as destructive at a glance. Gated behind confirmDialog, since it wipes this app's whole
+      // localStorage rather than the current loadout.
       if (col === 7 && row === 5) {
         cells.push(
           <div
@@ -1005,15 +986,11 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-left: the potion. Which potion depends on the Dungeon toggle — inside a dungeon it
-      // is the Dungeon Potion, a different set of effects with no mixin (see lib/godPotion.js), so
-      // the tile relabels rather than pretending one potion covers both.
-      //
-      // Styled exactly like every other tile in the grid: the same bottom-anchored white label with
-      // a drop shadow, not the black caption bar it used to carry, which was the one slot in the
-      // GUI with a solid strip across it. The <select> stays a transparent full-tile overlay, so
-      // the picker, keyboard and screen readers behave as they did (user-specified 2026-09-10) —
-      // only the chrome changed.
+      // Bottom-left: the potion. Which one depends on the Dungeon toggle — inside a dungeon it is the
+      // Dungeon Potion, a different set of effects with no mixin (lib/godPotion.js) — so the tile
+      // relabels rather than pretending one potion covers both. Styled like every other tile, with the
+      // bottom-anchored white label; the <select> stays a transparent full-tile overlay so the picker,
+      // keyboard and screen readers behave as before.
       if (col === 0 && row === 5) {
         const dungeonPotion = useDungeonizedStats;
         const potionValue = !godPotionActive ? 'off' : godPotionMixin === 'spider_egg' ? 'spider_egg' : 'on';
@@ -1146,16 +1123,14 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
       {/* Below xl everything stacks in DOM order — toolbar, board, Recommended Upgrades, the jump
-          button, the breakdown — so the panel lands directly under the board. At xl the panel moves
-          into its own right-hand column spanning every row, sticky, so it stays beside whatever
-          you're reading (user-specified 2026-09-14). It used to be a floating window that covered
-          the board and the player model; docked, it can't cover anything. 700 + 340 + gap keeps
-          clear of the edges at 1280px even with index.css's site-wide 1.15 zoom. */}
+          button, the breakdown — so the panel lands under the board. At xl the panel moves into its
+          own right-hand column, spanning every row and sticky, so it stays beside whatever you are
+          reading and can't cover the board. 700 + 340 + gap clears the edges at 1280px even with
+          index.css's site-wide 1.15 zoom. */}
       <div className="w-full flex flex-col items-center xl:grid xl:grid-cols-[minmax(0,700px)_340px] xl:justify-center xl:items-start xl:gap-x-4">
-      {/* Combined Loadout panel (Export/Import + saved Loadouts) — sits in normal document flow
-          above the grid (not fixed/pinned over content), so it can never overlap the central GUI
-          regardless of viewport size: flow-stacked elements simply can't occupy the same space.
-          Centered to match the grid below instead of hugging the left edge on wide viewports. */}
+      {/* Combined Loadout panel (Export/Import plus saved Loadouts), in normal document flow above the
+          grid rather than pinned over content, so it can never overlap the GUI at any viewport size.
+          Centred to match the grid below. */}
       <div className="w-full flex justify-center mb-1.5 xl:col-start-1">
         <div className={`z-10 flex flex-col gap-1.5 p-2 max-w-full ${toolbar}`}>
           <span className="text-[10px] font-bold text-black uppercase tracking-wide">Loadout</span>
