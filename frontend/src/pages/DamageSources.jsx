@@ -11,7 +11,7 @@ import {
   simulateHitByHit,
   DPS_HITS_PER_SECOND,
 } from '../lib/finalDamage';
-import { resolveStartingHp, getFloorOptions, getTierOptions } from '../lib/mobHp';
+import { resolveStartingHp, getFloorOptions, getTierOptions, defaultTierSelection } from '../lib/mobHp';
 import { ABILITY_DAMAGE_TABLE } from '../lib/abilityDamage';
 import {
   VANQUISHED_SET_ID,
@@ -731,7 +731,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   : tierOptions && tierOptions.length > 1
                     ? tierOptions.map((t) => ({ value: t.label, label: t.label }))
                     : null;
-                selection = mobHpSelections[name] || '';
+                // A Slayer boss with no explicit pick shows (and uses) its highest tier — see
+                // lib/mobHp.js's defaultTierSelection, which resolveStartingHp applies too.
+                selection = mobHpSelections[name] || defaultTierSelection(name) || '';
                 const startingHp = resolveStartingHp(name, useMasterMode, selection);
                 const simSources = startingHp ? resultAt100 : result;
                 if (simSources) {
@@ -926,7 +928,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             onChange={(e) => setMobHpSelection(name, e.target.value)}
                             className="px-1.5 py-0.5 bg-black text-white text-[11px] cursor-pointer border-2 border-neutral-700"
                           >
-                            <option value="">Pick to use real HP</option>
+                            {/* Only when nothing is resolved yet — a Slayer boss always has its
+                                highest tier selected by default, so it never shows this. */}
+                            {!selection && <option value="">Pick to use real HP</option>}
                             {pickerOptions.map((o) => (
                               <option key={o.value} value={o.value}>
                                 {o.label}

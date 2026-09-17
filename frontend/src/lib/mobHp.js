@@ -70,12 +70,28 @@ export function getTierOptions(mobName) {
   return entry.tiers;
 }
 
+// The tier a Slayer boss defaults to when the user hasn't picked one: its highest
+// (user-specified 2026-09-17). Slayer bosses are exactly the tiered mobs whose tiers are the
+// "Tier I-V" ladder — Revenant Horror, Tarantula Broodfather, Sven Packmaster, Voidgloom Seraph,
+// Inferno Demonlord, and its two Attunement variants Quazii and Typhoeus. Matched on the labels
+// rather than a hardcoded name list so a future Slayer lands on this automatically.
+// Every OTHER tiered mob is deliberately excluded and still resolves to null without a choice:
+// their "tiers" are spawn rarities (Minos Inquisitor: Legendary/Mythic) or variants (Zealot:
+// Regular/Ender Chest/Special), where there's no "highest" to assume — and for a couple of them
+// (Splitter Spider) the last entry isn't even the biggest HP.
+export function defaultTierSelection(mobName) {
+  const tiers = getTierOptions(mobName);
+  if (!tiers || tiers.length < 2) return null;
+  return tiers.every((t) => /^Tier /.test(t.label)) ? tiers[tiers.length - 1].label : null;
+}
+
 // A real starting HP for the hit-by-hit DPS simulation (lib/finalDamage.js's simulateHitByHit).
 // Flat mobs always resolve. Dungeon/tiered mobs resolve unconditionally when there's exactly one
 // floor/tier on the relevant side (e.g. Bonzo's single Floor-1 entry, Apostle's single Master-VII
 // entry). When there's more than one, `selection` — a floor roman numeral ("III") or a tier label
 // ("Tier III"), from a Floor/Tier picker the caller renders using getFloorOptions/getTierOptions —
-// picks the specific one; without a selection this returns null rather than silently guessing.
+// picks the specific one. Without a selection a Slayer boss falls back to its highest tier (see
+// defaultTierSelection); anything else still returns null rather than silently guessing.
 export function resolveStartingHp(mobName, useMasterMode, selection) {
   const entry = MOB_HP[mobName] || MOB_HP[stripPhaseSuffix(mobName)];
   if (isFlatMobHp(entry)) return entry.hp;
@@ -88,7 +104,8 @@ export function resolveStartingHp(mobName, useMasterMode, selection) {
   }
   if (isTieredMobHp(entry)) {
     if (entry.tiers.length === 1) return entry.tiers[0].hp;
-    const found = selection && entry.tiers.find((t) => t.label === selection);
+    const picked = selection && entry.tiers.some((t) => t.label === selection) ? selection : defaultTierSelection(mobName);
+    const found = entry.tiers.find((t) => t.label === picked);
     return found ? found.hp : null;
   }
   return null;
