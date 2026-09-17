@@ -1177,6 +1177,37 @@ try {
     assert.equal(resolveStartingHp('Conjoined Brood', false, ''), 20_000_000, 'flat HP still resolves');
     assert.equal(resolveStartingHp('Necron', true, ''), 1_400_000_000, 'single-floor dungeon HP still resolves');
   });
+  // 43. Final Destination's set bonus has to reach the DPS hit rate (user-reported 2026-09-17: the
+  // Optimizer ignored its +20 Attack Speed). selectBaseStats grants it against Ender mobs only, so
+  // every DPS path must read the stat through that rather than off the raw sources.baseStats block.
+  await check("Final Destination's +20 Attack Speed reaches the DPS hit rate", () => {
+    const { computeDpsBreakdown, simulateHitByHit, selectBaseStats, computeMeleeHitsPerSecond } = finalDamage;
+    const stats = { damage: 100, strength: 0, crit_damage: 0, crit_chance: 100, bonus_attack_speed: 0 };
+    const sources = {
+      baseStats: stats,
+      dungeonizedBaseStats: stats,
+      masterDungeonizedBaseStats: stats,
+      mythologicalBaseStats: stats,
+      mythologicalDungeonizedBaseStats: stats,
+      mythologicalMasterDungeonizedBaseStats: stats,
+      additiveNonConditional: [],
+      additiveConditional: [],
+      multiplicative: [],
+      hasFinalDestinationFullSet: true,
+      bestiaryMaxedMobs: null,
+    };
+    const ender = { name: 'Voidgloom Seraph', types: ['Ender'] };
+    const undead = { name: 'Revenant Horror', types: ['Undead'] };
+
+    assert.equal(selectBaseStats(sources, false, false, ender).bonus_attack_speed, 20, 'the set grants +20 vs Ender');
+    assert.equal(selectBaseStats(sources, false, false, undead).bonus_attack_speed, 0, 'and nothing vs anything else');
+
+    // 0 Attack Speed is 0.5s per hit; +20 crosses two breakpoints to 0.4s, i.e. 2/s -> 2.5/s.
+    assert.equal(computeMeleeHitsPerSecond(20, {}), 2.5);
+    assert.equal(computeDpsBreakdown(sources, ender, {}).meleeHitsPerSecond, 2.5, 'Ender target: the boosted rate');
+    assert.equal(computeDpsBreakdown(sources, undead, {}).meleeHitsPerSecond, 2, 'non-Ender target: the bare rate');
+    assert.equal(simulateHitByHit(sources, ender, {}, null, 100).meleeHitsPerSecond, 2.5, 'the fight simulation reads it too');
+  });
 } finally {
   await server.close();
 }
