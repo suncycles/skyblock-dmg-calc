@@ -631,7 +631,12 @@ function getDuplexLevel(loadout) {
 // those bake in First Strike/Triple Strike's opening-hit-only bonus (see computeFinalDamage's
 // excludeFirstHitOnly) which must NOT be multiplied into every hit/second below.
 export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats = false, useMasterMode = false) {
-  const bonusAttackSpeed = sources.baseStats.bonus_attack_speed || 0;
+  // Through selectBaseStats, not sources.baseStats: the raw block is the non-dungeon, pre-set-bonus
+  // total, so reading it here dropped Final Destination's +20 Bonus Attack Speed against Ender mobs
+  // (user-reported 2026-09-17) and the Catacombs-scaled attack speed with the Dungeon toggle on.
+  // Its Strength half was never affected — that rides computeFinalDamage, which selects correctly.
+  const stats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
+  const bonusAttackSpeed = stats.bonus_attack_speed || 0;
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
   const steadyFinalDamage = computeFinalDamage(sources, mob, useDungeonizedStats, useMasterMode, true);
   const meleeFinalDamage = steadyFinalDamage.finalDamage;
@@ -775,9 +780,11 @@ export function simulateHitByHit(
   useMasterMode = false,
   hitCount = MAX_VENOMOUS_STACKS,
 ) {
-  const bonusAttackSpeed = sources.baseStats.bonus_attack_speed || 0;
+  // Same selection as computeDpsBreakdown's — see the comment there.
+  const simStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
+  const bonusAttackSpeed = simStats.bonus_attack_speed || 0;
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
-  const critChance = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob).crit_chance || 0;
+  const critChance = simStats.crit_chance || 0;
   const hasOverload = (sources.overloadBonusPercent || 0) > 0;
   const critHitChance = Math.min(Math.max(critChance, 0), 100) / 100;
   const megaCritChance = hasOverload ? Math.min(Math.max(0, critChance - 100), 100) / 100 : 0;

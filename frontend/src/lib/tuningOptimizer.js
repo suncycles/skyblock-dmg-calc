@@ -27,7 +27,7 @@
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { computeModeDamage, computeModeDamageAndSources } from './optimizer';
 import { computeTotalTuningPoints, TUNING_RATE_PER_POINT } from './accessoryPowers';
-import { MELEE_HIT_RATE_BREAKPOINTS, computeMeleeHitsPerSecond } from './finalDamage';
+import { MELEE_HIT_RATE_BREAKPOINTS, computeMeleeHitsPerSecond, selectBaseStats } from './finalDamage';
 
 const SMOOTH_TUNING_STATS = ['strength', 'crit_damage', 'crit_chance', 'intelligence'];
 const ALL_TUNING_STATS = ['health', 'defense', 'speed', 'strength', 'crit_damage', 'crit_chance', 'bonus_attack_speed', 'intelligence'];
@@ -111,8 +111,12 @@ export async function computeOptimalTuning(loadout, itemData, build, modeConfig,
 
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
   const { sources: gearSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
-  const gearBonusAttackSpeed = gearSources.baseStats.bonus_attack_speed || 0;
-  const gearCritChance = gearSources.baseStats.crit_chance || 0;
+  // Through selectBaseStats, not the raw block: that one misses Final Destination's +20 Bonus
+  // Attack Speed against Ender mobs and the Catacombs-scaled totals, which would send the
+  // breakpoint search below chasing a breakpoint the gear has already crossed.
+  const gearStats = selectBaseStats(gearSources, modeConfig.useDungeonizedStats, modeConfig.useMasterMode, mob);
+  const gearBonusAttackSpeed = gearStats.bonus_attack_speed || 0;
+  const gearCritChance = gearStats.crit_chance || 0;
   const hasOverload = (gearSources.overloadBonusPercent || 0) > 0;
   const smoothStats = relevantSmoothStats(modeConfig.metric);
 

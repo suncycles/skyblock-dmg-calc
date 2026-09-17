@@ -31,7 +31,7 @@
 //   option is tested directly; no hand-authored list needed.
 
 import { collectDamageSources } from './damageSources';
-import { computeAbilityDamage, computeDpsBreakdown, simulateHitByHit, MAX_VENOMOUS_STACKS } from './finalDamage';
+import { computeAbilityDamage, computeDpsBreakdown, simulateHitByHit, selectBaseStats, MAX_VENOMOUS_STACKS } from './finalDamage';
 import { resolveStartingHp } from './mobHp';
 import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
 import { ARMOR_SLOTS } from './armorSlots';
@@ -2968,7 +2968,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
 
   return {
     baselineValue,
-    bonusAttackSpeed: baselineSources.baseStats.bonus_attack_speed || 0,
+    // The panel's Attack Speed readout. Selected, not raw: against an Ender target a Final
+    // Destination full set is +20 here (user-reported 2026-09-17, showing red under the Slayer
+    // target while the real stat was over it), and inside a dungeon this is the Catacombs-scaled total.
+    bonusAttackSpeed: selectBaseStats(baselineSources, modeConfig.useDungeonizedStats, modeConfig.useMasterMode, mob).bonus_attack_speed || 0,
     slots,
     otherResults: dropDominated(
       otherResults.map((r) => withCost(r, itemData)),
