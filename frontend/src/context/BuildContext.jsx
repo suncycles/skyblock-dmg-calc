@@ -135,12 +135,10 @@ function loadInitialDpsMode() {
   return localStorage.getItem(DPS_MODE_KEY) === 'true';
 }
 
-// Which damage output the DPS view reports. These are alternatives, not layers: a real loadout
-// swings a weapon OR fires a bow, and a Mage staff's Beam replaces the melee hit rather than
-// stacking on top of it (user-specified 2026-09-11). Beam used to be added into the melee total
-// whenever Mage Mode was on, which is exactly the conflation this separates.
-// 'bow' is a declared placeholder — selectable and labelled as unfinished, so the state exists to
-// build into without reporting a melee number under a bow heading in the meantime.
+// Which damage output the DPS view reports. These are alternatives rather than layers: a loadout
+// swings a weapon or fires a bow, and a Mage staff's Beam replaces the melee hit rather than
+// stacking on it. 'bow' is a declared placeholder, selectable and labelled unfinished, so the state
+// exists without reporting a melee number under a bow heading.
 export const DPS_KINDS = ['melee', 'beam', 'bow'];
 
 function loadInitialDpsKind() {
@@ -148,13 +146,10 @@ function loadInitialDpsKind() {
   return DPS_KINDS.includes(stored) ? stored : 'melee';
 }
 
-// Loads the target's current HP% (0-100, default 100), used by Execute/Prosecute and to gate First Strike/Triple Strike.
-// Pinned at 100 since the Mob HP% slider was removed (user-specified 2026-09-05). It was the only
-// control that could write this, so an old stored value — or one carried in a shared loadout code —
-// would otherwise be stuck forever with no way to change it, and would silently disagree with the
-// Optimizer, which reads the same value. Everything that consumes it (Execute/Prosecute scaling,
-// First Strike/Triple Strike's ===100 gate) now evaluates at full HP. The plumbing is left intact
-// so a future control can just start writing to it again.
+// The target's current HP% (0-100), used by Execute/Prosecute and to gate First Strike/Triple
+// Strike. Pinned at 100 since the Mob HP% slider was removed: it was the only control that wrote
+// this, so a stored or shared-loadout value would otherwise be stuck and disagree with the
+// Optimizer, which reads the same field. The plumbing stays so a future control can write to it.
 const PINNED_MOB_HP_PERCENT = 100;
 
 function loadInitialMobHpPercent() {
@@ -177,9 +172,8 @@ function loadInitialMobHpSelections() {
   }
 }
 
-// Loads the Infernal Crimson combo-stack count (1-10, default 10 — assume max stacks maintained,
-// same "compare at real ceiling" treatment as everything else defaulted to max) — only
-// shown/applied once 2+ Infernal Crimson pieces are equipped, see lib/armorSetBonuses.js.
+// The Infernal Crimson combo-stack count (1-10, default 10, i.e. max stacks maintained). Applied
+// once 2+ Infernal Crimson pieces are equipped — see lib/armorSetBonuses.js.
 function loadInitialInfernalCrimsonStacks() {
   const stored = localStorage.getItem(INFERNAL_CRIMSON_STACKS_KEY);
   const parsed = stored != null ? Number(stored) : INFERNAL_CRIMSON_MAX_STACKS;
@@ -212,9 +206,8 @@ function loadInitialBlazeCrimsonIsle() {
   return localStorage.getItem(BLAZE_CRIMSON_ISLE_KEY) === 'true';
 }
 
-// Real mob names (matching lib/mobTypes.js's MOB_TYPES keys) the imported account has reached max
-// Bestiary tier on — see lib/bestiaryStrength.js. Import-only, no manual editing UI (unlike
-// blazetekkHamRadio above, this one has a real, reliable import signal every time).
+// Mob names (matching lib/mobTypes.js's MOB_TYPES keys) the imported account has maxed the Bestiary
+// on — see lib/bestiaryStrength.js. Import-only, with no manual editing UI.
 function loadInitialBestiaryMaxedMobs() {
   try {
     const stored = localStorage.getItem(BESTIARY_MAXED_MOBS_KEY);
@@ -226,10 +219,9 @@ function loadInitialBestiaryMaxedMobs() {
   }
 }
 
-// Every real weapon lib/hypixelImport.js's buildWeaponInventoryList found in the imported
-// account's inventory (not just whichever one got equipped) — {item, modifiers, location} entries,
-// same shape as loadout.weapon. Import-only, no manual editing UI, same reasoning as
-// loadInitialBestiaryMaxedMobs above.
+// Every weapon lib/hypixelImport.js's buildWeaponInventoryList found in the imported account's
+// inventory, as {item, modifiers, location} entries in the same shape as loadout.weapon.
+// Import-only, with no manual editing UI.
 function loadInitialImportedWeapons() {
   try {
     const stored = localStorage.getItem(IMPORTED_WEAPONS_KEY);
@@ -241,31 +233,27 @@ function loadInitialImportedWeapons() {
   }
 }
 
-// Daedalus Blade/Starred Daedalus Blade's real "Combined Mythological Bestiary Tiers" ability
-// input (worker/src/index.js's computeCombinedMythologicalBestiaryTiers) — independent of whichever
-// weapon is actually equipped, so the Optimizer's Diana weapon progression (lib/optimizer.js) can
-// stamp it onto a hypothetical Daedalus Blade candidate the player doesn't yet own; an OWNED
-// Daedalus Blade still gets its own value straight from its real NBT lore on import (see
-// lib/hypixelImport.js's parseLabeledNumberFromLore), unaffected by this.
+// Daedalus Blade's "Combined Mythological Bestiary Tiers" input
+// (worker/src/index.js's computeCombinedMythologicalBestiaryTiers), independent of the equipped
+// weapon so the Optimizer's Diana progression can stamp it onto a candidate the player doesn't own.
+// An owned Daedalus Blade reads its own value from NBT lore on import instead.
 function loadInitialCombinedMythologicalBestiaryTiers() {
   const stored = localStorage.getItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY);
   const parsed = stored != null ? Number(stored) : 0;
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
-// "The One" enchant's real per-collection Health/Strength scaling input (worker/src/index.js's
-// computeMaxedCollectionsCount) — same "independent of any one owned item" treatment as Combined
-// Mythological Bestiary Tiers above, so the Optimizer can evaluate applying/leveling The One on a
-// Necklace the player doesn't have it equipped on yet.
+// "The One" enchant's per-collection scaling input (worker/src/index.js's
+// computeMaxedCollectionsCount), independent of any one owned item, so the Optimizer can evaluate
+// applying or levelling The One on a Necklace that doesn't carry it yet.
 function loadInitialMaxedCollectionsCount() {
   const stored = localStorage.getItem(MAXED_COLLECTIONS_COUNT_KEY);
   const parsed = stored != null ? Number(stored) : 0;
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
-// Loads the Optimizer's max coin budget (0 = unlimited, default) — real-priced candidates costing
-// more than this are filtered out of the ranked list; unpriced ('?') candidates always stay
-// shown, since a genuinely free reforge shouldn't get hidden just because its cost is unverified.
+// The Optimizer's max coin budget (0 = unlimited). Priced candidates above it are filtered out of
+// the ranked list; unpriced ('?') candidates always stay, since an unverified cost isn't a high one.
 function loadInitialMaxBudget() {
   const stored = localStorage.getItem(MAX_BUDGET_KEY);
   const parsed = stored != null ? Number(stored) : 0;
@@ -465,24 +453,19 @@ function loadInitialLastGearModifiers() {
 const MAX_LOADOUT_HISTORY = 50;
 
 export function BuildProvider({ children }) {
-  // BuildProvider is nested inside ItemDataProvider (see App.jsx), so this is safe — used by
-  // selectItem below to validate a carried-over reforge against the real catalog rather than
-  // needing every caller to pass it in (unlike applyReforge's Edit-All broadcast, which gets
-  // reforgeMeta from ReforgesPicker.jsx since that's the only other consumer).
+  // BuildProvider is nested inside ItemDataProvider (App.jsx), so this is safe. selectItem uses it to
+  // validate a carried-over reforge against the catalog without every caller passing it in.
   const { itemData } = useItemData();
   const [loadout, setLoadoutRaw] = useState(loadInitial);
-  // Past/future loadout snapshots for Undo/Redo. Refs (not state) since they only ever need to be
-  // read at render time alongside a `loadout` change that's already triggering a re-render — every
-  // push/pop below happens in the same tick as a setLoadoutRaw call, so canUndo/canRedo computed
-  // from these refs during render are always current without needing their own state.
+  // Past and future loadout snapshots for Undo/Redo. Refs rather than state: every push and pop
+  // happens in the same tick as a setLoadoutRaw call, so canUndo/canRedo read from them during a
+  // render that is already happening.
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
 
-  // Every existing call site below already calls `setLoadout(updater)` (function or plain value,
-  // same as the native useState setter it replaces) — wrapping it here means every one of them
-  // gets Undo/Redo tracking for free, with no changes needed at the call sites themselves. A
-  // no-op update (some updaters return `prev` unchanged, e.g. updateSlotModifiers on an empty
-  // slot) is detected via reference equality and doesn't pollute the history.
+  // Every call site below calls `setLoadout(updater)`, function or value, exactly like the native
+  // useState setter this replaces, so they all get Undo/Redo tracking without changes. A no-op
+  // update — some updaters return `prev` unchanged — is caught by reference equality and not pushed.
   const setLoadout = useCallback((update) => {
     setLoadoutRaw((prev) => {
       const next = typeof update === 'function' ? update(prev) : update;
@@ -725,11 +708,9 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Adds/removes a single mob from the selection. Also auto-toggles God Potion — its real
-  // effects (Strength/Critical/Archery/Spirit potions) don't function inside The Catacombs, so
-  // whenever the selection ends up with at least one mob, God Potion is set ON if none of the
-  // selected mobs are Catacombs-located, OFF if any is (user-specified 2026-08-27). An empty
-  // selection leaves it untouched — nothing to judge it against.
+  // Adds or removes one mob from the selection, and auto-toggles God Potion with it: its effects
+  // don't work inside The Catacombs, so with at least one mob selected the potion goes on when none
+  // of them is Catacombs-located and off when any is. An empty selection leaves it untouched.
   const toggleTargetMob = useCallback((name) => {
     setTargetMobsState((prev) => {
       const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
@@ -785,10 +766,9 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // "Clear All" (Armor/Equipment Options popups) — removes every equipped piece in the group at
-  // once AND wipes each slot's lastGearModifiers stash (user-specified "also clean the pieces"):
-  // unlike a single removeSlot, this is meant as a full reset, so a later re-pick for one of these
-  // slots starts from defaults instead of silently restoring the old reforge/stars/gemstones.
+  // "Clear All" (Armor/Equipment Options): removes every equipped piece in the group and wipes each
+  // slot's lastGearModifiers stash, so a later re-pick starts from defaults rather than restoring the
+  // old reforge, stars and gemstones.
   const clearGroup = useCallback((slots) => {
     setLoadout((prev) => {
       const next = { ...prev };
@@ -968,15 +948,14 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Shared by every modifier setter below: no-ops if the slot is empty, otherwise runs `updater` over its modifiers and persists.
-  // `respectEditAll` (default true) lets a caller opt out of the Edit All broadcast below even
-  // while it's toggled on — used by applyOptimizerResult (lib/optimizer.js), since "Edit All"
-  // is scoped to the Hex screen only (user-specified 2026-08-26), not a Recommended Upgrade swap.
-  // `updater` receives (modifiers, item) — the second arg lets a setter that only makes sense for
-  // specific items (applyGemstone's slot count, applyReforge's category/rarity, setRarityOverride's
-  // item-specific config) look at what it's ACTUALLY being applied to and no-op when it doesn't fit,
-  // rather than blindly copying the origin piece's edit onto every other piece in the group. Most
-  // updaters (enchants, books, recomb, ...) just ignore the second arg.
+  // Shared by every modifier setter below: no-ops on an empty slot, otherwise runs `updater` over the
+  // slot's modifiers and persists.
+  // `respectEditAll` (default true) lets a caller opt out of the Edit All broadcast while it is on —
+  // used by applyOptimizerResult, since Edit All is scoped to the Hex screen rather than a swap-in.
+  // `updater` receives (modifiers, item); the second argument lets a setter that only fits certain
+  // items (applyGemstone's slot count, applyReforge's category and rarity, setRarityOverride's
+  // config) inspect what it is being applied to and no-op when it doesn't fit, rather than copying
+  // the origin piece's edit onto every other piece. Most updaters ignore it.
   const updateSlotModifiers = useCallback(
     (slot, updater, respectEditAll = true) => {
       setLoadout((prev) => {
@@ -1018,9 +997,9 @@ export function BuildProvider({ children }) {
     (slot, item) => {
       setLoadout((prev) => {
         const stashedRaw = slot !== 'pet' && slot !== 'accessory' ? lastGearModifiersRef.current[slot] : null;
-        // Normalizes the pre-2026-08-29 stash shape (a bare modifiers object) alongside the
-        // current one ({ modifiers, category }) — an old entry has no `category` to compare, so
-        // it's treated as same-family (permissive default: never worse than what already shipped).
+        // Normalizes the older stash shape (a bare modifiers object) alongside the current
+        // { modifiers, category } one; an old entry has no `category`, so it is treated as
+        // same-family.
         const stashedEntry = stashedRaw ? (stashedRaw.modifiers ? stashedRaw : { modifiers: stashedRaw, category: null }) : null;
         const next = {
           ...prev,
@@ -1045,15 +1024,11 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Merges a Hypixel-import attribute-level patch (see lib/hypixelImport.js) — only the ids
-  // present in `patch` are touched, everything else stays as it was.
-  // A real import REPLACES the attribute panel rather than merging into it (user-specified
-  // 2026-09-08): every id starts from 0 — the same state the Attributes screen's own
-  // [Min Attributes] button produces — and only what the profile actually has is written back.
-  // Merging left an attribute the player had set by hand, or imported from a different account,
-  // silently standing alongside the real ones, which is exactly what an import is meant to settle.
-  // The caller only invokes this when the profile really did return attribute data (see
-  // HypixelImport.jsx), so an empty/absent response can't wipe a hand-built panel.
+  // Applies a Hypixel-import attribute patch. An import REPLACES the attribute panel rather than
+  // merging into it: every id starts at 0, the same state the Attributes screen's [Min Attributes]
+  // button produces, and only what the profile actually has is written back, so a hand-set or
+  // previously-imported attribute can't linger. The caller only invokes this when the profile really
+  // returned attribute data, so an empty response can't wipe a hand-built panel.
   const importHypixelAttributes = useCallback((patch) => {
     setAttributesState(() => {
       const next = Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0]));
@@ -1086,29 +1061,25 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Full replacement (not a merge) — a fresh Hypixel import is a complete, authoritative snapshot
-  // of "which mobs are maxed right now" (see worker/src/index.js's computeBestiaryMaxedMobs), not
-  // a patch of a few changed entries like the loadout/attributes/playerStats imports above.
+  // Full replacement rather than a merge: an import is a complete snapshot of which mobs are maxed
+  // now (worker/src/index.js's computeBestiaryMaxedMobs).
   const importHypixelBestiaryMaxedMobs = useCallback((names) => {
     const next = Array.isArray(names) ? names : [];
     setBestiaryMaxedMobsState(next);
     localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(next));
   }, []);
 
-  // Same full-replacement treatment — the account's real weapon inventory as of THIS import, not
-  // an accumulation across multiple imports (a weapon sold/moved since the last import shouldn't
-  // linger in the easy-access list). See lib/hypixelImport.js's buildWeaponInventoryList.
+  // Full replacement too: the account's weapon inventory as of this import, so a weapon sold or
+  // moved since the last one doesn't linger in the list.
   const importHypixelWeaponList = useCallback((entries) => {
     const next = Array.isArray(entries) ? entries : [];
     setImportedWeaponsState(next);
     localStorage.setItem(IMPORTED_WEAPONS_KEY, JSON.stringify(next));
   }, []);
 
-  // Equips one entry from the imported-weapons list directly — its own real {item, modifiers} as
-  // imported, not selectItem's "carry over the previous weapon's modifiers" treatment (a real
-  // account weapon already has its own real reforge/enchants/stars baked in; carrying the
-  // previously-equipped weapon's modifiers onto it would silently overwrite them with unrelated
-  // data). Same direct-patch shape as importHypixelLoadout above.
+  // Equips one entry from the imported-weapons list with its own {item, modifiers} as imported,
+  // rather than selectItem's carry-over treatment: an account weapon already has its own reforge,
+  // enchants and stars, which carrying the previous weapon's modifiers would overwrite.
   const equipImportedWeapon = useCallback((entry) => {
     if (!entry) return;
     setLoadout((prev) => {
@@ -1252,16 +1223,12 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Not routed through updateSlotModifiers: it's a toggle (flip current state), and broadcasting
-  // a "flip" updater independently to each piece in an Edit All group could leave pieces in
-  // OPPOSITE states depending on what each one already was. Computes the target slot's real new
-  // value once, then force-SETS every other piece in the group to that same value instead — the
-  // "apply the same upgrade everywhere" intent Edit All is actually for.
-  // `forceValue` (optional) sets an exact value instead of flipping — used by the Optimizer's
-  // "carry the current piece's recomb status onto a swap-in candidate" apply step, where the
-  // freshly-selected item's post-selectItem state isn't reliably known in advance (it may already
-  // be recombobulated via BuildContext's own remove-then-repick modifier stash), so a blind flip
-  // could land on the wrong value instead of the intended "make sure it's recombobulated".
+  // Not routed through updateSlotModifiers: this is a toggle, and broadcasting a flip to each piece
+  // in an Edit All group could leave them in opposite states. The target slot's new value is computed
+  // once and every other piece is set to it.
+  // `forceValue` sets an exact value instead of flipping — used by the Optimizer's "carry the current
+  // recomb status onto a swap-in candidate" step, where the freshly-selected item's state isn't known
+  // in advance and a blind flip could land on the wrong value.
   const toggleRecombobulated = useCallback(
     (slot, respectEditAll = true, forceValue) => {
       setLoadout((prev) => {

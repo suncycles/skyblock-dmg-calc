@@ -3,26 +3,17 @@
 //   InitialDamage = (5 + WeaponDMG) * (1 + Strength/100)
 //   FinalDamage   = floor((InitialDamage * AdditiveMultiplier * WeaponBonusMultiplier * MultiplicativeMultiplier + BonusModifiers) * (1 + CritDamage/100))
 //
-// AdditiveMultiplier = 1 + (every applicable % bonus, summed) — enchants and ability-text
-// bonuses, all just added together. Maps onto damageSources.js's additiveNonConditional +
-// matching additiveConditional entries. Does NOT include the equipped weapon's own "+X%
-// damage" ability — see WeaponBonusMultiplier below.
-//
-// WeaponBonusMultiplier = 1 + (the equipped weapon's own "+X% damage" ability bonuses,
-// summed) — its own independent factor, e.g. Atomsplit Katana's "+300% damage to Endermen" is
-// a weaponBonus of 300, a (1+3) = 4x factor. Maps onto weaponBonusNonConditional + matching weaponBonusConditional entries.
-//
-// MultiplicativeMultiplier = product of every other "x" bonus (Crown of Avarice, Skyblock
-// Level, armor-set bonuses) — genuinely multiplies rather than adds. Maps onto the multiplicative bucket.
-//
-// BonusModifiers is a flat amount added after the additive/multiplicative stage but still
-// scaled by Crit Damage (Soul Eater, End Stone Bow, etc.) — none of these are modeled yet, so always 0.
-//
-// Unlimited Power/Unlimited Energy apply after everything else as true multipliers on the
-// fully-summed Strength/Crit Damage — baked directly into baseStats by damageSources.js's
-// collectAttributeEntries, so this formula just reads baseStats as-is.
-//
-// Formula source: https://hypixel-skyblock.fandom.com/wiki/Damage_Calculation
+// AdditiveMultiplier = 1 + every applicable % bonus summed (damageSources.js's
+// additiveNonConditional plus the matching additiveConditional entries). Excludes the equipped
+// weapon's own "+X% damage" ability.
+// WeaponBonusMultiplier = 1 + the weapon's own "+X% damage" abilities summed, as its own factor:
+// Atomsplit Katana's "+300% damage to Endermen" is a 4x factor.
+// MultiplicativeMultiplier = the product of every "x" bonus (Crown of Avarice, Skyblock Level,
+// armor-set bonuses).
+// BonusModifiers is a flat amount added after those stages but still scaled by Crit Damage; nothing
+// modeled maps to it, so it stays 0.
+// Unlimited Power and Unlimited Energy are already baked into baseStats by damageSources.js, so
+// this formula reads baseStats as-is.
 
 import { MOB_TYPE_SYMBOLS } from './damageSymbols';
 import { resolveMobKey, SEA_CREATURE_MOBS, LAVA_SEA_CREATURE_MOBS } from './mobTypes';
@@ -38,26 +29,22 @@ const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLo
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
 const LAVA_SEA_CREATURE_KEYS = new Set(LAVA_SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
 
-// The Garden's mobs (Beetle, Cricket, Rat, ...) and the 4 Jerrys of Jerry's Workshop are joke
-// sets — every one of them deals/takes a token amount of real damage in-game, so this calculator
-// forces their Final Damage to 0 rather than modeling farming/event-specific mechanics. Checked
-// by name before any other formula logic in every damage function below so it's a hard override,
-// not just another multiplier.
+// The Garden's mobs and Jerry's Workshop's four Jerrys deal and take token damage in-game, so their
+// Final Damage is forced to 0. Checked by name before any formula logic in every damage function
+// below, making it a hard override rather than another multiplier.
 const JOKE_LOCATIONS = new Set(['The Garden', "Jerry's Workshop"]);
-// The Watcher (guards the gate between Catacombs floors) is a real 0-HP, unkillable puzzle mob —
-// same "player deals nothing" outcome as the location-based joke mobs above, so it's treated the
-// same way despite not living in either joke-mob location itself (user-specified 2026-09-01).
+// The Watcher, guarding the gate between Catacombs floors, is an unkillable 0-HP puzzle mob and gets
+// the same force-to-0 treatment.
 const JOKE_MOB_NAMES = new Set(['The Watcher']);
 function isJokeMob(mob) {
   if (!mob?.name) return false;
   return JOKE_MOB_NAMES.has(mob.name) || getMobLocations(mob.name).some((loc) => JOKE_LOCATIONS.has(loc));
 }
 
-// Inferno Demonlord (Blaze Slayer Tier 4 boss) only takes real damage from the two Blaze Slayer
-// dagger lines (Firedust->Burstfire->Heartfire, Twilight/Mawdust->Burstmaw->Heartmaw) — every
-// other weapon deals it zero, in-game (user-confirmed 2026-08-23). Same hard-override treatment
-// as isJokeMob above: checked before any real formula logic, not a bonus/penalty multiplier.
-// ponytail: single hardcoded mob; generalize into a per-mob weapon allowlist if another one turns up.
+// Inferno Demonlord (Blaze Slayer Tier 4) takes damage only from the two Blaze Slayer dagger lines
+// (Firedust->Burstfire->Heartfire and Twilight/Mawdust->Burstmaw->Heartmaw); every other weapon
+// deals zero. A hard override like isJokeMob above. One hardcoded mob — generalize to a per-mob
+// weapon allowlist if another appears.
 const DAGGER_ONLY_MOBS = new Set(['Inferno Demonlord']);
 const DAGGER_LINE_WEAPON_IDS = new Set([
   'FIREDUST_DAGGER', 'BURSTFIRE_DAGGER', 'HEARTFIRE_DAGGER',
@@ -67,21 +54,16 @@ function isBlockedByDaggerRestriction(mob, weaponId) {
   return !!mob?.name && DAGGER_ONLY_MOBS.has(mob.name) && !DAGGER_LINE_WEAPON_IDS.has(weaponId);
 }
 
-// User-confirmed real mechanic (2026-08-31): mobs tagged "Shielded" in the Bestiary (see
-// lib/mobTypes.js's MOB_TYPES) ignore every stat and take exactly 1 damage per hit, no matter
-// what — from melee, abilities, the Mage Beam, and every enchant/armor proc alike. Unlike
-// isJokeMob's force-to-0 above, forcing to 1 doesn't propagate for free through multiplication
-// (1 * x !== 1), so every per-hit/per-proc function below checks this independently rather than
-// relying on one upstream short-circuit.
+// Mobs tagged "Shielded" (lib/mobTypes.js) take exactly 1 damage per hit from everything: melee,
+// abilities, the Beam and every proc. Unlike the force-to-0 above, forcing to 1 doesn't propagate
+// through multiplication, so each per-hit and per-proc function below checks it independently.
 function isShieldedMob(mob) {
   return !!mob?.types?.includes('Shielded');
 }
 
-// A `condition` string is comma-separated ("Undead, Skeletal, Wither"); each token is either
-// a canonical Mob Type name (matched against the target's own types), the collective "Sea
-// Creatures" grouping (Flaming Flay/Soul Whip) or its narrower "Lava Sea Creatures" subset
-// (Taurus Helmet/Flaming Chestplate/Moogma Leggings), or a literal mob name from an item
-// ability's own text (e.g. "Blazes").
+// A `condition` string is comma-separated ("Undead, Skeletal, Wither"). Each token is a canonical
+// Mob Type name, the collective "Sea Creatures" grouping or its narrower "Lava Sea Creatures"
+// subset, or a literal mob name from an item ability's own text ("Blazes").
 export function conditionMatchesMob(condition, mob) {
   if (!condition || !mob) return false;
   const mobKey = resolveMobKey(mob.name);
@@ -104,23 +86,14 @@ export function conditionMatchesMob(condition, mob) {
     });
 }
 
-// Picks which of damageSources.js's three parallel baseStats totals (normal / dungeonized /
-// master-dungeonized) applies, per the useDungeonizedStats+useMasterMode toggles described above
-// computeFinalDamage and computeAbilityDamage (both need this same selection) — then, if the mob
-// being evaluated is of the real 'Mythological' type, swaps in the matching mythological* variant
-// instead (Challenger's/Mythos Armor+Equipment's doubled stats — see damageSources.js's
-// MYTHOLOGICAL_STAT_DOUBLE_IDS). `mob` is optional so callers with no specific mob in scope
-// (there currently are none, but this keeps the function safe if that ever changes) just fall
-// back to the non-mythological totals. Exported (only for scripts/verify-dungeon-and-enchant-
-// behavior.mjs's own use) so the useDungeonizedStats/useMasterMode gating below — a spot that's
-// already regressed once this session — can be regression-tested directly.
+// Picks which of damageSources.js's parallel baseStats totals applies — normal, dungeonized or
+// master-dungeonized — from the useDungeonizedStats and useMasterMode toggles, then swaps in the
+// matching mythological* variant when the target is a Mythological mob (Challenger's/Mythos doubled
+// stats, see damageSources.js's MYTHOLOGICAL_STAT_DOUBLE_IDS). `mob` is optional. Exported for
+// scripts/verify-dungeon-and-enchant-behavior.mjs.
 export function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob) {
   const isMythological = !!mob?.types?.includes('Mythological');
-  // Master Stars' own stat bonus is gated behind `useMasterMode` on purpose — a player not
-  // toggled into Master Mode Catacombs doesn't care about Master-Mode-relevant upgrades, Master
-  // Stars included (user-specified 2026-09-01, reverting an earlier change this session that made
-  // Master Stars apply off the Dungeon toggle alone — that let them "leak" into a normal-difficulty
-  // read the player never asked for).
+  // Master Stars' stat bonus is gated behind `useMasterMode`: outside Master Mode they never apply.
   const base = !useDungeonizedStats
     ? isMythological
       ? sources.mythologicalBaseStats
@@ -132,17 +105,13 @@ export function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob
       : isMythological
         ? sources.mythologicalDungeonizedBaseStats
         : sources.dungeonizedBaseStats;
-  // Real per-mob Bestiary "leveling reward" Strength bonus (lib/bestiaryStrength.js) — silently
-  // applied once the specific selected mob's own max tier is confirmed maxed via a real Hypixel
-  // import (sources.bestiaryMaxedMobs). Added here, AFTER collectDamageSources already fully
-  // resolved every statsMultiplier source (Superior Dragon/Unlimited Power/etc all run inside
-  // collectBaseStats/collectAttributeEntries, well before this function is ever called), so it's
-  // deliberately excluded from what those multipliers scale off of — user-specified 2026-08-26.
+  // Per-mob Bestiary Strength bonus (lib/bestiaryStrength.js), applied once the selected mob's own
+  // max tier is known to be maxed. Added here, after collectDamageSources resolved every
+  // statsMultiplier source, so Superior Dragon and Unlimited Power never scale it.
   const bestiaryBonus = getBestiaryStrengthBonus(mob?.name, sources.bestiaryMaxedMobs);
   const withBestiary = bestiaryBonus ? { ...base, strength: (base.strength || 0) + bestiaryBonus } : base;
-  // Final Destination's Vivacious Darkness Strength/Attack Speed only activates against
-  // Ender-type mobs in real gameplay (user-confirmed 2026-08-27) — not just its +100% Ender
-  // damage line (damageSources.js's additiveConditional entry, gated the normal way).
+  // Final Destination's Vivacious Darkness Strength and Attack Speed activate only against Ender-type
+  // mobs, unlike its +100% Ender damage line, which is an ordinary conditional entry.
   const isEnder = !!mob?.types?.includes('Ender');
   if (!sources.hasFinalDestinationFullSet || !isEnder) return withBestiary;
   return {
@@ -152,14 +121,10 @@ export function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob
   };
 }
 
-// `sources` is damageSources.js's collectDamageSources() result; `mob` is {name, types}.
-// Situational entries (formula-based, no live target HP state) are never included.
-// `useDungeonizedStats` swaps in each dungeonized gear item's own Catacombs-scaled stat total
-// (sources.dungeonizedBaseStats) in place of its normal one; `useMasterMode` (only meaningful
-// alongside useDungeonizedStats) additionally folds in each item's Master Star delta — see lib/dungeonize.js.
-// `excludeFirstHitOnly` drops First Strike/Triple Strike (damageSources.js's firstHitOnly-tagged
-// entries) — used by computeDpsBreakdown below for its steady-state hit, since those enchants only
-// fire on a fight's opening hit(s), not every hit.
+// `sources` is collectDamageSources()'s result; `mob` is {name, types}. Situational entries are never
+// included. `useDungeonizedStats` swaps in each dungeonized item's Catacombs-scaled stat total;
+// `useMasterMode`, meaningful only alongside it, folds in each item's Master Star delta.
+// `excludeFirstHitOnly` drops First Strike/Triple Strike, which fire only on a fight's opening hits.
 export function computeFinalDamage(sources, mob, useDungeonizedStats = false, useMasterMode = false, excludeFirstHitOnly = false) {
   if (isJokeMob(mob) || isBlockedByDaggerRestriction(mob, sources.weaponId)) {
     return {
@@ -238,10 +203,8 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   const initialDamage = (5 + baseStats.damage) * (1 + baseStats.strength / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
   const weaponBonusMultiplier = 1 + weaponBonusPercent / 100;
-  // Mob-side Damage Reduction and Defense (lib/mobDefenses.js) — both direct final multipliers
-  // applying to ANY dealt damage, so they're the very last step here. Everything derived from
-  // this melee finalDamage (DPS breakdown's procs, Mage Beam) automatically inherits them too, no
-  // separate application needed there.
+  // Mob-side Damage Reduction and Defense (lib/mobDefenses.js) are direct final multipliers on any
+  // damage dealt, so they come last; everything derived from this melee number inherits them.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
   // Last Breath/Lethality shred the Defense STAT before its curve (lib/mobDebuffs.js); Ice Spray
   // and Twilight Arrow Poison are flat external multipliers and belong at this same last step.
@@ -251,8 +214,8 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   const finalDamage = Math.floor(
     preCritDamage * (1 + baseStats.crit_damage / 100) * (1 - damageReductionPercent / 100) * mobDefenseMultiplier * debuffMultiplier,
   );
-  // Same formula as finalDamage, minus the Crit Damage factor — a non-critical hit's real damage.
-  // Stored for computeDpsBreakdown's crit-chance-weighted DPS below; not shown as its own panel.
+  // The same formula without the Crit Damage factor: a non-critical hit, used by
+  // computeDpsBreakdown's crit-weighted DPS.
   const finalDamageNonCrit = Math.floor(preCritDamage * (1 - damageReductionPercent / 100) * mobDefenseMultiplier * debuffMultiplier);
 
   return {
@@ -271,39 +234,26 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
   };
 }
 
-// Mage Mode's Ability Damage formula — deliberately naive per the plan (see lib/abilityDamage.js):
-//   InitialDamage = BaseAbilityDamage * (1 + (Intelligence/100) * AbilityScaling)
+// Mage Mode's Ability Damage:
+//   InitialDamage = BaseAbilityDamage * (1 + Intelligence/100 * AbilityScaling) * (1 + AbilityDamageStat/100)
 //   FinalDamage   = floor(InitialDamage * AdditiveMultiplier * MultiplicativeMultiplier)
-// User-verified against real in-game numbers + spreadsheets (10000 base/0.3 scaling, 3057
-// Intelligence, 33 Ability Damage stat, 466% additive, 5% multiplicative -> 803947 Final Damage):
-//   Initial Damage = Base Ability Damage * (1 + Intelligence/100 * Scaling) * (1 + Ability Damage stat/100)
-//   Final Damage   = Initial Damage * (1 + AdditivePercent/100) * MultiplicativeMultiplier
-// `table.base` ("Base Ability Damage", e.g. Hyperion's fixed 10000) and `baseStats.ability_damage`
-// ("Ability Damage" stat, e.g. from Wither Goggles) are two different things that both feed this
-// formula — kept as separate variables/fields below so they never get conflated.
-// AdditiveMultiplier only counts entries tagged `abilityEligible`: Giant Killer, Execute,
-// Prosecute, the 7 real type-bane enchants (collectEnchantEntries), Ruler and Dominance
-// attributes (collectAttributeEntries), Combat Level (Player), plus Golden Dragon's Legendary
-// Treasure, Ender Dragon's End Strike, Zombie's Rotten Blade, and Wither Skeleton's Wither Blood
-// (collectPetEntries) — every other additive source in the app (One For All, Swarm/Combo, other
-// pet perks, etc.) is excluded on purpose.
-// MultiplicativeMultiplier is the product of sources.abilityMultiplicative (built in
-// damageSources.js): Skyblock Level, the Implosion Belt's 1.25x (Hyperion/Spirit Sceptre/Yeti
-// Sword only), and the Loving reforge's 1.05x (chestplate-only; its bundled reforgeStats table
-// lists a flat +5 "Ability Damage" stat, but that's user-confirmed to really be a 1.05x
-// multiplier, so it's stripped out of baseStats.ability_damage in lib/reforges.js and pushed
-// here instead) — deliberately its own bucket, not filtered from the melee `multiplicative`
-// list, since most of that list doesn't apply here at all.
-// `table.base` also picks up the equipped weapon's own GENERAL Catacombs Stats Boost
-// (dungeonize.js's computeCatacombsBoostPercent — Catacombs Level curve + Stars + General's
-// Medallion digits + Master Stars, the same formula every other real stat uses — stashed
-// per-weapon on sources.abilityBaseDamageBoost by damageSources.js) as a `(1 + percent/100)`
-// multiplier. Distinct from the real "Ability Damage" STAT (Wither Goggles etc.), which uses a
-// separate no-curve-term formula — see CLAUDE.md. Only applied when useDungeonizedStats is on and
-// the weapon itself is dungeonized (abilityBaseDamageBoost defaults to 0, i.e. a 1x no-op, otherwise).
-// No Crit Damage step — abilities don't crit in real Skyblock. No BonusModifiers term — nothing
-// currently modeled maps to it, left at 0 rather than guessed.
-// Returns null when the equipped weapon has no table entry (not an ability weapon).
+// `table.base` ("Base Ability Damage", e.g. Hyperion's 10000) and `baseStats.ability_damage` (the
+// "Ability Damage" stat, e.g. from Wither Goggles) are different inputs, kept as separate variables
+// so they are never conflated.
+// AdditiveMultiplier counts only entries tagged `abilityEligible`: Giant Killer, Execute, Prosecute,
+// the 7 type-bane enchants, the Ruler and Dominance attributes, Combat Level, Golden Dragon's
+// Legendary Treasure, Ender Dragon's End Strike, Zombie's Rotten Blade and Wither Skeleton's Wither
+// Blood. Every other additive source is excluded.
+// MultiplicativeMultiplier is sources.abilityMultiplicative: Skyblock Level, the Implosion Belt's
+// 1.25x (Hyperion/Spirit Sceptre/Yeti Sword only) and the Loving reforge's 1.05x (chestplate only,
+// stripped out of baseStats.ability_damage in lib/reforges.js) — its own bucket rather than a filter
+// over the melee list, most of which doesn't apply here.
+// `table.base` also picks up the weapon's GENERAL Catacombs Stats Boost
+// (sources.abilityBaseDamageBoost) as a (1 + percent/100) multiplier, distinct from the "Ability
+// Damage" stat's own curve-less formula — see CLAUDE.md. Applied only while useDungeonizedStats is
+// on and the weapon itself is dungeonized; 0, a 1x no-op, otherwise.
+// No Crit Damage step: abilities don't crit. BonusModifiers stays 0.
+// Returns null when the equipped weapon has no table entry.
 export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats = false, useMasterMode = false) {
   const weaponId = loadout.weapon?.item?.id;
   const table = ABILITY_DAMAGE_TABLE[weaponId];
@@ -414,17 +364,13 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   };
 }
 
-// Mage Staff "Beam": not a real item — a Mage Mode calculation feature that's always active,
-// alongside (not instead of) the weapon's own Ability Damage. All melee weapon attacks also fire
-// as a ranged beam dealing a multiple of the character's full melee Final Damage
-// (computeFinalDamage's output for the same mob), scaled up by Intelligence. User-confirmed
-// formula (a flat -1 off the previous base multiplier, Intelligence rate unchanged):
+// Mage Staff Beam: a calculation feature rather than an item, always active alongside the weapon's
+// own Ability Damage. Every melee attack also fires a ranged beam dealing a multiple of the full
+// melee Final Damage for the same mob, scaled by Intelligence:
 //   BeamDamage = MeleeFinalDamage * (0.3 + 0.0009 * Intelligence)
-// Independent of whether the equipped weapon has an ABILITY_DAMAGE_TABLE entry — unlike
-// computeAbilityDamage, this never returns null for that reason. Uses the same dungeon/master-
-// respective Intelligence as the rest of Mage Mode, via the shared selectBaseStats. Purely
-// multiplicative on meleeFinalDamage, so a joke-mob's already-zeroed melee damage (see
-// isJokeMob in computeFinalDamage) naturally zeroes the Beam too — no separate gate needed here.
+// Independent of ABILITY_DAMAGE_TABLE, so unlike computeAbilityDamage it never returns null for a
+// non-ability weapon. Uses the same dungeon/master Intelligence through selectBaseStats. Purely
+// multiplicative on meleeFinalDamage, so a joke mob's zeroed melee damage zeroes the Beam too.
 const MAGE_STAFF_BEAM_BASE_MULTIPLIER = 0.3;
 const MAGE_STAFF_BEAM_INTELLIGENCE_RATE = 0.0009;
 
@@ -437,15 +383,11 @@ export function computeMageStaffBeamDamage(sources, mob, meleeFinalDamage, useDu
   return { meleeFinalDamage, intelligence, finalDamage };
 }
 
-// Crimson Swipe: a melee-only proc on meleeFinalDamage. `swipeInfo` is armorSetBonuses.js's
-// computeCrimsonSwipeInfo() result (null when fewer than 2 Crimson-family pieces are worn, in
-// which case this returns null too). User-confirmed real formula (2026-08-23), replacing an
-// earlier flat-14.5%-of-Final-Damage placeholder:
+// Crimson Swipe: a melee-only proc on meleeFinalDamage. `swipeInfo` is computeCrimsonSwipeInfo()'s
+// result, null when fewer than 2 Crimson-family pieces are worn, in which case this returns null.
 //   Damage_swipe = MeleeFinal * (SwipeMultiplier * 100) / TotalAdditivePercent
-// `additivePercent` is the same raw summed additive % computeFinalDamage already produces (e.g.
-// 300 for +300%, NOT the 1+x/100 multiplier form) — the more additive damage % a player has
-// already stacked, the smaller Swipe's own share of Final Damage. Guards the (rare, near-0-gear)
-// divide-by-zero case rather than emitting Infinity/NaN.
+// `additivePercent` is the raw summed additive % (300 for +300%, not the 1+x/100 form), so the more
+// additive damage is stacked the smaller Swipe's own share. Guards the divide-by-zero case.
 export function computeCrimsonSwipeDamage(mob, meleeFinalDamage, swipeInfo, additivePercent) {
   if (!swipeInfo) return null;
   if (isShieldedMob(mob)) return { ...swipeInfo, meleeFinalDamage, finalDamage: 1 };
@@ -454,35 +396,26 @@ export function computeCrimsonSwipeDamage(mob, meleeFinalDamage, swipeInfo, addi
   return { ...swipeInfo, meleeFinalDamage, finalDamage };
 }
 
-// Venomous: a per-hit-per-second proc. User-confirmed real formula:
-//   BaseDamage = X% of (real melee) Final Damage
-//   ProcDamage = BaseDamage * (product of every "ability-eligible" multiplier)
-// "ability-eligible" is the same additive/multiplicative source set Mage Mode's Ability Damage
-// formula counts (Giant Killer, Execute, the 7 type-bane enchants, Combat Level, Ruler/Dominance,
-// etc. — see collectDamageSources' abilityEligible tagging), explicitly EXCLUDING Skyblock Level
-// even though that's normally ability-eligible too (user-confirmed exclusion). Unlike
-// computeAbilityDamage, this multiplies onto the already-fully-computed meleeFinalDamage rather
-// than a from-scratch InitialDamage — meleeFinalDamage already has every real bonus baked in, and
-// the ability-eligible multiplier is a real second application on top of that, per the confirmed formula.
-// `sources.venomousProc` is null when Venomous isn't equipped, in which case this returns null too.
+// Venomous: a per-hit, per-second proc.
+//   BaseDamage = X% of melee Final Damage
+//   ProcDamage = BaseDamage * (product of every ability-eligible multiplier)
+// "ability-eligible" is the same source set Ability Damage counts (Giant Killer, Execute, the 7
+// type-bane enchants, Combat Level, Ruler/Dominance), but excluding Skyblock Level. Unlike
+// computeAbilityDamage this multiplies onto the finished meleeFinalDamage rather than a from-scratch
+// initial damage. Returns null when Venomous isn't equipped.
 const VENOMOUS_EXCLUDED_MULTIPLICATIVE_ID = 'skyblock-level';
 
-// Real Venomous mechanic: every landed hit adds its own independent DoT stack (not a refresh),
-// stacking globally up to 40 — each active stack ticks the same per-hit ProcDamage on its own, so
-// N stacks in flight deal N * ProcDamage per second. computeVenomousProcDamage above returns the
-// single-stack (N=1) value; DamageSources.jsx's stack graph multiplies it out to this cap.
+// Every landed hit adds its own DoT stack rather than refreshing one, stacking to 40, and each stack
+// ticks the same ProcDamage per second. This returns the single-stack value; DamageSources.jsx's
+// graph multiplies it out to the cap.
 export const MAX_VENOMOUS_STACKS = 40;
 
-// User-confirmed: Venomous' poison DoT doesn't apply to these bosses in-game (real mechanic, not
-// a joke-mob/token-damage case — every other damage source still works normally against them).
-// Quazii/Typhoeus added 2026-09-09; unlike Inferno Demonlord below they're fully immune, not
-// reduced.
+// Bosses Venomous' poison doesn't apply to at all. Every other damage source works normally.
 const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror', 'Quazii', 'Typhoeus']);
 
-// Not immune, but heavily resistant: the poison still ticks, at 1% of its normal damage
-// (user-specified 2026-09-08 — Inferno Demonlord was in the immune set above until then). `label`
-// names the real mechanic doing the reducing and is surfaced next to the DPS row so a suspiciously
-// tiny Venomous number reads as a real mob mechanic rather than a bug.
+// Not immune but heavily resistant: the poison still ticks, at 1% of its normal damage. `label` names
+// the mechanic and is shown beside the DPS row, so a tiny Venomous number reads as a mob mechanic
+// rather than a bug.
 const VENOMOUS_REDUCED_MOBS = {
   'Inferno Demonlord': { multiplier: 0.01, label: 'Hellion Shield' },
 };
@@ -509,8 +442,8 @@ export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
     if (!e.condition || conditionMatchesMob(e.condition, mob)) multiplicativeMultiplier *= e.value;
   }
 
-  // Folded into the same single floor as everything else rather than floored twice — at 1% a
-  // second rounding step would quantise the result hard enough to matter.
+  // Folded into the same single floor rather than floored twice: at 1% a second rounding step would
+  // quantise the result enough to matter.
   const reduction = VENOMOUS_REDUCED_MOBS[mob?.name];
   const reductionMultiplier = reduction?.multiplier ?? 1;
   const additiveMultiplier = 1 + additivePercent / 100;
@@ -527,22 +460,19 @@ export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
   };
 }
 
-// Fire Aspect/Thunderlord: simple X% of real melee Final Damage per level — unlike Venomous
-// above, no restricted modifier set, just a straight cut of the same finalDamage already shown.
-// `proc` is sources.fireAspectProc/thunderlordProc (null when that enchant isn't equipped) — the
-// two share this one function and neither has a per-mob immunity of its own (Thunderlord used to
-// be zeroed against Inferno Demonlord here; user-corrected 2026-09-08, it does apply in-game).
+// Fire Aspect and Thunderlord: X% of melee Final Damage per level. Unlike Venomous there is no
+// restricted modifier set, just a cut of the same finalDamage. `proc` is
+// sources.fireAspectProc/thunderlordProc, null when that enchant isn't equipped; the two share this
+// function and neither has a per-mob immunity.
 export function computeEnchantProcDamage(mob, meleeFinalDamage, proc) {
   if (!proc) return null;
   if (isShieldedMob(mob)) return { ...proc, finalDamage: 1 };
   return { ...proc, finalDamage: Math.floor(meleeFinalDamage * (proc.percent / 100)) };
 }
 
-// Melee hit rate isn't continuous in Bonus Attack Speed — real per-hit time only changes at these
-// exact breakpoints, holding steady in between. User-provided real thresholds. Exported so
-// lib/tuningOptimizer.js's auto-spend can target "just enough points to reach the next breakpoint"
-// as a single lumpy move, instead of a naive per-point search that never sees a breakpoint's payoff
-// (every individual point below the threshold shows zero gain on its own).
+// Melee hit rate is not continuous in Bonus Attack Speed: per-hit time changes only at these
+// breakpoints and holds steady in between. Exported so lib/tuningOptimizer.js can spend points to
+// reach the next breakpoint as one lumpy move, since each point below a threshold shows no gain.
 export const MELEE_HIT_RATE_BREAKPOINTS = [
   { threshold: 0, secondsPerHit: 0.5 },
   { threshold: 6, secondsPerHit: 0.45 },
@@ -553,11 +483,9 @@ export const MELEE_HIT_RATE_BREAKPOINTS = [
   { threshold: 123, secondsPerHit: 0.2 },
 ];
 
-// A bow's own breakpoints — the same seven rates, reached at different Bonus Attack Speed
-// (user-specified 2026-09-11). They sit further apart than melee's, so an identical Attack Speed
-// stat fires noticeably slower from a bow: 82 is already 0.25s melee but still 0.3s drawn.
-// The 0.2s row is NOT dead despite the 100 cap below — a full Thermodynamic set raises that cap to
-// exactly 150, which is the only way to reach it, from either weapon.
+// A bow's own breakpoints: the same seven rates at different Bonus Attack Speed, spaced further
+// apart, so the same stat fires slower from a bow — 82 is 0.25s melee but still 0.3s drawn. The
+// 0.2s row is reachable only with a full Thermodynamic set, which raises the cap below to 150.
 const BOW_SHOT_RATE_BREAKPOINTS = [
   { threshold: 0, secondsPerHit: 0.5 },
   { threshold: 12, secondsPerHit: 0.45 },
@@ -568,8 +496,8 @@ const BOW_SHOT_RATE_BREAKPOINTS = [
   { threshold: 150, secondsPerHit: 0.2 },
 ];
 
-// Bonus Attack Speed caps at 100, except the full 4-piece Thermodynamic Armor set raises it to 150.
-// Bows share this cap exactly (user-confirmed 2026-09-11) — only the breakpoints differ.
+// Bonus Attack Speed caps at 100, except with the full 4-piece Thermodynamic set, which raises it to
+// 150. Bows share the cap exactly; only the breakpoints differ.
 const ATTACK_SPEED_CAP = 100;
 const THERMODYNAMIC_ATTACK_SPEED_CAP = 150;
 const THERMODYNAMIC_SET = ['THERMODYNAMIC_HELMET', 'THERMODYNAMIC_CHESTPLATE', 'THERMODYNAMIC_LEGGINGS', 'THERMODYNAMIC_BOOTS'];
@@ -579,8 +507,8 @@ function cappedAttackSpeed(bonusAttackSpeed, loadout) {
   return Math.min(bonusAttackSpeed || 0, cap);
 }
 
-// Both rates are a table lookup, not a continuous scale: the value is whichever row's threshold the
-// capped Attack Speed has passed, so everything between two thresholds fires at the same rate.
+// Both rates are a table lookup rather than a continuous scale: the value is whichever row's
+// threshold the capped Attack Speed has passed, so everything between two thresholds fires alike.
 function ratePerSecond(breakpoints, clamped) {
   let secondsPerHit = breakpoints[0].secondsPerHit;
   for (const bp of breakpoints) {
@@ -589,8 +517,8 @@ function ratePerSecond(breakpoints, clamped) {
   return 1 / secondsPerHit;
 }
 
-// Melee hits/second at a given Bonus Attack Speed — looked up from the real breakpoint table
-// above (not a continuous scale), capped before lookup.
+// Melee hits per second at a given Bonus Attack Speed, looked up from the breakpoint table above
+// after capping.
 export function computeMeleeHitsPerSecond(bonusAttackSpeed, loadout) {
   return ratePerSecond(MELEE_HIT_RATE_BREAKPOINTS, cappedAttackSpeed(bonusAttackSpeed, loadout));
 }
@@ -600,10 +528,9 @@ export function computeBowShotsPerSecond(bonusAttackSpeed, loadout) {
   return ratePerSecond(BOW_SHOT_RATE_BREAKPOINTS, cappedAttackSpeed(bonusAttackSpeed, loadout));
 }
 
-// DPS Mode: turns each already-computed per-hit/per-proc damage number into damage-per-second by
-// multiplying by its own real hit/proc rate. Melee's rate is the real breakpoint above (varies by
-// loadout); the rest are user-provided fixed rates. A proc missing from `mobResult` (enchant/armor
-// not equipped) contributes 0, same as it being absent from the melee Final Damage panel above.
+// DPS Mode: turns each per-hit or per-proc damage number into damage per second by multiplying by
+// its own rate. Melee's rate is the breakpoint lookup above; the rest are fixed. A proc missing from
+// `mobResult` contributes 0.
 export const DPS_HITS_PER_SECOND = {
   venomous: 1,
   thunderlord: 0.6,
@@ -611,41 +538,37 @@ export const DPS_HITS_PER_SECOND = {
   crimsonSwipe: 1,
 };
 
-// Crimson Swipe's opening proc: the fight's first hit always procs Swipe, at double damage
-// (user-specified 2026-09-15). Only simulateHitByHit models a fight's first hit; the steady-state
-// DPS above is every hit after it, the same way it leaves out First Strike.
+// Crimson Swipe's opening proc: the fight's first hit always procs Swipe, at double damage. Only
+// simulateHitByHit models a first hit; the steady-state DPS above is every hit after it, the same
+// way it leaves out First Strike.
 export const CRIMSON_SWIPE_FIRST_HIT_MULTIPLIER = 2;
 
-// Duplex (Reiterate) ultimate enchant, bow-only: a guaranteed extra arrow dealing +4%/level of
-// the first arrow's damage — real lore, confirmed level 1-5: 4/8/12/16/20% (level 5 -> 1.2x DPS,
-// user-confirmed 2026-08-29). https://hypixelskyblock.minecraft.wiki/w/Duplex
+// Duplex (Reiterate), bow only: a guaranteed extra arrow dealing +4% per level of the first arrow's
+// damage — 4/8/12/16/20% at levels I-V, so level 5 is a 1.2x DPS multiplier.
 const DUPLEX_DAMAGE_PERCENT_PER_LEVEL = 4;
 function getDuplexLevel(loadout) {
   const ultimate = loadout.weapon?.modifiers?.ultimateEnchantment;
   return ultimate?.id?.toLowerCase() === 'ultimate_reiterate' ? ultimate.level || 0 : 0;
 }
 
-// `sources`/`mob` mirror computeFinalDamage's params (`useDungeonizedStats`/`useMasterMode` too);
-// everything DPS-mode needs — steady-state melee hit plus every proc — is derived here from
-// scratch rather than reusing a caller's already-computed melee-mode finalDamage/procs, since
-// those bake in First Strike/Triple Strike's opening-hit-only bonus (see computeFinalDamage's
-// excludeFirstHitOnly) which must NOT be multiplied into every hit/second below.
+// `sources`/`mob` mirror computeFinalDamage's parameters, as do useDungeonizedStats/useMasterMode.
+// Everything DPS mode needs — the steady-state melee hit plus every proc — is derived here rather
+// than reused from a caller's melee-mode numbers, which bake in First Strike/Triple Strike's
+// opening-hit bonus and must not be multiplied into every hit per second.
 export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats = false, useMasterMode = false) {
-  // Through selectBaseStats, not sources.baseStats: the raw block is the non-dungeon, pre-set-bonus
-  // total, so reading it here dropped Final Destination's +20 Bonus Attack Speed against Ender mobs
-  // (user-reported 2026-09-17) and the Catacombs-scaled attack speed with the Dungeon toggle on.
-  // Its Strength half was never affected — that rides computeFinalDamage, which selects correctly.
+  // Through selectBaseStats rather than sources.baseStats: the raw block is the non-dungeon,
+  // pre-set-bonus total, which drops Final Destination's +20 Bonus Attack Speed against Ender mobs
+  // and the Catacombs-scaled attack speed under the Dungeon toggle.
   const stats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
   const bonusAttackSpeed = stats.bonus_attack_speed || 0;
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
   const steadyFinalDamage = computeFinalDamage(sources, mob, useDungeonizedStats, useMasterMode, true);
   const meleeFinalDamage = steadyFinalDamage.finalDamage;
 
-  // Crit-chance-weighted expected damage per arrow/hit: below 100% real Crit Chance, some hits
-  // don't crit at all (finalDamageNonCrit instead of finalDamage); with Overload equipped on a
-  // bow, any Crit Chance beyond 100% becomes a chance for that hit to be a guaranteed "Mega Crit"
-  // instead of a normal crit (user-confirmed formula, 2026-08-29: OverloadChance = FinalCritChance
-  // - 100, evaluated after every modifier including Terminator's divide-by-4 and Dungeon boosts).
+  // Crit-chance-weighted expected damage per hit: below 100% Crit Chance some hits don't crit
+  // (finalDamageNonCrit rather than finalDamage), and with Overload on a bow any Crit Chance past
+  // 100 becomes a chance of a guaranteed Mega Crit — OverloadChance = FinalCritChance - 100,
+  // evaluated after every modifier including Terminator's divide-by-4 and the Dungeon boosts.
   const critChance = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob).crit_chance || 0;
   const hasOverload = (sources.overloadBonusPercent || 0) > 0;
   const critHitChance = Math.min(Math.max(critChance, 0), 100) / 100;
@@ -657,16 +580,12 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     normalCritChance * meleeFinalDamage +
     megaCritChance * meleeFinalDamage * (1 + (sources.overloadBonusPercent || 0) / 100);
 
-  // Duplex/Terminator: Terminator's real lore ("Shoots 3 arrows at once") means its volley is 3x
-  // the single-arrow expected damage. Duplex does not multiply all 3 arrows on Terminator — only
-  // one of the three gets the Duplex bonus, the other two are unmultiplied (user-confirmed
-  // 2026-08-29): arrow*(1+4%*level) + 2*arrow, instead of 3*arrow*(1+4%*level) elsewhere.
+  // Terminator shoots 3 arrows at once, so its volley is 3x the single-arrow expected damage. Duplex
+  // boosts only one of those three: arrow*(1+4%*level) + 2*arrow, rather than 3*arrow*(1+4%*level).
   const duplexLevel = getDuplexLevel(loadout);
   const isTerminator = loadout.weapon?.item?.id === 'TERMINATOR';
-  // Real weapon category, exposed so DamageSources.jsx can label this whole DPS source "Arrow" vs
-  // "Melee" instead of always saying "Melee" even for a Bow (user-specified 2026-09-01) — a real
-  // loadout only ever has one weapon equipped, so the two labels are mutually exclusive by
-  // construction, not something that needs its own separate row.
+  // The weapon's category, exposed so DamageSources.jsx can label this DPS source "Arrow" or
+  // "Melee". A loadout holds one weapon, so the two labels are mutually exclusive by construction.
   const isBowWeapon = (loadout.weapon?.item?.category || '').toUpperCase().includes('BOW');
   const duplexMultiplier = 1 + (DUPLEX_DAMAGE_PERCENT_PER_LEVEL * duplexLevel) / 100;
   const bowVolleyDamage = isTerminator
@@ -674,20 +593,17 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
       ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
       : expectedArrowDamage * 3
     : expectedArrowDamage * duplexMultiplier;
-  // Duplex isn't a separate hit/proc — it's a multiplier on the existing volley — so unlike the
-  // real additional procs below, decomposing it means comparing against what the same volley
-  // would've been at duplexLevel 0, not adding a new damage source. Exposed as its own DPS
-  // delta (user-specified 2026-09-01: "duplex (if using)" as its own breakdown line) so
-  // DamageSources.jsx can show "Melee/Arrow DPS" as the non-Duplex base and "Duplex DPS" as the
-  // bonus on top, summing back to the same real total `melee` already was.
+  // Duplex is a multiplier on the existing volley rather than a separate hit, so decomposing it means
+  // comparing against the same volley at duplexLevel 0. Exposed as its own DPS delta so
+  // DamageSources.jsx can show the non-Duplex base and the Duplex bonus separately, summing back to
+  // the same `melee` total.
   const bowVolleyDamageWithoutDuplex = isTerminator ? expectedArrowDamage * 3 : expectedArrowDamage;
   const duplexBonusDps = duplexLevel > 0 ? (bowVolleyDamage - bowVolleyDamageWithoutDuplex) * meleeHitsPerSecond : 0;
 
   const melee = bowVolleyDamage * meleeHitsPerSecond;
-  // Every proc below scales off "a normal hit's damage" (not the bow-specific 3-arrow/Duplex
-  // volley above) — now the crit-chance-weighted expectedArrowDamage rather than the old
-  // always-crit meleeFinalDamage, so every real DPS number reflects real Crit Chance/Overload
-  // (user-specified 2026-08-29: "For ALL dps calculation - crit chance math should be factored in").
+  // Every proc below scales off a normal hit's damage rather than the bow's 3-arrow/Duplex volley,
+  // using the crit-weighted expectedArrowDamage so each DPS number reflects real Crit Chance and
+  // Overload.
   const venomousProc = computeVenomousProcDamage(sources, mob, expectedArrowDamage);
   const thunderlordProc = computeEnchantProcDamage(mob, expectedArrowDamage, sources.thunderlordProc);
   const fireAspectProc = computeEnchantProcDamage(mob, expectedArrowDamage, sources.fireAspectProc);
@@ -701,21 +617,17 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   const thunderlord = (thunderlordProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.thunderlord;
   const fireAspect = (fireAspectProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.fireAspect;
   const crimsonSwipe = (crimsonSwipeProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.crimsonSwipe;
-  // Mage Beam fires alongside (not instead of) every melee hit (see computeMageStaffBeamDamage's
-  // own comment) — same real per-second rate as melee, since it's the same swing. Not folded into
-  // `total` here (every other caller of this function — the Optimizer's Slayer/Diana/Dungeon-
-  // Archer DPS metric, the by-hit graph, etc. — intentionally means melee-family DPS only, the
-  // Optimizer's own separate 'dungeon_mage_beam' mode already covers Beam-focused ranking).
-  // DamageSources.jsx's own DPS view adds this in on top of `total` when Mage Mode is also active
-  // (user-confirmed 2026-08-28), and notes as much on-screen.
+  // Mage Beam fires alongside every melee hit, at the same rate, since it is the same swing. Not
+  // folded into `total`: every other caller means melee-family DPS only, and the Optimizer has its
+  // own 'dungeon_mage_beam' mode. DamageSources.jsx's DPS view adds it on top of `total` while Mage
+  // Mode is active and says so on screen.
   const beamProc = computeMageStaffBeamDamage(sources, mob, expectedArrowDamage, useDungeonizedStats, useMasterMode);
   const beam = beamProc.finalDamage * meleeHitsPerSecond;
 
-  // The same volley, fired at a bow's own rate rather than melee's (see BOW_SHOT_RATE_BREAKPOINTS).
-  // Deliberately carries NO procs — Venomous/Thunderlord/Fire Aspect/Crimson Swipe ride a melee
-  // swing or a beam, never an arrow (user-specified 2026-09-11) — so unlike `melee` this figure is
-  // the whole Bow DPS, not one term of a sum. Reported for every loadout; whether a bow is actually
-  // equipped is the caller's question to ask (see `isBowWeapon`).
+  // The same volley at a bow's own rate (BOW_SHOT_RATE_BREAKPOINTS), carrying no procs:
+  // Venomous/Thunderlord/Fire Aspect/Crimson Swipe ride a melee swing or a beam, never an arrow. So
+  // unlike `melee` this is the whole Bow DPS rather than one term of a sum. Reported for every
+  // loadout; whether a bow is equipped is the caller's question (see `isBowWeapon`).
   const bowShotsPerSecond = computeBowShotsPerSecond(bonusAttackSpeed, loadout);
   const bow = bowVolleyDamage * bowShotsPerSecond;
   return {
@@ -731,9 +643,8 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     total: melee + venomous + thunderlord + fireAspect + crimsonSwipe,
     venomousProc,
     beamProc,
-    // Steady-state per-hit melee damage (excludes First Strike/Triple Strike) — exposed so
-    // DamageSources.jsx's by-hit graph can compare it against the opening-hit(s)' real (boosted)
-    // per-hit value to plot the DPS dip once those enchants stop applying.
+    // Steady-state per-hit melee damage, excluding First Strike/Triple Strike, so the by-hit graph can
+    // compare it against the boosted opening hits and plot the DPS dip.
     meleeFinalDamage,
     // Crit-chance/Overload/Duplex breakdown behind `melee` above — exposed for display/debugging.
     nonCritChance,
@@ -745,31 +656,24 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
 }
 
 
-// Real hit-by-hit fight simulation against a specific starting HP (lib/mobHp.js's
-// resolveStartingHp) — unlike computeDpsBreakdown's single steady-state DPS number, this tracks
-// the mob's remaining HP hit-by-hit so Execute/Prosecute's real value (which depends on current
-// mob HP%, see damageSources.js's executeProsecuteRate) actually changes over the fight instead
-// of being frozen at one static % for every hit. `startingHp` null/0 means no real number is
-// confirmed for this mob yet (docs/mob-hp-followups.md) — falls back to holding HP% constant at
-// `fallbackHpPercent` (the existing Mob HP% slider value) for every hit, matching the site's
-// prior static-% behavior, while still gaining the proc-bump/Venomous modeling below. `sources`
-// must come from a collectDamageSources call made with mobHpPercent=100 when startingHp is real,
-// so First Strike/Triple Strike's opening-hit-only entry (gated on mobHpPercent===100 at
-// collection time) is actually present for this function's own excludeFirstHitOnly gating to work —
-// the caller (DamageSources.jsx) is responsible for that; this function just consumes it as-is.
+// Hit-by-hit fight simulation against a specific starting HP (lib/mobHp.js's resolveStartingHp).
+// Unlike computeDpsBreakdown's single steady-state number, this tracks the mob's remaining HP per
+// hit, so Execute/Prosecute's value changes over the fight rather than being frozen at one HP%.
+// `startingHp` null or 0 means no confirmed HP for this mob: HP% is then held at
+// `fallbackHpPercent` for every hit, while still modelling the procs and Venomous below. When
+// startingHp is real, `sources` must come from a collectDamageSources call made at
+// mobHpPercent=100, so the opening-hit entries exist for excludeFirstHitOnly to gate per hit; the
+// caller is responsible for that.
 //
-// Fire Aspect/Thunderlord/Crimson Swipe fire as discrete lump procs (their own real finalDamage,
-// via computeEnchantProcDamage/computeCrimsonSwipeDamage) rather than smoothly blended DPS — no
-// per-hit trigger chance is confirmed for any of them, so each is spread evenly across the fight
-// via an accumulator that crosses 1 every `meleeHitsPerSecond / rate` hits, reproducing the exact
-// same already-confirmed long-run average (DPS_HITS_PER_SECOND) as a placement choice, not a new
-// guessed mechanic. Venomous is the opposite case — a genuinely continuous per-second DoT across
-// every active stack, not a discrete per-hit event — so its contribution is amortized instead:
-// (per-stack damage × active stacks × its own per-second rate) / hits-per-second, i.e. "how much
-// poison ticks during roughly one attack cycle," growing every hit as stacks accumulate.
+// Fire Aspect, Thunderlord and Crimson Swipe fire as discrete lump procs (their own finalDamage,
+// via computeEnchantProcDamage/computeCrimsonSwipeDamage) rather than blended DPS: no per-hit
+// trigger chance is known, so each is spread across the fight by an accumulator that crosses 1
+// every meleeHitsPerSecond / rate hits, reproducing the same long-run average as
+// DPS_HITS_PER_SECOND. Venomous is the opposite case — a continuous DoT across every active stack —
+// so its contribution is amortized instead: per-stack damage x active stacks x its per-second rate,
+// divided by hits per second, growing as stacks accumulate.
 //
-// Stops early once remainingHp reaches 0 (mob's dead — no further hits simulated) rather than
-// always running the full hitCount.
+// Stops early once remainingHp reaches 0 rather than running the full hitCount.
 export function simulateHitByHit(
   sources,
   mob,
@@ -801,8 +705,8 @@ export function simulateHitByHit(
   const crimsonSwipeRate = swipeInfo ? DPS_HITS_PER_SECOND.crimsonSwipe / meleeHitsPerSecond : 0;
   let fireAspectAcc = 0;
   let thunderlordAcc = 0;
-  // The fight's first hit always procs Crimson Swipe (user-specified 2026-09-15) — primed so hit 1
-  // crosses 1, and every later Swipe keeps the 1/s cadence counted from that opening proc.
+  // The fight's first hit always procs Crimson Swipe, so the accumulator is primed to cross 1 on hit
+  // 1; every later Swipe keeps the 1/s cadence counted from that opening proc.
   let crimsonSwipeAcc = swipeInfo ? 1 - crimsonSwipeRate : 0;
 
   const rate = sources.executeProsecuteRate;
@@ -819,9 +723,8 @@ export function simulateHitByHit(
 
   const hasRealHp = typeof startingHp === 'number' && startingHp > 0;
 
-  // First Strike/Triple Strike only ever apply on the fight's opening hit(s) — probed once here
-  // (same appliedIds-suffix check DamageSources.jsx's old graph used) so the loop below knows how
-  // many opening hits to include them on.
+  // First Strike and Triple Strike apply only on the opening hit(s), probed once here so the loop
+  // below knows how many hits to include them on.
   const openingHpPercent = hasRealHp ? 100 : fallbackHpPercent;
   const { hitSources: openingSources } = buildHitSources(openingHpPercent);
   const openingAppliedIds = [...computeFinalDamage(openingSources, mob, useDungeonizedStats, useMasterMode, false).appliedIds];
@@ -831,10 +734,8 @@ export function simulateHitByHit(
 
   let remainingHp = hasRealHp ? startingHp : null;
   const hits = [];
-  // The simulation only ever runs as far as the window it records. It used to keep swinging past
-  // that, unrecorded, purely to find a "Time to Kill" — removed 2026-09-11: a hits-to-kill figure
-  // is a strange thing to quote for a boss with real mechanics (phases, invulnerability windows,
-  // adds), since nothing in this model knows the fight can be interrupted at all.
+  // The simulation runs only as far as the window it records: no hits-to-kill search, since nothing
+  // here models phases, invulnerability windows or adds.
   const simCap = hitCount;
   for (let hit = 1; hit <= simCap; hit++) {
     const hpPercent = hasRealHp ? Math.max(0, Math.min(100, (remainingHp / startingHp) * 100)) : fallbackHpPercent;
@@ -874,36 +775,33 @@ export function simulateHitByHit(
       if (crimsonSwipeAcc >= 1) {
         crimsonSwipeAcc -= 1;
         crimsonSwipeDamage = computeCrimsonSwipeDamage(mob, expectedArrowDamage, swipeInfo, steady.additivePercent)?.finalDamage || 0;
-        // ...and that opening Swipe deals double damage — the first hit's only (user-specified 2026-09-15).
+        // ...and that opening Swipe deals double damage, on the first hit only.
         if (hit === 1) crimsonSwipeDamage *= CRIMSON_SWIPE_FIRST_HIT_MULTIPLIER;
       }
     }
 
     let venomousDamage = 0;
     if (sources.venomousProc) {
-      // Real stacks cap at MAX_VENOMOUS_STACKS, which is also this window's length — so the cap
-      // only binds on the final hit rather than being a ceiling the loop spends time against.
+      // Stacks cap at MAX_VENOMOUS_STACKS, which is also this window's length, so the cap binds only
+      // on the final hit.
       const activeStacks = Math.min(hit, MAX_VENOMOUS_STACKS);
       const perStack = computeVenomousProcDamage(hitSources, mob, expectedArrowDamage)?.finalDamage || 0;
       venomousDamage = (perStack * activeStacks * DPS_HITS_PER_SECOND.venomous) / meleeHitsPerSecond;
     }
 
     const totalDamage = meleeDamage + fireAspectDamage + thunderlordDamage + crimsonSwipeDamage + venomousDamage;
-    // totalDamage above is already "damage dealt during this one hit-interval" (procs amortized
-    // to their share of that interval, same reasoning as venomousDamage's own division by
-    // meleeHitsPerSecond) — multiplying back by meleeHitsPerSecond converts it to the real
-    // instantaneous DPS this specific hit represents, which is what actually varies hit-to-hit as
-    // Venomous stacks build and Execute/Prosecute's value ramps with draining HP%, unlike the
-    // single fixed-snapshot number computeDpsBreakdown reports.
+    // totalDamage is damage dealt during one hit-interval, with procs amortized to their share of it,
+    // so multiplying back by meleeHitsPerSecond gives the instantaneous DPS this hit represents —
+    // which varies hit to hit as Venomous stacks build and Execute/Prosecute ramps with draining HP%.
     const dps = totalDamage * meleeHitsPerSecond;
 
     if (hit <= hitCount) {
       hits.push({
-        // Recorded 0-based for display (user-specified 2026-09-15). Each row is "this hit is about
-        // to land": hpPercent is the mob's HP BEFORE it. Numbering from 1 therefore drew the fight
-        // starting at 100% HP on x=1 and only showed the opening hit's damage landing at x=2; at 0,
-        // x=0 is the full-HP opening hit and the HP line drops at x=1. The loop stays 1-based —
-        // First Strike's opening window and Crimson Swipe's doubled first proc both key off `hit`.
+        // Recorded 0-based for display. Each row is "this hit is about to land": hpPercent is the
+        // mob's HP BEFORE it, so numbering from 1 would draw the fight at 100% HP on x=1 and land the
+        // opening hit's damage at x=2. At 0, x=0 is the full-HP opening hit and the HP line drops at
+        // x=1. The loop itself stays 1-based, since First Strike's window and Crimson Swipe's doubled
+        // first proc both key off `hit`.
         hit: hit - 1,
         hpPercent,
         meleeDamage,
@@ -917,22 +815,20 @@ export function simulateHitByHit(
       });
     }
 
-    // Still stops on death, so a mob that dies inside the window doesn't get padded with hits
-    // that never happen — the average below is then over the real, shorter fight.
+    // Stops on death, so a mob that dies inside the window isn't padded with hits that never happen;
+    // the average below is then over the shorter fight.
     if (hasRealHp) {
       remainingHp = Math.max(0, remainingHp - totalDamage);
       if (remainingHp <= 0) break;
     }
   }
 
-  // Max/min across the same window the graph plots and the average below covers — one window for
-  // all three now that nothing runs past it.
+  // Max and min across the same window the graph plots and the average covers.
   const maxDps = hits.length > 0 ? Math.max(...hits.map((h) => h.dps)) : null;
   const minDps = hits.length > 0 ? Math.min(...hits.map((h) => h.dps)) : null;
 
-  // How long the recorded hits actually span — the denominator for a fight-average DPS. Exposed
-  // rather than left to each caller to re-derive, which is how one of them ended up dividing this
-  // window's damage by a whole-fight duration and understating DPS by ~40/totalHits.
+  // How long the recorded hits span: the denominator for a fight-average DPS, exposed so callers
+  // don't re-derive it against a whole-fight duration instead.
   const elapsedSeconds = hits.length / meleeHitsPerSecond;
   return { hits, hasRealHp, meleeHitsPerSecond, elapsedSeconds, maxDps, minDps };
 }
