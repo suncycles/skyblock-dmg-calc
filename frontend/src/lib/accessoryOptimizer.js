@@ -30,6 +30,7 @@ import { computeModeDamage, computeModeDamageAndSources, getModeConfig, withOpti
 import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
 import { cheapestPerfectGemstonePrice } from './pricing';
+import { readSlotState, slotCostForNewAccessory } from './accessorySlots';
 
 export const MAGICAL_POWER_BY_RARITY = {
   COMMON: 3,
@@ -309,6 +310,10 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   const tunedCritChance = tunedSources.baseStats.crit_chance || 0;
   const hasOverload = (tunedSources.overloadBonusPercent || 0) > 0;
 
+  // How full the Accessory Bag is, and what another slot would cost — null without a Hypixel import,
+  // which leaves every candidate priced exactly as it was before (lib/accessorySlots.js).
+  const slotState = readSlotState(loadout, build.attributes);
+
   const results = [];
   for (const candidate of candidates) {
     const newPoints = computeTotalTuningPoints(
@@ -347,10 +352,18 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
     if (percentIncrease <= 0.001) continue;
-    const cost = lookupAccessoryCost(candidate, itemData);
+    // A brand-new accessory also has to fit in the bag: with no free slot, the cheapest slot on the
+    // market is part of what it really costs (user-specified 2026-09-17, lib/accessorySlots.js).
+    // Upgrade/Recombobulate/Perfect-Gemstone candidates reuse the slot their accessory already
+    // occupies, so they carry no slot cost.
+    const slot = candidate.kind === 'missing' ? slotCostForNewAccessory(slotState, itemData) : null;
+    const itemCost = lookupAccessoryCost(candidate, itemData);
+    const cost = typeof itemCost === 'number' && typeof slot?.coins === 'number' ? itemCost + slot.coins : itemCost;
     results.push(
       withCost({
         id: candidate.id,
+        slotCost: slot && slot.coins ? slot.coins : null,
+        slotNote: slot?.note || null,
         label: candidate.kind === 'generic' ? candidate.name : `${candidate.name} (+${candidate.mpGain} MP)`,
         category: CATEGORY_LABELS[candidate.kind] || candidate.kind,
         slot: 'accessory',

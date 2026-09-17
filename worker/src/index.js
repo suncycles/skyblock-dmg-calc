@@ -657,6 +657,9 @@ const ATTRIBUTE_SHARD_IDS = {
   // "End Stone Protector", ability name "Unlimited Fortitude" — LEGENDARY, so 24 shards to level
   // 10. Grants Defense, which only the Ankylosaurus pet reads (frontend/src/lib/playerDefense.js).
   fortitude: "ATTRIBUTE_SHARD_FORTITUDE",
+  // "Hideonring" — RARE, +1 Accessory Bag slot per level. Not a damage stat: it's priced so the
+  // Optimizer can charge a new accessory for the bag slot it needs (frontend/src/lib/accessorySlots.js).
+  accessory_size: "ATTRIBUTE_SHARD_ACCESSORY_SIZE",
 };
 
 // Real total shard count to reach an attribute's own max level (always 10 — every rarity in
@@ -1797,6 +1800,11 @@ async function handleHypixelImport(url, env) {
     const liveAccessoryStats = computeLiveAccessoryStats(talismanBagItems, abiphoneContactCount);
     const accessory = {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
+      // The two readable inputs to the Accessory Bag's size: Jacobus purchases (+2 slots each) and
+      // the Redstone Dust collection (6 slots per collection tier). See
+      // frontend/src/lib/accessorySlots.js — the Optimizer prices a new accessory's bag slot from these.
+      bagUpgradesPurchased: member.accessory_bag_storage?.bag_upgrades_purchased || 0,
+      redstoneCollection: member.collection?.REDSTONE || 0,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
       // Every individually-owned accessory's own real stat line, generically summed — see
       // computeLiveAccessoryStats. Replaces the old talismanStrengthBonus/redClawCritDamage

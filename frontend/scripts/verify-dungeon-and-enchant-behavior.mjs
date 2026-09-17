@@ -1208,6 +1208,55 @@ try {
     assert.equal(computeDpsBreakdown(sources, undead, {}).meleeHitsPerSecond, 2, 'non-Ender target: the bare rate');
     assert.equal(simulateHitByHit(sources, ender, {}, null, 100).meleeHitsPerSecond, 2.5, 'the fight simulation reads it too');
   });
+  // 44. Accessory Bag slots (lib/accessorySlots.js), user-specified 2026-09-17: a new accessory needs
+  // a slot, so when none is free its price carries the cheapest slot on the market. Accessory Size
+  // (~1.3M/slot) undercuts Jacobus (10M/slot at the top band) until it is maxed.
+  await check('A new accessory pays for its bag slot only when none is free', async () => {
+    const { readSlotState, slotCostForNewAccessory, nextSlotPurchase, jacobusPurchaseCost } =
+      await server.ssrLoadModule('/src/lib/accessorySlots.js');
+
+    assert.equal(jacobusPurchaseCost(1), 1_500_000);
+    assert.equal(jacobusPurchaseCost(20), 12_000_000, 'the 20th purchase is still 12M');
+    assert.equal(jacobusPurchaseCost(21), 20_000_000, '20M once 40 slots have been bought');
+    assert.equal(jacobusPurchaseCost(99), 20_000_000);
+    assert.equal(jacobusPurchaseCost(100), null, '99 purchases is the cap');
+
+    // 9 base + 42 (collection tier 8) + 16 free + 70 (35 Jacobus) + 10 (Accessory Size) = 147.
+    const loadout = (owned) => ({
+      accessory: { modifiers: { ownedAccessories: owned, bagUpgradesPurchased: 35, redstoneCollection: 245_887 } },
+    });
+    const maxed = { accessory_size: 10 };
+    const full = readSlotState(loadout(new Array(147).fill({ id: 'X' })), maxed);
+    assert.equal(full.total, 147);
+    assert.equal(full.used, 147);
+    assert.equal(full.free, 0);
+
+    const roomy = readSlotState(loadout(new Array(140).fill({ id: 'X' })), maxed);
+    assert.equal(roomy.free, 7);
+    assert.equal(slotCostForNewAccessory(roomy, {}).coins, 0, 'free slots cost nothing');
+
+    // Bag full, Accessory Size maxed -> the next slot is a Jacobus purchase, halved across its 2 slots.
+    assert.equal(slotCostForNewAccessory(full, {}).coins, 10_000_000);
+
+    // Accessory Size not maxed -> its next level is cheaper, so that is what gets charged.
+    const ladder = { costs: { attributeCostsByLevel: { accessory_size: [275_000, 825_000, 1_650_000, 2_475_000, 3_575_000, 4_675_000, 6_050_000, 7_700_000, 9_900_000, 13_200_000] } } };
+    const lowSize = readSlotState(loadout(new Array(140).fill({ id: 'X' })), { accessory_size: 3 });
+    assert.equal(lowSize.total, 140, '3 levels instead of 10 is 7 fewer slots');
+    assert.equal(lowSize.free, 0);
+    const charged = slotCostForNewAccessory(lowSize, ladder);
+    assert.equal(charged.coins, 825_000, 'level 4 costs the gap between rungs 3 and 4');
+    assert.match(charged.note, /Accessory Size 4/, 'and the note names where the slot comes from');
+    assert.equal(nextSlotPurchase(lowSize, ladder).source, 'Accessory Size 4', 'cheaper than Jacobus, so it wins');
+
+    // No import on file: no bag data, so nothing is charged and nothing is claimed.
+    const noImport = readSlotState({ accessory: { modifiers: {} } }, maxed);
+    assert.equal(noImport, null);
+    // An import made before the Worker sent the bag fields: absent is not zero, or a maxed account
+    // would compute a 35-slot bag, read as full, and pay for a slot on every accessory.
+    const staleImport = readSlotState({ accessory: { modifiers: { ownedAccessories: new Array(146).fill({ id: 'X' }) } } }, maxed);
+    assert.equal(staleImport, null, 'missing bag fields keep slots out of the pricing');
+    assert.deepEqual(slotCostForNewAccessory(null, ladder), { coins: 0, free: true, note: null });
+  });
 } finally {
   await server.close();
 }

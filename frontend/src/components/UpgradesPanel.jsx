@@ -153,6 +153,9 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
                 ? 'Cost: free'
                 : `Cost: ${formatCoinsShort(result.cost)}${coinsPerPercent ? ` · ${coinsPerPercent}/%` : ''}`}
           </span>
+          {/* Every new accessory needs a bag slot; when none is free its price is already inside the
+              Cost above, so this line says where that money went (lib/accessorySlots.js). */}
+          {result.slotNote && <span className="text-[10px] text-amber-300/80 truncate">{result.slotNote}</span>}
         </div>
         <span className="flex flex-col items-end leading-tight whitespace-nowrap">
           {/* 3 significant figures: at 1 decimal every sub-0.05% candidate collapsed to "+0.0%",
