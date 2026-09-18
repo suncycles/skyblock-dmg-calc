@@ -62,9 +62,9 @@ export const STAT_LABELS = {
   ability_damage: { label: 'Ability Damage', color: 'a', isPercent: true },
 };
 
-// Exact-match reverse lookup (STAT_LABELS' display label -> internal statKey) — consolidates a
-// lookup that used to be hand-duplicated wherever a lore line's label text needed mapping back to
-// its statKey (lib/dungeonize.js, lib/gemstones.js's stat-bonus extraction).
+// Exact-match reverse lookup (STAT_LABELS' display label -> internal statKey), shared by every
+// caller that maps a lore line's label text back to its statKey (lib/dungeonize.js,
+// lib/gemstones.js's stat-bonus extraction).
 export function statKeyForLabel(label) {
   return Object.keys(STAT_LABELS).find((k) => STAT_LABELS[k].label === label) || null;
 }

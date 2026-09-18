@@ -103,11 +103,10 @@ export const MASTER_STAR_MIN_BASE_STARS = 5;
 export const MAX_MASTER_STARS = 5;
 export const MASTER_STAR_PERCENT_PER_STAR = 5;
 
-// Ability Damage (Wither/Shadow/Dark Goggles, Aurora Helmet, Gilded Midas Staff): user-corrected
-// back to the same 10%/star rate as CATACOMBS_STAR_PERCENT_PER_STAR (an earlier session had this
-// at 11%, since reverted) — but unlike every other stat, it's untouched by the Catacombs Level
-// curve, only by stars and General's Medallion digits (Master Stars still stack normally) — see
-// lib/dungeonize.js's computeAbilityDamageCatacombsBoostPercent.
+// Ability Damage (Wither/Shadow/Dark Goggles, Aurora Helmet, Gilded Midas Staff) uses the same
+// 10%/star rate as CATACOMBS_STAR_PERCENT_PER_STAR, but unlike every other stat it's untouched by
+// the Catacombs Level curve — only stars and General's Medallion digits move it (Master Stars
+// still stack normally). See lib/dungeonize.js's computeAbilityDamageCatacombsBoostPercent.
 export const ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR = 10;
 
 // Circled-digit glyph for a given Master Star count (1-5), for UI display — not part of any real item lore.

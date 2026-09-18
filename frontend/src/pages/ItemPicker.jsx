@@ -50,11 +50,9 @@ function CategoryChip({ label, count, active, onClick }) {
 }
 
 // Generic search-box-plus-full-grid item picker, shared by weapon/armor/equipment/pet pickers.
-// Knows nothing about BuildContext or routing. Search and the category chips both filter the
-// grid itself (an earlier version filtered only an 8-row dropdown, leaving all 206 weapons
-// sitting behind it), and every tile shows the item's own pristine catalog tooltip on hover —
-// choosing between four same-prefix items whose names all truncate to "Aspect of th…" was
-// otherwise guesswork.
+// Knows nothing about BuildContext or routing. Search and the category chips both filter the grid
+// itself, and every tile shows the item's own pristine catalog tooltip on hover — four
+// same-prefix items whose names all truncate to "Aspect of th…" are otherwise guesswork.
 export default function ItemPicker({ items, title, placeholder, loading, error, onSelect, onBack }) {
   const [query, setQuery] = useState('');
   const [activeCategories, setActiveCategories] = useState(() => new Set());

@@ -3,19 +3,17 @@ import { GEMSTONES, GEMSTONE_IDS, TIER_TO_RARITY, getGemstoneBoost, formatGemsto
 import { STAT_LABELS, statKeyForLabel } from './reforgeData';
 
 // Real per-slot type restrictions (item.gemstone_slots' own slot_type, see
-// worker/scripts/build-item-data.mjs — Hypixel's resources API, not in NEU-REPO). Confirmed live:
-// a "COMBAT" slot accepts any of the 6 gems this app models (a real account's Infernal Crimson
-// pieces hold Onyx in a COMBAT slot); "UNIVERSAL" is likewise unrestricted by definition. A slot
-// whose type IS itself one of the 6 gem ids (Hyperion's own "SAPPHIRE" slot, Giant's Sword's two
-// "JASPER" slots) accepts ONLY that one type — the real restriction this app didn't model before.
-// Any other real type (DEFENSIVE/MINING/CHISEL/AMBER/TOPAZ/JADE/AQUAMARINE/CITRINE/PERIDOT) takes
-// none of the 6 gems this calculator has stat data for.
+// worker/scripts/build-item-data.mjs — Hypixel's resources API, not in NEU-REPO):
+// - "COMBAT" and "UNIVERSAL" accept any of the 6 gems this app models.
+// - A slot type that IS one of the 6 gem ids (Hyperion's "SAPPHIRE" slot, Giant's Sword's two
+//   "JASPER" slots) accepts ONLY that type.
+// - Every other real type (DEFENSIVE/MINING/CHISEL/AMBER/TOPAZ/JADE/AQUAMARINE/CITRINE/PERIDOT)
+//   takes none of the 6 this calculator has stat data for.
 const UNRESTRICTED_SLOT_TYPES = new Set(['COMBAT', 'UNIVERSAL']);
 
-// `slotType` is one real gemstone_slots[i].slot_type value, or undefined/null when no real catalog
-// data exists for this slot (an item this app tracks that's missing from Hypixel's resources
-// response, or a slot count beyond what real catalog data covers) — falls back to unrestricted
-// (the old, only-ever behavior) rather than silently zeroing out every candidate for that slot.
+// `slotType` is one real gemstone_slots[i].slot_type value, or undefined/null when no catalog data
+// covers this slot (an item missing from Hypixel's resources response, or a slot count beyond what
+// the catalog covers) — those fall back to unrestricted rather than zeroing out every candidate.
 export function getAllowedGemsForSlotType(slotType) {
   if (!slotType || UNRESTRICTED_SLOT_TYPES.has(slotType)) return GEMSTONE_IDS;
   return GEMSTONE_IDS.includes(slotType) ? [slotType] : [];

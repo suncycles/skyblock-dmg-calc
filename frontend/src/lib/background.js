@@ -6,10 +6,9 @@ import { getMobLocations } from './mobLocations';
 // location (see lib/mobLocations.js) has a mapped background, (3) no mob selected (or an
 // unmapped location) falls back to the Hub, day or night depending on the player's local clock.
 //
-// Each image is a single frame grabbed from the original ALAND's Immersive Skyblock Modpack
-// footage (see Credits), cropped to remove a black border baked into the source recordings
-// (an OBS export artifact, not a bug in this app) and lightly blurred — see
-// docs/rebuild-backgrounds.md for the exact ffmpeg recipe if these ever need regenerating.
+// Each image is a single frame from ALAND's Immersive Skyblock Modpack footage (see Credits),
+// cropped to drop the source recordings' black border and lightly blurred — see
+// docs/rebuild-backgrounds.md for the ffmpeg recipe if these ever need regenerating.
 //
 // Image file notes (all /public/images/backgrounds/*.jpg):
 // - "Isle.jpg" is Crimson Isle (Lotus Atoll has its own "Atoll.jpg").
@@ -18,8 +17,7 @@ import { getMobLocations } from './mobLocations';
 // - "Lava_SC.jpg" is Lava fishing (Crimson Isle's lava lakes), distinct from Crimson Isle itself.
 // - "Catacombs_1.jpg" is used for The Catacombs.
 // - Sea Creatures - Water/Fishing Festival/Spooky and Private Island/Spooky Festival have no
-//   dedicated footage — all of these are Hub-hosted activities (open-water fishing, the two
-//   festivals, and Private Island's own hub-like scenery), so they fall back to "Hub.jpg".
+//   dedicated footage — all are Hub-hosted activities, so they fall back to "Hub.jpg".
 const LOCATION_BACKGROUNDS = {
   'Crimson Isle': { theme: 'inferno', image: '/images/backgrounds/Isle.jpg' },
   'Crystal Hollows': { theme: 'nova', image: '/images/backgrounds/Hollows.jpg' },

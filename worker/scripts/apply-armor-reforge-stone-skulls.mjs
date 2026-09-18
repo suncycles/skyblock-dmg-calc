@@ -1,22 +1,13 @@
 #!/usr/bin/env node
 /**
- * Build-time ingest, same head-render technique as
- * apply-skull-head-icons.mjs but for reforge STONE items (Dragon Claw,
- * Wither Blood, etc. — see worker/src/index.js's fetchReforgeStones)
- * rather than weapons/armor/pets. Unlike those, reforge stones aren't in
- * this project's bundled data files at all (they're fetched live), so
- * lib/icons.js's getReforgeStoneIcon() expects hand-added art at
- * frontend/public/images/reforgestones/{id}.png with no automated
- * fallback — most stones still have no icon there at all.
+ * Bakes head-render icons for the Armor-applicable reforge STONES (itemTypes 'ARMOR'/'HELMET'/
+ * 'CHESTPLATE', or an item-exclusive internalName list containing an armor piece), using the same
+ * skin-texture-hash + mc-heads.net /head/ render as apply-skull-head-icons.mjs — see that
+ * script's header for why the texture hash, not profileId, is what gets rendered.
  *
- * Scoped here to just the Armor-applicable stones (itemTypes 'ARMOR'/
- * 'HELMET'/'CHESTPLATE', or an item-exclusive internalName list that
- * includes an armor piece, e.g. Greater Spook's Great Spook set) rather
- * than all ~81 stones, per request. Every one of these is a real
- * "minecraft:skull" custom-head item in NEU-REPO (spot-checked several
- * before writing this), so the same skin-texture-hash + mc-heads.net
- * /head/ render approach applies directly — see that script's own header
- * comment for why texture hash (not profileId) is what's rendered.
+ * Reforge stones aren't in the bundled data files (worker/src/index.js fetches them live), so
+ * lib/icons.js's getReforgeStoneIcon() reads hand-added art from
+ * frontend/public/images/reforgestones/{id}.png with no automated fallback.
  *
  * Usage: node apply-armor-reforge-stone-skulls.mjs
  */
@@ -75,10 +66,9 @@ async function fetchSkinTextureHash(itemId) {
 async function saveHeadRender(textureHash, outPath) {
   try {
     const res = await fetch(`https://mc-heads.net/head/${textureHash}/${HEAD_RENDER_SIZE}`);
-    // mc-heads.net returns HTTP 200 with a silent default-Steve-skin render (not an error) for
-    // some real, resolvable texture hashes it doesn't otherwise recognize — see
-    // apply-skull-head-icons.mjs's saveHeadRender for the full writeup. Its own
-    // `x-account-valid` response header is the only reliable signal that happened.
+    // mc-heads.net returns HTTP 200 with a silent default-Steve render (not an error) for some
+    // real texture hashes it can't resolve; its `x-account-valid` response header is the only
+    // reliable signal. See apply-skull-head-icons.mjs's saveHeadRender.
     if (!res.ok || res.headers.get('x-account-valid') === 'false') return false;
     const buf = Buffer.from(await res.arrayBuffer());
     writeFileSync(outPath, buf);

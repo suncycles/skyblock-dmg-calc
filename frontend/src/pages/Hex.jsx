@@ -28,10 +28,8 @@ const GRID_LAYOUT = [
   ['empty', 'empty', 'empty', 'empty', 'barrier:Close', 'empty', 'empty', 'empty', 'empty'],
 ];
 
-// Short, player-vernacular label painted under each action icon. The full name stays in the
-// hover title. Nine unlabeled icons was this page's single biggest clarity problem — every other
-// grid in the app (Landing's slots, the pickers' tiles) labels its cells, and this is the one
-// screen where the icons are genuinely ambiguous.
+// Short, player-vernacular label painted under each action icon; the full name stays in the hover
+// title. Every grid in the app labels its cells, and these icons are ambiguous unlabeled.
 const ICON_LABELS = {
   Enchantments: 'Enchants',
   'Ultimate Enchantments': 'Ultimate',
@@ -51,8 +49,8 @@ const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
 // One action cell: icon, permanent label, and — when this modifier is actually set — a badge
-// carrying its VALUE (★5, 3 enchants, the gemstone count) rather than the old flat green
-// background, which said only that *something* was applied and still cost a click to find out what.
+// carrying its VALUE (★5, 3 enchants, the gemstone count), so the cell says what is applied
+// rather than just that something is.
 function IconCell({ icon, iconNode, label, title, enabled, badge, onClick }) {
   return (
     <div
@@ -90,7 +88,7 @@ export default function Hex() {
     slot === 'weapon' ? '/weapon' : ARMOR_SLOT_LABELS[slot] ? `/armor/${slot}` : `/equipment/${slot}`;
 
   // Per-action enabled/disabled state, the reason when disabled, and the badge showing what's
-  // currently applied. One table instead of the eight near-identical inline blocks this replaced.
+  // currently applied — one table for all eight actions.
   function iconConfig(label, currentItem, modifiers) {
     if (!currentItem) return { enabled: false, disabledReason: 'select an item first' };
     switch (label) {
@@ -244,9 +242,8 @@ export default function Hex() {
               }
 
               if (type === 'change') {
-                // Swapping the equipped item used to mean going back to Landing, hitting the 16px
-                // remove ✕, then clicking the now-empty slot — 3 clicks for the most common action
-                // in a damage calculator. This is the same destination the empty slot would open.
+                // Swaps the equipped item in one click: the same destination the empty slot opens,
+                // rather than going back to Landing to remove the item first.
                 return (
                   <IconCell
                     key={key}

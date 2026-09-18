@@ -130,8 +130,8 @@ export async function buildFullItemTooltipLines(
   if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);
   // Real Gear-Score tiered-stat item (Skeleton Master/Zombie Knight — lib/tieredArmorStats.js) at
   // its max boost bumps rarity +1 tier, independent of and BEFORE any Recombobulator bump (mirrors
-  // getDisplayTier's own ordering above — confirmed live: catalog Epic -> this bump -> Legendary
-  // -> recomb bump -> Mythic).
+  // getDisplayTier's own ordering above: catalog Epic -> this bump -> Legendary -> recomb bump ->
+  // Mythic).
   let tierAfterBoostBump = baseTier;
   if (modifiers.baseStatBoostPercentage === MAX_BASE_STAT_BOOST_PERCENTAGE) {
     tierAfterBoostBump = bumpRarity(baseTier);

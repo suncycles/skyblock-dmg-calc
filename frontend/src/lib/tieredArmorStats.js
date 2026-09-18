@@ -96,10 +96,9 @@ export function computeTieredPristineStat(itemId, statKey, itemTier, baseStatBoo
 // lib/hypixelImport.js's resolveDungeonizedFlag: these items are exclusively mob drops from a
 // dungeon Floor with no non-dungeon-obtainable variant (unlike e.g. Bonzo Staff, buyable and
 // optionally converted via a Dungeonizer), so a real copy is always dungeonized even when its
-// `ExtraAttributes.dungeon_item` flag is absent — confirmed live: sammui's real
-// Skeleton Master Chestplate's full decoded NBT has no `dungeon_item` key at all (only
-// `dungeon_skill_req`), yet Hypixel's own rendered lore unambiguously shows a real Catacombs Boost
-// annotation matching this app's formula exactly.
+// `ExtraAttributes.dungeon_item` flag is absent. A real Skeleton Master Chestplate's decoded NBT
+// carries no `dungeon_item` key (only `dungeon_skill_req`), yet Hypixel's own rendered lore shows
+// the Catacombs Boost annotation.
 export function isTieredArmorStatItem(itemId) {
   return Object.prototype.hasOwnProperty.call(TIERED_ARMOR_STAT_TABLES, itemId);
 }

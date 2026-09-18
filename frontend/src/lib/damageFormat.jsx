@@ -77,11 +77,10 @@ export function formatCoinsShort(n) {
 }
 
 // Coins spent per 1% real damage increase — the inverse of the Optimizer's internal sort ratio
-// (percentIncrease/cost), shown instead since that raw ratio reads as an unreadable tiny decimal
-// (e.g. 4.48e-8) across a cost range spanning single coins to billions. Coins-per-percent stays a
-// plain, familiar coin amount at any scale, same as every other price already on screen — and the
-// sort itself is untouched, this is display-only. Returns null when cost isn't a real number
-// (the '?' unpriced sentinel) or percentIncrease isn't positive.
+// (percentIncrease/cost), which reads as an unreadable tiny decimal (4.48e-8) across a cost range
+// spanning single coins to billions. Display only; the sort itself uses the raw ratio. Returns
+// null when cost isn't a real number (the '?' unpriced sentinel) or percentIncrease isn't
+// positive.
 export function formatCoinsPerPercent(cost, percentIncrease) {
   if (typeof cost !== 'number' || !(percentIncrease > 0)) return null;
   return formatCoinsShort(Math.round(cost / percentIncrease));

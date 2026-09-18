@@ -70,8 +70,7 @@ export default function App() {
             <ConfirmDialogProvider>
               <PageBackground />
               <TopBar />
-              {/* pt-12 matches TopBar's fixed h-12 — TopBar no longer reserves this space in
-                  normal flow (see its own comment for why it switched from sticky to fixed).
+              {/* pt-12 matches TopBar's fixed h-12, which reserves no space in normal flow.
                   ErrorBoundary is keyed by pathname so a crash on one page doesn't stay stuck
                   once the user navigates elsewhere (Back to Home) — a fresh key remounts it. */}
               <div className="pt-12">

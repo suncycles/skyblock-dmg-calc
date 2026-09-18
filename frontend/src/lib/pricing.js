@@ -188,8 +188,8 @@ export function lookupCandidateCost(result, itemData) {
       if (!step) return null;
       // A reforge either comes from a physical stone you buy, or it's one the Blacksmith just
       // rolls for you (Hasty, Spicy, Pure, Fierce, ... — all 50 entries in itemData.reforges).
-      // Those have no stone to price, which used to resolve to null and render as "unpriced" —
-      // but "there is nothing to buy" is a real answer, not a missing one, so they're 0 now.
+      // Those have no stone to price, so they cost a real 0 rather than the "unpriced" null —
+      // "there is nothing to buy" is an answer, not a missing one.
       // itemData.reforgeStones is the discriminator: in it means a
       // real stone (and every one of those currently has a price), absent means Blacksmith.
       if (!itemData?.reforgeStones?.[step.name]) return 0;

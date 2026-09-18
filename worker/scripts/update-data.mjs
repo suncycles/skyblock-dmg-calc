@@ -1,18 +1,14 @@
 #!/usr/bin/env node
 /**
- * Orchestrates the full NEU-REPO ingest pipeline in one command — previously 6 separate scripts
- * run by hand in a specific order, one of which (build-item-data.mjs) additionally needed a local
- * NEU-REPO checkout cloned and passed in manually. This does the clone itself (shallow, into a
- * throwaway temp dir, deleted right after the one step that needs it) and then runs the rest of
- * the pipeline exactly as documented in each script's own header comment.
+ * Runs the full NEU-REPO ingest pipeline in one command. Clones NEU-REPO itself (shallow, into a
+ * throwaway temp dir, deleted right after the one step that needs it) and then runs every step in
+ * order, exactly as documented in each script's own header comment.
  *
- * Fail-fast: if any step exits non-zero, the pipeline stops immediately rather than continuing
- * with partially-stale data (every step from build-item-data.mjs onward depends on the previous
- * one's output being real).
+ * Fail-fast: if any step exits non-zero the pipeline stops rather than continuing with partially
+ * stale data (every step from build-item-data.mjs onward depends on the previous one's output).
  *
- * This only regenerates local files — it does NOT git add/commit/push, and does NOT build or
- * deploy anything. Review the printed `git status` summary and commit/deploy yourself when
- * you're happy with the diff, same as any other change in this repo.
+ * Only regenerates local files — no git add/commit/push, no build, no deploy. Review the printed
+ * `git status` summary and commit/deploy yourself.
  *
  * Usage: node update-data.mjs
  */

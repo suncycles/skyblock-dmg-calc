@@ -303,8 +303,7 @@ const SLAYER_TIER_BONUSES = {
 
   RECLUSE_FANG: { bonusPercent: 150, condition: 'Arthropod' },
   TARANTULA_FANG: { bonusPercent: 200, condition: 'Arthropod' },
-  // Scorpion Foil's +250% applies as a 3.5x multiplier like its tier-mates, rather than the flat
-  // additive % it used to.
+  // Scorpion Foil's +250% applies as a 3.5x multiplier, like its tier-mates, not a flat additive %.
   SCORPION_FOIL: { bonusPercent: 250, condition: 'Arthropod' },
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };

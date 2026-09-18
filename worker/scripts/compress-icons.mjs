@@ -2,18 +2,14 @@
 /**
  * Converts every baked icon PNG to lossless WebP and drops the PNG.
  *
- * The bake steps before this one write PNG because that's what their sources hand them —
- * mc-heads.net renders and the resource pack's own textures. PNG is the wrong wire format for
- * them: these are 100x106 anti-aliased isometric renders with ~1000 unique colours, which
- * lossless WebP stores ~37% smaller than PNG with identical pixels. Lossy WebP is 60%+ smaller
- * still, but every surface that shows these renders them `image-rendering: pixelated`, so a
- * lossy encoder's ringing around the hard edges would be plainly visible; lossless is the only
- * safe setting here.
+ * These are 100x106 anti-aliased isometric renders with ~1000 unique colours: lossless WebP
+ * stores them ~37% smaller than PNG with identical pixels. Lossy WebP is smaller still, but every
+ * surface that shows them renders `image-rendering: pixelated`, so a lossy encoder's ringing
+ * around the hard edges would be plainly visible.
  *
- * Runs last in update-data.mjs, after every step that writes an icon. Idempotent: a dir that's
- * already all-WebP converts nothing. The bake steps' own "do I already have this icon?" guards
- * check for BOTH extensions, so re-running the pipeline after this has deleted the PNGs doesn't
- * re-download hundreds of head renders.
+ * Runs last in update-data.mjs, after every step that writes an icon. Idempotent: an all-WebP dir
+ * converts nothing, and the bake steps check for BOTH extensions, so re-running the pipeline
+ * doesn't re-download hundreds of head renders.
  *
  * Requires cwebp (`brew install webp`).
  *

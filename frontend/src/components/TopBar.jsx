@@ -36,10 +36,8 @@ const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
 // route without each page re-declaring it. Deliberately a plain modern navbar rather than the
 // chunky Minecraft chest-GUI bevel used everywhere below it — the contrast reads as "app chrome"
-// vs. "in-game panel". Solid, not translucent: the bar and the drawer both sit ON TOP of the
-// page, and at the old 0.55/0.85 alpha the content underneath read straight through them — with
-// the page scrolled, six gear-slot labels ("Weapons", "Wither Dragon", "Gloves", ...) were
-// measurably visible through the bar's own text.
+// vs. "in-game panel". Solid, not translucent: the bar and the drawer sit ON TOP of the page, and
+// at any alpha the scrolled content underneath reads through them.
 export default function TopBar() {
   const { pathname } = useLocation();
   const pageLabel = getPageLabel(pathname);

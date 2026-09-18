@@ -1,8 +1,6 @@
-// The player's Defense stat. Deliberately invisible — no panel, tooltip or breakdown line shows it
-//  — because exactly one thing in this calculator reads it: the
-// Ankylosaurus pet's Armored Tank perk, whose real lore is "Gain {0}% of your Defense as Strength.
-// (Max +500)". Before this existed that perk was hardcoded at its +500 ceiling, i.e. it silently
-// assumed 1000 Defense at pet level 100 for every account. See lib/petData.js's
+// The player's Defense stat. No panel, tooltip or breakdown line shows it, because exactly one
+// thing in this calculator reads it: the Ankylosaurus pet's Armored Tank perk, whose real lore is
+// "Gain {0}% of your Defense as Strength. (Max +500)". See lib/petData.js's
 // computeAnkylosaurusStrength for the conversion, which comes from the pet's own petnums numbers.
 //
 // Four sources are modelled: armor, Mining Level, God Potion, and the Unlimited Fortitude

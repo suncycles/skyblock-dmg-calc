@@ -138,8 +138,8 @@ export default function Landing() {
   // lands.
   const [jumpButtonEl, setJumpButtonEl] = useState(null);
   const [jumpButtonVisible, setJumpButtonVisible] = useState(false);
-  // A rect check on scroll rather than IntersectionObserver: same result, and testable — an IO
-  // callback never fires inside the headless preview surface used to verify this.
+  // A rect check on scroll rather than IntersectionObserver: same result, and an IO callback never
+  // fires inside a headless preview surface.
   useEffect(() => {
     if (!jumpButtonEl) return;
     const update = () => {

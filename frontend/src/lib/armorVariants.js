@@ -4,7 +4,7 @@
 // picking a family opens a tier sub-picker instead.
 export const ARMOR_VARIANT_FAMILIES = ['AURORA', 'CRIMSON', 'FERVOR', 'HOLLOW', 'TERROR'];
 
-// Ascending power order, confirmed via stat comparison (not id naming — "Burning" looks like it should outrank "Fiery" but doesn't).
+// Ascending power order by stats, not by id naming — "Burning" reads like it outranks "Fiery" but doesn't.
 export const VARIANT_TIERS = [
   { prefix: '', label: 'Basic' },
   { prefix: 'HOT_', label: 'Hot' },
@@ -45,9 +45,9 @@ export function groupArmorVariants(items, slot) {
     seenFamilies.add(family);
     const basic = items.find((i) => i.id === `${family}_${pieceSuffix}`) || item;
     result.push({
-      // Real Basic-tier id (not a synthetic "VARIANT_FAMILY_..." one) so WeaponIcon's real baked
-      // icon resolves — a synthetic id has no baked file and silently fell back to a generic
-      // material icon (Skull, indistinguishable across every head-based armor family).
+      // Real Basic-tier id (not a synthetic "VARIANT_FAMILY_..." one) so WeaponIcon's baked icon
+      // resolves; a synthetic id has no baked file and falls back to a generic material icon
+      // (Skull, indistinguishable across every head-based armor family).
       id: basic.id,
       name: `${titleCase(family)} ${titleCase(pieceSuffix)}`,
       material: basic.material,

@@ -19,12 +19,11 @@ export function bumpRarity(tier) {
 }
 
 // An equipped slot's current effective rarity — accounts for a Recombobulator bump, a real
-// Gear-Score tiered-stat item's own baseStatBoostPercentage=50 bump (see lib/tieredArmorStats.js —
-// independent of and stacks with Recombobulator, confirmed live: catalog Epic -> boost bump ->
-// Legendary -> recomb bump -> Mythic), and items whose real tier is tracked separately from the
-// bundled data (rarityOverride, e.g. David's Cloak's Hunting-milestone tier). Shared wherever a
-// slot needs the item's rarity without building the full tooltip (e.g. Landing's per-slot rarity
-// glow).
+// Gear-Score tiered-stat item's own baseStatBoostPercentage=50 bump (see lib/tieredArmorStats.js;
+// independent of and stacking with Recombobulator: catalog Epic -> boost bump -> Legendary ->
+// recomb bump -> Mythic), and items whose real tier is tracked separately from the bundled data
+// (rarityOverride, e.g. David's Cloak's Hunting-milestone tier). Shared wherever a slot needs the
+// item's rarity without building the full tooltip (e.g. Landing's per-slot rarity glow).
 export function getDisplayTier(item, modifiers) {
   if (!item) return null;
   // A Catacombs boss head's own rarity is SPECIAL, which sits outside this ladder entirely — it

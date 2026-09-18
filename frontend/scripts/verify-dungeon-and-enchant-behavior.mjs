@@ -311,13 +311,11 @@ try {
     assert.equal(totals.crit_damage.nonDungeonStarred, 119.8, `expected the real 119.8, got ${totals.crit_damage.nonDungeonStarred}`);
     assert.equal(totals.crit_damage.dungeonStarred, 665.6, `expected the real 665.57 (rounded to 665.6), got ${totals.crit_damage.dungeonStarred}`);
 
-    // Bug fix (round 2): the catalog's own bundled lore for this item already has a
-    // real "Crit Damage: +22" line (Hypixel's tier-1 tiered_stats baseline) — itemTooltip.js's
-    // leading-number merge used to subtract computeItemStatTotals' own (tiered-overridden)
-    // pristine from the final total and add that delta onto whatever's in the TEXT, silently
-    // assuming the two matched. They don't for a tiered item, which under-counted the rendered
-    // total by (68 - 22) = 46 (real bug: Skeleton Master Chestplate rendered "73.8%" instead of
-    // "119.8%" in the live app, even though computeItemStatTotals itself was already correct).
+    // The rendered tooltip must match computeItemStatTotals, not just the totals themselves. The
+    // catalog's bundled lore for this item carries a "Crit Damage: +22" line (Hypixel's tier-1
+    // tiered_stats baseline) while the real per-copy pristine is 68, so a leading-number merge
+    // that assumes the text and the computed pristine agree under-counts the rendered total by 46
+    // (73.8% instead of 119.8%) even when the totals are correct.
     const tooltipLines = await itemTooltip.buildFullItemTooltipLines(catalogItem, modifiers, itemData, 45, 0, 0, undefined, 4, undefined, false, false, 0);
     const critDamageLine = tooltipLines.find((l) => l.replace(/§./g, '').startsWith('Crit Damage:'));
     assert.ok(critDamageLine, 'rendered tooltip must have a Crit Damage line');
@@ -531,8 +529,8 @@ try {
       '1.10 * 1.10 * 1.20 * 1.25',
     );
     // Mimic is a normal attribute (lib/attributes.js's OTHER_ATTRIBUTES), so it reaches the
-    // multiplier through the attributes map — never off the blessing block, which no longer
-    // carries it. A stale `mimicShardLevel` on the blessing must be ignored, not silently honoured.
+    // multiplier through the attributes map — never off the blessing block, which doesn't carry
+    // it. A stale `mimicShardLevel` on the blessing must be ignored, not silently honoured.
     assert.equal(
       Number(computeBlessingMultiplier({ mimicShardLevel: 10 }, {}).toFixed(4)),
       1.2,
@@ -716,8 +714,8 @@ try {
   });
   // 28. Two Optimizer carry-over rules. (a) A reforge/ultimate enchant only rides onto a swap
   // candidate the new item can actually take: BuildContext's selectItem clears both across a
-  // weapon-family boundary, but the Optimizer used to re-apply them with its own explicit steps,
-  // so a Sword's Fabled and One For All landed on a Bow and the Bow was ranked as if it had them.
+  // weapon-family boundary, and the Optimizer's own steps must not re-apply them — a Sword's
+  // Fabled and One For All landing on a Bow would rank that Bow as if it had them.
   // (b) Fabled's midpoint is melee-only.
   await check('Optimizer carries only what the new item can take', () => {
     const { carriedReforgeName, carriedUltimateEnchantment } = optimizerModule;
