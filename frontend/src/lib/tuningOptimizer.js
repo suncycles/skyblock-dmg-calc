@@ -1,29 +1,21 @@
-// Auto-spends Stat Tuning points via the real damage pipeline, one point at a time by default —
-// true per-point granularity matters because every damage-relevant stat multiplies together in the
-// Final Damage formula, so whichever stat currently has the single highest marginal value can shift
-// after only 1-2 points land elsewhere. Once a stat has clearly won several rounds in a row, the
-// search switches to lump-spending it (see STREAK_THRESHOLD/BATCH_SIZE below) rather than a fixed
-// "dump it all into Strength" rule or a naive coarse batch-per-round search from the start, which
-// could lock onto one stat too early and never reconsider.
+// Auto-spends Stat Tuning points through the damage pipeline, one point at a time by default: every
+// damage-relevant stat multiplies into the Final Damage formula, so the stat with the highest
+// marginal value can shift after only a point or two lands elsewhere. Once one stat has won several
+// rounds in a row the search lump-spends it (see STREAK_THRESHOLD and BATCH_SIZE), rather than
+// starting from a coarse batch that could lock onto a stat too early.
 //
-// Bonus Attack Speed is the one exception that per-point greedy handles badly on its own: its
-// melee hit-rate only changes at fixed breakpoints (lib/finalDamage.js's MELEE_HIT_RATE_BREAKPOINTS),
-// so every individual point below the next threshold shows exactly zero marginal gain — a myopic
-// "does this next point help RIGHT NOW" search can never justify spending toward one at all, even
-// when reaching it is worth far more than the same points spent elsewhere. Each round, this search
-// separately computes "how many points would it take to reach the next real breakpoint" and offers
-// that as its own lumpy candidate move alongside every other stat's plain +1, then picks whichever
-// candidate has the best value gained per point spent — so a breakpoint gets bought in one shot
-// exactly when (and only when) it's actually worth it, and otherwise points keep flowing to
-// whichever smooth stat currently pays the most per point.
+// Bonus Attack Speed is the exception a per-point greedy search handles badly: melee hit rate only
+// changes at fixed breakpoints (lib/finalDamage.js's MELEE_HIT_RATE_BREAKPOINTS), so every point
+// below the next threshold shows zero marginal gain and a myopic search would never spend toward
+// one. Each round therefore computes how many points reach the next breakpoint and offers that as
+// its own lumpy candidate beside every stat's plain +1, picking whichever has the best value per
+// point — so a breakpoint is bought in one shot exactly when it is worth it.
 //
-// Enchant-level lookups are cached per id (see enchantEffects.js's fetchEnchantLevels), so repeated
-// computeModeDamage calls across a large point budget stay cheap once the first pass warms that cache.
+// Enchant-level lookups are cached per id (enchantEffects.js's fetchEnchantLevels), so repeated
+// computeModeDamage calls stay cheap once the first pass warms that cache.
 //
-// health/defense/speed are Tuning-eligible stats but never forwarded into out.baseStats (see
-// lib/damageSources.js's accessory-stat merge) — they can't affect this calculator's damage output
-// at all, so they're excluded from the search entirely rather than wasting real pipeline
-// evaluations confirming they're always worth 0.
+// health/defense/speed are Tuning-eligible but never reach out.baseStats and can't affect damage,
+// so they are excluded from the search rather than evaluated to confirm a zero.
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { computeModeDamage, computeModeDamageAndSources } from './optimizer';
 import { computeTotalTuningPoints, TUNING_RATE_PER_POINT } from './accessoryPowers';
@@ -49,61 +41,51 @@ function pointsToNextAttackSpeedBreakpoint(gearBonusAttackSpeed, allocation, rem
   return null;
 }
 
-// Real per-round candidate stats for a given mode — excludes whichever smooth stats the mode's own
-// formula provably never reads, so the search never spends a real pipeline call confirming a stat
-// is worth 0 when the formula already guarantees that (user-specified 2026-09-01):
-//   - 'ability': computeAbilityDamage's formula reads Intelligence and nothing else off this list —
-//     no Strength term, no Crit Damage term, and abilities don't crit at all (no Crit Chance term
-//     either). The search below short-circuits this case entirely (single relevant stat, nothing to compare).
-//   - 'dps' (melee/arrow): computeFinalDamage has no Intelligence term at all — that stat only ever
-//     feeds Ability Damage.
-//   - 'beam': computeMageStaffBeamDamage scales off both the real melee hit (so Strength/Crit
-//     Chance/Crit Damage still matter) AND Intelligence directly — keeps every smooth stat.
+// The candidate stats for a mode, excluding the smooth stats its formula provably never reads, so
+// the search never spends a pipeline call confirming a guaranteed zero:
+//   - 'ability': computeAbilityDamage reads Intelligence and nothing else here — no Strength or Crit
+//     Damage term, and abilities don't crit. The search short-circuits this case entirely.
+//   - 'dps' (melee/arrow): computeFinalDamage has no Intelligence term; that stat only feeds Ability
+//     Damage.
+//   - 'beam': computeMageStaffBeamDamage scales off both the melee hit and Intelligence, so every
+//     smooth stat stays in.
 function relevantSmoothStats(metric) {
   if (metric === 'ability') return ['intelligence'];
   if (metric === 'beam') return SMOOTH_TUNING_STATS;
   return SMOOTH_TUNING_STATS.filter((s) => s !== 'intelligence');
 }
 
-// Real Crit Chance clamps past its cap — 100%, or 200% with an Overload bow (see
-// computeDpsBreakdown's megaCritChance) — so once the running total (gear + already-spent points)
-// crosses it, every further Crit Chance point is worth exactly 0. Cheap arithmetic using the same
-// known per-point rate the real formula already applies, instead of re-confirming "still worth 0"
-// with a real pipeline call every remaining round (user-specified 2026-09-01).
+// Crit Chance clamps past its cap — 100%, or 200% with an Overload bow (see computeDpsBreakdown's
+// megaCritChance) — so once gear plus spent points cross it, further Crit Chance points are worth 0.
+// Checked with the same per-point rate the formula applies, rather than re-confirming a zero with a
+// pipeline call every round.
 function isCritChanceCapped(gearCritChance, allocation, hasOverload) {
   const current = gearCritChance + allocation.crit_chance * TUNING_RATE_PER_POINT.crit_chance;
   return current >= (hasOverload ? 200 : 100);
 }
 
-// Once a stat has won this many consecutive individual-point rounds, lump-spend it instead of
-// re-confirming one point at a time (user-specified 2026-09-01, recommendation #1). This is exact,
-// not approximate, for Strength/Crit Damage/Intelligence: every damage formula that reads them
-// (computeFinalDamage, computeAbilityDamage, computeMageStaffBeamDamage) multiplies them in as a
-// bare `(1 + stat/100[*scaling])` factor with every OTHER stat held fixed during the batch, so each
-// one's own marginal DPS rate is a true constant, not a diminishing-returns curve — batching never
-// changes the final allocation for those three. The one real risk batching introduces is missing a
-// bonus_attack_speed breakpoint that only becomes worth crossing partway through a batch (its own
-// point-cost doesn't change, but the DPS value of crossing it grows as the batched stat grows) —
-// BATCH_SIZE bounds how many points can go by before the next real round re-checks that against
-// every move again, catching a missed breakpoint at most one batch late.
+// Once a stat has won this many consecutive rounds, it is lump-spent rather than re-confirmed a
+// point at a time. This is exact for Strength, Crit Damage and Intelligence: every formula that
+// reads them multiplies them in as a bare (1 + stat/100[*scaling]) factor with the other stats held
+// fixed during the batch, so each one's marginal rate is constant and batching can't change the
+// final allocation. The risk it does introduce is missing a bonus_attack_speed breakpoint that
+// becomes worth crossing partway through a batch — its point cost is fixed but its value grows with
+// the batched stat — so BATCH_SIZE bounds how long that can go unnoticed to one batch.
 const STREAK_THRESHOLD = 6;
 const BATCH_SIZE = 24;
 
-// Returns { allocation, nextStat } — `allocation` is a full {statKey: points} map (all 8
-// TUNING_STATS keys, 0 for the 3 damage-irrelevant ones) that greedily maximizes computeModeDamage's
-// output for the given loadout/mode/mob, spending exactly `totalPoints`; `nextStat` is whichever
-// smooth stat the search's own last round found to have the best marginal rate — a free byproduct
-// callers can reuse instead of re-testing every stat from scratch for a small top-up (see
-// accessoryOptimizer.js's topUpTuning, recommendation #2). `loadout.accessory` may be entirely
-// absent (no Power selected yet) — spending Tuning points still works without one, same as Magical
-// Power itself.
+// Returns { allocation, nextStat }. `allocation` is a full {statKey: points} map over all 8
+// TUNING_STATS keys — 0 for the three damage-irrelevant ones — greedily maximizing
+// computeModeDamage for the loadout, mode and mob while spending exactly `totalPoints`. `nextStat`
+// is the stat the last round found best at the margin, reused by accessoryOptimizer.js's topUpTuning
+// instead of re-testing every stat. `loadout.accessory` may be absent: spending Tuning points works
+// without a Power selected, as Magical Power itself does.
 export async function computeOptimalTuning(loadout, itemData, build, modeConfig, mob, totalPoints) {
   const allocation = Object.fromEntries(ALL_TUNING_STATS.map((s) => [s, 0]));
   if (totalPoints <= 0) return { allocation, nextStat: null };
 
-  // Ability Damage doesn't crit and has no hit-rate dependency (it's a per-cast number, not a DPS
-  // one) — Intelligence is the only stat that moves it at all, so every point goes there with no
-  // real comparison needed.
+  // Ability Damage doesn't crit and has no hit-rate dependency, and Intelligence is the only stat
+  // that moves it, so every point goes there with no comparison.
   if (modeConfig.metric === 'ability') {
     allocation.intelligence = totalPoints;
     return { allocation, nextStat: 'intelligence' };
@@ -152,10 +134,9 @@ export async function computeOptimalTuning(loadout, itemData, build, modeConfig,
       spent += batch;
       currentValue = value;
       nextStat = streakStat;
-      // One real comparison round re-validates (not a fresh 6-round streak) — if the same stat
-      // wins again there, streakCount crosses STREAK_THRESHOLD immediately and the next batch goes
-      // right out; if something else wins instead (a breakpoint became worth it, say), the normal
-      // round below reassigns streakStat/streakCount on its own.
+      // One comparison round re-validates rather than restarting the streak: if the same stat wins
+      // again, streakCount crosses STREAK_THRESHOLD immediately and the next batch goes out; if
+      // something else wins — a breakpoint became worth crossing — the normal round reassigns it.
       streakCount = STREAK_THRESHOLD - 1;
       continue;
     }
@@ -201,9 +182,8 @@ export async function computeOptimalTuning(loadout, itemData, build, modeConfig,
   return { allocation, nextStat };
 }
 
-// Convenience: derives the real total point budget (Magical Power's 1-per-10 rate plus the Tuning
-// Box attribute's own flat grant — see lib/accessoryPowers.js's computeTotalTuningPoints) and runs
-// the search.
+// Derives the total point budget (Magical Power's 1-per-10 rate plus the Tuning Box attribute's flat
+// grant, see lib/accessoryPowers.js's computeTotalTuningPoints) and runs the search.
 export async function computeOptimalTuningForMp(loadout, itemData, build, modeConfig, mob, magicalPower) {
   const totalPoints = computeTotalTuningPoints(magicalPower, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
   return computeOptimalTuning(loadout, itemData, build, modeConfig, mob, totalPoints);

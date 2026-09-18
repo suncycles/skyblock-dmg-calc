@@ -1,20 +1,16 @@
-// Hypixel Skyblock Attributes — Hunting skill shards syphoned to level an account-wide,
-// non-item-bound attribute 1-10. Only the damage-relevant subset is modeled: Ruler (per-Mob-
-// Type % damage), the Echo chain (relative boosts to Ruler/Elemental/Tuning Box attributes), Strength
-// Elemental, Intelligence Elemental, Deadeye (bow-only % damage), Warrior (melee-only,
-// Deadeye's inverse), Elite (boss/miniboss % damage, scoped to the 5 real Slayer bosses — see
-// lib/damageSources.js's ELITE_BOSS_MOBS), Unlimited Power/Energy/Torrent (post-everything %
-// multipliers on Strength/Crit Damage/Intelligence), Almighty (relative boost to all three
-// Unlimited attributes), Tuning Box (+Accessory Tuning points), Dominance (always-active), and
-// Attack Speed (the "Inferno Demonlord" shard — always-active, feeds Bonus Attack Speed
-// directly). Lifeline is out of scope.
+// Hypixel Skyblock Attributes: Hunting shards syphoned to level an account-wide, non-item-bound
+// attribute 1-10. Only the damage-relevant subset is modeled — Ruler (per-Mob-Type % damage), the
+// Echo chain (relative boosts to Ruler, Elemental and Tuning Box), Strength and Intelligence
+// Elementals, Deadeye (bow-only), Warrior (melee-only, Deadeye's inverse), Elite (scoped to the 5
+// Slayer bosses, see lib/damageSources.js's ELITE_BOSS_MOBS), Unlimited Power/Energy/Torrent
+// (post-everything multipliers on Strength/Crit Damage/Intelligence), Almighty (boosts all three
+// Unlimited attributes), Tuning Box (+Accessory Tuning points), Dominance and Attack Speed.
+// Lifeline is out of scope.
 
-// Every attribute tops out at level 10 regardless of its shard's rarity — rarity only changes how
-// many shards each level costs (attribute_shards.json's attribute_levelling table has exactly 10
-// per-level entries for every one of its 5 rarities: Common/Uncommon/Rare/Epic/Legendary), not the
-// level cap itself. Dominance is an Epic-tier shard (Thorn) needing 32 total shards to reach level
-// 10 — user-confirmed 2026-08-26, correcting an earlier bug here that conflated "32 shards needed"
-// with "max level 32" and let it be over-leveled past its real cap.
+// Every attribute tops out at level 10 whatever its shard's rarity: rarity only changes how many
+// shards each level costs (attribute_shards.json's attribute_levelling table has 10 per-level
+// entries for each of its 5 rarities), not the cap. Dominance is an Epic shard needing 32 shards
+// total to reach level 10, which is not the same as a level cap of 32.
 export const MAX_ATTRIBUTE_LEVEL = 10;
 
 // Takes `id` (unused) so every call site can stay "per-attribute" shaped, in case a real
@@ -24,9 +20,8 @@ export function getAttributeMaxLevel(id) {
 }
 
 export const RULER_RATE = 3; // %/level, "+3%-30% more Damage against <Type> mobs"
-// All 17 real Ruler shards (verified against NEU-REPO's constants/attribute_shards.json — every
-// entry there is templated "<Type> Ruler" at the same rate), matching every mob type this app's
-// own damageSymbols.js already recognizes.
+// All 17 Ruler shards (from NEU-REPO's constants/attribute_shards.json, every entry templated
+// "<Type> Ruler" at the same rate), matching the mob types damageSymbols.js recognizes.
 export const RULER_ATTRIBUTES = [
   'Airborne',
   'Animal',
@@ -76,21 +71,18 @@ export const MAXIMAL_TORMENT_RATE = 0.1; // %/level, Intelligence — applied af
 export const ALMIGHTY_RATE = 5; // %/level, 'Your "Unlimited" Attributes are +5%-50% stronger'
 export const TUNING_BOX_RATE = 1; // Tuning Points/level, "+1-10 Tuning Points"
 export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" — treated as always-active
-// "Inferno Demonlord" shard (verified against NEU-REPO's attribute_shards.json: rarity EPIC,
-// internalName ATTRIBUTE_SHARD_ATTACK_SPEED, max level 10 at 32 total shards — same EPIC cost
-// curve already used by the Hypixel import's attribute-level computation). Always-active, feeds
-// the Bonus Attack Speed base stat directly rather than a % damage source.
+// The "Inferno Demonlord" shard (ATTRIBUTE_SHARD_ATTACK_SPEED, EPIC, 32 shards to level 10).
+// Always active, and feeds the Bonus Attack Speed base stat directly rather than a % damage source.
 export const ATTACK_SPEED_SHARD_RATE = 1; // Bonus Attack Speed %/level, "+1%-10% Bonus Attack Speed"
 // "Mimic" shard — same EPIC 32-shard ladder as Inferno Demonlord above, but what it grants isn't a
 // stat: it scales Dungeon Blessings before they touch the player (see lib/dungeonBlessing.js's
 // MIMIC_SHARD_PERCENT_PER_LEVEL, the rate this mirrors). It lives here, with the other shards,
 // rather than beside the blessings it feeds — it's an attribute the player levels like any other.
 export const MIMIC_SHARD_RATE = 1; // % blessing effectiveness/level
-// "End Stone Protector" shard, ability name "Unlimited Fortitude" (NEU-REPO attribute_shards.json:
-// internalName ATTRIBUTE_SHARD_FORTITUDE, rarity LEGENDARY — 24 shards to level 10, the same ladder
-// the Worker's own cost table already walks). Hypixel keys it `fortitude` in member.attributes.stacks,
-// which is this id, so the import needs no remap. Grants Defense, which only the Ankylosaurus pet
-// reads — see lib/playerDefense.js.
+// The "End Stone Protector" shard, ability name "Unlimited Fortitude"
+// (ATTRIBUTE_SHARD_FORTITUDE, LEGENDARY, 24 shards to level 10). Hypixel keys it `fortitude` in
+// member.attributes.stacks, matching this id, so the import needs no remap. Grants Defense, which
+// only the Ankylosaurus pet reads — see lib/playerDefense.js.
 export const UNLIMITED_FORTITUDE_RATE = 0.2; // % Defense/level
 // "Hideonring" shard (RARE): +1 Accessory Bag slot per level, 10 at max. Not a damage stat — it's
 // here because the Optimizer charges a new accessory for the bag slot it needs, and this is the

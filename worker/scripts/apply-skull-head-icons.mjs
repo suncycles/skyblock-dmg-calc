@@ -1,47 +1,29 @@
 #!/usr/bin/env node
 /**
- * Build-time ingest, a second pass after apply-hypixel-textures.mjs: fills
- * in a real head-render icon for every item that pass's Hypixel-resource-
- * pack matching didn't find a texture for AND that's a "minecraft:skull"
- * (custom player-head) item — plus every pet, which has no bundled
- * weapons.json/armor.json-equivalent to match against at all.
+ * Build-time ingest, a second pass after apply-hypixel-textures.mjs: renders a head icon for every
+ * item that pass found no texture for AND that is a "minecraft:skull" (custom player-head) item,
+ * plus every pet, which has no bundled catalog to match against.
  *
- * Equipment (equipment.json — Necklace/Cloak/Belt/Gloves) is 100% skull
- * items with no Hypixel-resource-pack entries at all (verified directly),
- * so every one of them goes through this pass.
+ * Equipment (Necklace/Cloak/Belt/Gloves) is entirely skull items with no resource-pack entries, so
+ * all of it comes through this pass.
  *
- * The pack has no render for these because they're custom third-party
- * skins (a real Mojang skin texture referenced via SkullOwner in the
- * item's own NBT), not a resource-pack-overridden vanilla texture — but
- * that same NBT is exactly what Hypixel's own UI renders as the item's
- * icon, so this extracts the skin texture and renders a real head icon
- * via mc-heads.net (a public Minecraft-skin-render service; crafatar.com,
- * the other common one, returned HTTP 521 when checked) instead of
- * guessing at a texture-pack match.
+ * The pack has no render for these because they are custom skins referenced through SkullOwner in
+ * the item's own NBT rather than resource-pack-overridden vanilla textures. That NBT is what
+ * Hypixel's own UI renders, so this extracts the skin texture and renders a head icon through
+ * mc-heads.net (crafatar.com, the other common service, returned HTTP 521 when checked).
  *
- * IMPORTANT: must key the render off the texture hash
- * (textures.SKIN.url's last path segment), NOT off `profileId`.
- * `profileId` is the real Mojang account UUID of whichever player that
- * skin was captured from — mc-heads.net's /avatar/{uuid} route resolves
- * that UUID to the account's CURRENT live skin (same as Mojang's session
- * API), which has nothing to do with the skin actually baked into the
- * item; that account may have since changed skins entirely. The texture
- * hash is a content-addressed id of that exact skin image and never
- * changes, and mc-heads.net accepts it as a drop-in replacement for a
- * UUID in the same /avatar/{id}/{size} route. Verified directly: querying
- * by CROWN_OF_AVARICE's profileId rendered a random real player's face;
- * querying by its texture hash rendered the correct gold/black crown.
+ * The render must be keyed off the texture hash — textures.SKIN.url's last path segment — and not
+ * off `profileId`. `profileId` is the Mojang account UUID the skin was captured from, and
+ * mc-heads.net's /avatar/{uuid} route resolves it to that account's CURRENT skin, which may have
+ * changed. The texture hash is a content-addressed id of the exact image and works as a drop-in
+ * replacement in the same route. Querying CROWN_OF_AVARICE by profileId rendered a random player's
+ * face; by texture hash it rendered the correct crown.
  *
- * Output goes to the same frontend/public/images/skyblock/{ID}.png path
- * apply-hypixel-textures.mjs already writes to — getSkyblockIcon()/
- * WeaponIcon need zero changes, they already check that path first for
- * any item id before falling back to a generic vanilla-material icon.
+ * Output goes to the same frontend/public/images/skyblock/{ID}.png path apply-hypixel-textures.mjs
+ * writes to, which getSkyblockIcon and WeaponIcon already check before the vanilla fallback.
  *
- * Pets' id list comes straight from constants/petnums.json (there's no
- * pets.json-equivalent bundled locally to read ids from). Verified all
- * rarities of a given pet share one skin (spot-checked Wolf and Griffin
- * across their full rarity range) — one head render per pet species,
- * saved under the bare pet id, covers every rarity.
+ * Pet ids come from constants/petnums.json, there being no bundled pets.json. Every rarity of a pet
+ * shares one skin, so one render per species, saved under the bare pet id, covers them all.
  *
  * Usage: node apply-skull-head-icons.mjs
  */
@@ -58,10 +40,8 @@ const NEU_ITEMS_BASE = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEn
 const NEU_PETNUMS_URL = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json';
 const HEAD_RENDER_SIZE = 100;
 
-// Standard Hypixel legacy pet-rarity ordinal scheme (see
-// frontend/src/lib/petData.js's PET_RARITY_ORDER) — tried in roughly
-// most-to-least-common order since not every pet has every rarity and we
-// only need whichever one resolves first.
+// Hypixel's legacy pet-rarity ordinals (see frontend/src/lib/petData.js's PET_RARITY_ORDER), tried
+// most-to-least common: not every pet has every rarity, and only the first that resolves is needed.
 const RARITY_ORDINALS = [4, 3, 2, 5, 1, 0];
 
 function extractSkinTextureHash(nbttag) {
@@ -90,15 +70,13 @@ async function fetchSkinTextureHash(itemId) {
 
 async function saveHeadRender(textureHash, outPath) {
   try {
-    // /head/ (not /avatar/) — the isometric 3D cube render, matching the
-    // style Hypixel's own resource-pack icons use, rather than a flat 2D
-    // face crop.
+    // /head/ rather than /avatar/: the isometric 3D cube render matching the resource-pack icons,
+    // not a flat 2D face crop.
     const res = await fetch(`https://mc-heads.net/head/${textureHash}/${HEAD_RENDER_SIZE}`);
-    // mc-heads.net returns HTTP 200 with a silent default-Steve-skin render (not an error) for
-    // some real, resolvable texture hashes it doesn't otherwise recognize — verified directly:
-    // PIG;4/SHEEP;4's real Mojang-served texture hashes byte-for-byte match a garbage hash's
-    // render. Its own `x-account-valid` response header is the only reliable signal that
-    // happened; `res.ok` alone can't tell a real render from the Steve fallback.
+    // mc-heads.net returns HTTP 200 with a silent default-Steve render for some resolvable texture
+    // hashes it doesn't recognize: PIG;4 and SHEEP;4's real hashes render byte-for-byte identically
+    // to a garbage hash. Its `x-account-valid` response header is the only reliable signal, since
+    // `res.ok` can't tell a real render from the fallback.
     if (!res.ok || res.headers.get('x-account-valid') === 'false') return false;
     const buf = Buffer.from(await res.arrayBuffer());
     writeFileSync(outPath, buf);
@@ -108,9 +86,8 @@ async function saveHeadRender(textureHash, outPath) {
   }
 }
 
-// Small concurrency-capped batch runner — hundreds of sequential fetches
-// would be slow, hundreds fully-parallel is impolite to both
-// raw.githubusercontent.com and mc-heads.net.
+// Concurrency-capped batch runner: hundreds of sequential fetches are slow, and hundreds of
+// parallel ones are impolite to both raw.githubusercontent.com and mc-heads.net.
 async function runBatched(items, worker, concurrency = 8) {
   let done = 0;
   let ok = 0;
@@ -126,9 +103,9 @@ async function runBatched(items, worker, concurrency = 8) {
   return { done, ok };
 }
 
-// This script writes PNG, but compress-icons.mjs converts every baked icon to WebP at the end of
-// the pipeline and deletes the PNG — so "do I already have this one?" has to accept either
-// extension, or every later run would re-download all several hundred head renders.
+// This script writes PNG, but compress-icons.mjs converts every baked icon to WebP at the end of the
+// pipeline and deletes the PNG, so the "already have it?" check accepts either extension —
+// otherwise every run re-downloads several hundred head renders.
 function hasBakedIcon(id) {
   return existsSync(path.join(OUT_DIR, `${id}.png`)) || existsSync(path.join(OUT_DIR, `${id}.webp`));
 }

@@ -1,15 +1,13 @@
 import { STAT_LABELS } from './reforgeData';
 
-// Dungeon-style item Starring, split into two contexts (see lib/dungeonize.js for the Catacombs
-// side): out of a dungeon, each star is a flat +2% of the item's own pristine base stat (parsed
-// from lore, before any reforge/gemstone/book/enchant annotation) — this "Overworld" mechanic is
-// untouched by anything below. Inside a dungeon, the same star count instead feeds a 10%/star
-// rate summed with the Catacombs Level curve/General's Medallion/Master Stars, applied to the
-// item's non-star total — see lib/dungeonize.js's computeCatacombsBoostPercent.
-// Exported for lib/itemStatTotals.js's own use — a tiered-stat item's real pristine value (see
-// lib/tieredArmorStats.js) differs from what parseBaseStatValue reads off raw lore, so that module
-// computes the Star bonus inline off its own already-resolved pristine rather than through
-// computeStarBonuses below (which always re-derives pristine from lore text).
+// Item Starring, in two contexts (lib/dungeonize.js covers the Catacombs side): outside a dungeon
+// each star is a flat +2% of the item's pristine base stat, parsed from lore before any reforge,
+// gemstone, book or enchant annotation. Inside one, the same star count feeds a 10%/star rate summed
+// with the Catacombs Level curve, General's Medallion and Master Stars, applied to the item's
+// non-star total (computeCatacombsBoostPercent).
+// Exported for lib/itemStatTotals.js: a tiered-stat item's pristine value (lib/tieredArmorStats.js)
+// differs from what parseBaseStatValue reads off lore, so that module computes the star bonus from
+// its own resolved pristine rather than through computeStarBonuses, which re-derives from lore.
 export const PER_STAR_PERCENT = 2;
 export const CATACOMBS_STAR_PERCENT_PER_STAR = 10;
 
@@ -18,9 +16,9 @@ export const BASE_MAX_STARS = 5;
 export const HIGH_STAR_MAX_STARS = 10;
 export const INFERNAL_TIER_MAX_STARS = 15;
 
-// Real Starrable items whose catalog `category` isn't Dungeon-tagged (Magma Lord/Tormentor,
-// user-verified) plus user-supplied non-Dungeon items capped at 10 stars (docs/Missing_Starrable_Items.csv,
-// cross-checked against every id existing in worker/src/data/{weapons,armor,equipment}.json).
+// Starrable items whose catalog `category` isn't Dungeon-tagged (Magma Lord, Tormentor), plus the
+// non-Dungeon items capped at 10 stars from docs/Missing_Starrable_Items.csv, each cross-checked
+// against worker/src/data/{weapons,armor,equipment}.json.
 const HIGH_STAR_ITEM_IDS = new Set([
   'MAGMA_LORD_HELMET', 'MAGMA_LORD_CHESTPLATE', 'MAGMA_LORD_LEGGINGS', 'MAGMA_LORD_BOOTS', 'TORMENTOR',
   'FIRE_FURY_STAFF', 'FIRE_VEIL_WAND', 'RAGNAROCK_AXE', 'REAPER_SCYTHE', 'REAPER_SWORD', 'STAFF_OF_THE_VOLCANO',
@@ -65,11 +63,9 @@ const NON_DUNGEON_STARRABLE_ITEM_IDS = new Set([
   'THE_PRIMORDIAL',
 ]);
 
-// Blaze Slayer's 5 armor sets (Aurora/Crimson/Fervor/Hollow/Terror), split by power tier
-// (base/Hot/Burning/Fiery vs. Infernal prefix) — same 100-id family lib/armorVariants.js groups
-// for the picker UI, verified against worker/src/data/armor.json (exactly 100 ids). Only the
-// Infernal tier reaches 15 stars; the 4 lower tiers cap at 10 — user-confirmed (a single shared
-// regex previously gave every tier 15, which was wrong for anything below Infernal).
+// Blaze Slayer's 5 armor sets (Aurora/Crimson/Fervor/Hollow/Terror), split by power tier — base,
+// Hot, Burning and Fiery against the Infernal prefix — the same 100-id family lib/armorVariants.js
+// groups for the picker. Only the Infernal tier reaches 15 stars; the four below cap at 10.
 const INFERNAL_TIER_ARMOR_RE = /^INFERNAL_(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 const LOWER_TIER_VARIANT_ARMOR_RE = /^(?:HOT_|BURNING_|FIERY_)?(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 

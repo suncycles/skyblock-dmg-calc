@@ -1,10 +1,10 @@
-/* Weapon-specific ability mechanics that don't fit the generic Books/Gemstones/Reforges
-   pipeline — each is a single player-supplied number that scales a bonus baked into that
-   weapon's own real NEU-REPO lore. Only these ids show the Special button.
+/* Weapon-specific ability mechanics outside the generic Books/Gemstones/Reforges pipeline: each is
+   one player-supplied number scaling a bonus baked into that weapon's own lore. Only these ids show
+   the Special button.
 
-   Midas' Sword/Staff's Greed ability is approximated as linear from 0 coins/0 bonus to the
-   price cap/max bonus (Hypixel has never published the real piecewise curve). Daedalus
-   Blade and Emerald Blade's formulas are stated outright in their own lore. */
+   Midas' Sword/Staff's Greed ability is approximated as linear from 0 coins and 0 bonus to the price
+   cap and max bonus, Hypixel having never published the real curve. Daedalus Blade's and Emerald
+   Blade's formulas are stated in their own lore. */
 
 const SPECIAL_COLOR = 'b'; // aqua — distinct from Books (e), Art of War (6), Reforges (9), Gemstones (d)
 
@@ -17,10 +17,9 @@ export function computeDaedalusTamingBonus(itemId, tamingLevel) {
   return { damage: rate * tamingLevel };
 }
 
-// "+X Damage per Wolf Slayer level" — Pooch Sword's own real lore states this outright (+20/level);
-// Shaman Sword's lore doesn't mention it at all (just a "Requires Wolf Slayer 3" gate), but
-// user-confirmed it carries the same mechanic at a lower +10/level, so it's hardcoded here too.
-// (Wolf-mob-multiplier half of Pooch's kit is hardcoded separately in lib/damageSources.js.)
+// "+X Damage per Wolf Slayer level": Pooch Sword's lore states +20/level outright, and Shaman
+// Sword carries the same mechanic at +10/level though its lore mentions only a Wolf Slayer 3 gate.
+// Pooch's wolf-mob multiplier is hardcoded separately in lib/damageSources.js.
 const WOLF_SLAYER_DAMAGE_PER_LEVEL = { POOCH_SWORD: 20, SHAMAN_SWORD: 10 };
 
 export function computeWolfSlayerLevelBonus(itemId, wolfSlayerLevel) {
@@ -82,9 +81,9 @@ export const SPECIAL_WEAPON_CONFIG = {
     damagePercentPerDigit: 1.5,
     inputLabel: 'Coins Consumed',
   },
-  // David's Cloak has no published Strength formula — modeled as a direct player-entered value.
-  // Its rarity isn't fixed either (it upgrades via real Hunting milestones, not a recomb), so
-  // it also gets a rarity picker to correct the tooltip tier + gemstone/reforge stat scaling.
+  // David's Cloak has no published Strength formula, so it is a directly entered value. Its rarity
+  // isn't fixed either — it upgrades through Hunting milestones rather than a recomb — so it also
+  // gets a rarity picker, which corrects the tooltip tier and the gemstone and reforge scaling.
   DAVIDS_CLOAK: {
     kind: 'flatStrength',
     max: 50,
@@ -140,14 +139,11 @@ function insertPriceCounterLine(lore, value) {
   return [...lore.slice(0, insertAt), '', line, ...lore.slice(insertAt)];
 }
 
-// {statKey: delta} for the two `special` kinds that actually feed a real STAT_LABELS line —
-// Midas Sword's Greed-ability Damage/Strength bonus and David's Cloak's Hunting-milestone
-// Strength (`flatStrength`). Every other kind (bestiary/emeraldBlade/midasStaff/crownOfAvarice)
-// only ever rewrites non-stat ability text (Bestiary %/Magic Find, "Current Damage Bonus:",
-// "Ability Damage Bonus:" — a distinct line from the real "Ability Damage" stat, "Coins
-// Consumed:") — confirmed by reading every branch of applySpecialToLore below. Shared by
-// lib/itemStatTotals.js so the hidden-base computation and this file's own annotation-adjacent
-// text rewrites always agree on the same bonus value.
+// {statKey: delta} for the two `special` kinds that feed a real STAT_LABELS line: Midas Sword's
+// Greed Damage/Strength bonus and David's Cloak's Hunting-milestone Strength (`flatStrength`). The
+// other kinds — bestiary, emeraldBlade, midasStaff, crownOfAvarice — only rewrite non-stat ability
+// text. Shared with lib/itemStatTotals.js, so the hidden-base computation and this file's text
+// rewrites agree on one value.
 export function computeSpecialStatBonus(weaponId, value) {
   const config = getSpecialConfig(weaponId);
   if (!config) return {};
@@ -182,9 +178,9 @@ export function applySpecialToLore(lore, weaponId, value) {
   }
 
   if (config.kind === 'midasSword') {
-    // The Damage/Strength bonus itself is folded into the leading number once, elsewhere, from
-    // lib/itemStatTotals.js's computed hidden base (via computeSpecialStatBonus above) — only the
-    // "Price paid" counter line is this function's own job.
+    // The Damage and Strength bonus itself is folded into the leading number once, in
+    // lib/itemStatTotals.js's hidden base via computeSpecialStatBonus; only the "Price paid" counter
+    // line belongs to this function.
     return insertPriceCounterLine(lore, value);
   }
 
@@ -198,10 +194,9 @@ export function applySpecialToLore(lore, weaponId, value) {
     return [...withCounter.slice(0, insertIdx), line, ...withCounter.slice(insertIdx)];
   }
 
-  // flatStrength (David's Cloak): no lore rewrite needed here at all — its Strength bonus (via
-  // computeSpecialStatBonus above) is folded into the leading number once, elsewhere, from
-  // lib/itemStatTotals.js's computed hidden base, which also handles inserting a brand-new
-  // Strength line (David's Cloak has no pristine one) via mergeStatIntoBase's own fallback.
+  // flatStrength (David's Cloak) needs no lore rewrite: its Strength reaches the leading number
+  // through lib/itemStatTotals.js's hidden base, which also inserts a new Strength line via
+  // mergeStatIntoBase's fallback, David's Cloak having no pristine one.
 
   if (config.kind === 'crownOfAvarice') {
     const digits = bonus;

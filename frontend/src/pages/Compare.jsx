@@ -21,7 +21,7 @@ const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide p
 
 const SELECTIONS_KEY = 'hexCompareSelections';
 const MIN_COMPARE_SLOTS = 2;
-// ponytail: fixed cap for grid readability, not a hard technical limit — raise if users actually want more.
+// A fixed cap for grid readability rather than a technical limit.
 const MAX_COMPARE_SLOTS = 6;
 
 // Second slot defaults to the first saved loadout (not Current Build again) so a first-time
@@ -63,10 +63,8 @@ function useCurrentBuildState(build) {
       legionPlayers: build.legionPlayers,
       blazeCrimsonIsle: build.blazeCrimsonIsle,
       bestiaryMaxedMobs: build.bestiaryMaxedMobs,
-      // Account-wide state that isn't part of a gear loadout — Dungeon Blessings + their
-      // effectiveness inputs, Essence-shop perks, Master Skull tier, and the maxed-collections
-      // count (that last one was missing since before those existed, so the Current Build side
-      // silently disagreed with the Damage page on "The One"'s bonus too).
+      // Account-wide state that isn't part of a gear loadout: Dungeon Blessings and their
+      // effectiveness inputs, Essence-shop perks, Master Skull tier and the maxed-collections count.
       maxedCollectionsCount: build.maxedCollectionsCount,
       blessing: build.blessing,
       essencePerks: build.essencePerks,
@@ -138,10 +136,9 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
                 console.error('Failed to decode saved loadout for comparison:', err);
                 return null;
               });
-        // A saved loadout is a GEAR snapshot — it carries no Blessings/Essence perks/Master Skull,
-        // because those belong to the account rather than to the build. Both sides of a comparison
-        // are the same account, so the live values apply to a decoded loadout just as much as to
-        // the current one; without this a saved side would be scored as if the player had none.
+        // A saved loadout is a gear snapshot: it carries no Blessings, Essence perks or Master Skull,
+        // which belong to the account. Both sides of a comparison are the same account, so the live
+        // values apply to a decoded loadout as much as to the current one.
         const state = decoded && {
           bestiaryMaxedMobs: currentState.bestiaryMaxedMobs,
           maxedCollectionsCount: currentState.maxedCollectionsCount,
@@ -171,9 +168,8 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           state.swarmMobs,
           state.comboKills,
           state.legionPlayers,
-          // Same auto-derivation as DamageSources.jsx/optimizer.js — an Infernal/Magmatic target
-          // turns Blaze pet's Crimson Isle bonus on for every compared side, not just whichever
-          // side happens to have the manual toggle saved as on (user-specified 2026-09-01).
+          // Same derivation as DamageSources.jsx and optimizer.js: an Infernal or Magmatic target
+          // turns the Blaze pet's Crimson Isle bonus on for every compared side.
           state.blazeCrimsonIsle || isCrimsonIsleTarget,
           state.bestiaryMaxedMobs,
           state.godPotionMixin,
@@ -324,8 +320,8 @@ function DpsResultCard({ label, r }) {
       {r.status === 'ok' && (
         <>
           <div className="grid grid-cols-2 gap-x-2 text-[11px] text-neutral-700">
-            {/* Mutually exclusive labels for the same source, same reasoning as DamageSources.jsx —
-                a loadout only ever has one weapon equipped (user-specified 2026-09-01). */}
+            {/* Mutually exclusive labels for the same source, as in DamageSources.jsx: a loadout
+                holds one weapon. */}
             <span>{r.dps.isBowWeapon ? 'Arrow' : 'Melee'} ({round1(r.dps.meleeHitsPerSecond)}/s)</span>
             <span className="text-right font-mono">{Math.round(r.dps.melee - r.dps.duplexBonusDps).toLocaleString()}</span>
             {r.dps.duplexLevel > 0 && (
@@ -356,11 +352,10 @@ function DpsResultCard({ label, r }) {
   );
 }
 
-// Side-by-side (or N-way) Final Damage / (Base) Stats comparison of loadouts (Current Build
-// and/or any saved loadout, see lib/savedLoadouts.js) against the app's shared target mob
-// selection — avoids swapping the live build back and forth or duplicating the browser tab just
-// to compare numbers. Starts with 2 slots; every extra slot's delta is shown against slot 0 (the
-// first slot) as a baseline, the same way slot B was always compared against slot A before.
+// Side-by-side Final Damage and (Base) Stats comparison of loadouts — Current Build and any saved
+// loadout (lib/savedLoadouts.js) — against the shared target mob selection, so comparing numbers
+// needs no swapping of the live build. Starts with 2 slots; every extra slot's delta is shown
+// against slot 0.
 export default function Compare() {
   const navigate = useNavigate();
   const build = useBuild();

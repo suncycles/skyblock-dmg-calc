@@ -1,24 +1,23 @@
 #!/usr/bin/env node
 /**
  * Build-time ingest: parses a local checkout of NotEnoughUpdates-REPO
- * (https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO, MIT) into
- * the weapons/armor JSON bundles the worker ships with, replacing the
- * old Hypixel /resources/skyblock/items dependency for everything except
- * one field (see upgrade_costs below, which NEU-REPO doesn't carry at all).
+ * (https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO, MIT) into the
+ * weapons/armor JSON bundles the worker ships with. Hypixel's own
+ * /resources/skyblock/items is still the source of one field, upgrade_costs,
+ * which NEU-REPO doesn't carry.
  *
- * NEU-REPO's item files have no structured rarity/category field. The
- * `nbttag` field isn't even valid JSON (it's stringified SNBT). The only
- * place rarity+category live is the last non-empty line of `lore`, e.g.
- * "§6§lLEGENDARY SWORD". This script strips color codes from that line,
- * matches the leading words against constants/misc.json's tier_colors,
- * and treats what's left as the category — kept even when it doesn't
- * match a known type, but only weapon/armor categories are retained in
- * the output (this app doesn't use the rest).
+ * NEU-REPO's item files have no structured rarity or category field, and
+ * `nbttag` is stringified SNBT rather than JSON. Rarity and category live only
+ * in the last non-empty line of `lore`, e.g. "§6§lLEGENDARY SWORD", so this
+ * script strips colour codes from that line, matches the leading words against
+ * constants/misc.json's tier_colors, and treats the rest as the category —
+ * kept even when unrecognized, though only weapon and armor categories reach
+ * the output.
  *
- * This runs offline, not inside the Cloudflare Worker: parsing 8000+
- * files exceeds a Worker invocation's subrequest/CPU budget. Output is
- * committed into worker/src/data/ and imported directly by the worker
- * at deploy time — re-run this + redeploy to pick up NEU-REPO updates.
+ * Runs offline rather than inside the Worker: parsing 8000+ files exceeds a
+ * Worker invocation's subrequest and CPU budget. The output is committed to
+ * worker/src/data/ and imported at deploy time, so re-run this and redeploy to
+ * pick up NEU-REPO updates.
  *
  * Usage: node build-item-data.mjs <path-to-NEU-REPO-checkout>
  */
@@ -42,11 +41,9 @@ const TIER_NAMES = Object.keys(misc.tier_colors)
   .map((t) => t.replace(/_/g, ' ').toUpperCase())
   .sort((a, b) => b.length - a.length);
 
-// 'GAUNTLET' is Gemstone Gauntlet's own real tag word ("LEGENDARY GAUNTLET") — a mining tool
-// held in the weapon slot, distinct from Gloves-slot "Gauntlet"-named equipment (Demonslayer
-// Gauntlet etc.), which tags itself GLOVES/BRACELET like every other Gloves item and is
-// unaffected by this addition (verified: no armor.json/equipment.json entry uses category
-// GAUNTLET).
+// 'GAUNTLET' is Gemstone Gauntlet's own tag word ("LEGENDARY GAUNTLET"): a mining tool held in the
+// weapon slot, distinct from Gloves-slot equipment named "Gauntlet" (Demonslayer Gauntlet), which
+// tags itself GLOVES or BRACELET like every other Gloves item.
 const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND', 'GAUNTLET'];
 const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 // Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) — a
@@ -55,40 +52,29 @@ const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 // Gloves-slot items (Molten Bracelet, Luminous Bracelet, etc.) use it
 // instead of 'GLOVES' in their own real tag line.
 const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES', 'BRACELET'];
-// Pet items (the one held item a summoned pet can equip) — their tag line
-// is just "<TIER> PET ITEM" with no further category word, unlike the
-// others above. Previously hand-maintained as a ~34-entry hardcoded list
-// fetched live by the Worker (see worker/src/index.js's old
-// PET_ITEM_IDS), sourced from constants/pets.json's
-// pet_item_display_name_to_id map — which turned out to only cover 34 of
-// the real ~80, missing e.g. Antique Remedies/Minos Relic/Hephaestus
-// Remedies entirely. Scanning the full items/ catalog like every other
-// category here instead finds all of them and can't silently drift stale.
+// Pet items — the one held item a summoned pet can equip. Their tag line is just "<TIER> PET ITEM",
+// with no category word. Scanned from the full items/ catalog like every other category here rather
+// than from constants/pets.json's display-name map, which covers only 34 of the ~80 and misses
+// Antique Remedies, Minos Relic and Hephaestus Remedies among others.
 const PET_ITEM_CATEGORY = 'PET ITEM';
 
-// Power Stones (combine 9x at Maxwell/Thaumaturgist to unlock a Stone
-// Power on the Accessory Bag) — same "<TIER> POWER STONE" trailing-lore
-// convention as everything else here, verified against real NEU-REPO
-// files (e.g. ACACIA_BIRDHOUSE.json ends "§9§lRARE POWER STONE"). The
-// Power itself (name, per-MP stat scaling) isn't structured data
-// anywhere in NEU-REPO — only the physical stone item is — so that part
-// is a small hand-curated table in the frontend (lib/accessoryPowers.js),
-// sourced directly from the wiki; this script only needs to find the 21
-// real stone items for their icon/lore.
+// Power Stones (combine 9 at Maxwell to unlock a Stone Power on the Accessory Bag) — same
+// "<TIER> POWER STONE" trailing-lore convention as everything else here. The Power itself, its name
+// and per-MP stat scaling, isn't structured data anywhere in NEU-REPO; only the stone item is, so
+// that half is a hand-curated table in lib/accessoryPowers.js and this script only finds the 21
+// stone items for their icon and lore.
 const POWER_STONE_CATEGORY = 'POWER STONE';
 
-// Accessory Bag items (Talismans/Rings/Artifacts/Relics) — their trailing lore tag is always
-// "<TIER> ACCESSORY" regardless of the item's own display name/family (verified against several
-// real files, including dungeon-drop ones like WITHER_RELIC's "LEGENDARY DUNGEON ACCESSORY" —
-// `category.endsWith` catches that the same way ARMOR_TYPES catches "DUNGEON HELMET"). Needed to
-// resolve a player's real Accessory Bag contents (member.inventory.bag_contents.talisman_bag) to
-// a rarity for the live Magical Power calc — see worker/src/index.js.
+// Accessory Bag items (Talismans, Rings, Artifacts, Relics): their trailing tag is always
+// "<TIER> ACCESSORY" whatever the family, including dungeon drops like WITHER_RELIC's
+// "LEGENDARY DUNGEON ACCESSORY", which `category.endsWith` catches as ARMOR_TYPES catches
+// "DUNGEON HELMET". Needed to resolve an account's Accessory Bag contents to rarities for the live
+// Magical Power calculation — see worker/src/index.js.
 const ACCESSORY_TYPES = ['ACCESSORY'];
 
-// Items that parse as a weapon/armor category but aren't real
-// player-obtainable gear: Rift NPC "items" (their tier is always null —
-// they're dialogue props, not loot) and one-off cosmetic/quest items
-// whose real function has nothing to do with combat.
+// Items that parse as a weapon or armor category but aren't player-obtainable gear: Rift NPC
+// "items", whose tier is always null because they are dialogue props, and one-off cosmetic or
+// quest items with no combat function.
 const EXCLUDED_IDS = new Set([
   'ARGOFAY_THREEBROTHER_1_RIFT_NPC',
   'ARGOFAY_THREEBROTHER_2_RIFT_NPC',
@@ -96,37 +82,29 @@ const EXCLUDED_IDS = new Set([
   'TIME_KNIFE', // "Time Shuriken" — Rift cosmetic throwable, not a weapon
 ]);
 
-// Items whose lore matches the /rift/i scan below but are kept anyway — exceptions to that
-// filter, not to EXCLUDED_IDS above:
-//   GYROKINETIC_WAND: "Create a large rift at the aimed location" — a lowercase common noun
-//     describing the ability's visual effect (a spatial tear), not the Rift Dimension game mode.
-//   RIFT_NECKLACE_INSIDE / RIFT_NECKLACE_OUTSIDE: genuinely Rift-dimension gear — kept by
-//     explicit user request regardless (unlike GYROKINETIC_WAND above, a real scan hit, not a
-//     false positive).
-// The "Rift-Transferable"/"Rift-Exportable" drop-mechanic footnote (any item that CAN be carried
-// out of the Rift gets this tag) used to only need a couple of one-off entries here (see below),
-// but turned out to be common enough on ordinary Accessory Bag items (10+ real talismans found
-// on one live test account alone, e.g. Scarf's Grimoire, Vampire Dentist Relic, Future Calories
-// Talisman) that hand-allowlisting each one doesn't scale — filtered out of the scan itself
-// instead, below.
+// Items whose lore matches the /rift/i scan below but are kept anyway — exceptions to that filter
+// rather than to EXCLUDED_IDS above:
+//   GYROKINETIC_WAND: "Create a large rift at the aimed location" describes the ability's visual
+//     effect, not the Rift Dimension.
+//   RIFT_NECKLACE_INSIDE / RIFT_NECKLACE_OUTSIDE: genuinely Rift gear, kept by explicit request.
+// The "Rift-Transferable"/"Rift-Exportable" footnote marks any item that can be carried out of the
+// Rift, which turned out to be common on ordinary Accessory Bag items, so it is filtered out of the
+// scan itself below rather than allowlisted one id at a time.
 const RIFT_MENTION_KEEP_IDS = new Set(['GYROKINETIC_WAND', 'RIFT_NECKLACE_INSIDE', 'RIFT_NECKLACE_OUTSIDE']);
 // Matches only the footnote itself, not genuine Rift-dimension-specific lines (an ability/effect
 // that only works "while in the rift", a Rift-only requirement, etc.), which should still exclude
 // the item.
 const RIFT_FOOTNOTE_RE = /rift-(transferable|exportable)/i;
-// A handful of ordinary accessories (Respiration Artifact, Hocus-Pocus Cipher, ...) have a real,
-// non-footnote Rift mention too — a bonus effect that only triggers while in the Rift, on top of
-// stats/an Accessory Power that work everywhere. Hypixel's own "Works while in Accessory Bag!"
-// line is the authoritative signal that an item is a normal always-on accessory rather than
-// Rift-exclusive content (confirmed absent on genuine Rift-only gear like RIFT_NECKLACE_INSIDE) —
-// checked before excluding on a rift mention, same rescue as RIFT_MENTION_KEEP_IDS but driven by
-// the item's own real text instead of a hand-maintained id list.
+// Some ordinary accessories (Respiration Artifact, Hocus-Pocus Cipher) carry a real, non-footnote
+// Rift mention: a bonus that triggers only in the Rift, on top of stats that work everywhere.
+// Hypixel's own "Works while in Accessory Bag!" line is the signal that an item is a normal
+// always-on accessory rather than Rift-exclusive content — it is absent on genuine Rift-only gear —
+// so it is checked before excluding on a rift mention.
 const ACCESSORY_BAG_MARKER_RE = /works while in accessory bag/i;
 
-// Inverse of EXCLUDED_IDS: real player-obtainable weapons whose last lore line is just the bare
-// tier (e.g. "§9§lRARE") with no trailing category word, so parseTierAndCategory finds no
-// category and they'd otherwise be silently dropped. Voodoo Doll/Jinxed Voodoo Doll are
-// Zombie Slayer weapon-slot items, verified directly against their real NEU-REPO item files.
+// The inverse of EXCLUDED_IDS: player-obtainable weapons whose last lore line is a bare tier
+// ("§9§lRARE") with no category word, so parseTierAndCategory finds none and they would be dropped.
+// Voodoo Doll and Jinxed Voodoo Doll are Zombie Slayer weapon-slot items.
 const MANUAL_CATEGORY_OVERRIDES = {
   VOODOO_DOLL: 'SWORD',
   VOODOO_DOLL_WILTED: 'SWORD',
@@ -161,23 +139,17 @@ function materialFromItemId(itemid) {
   return itemid.replace(/^[a-z0-9_]+:/, '').toUpperCase();
 }
 
-// Star-upgrade material costs (Essence + crafting items, e.g. Kuudra armor's Heavy Pearl/Kuudra
-// Teeth requirements at higher stars) live NOWHERE in NEU-REPO — confirmed by inspecting a real
-// item file directly, no `upgrade_costs` key at all — but Hypixel's own public resources endpoint
-// has it per-item, keyed by the same internalname. This is the one field this script still pulls
-// live rather than from the NEU-REPO checkout; every other field comes from the offline parse
-// above. One request, done once up front, id-indexed for O(1) lookup during the main item loop.
-// Real per-slot gemstone TYPE (COMBAT/DEFENSIVE/UNIVERSAL/RUBY/SAPPHIRE/JASPER/AMETHYST/ONYX/OPAL/
-// MINING/CHISEL/...) and real unlock cost (coins + specific Flawless/Fine gem items) — also not in
-// NEU-REPO at all (its own item files have no gemstone_slots key either, confirmed by inspection),
-// same "Hypixel's resources API is the only real source" situation as upgrade_costs. Confirmed live
-// against real items: a "COMBAT" slot accepts any of the 6 gems this app models (verified against a
-// real account's Infernal Crimson pieces holding Onyx in a COMBAT slot), while a slot whose type IS
-// itself one of the 6 gem ids (e.g. Hyperion's "SAPPHIRE" slot, Giant's Sword's two "JASPER" slots)
-// only accepts that one type — see lib/gemstones.js's getAllowedGemsForSlotType, the consumer.
-// Unlock cost is genuinely per-item (not just per slot-type — Hyperion's SAPPHIRE slot costs 250k +
-// 4 Flawless Sapphire while Voidedge Katana's costs only 100k + 40 Fine Sapphire), so the whole
-// per-slot object (type + costs) is kept, not just the type.
+// Star-upgrade material costs (Essence plus crafting items, such as Kuudra armor's Heavy Pearl and
+// Kuudra Teeth at higher stars) are absent from NEU-REPO but present per item in Hypixel's public
+// resources endpoint, keyed by the same internalname. This is the one field still pulled live
+// rather than from the offline parse: one request up front, id-indexed for the main item loop.
+// Per-slot gemstone type (COMBAT/DEFENSIVE/UNIVERSAL/RUBY/SAPPHIRE/JASPER/AMETHYST/ONYX/OPAL/...)
+// and unlock cost (coins plus specific Flawless or Fine gems) are likewise absent from NEU-REPO and
+// come from the same endpoint. A COMBAT slot accepts any of the 6 gems this app models, while a slot
+// whose type is itself a gem id (Hyperion's SAPPHIRE, Giant's Sword's two JASPER slots) accepts only
+// that one — see lib/gemstones.js's getAllowedGemsForSlotType. Unlock cost is per item rather than
+// per slot type (Hyperion's SAPPHIRE slot is 250k + 4 Flawless Sapphire; Voidedge Katana's is 100k +
+// 40 Fine Sapphire), so the whole per-slot object is kept.
 console.log('Fetching upgrade_costs/gemstone_slots from Hypixel resources API...');
 const upgradeCostsById = new Map();
 const gemstoneSlotsById = new Map();
@@ -225,13 +197,11 @@ for (const file of files) {
 
   if (EXCLUDED_IDS.has(raw.internalname)) continue;
 
-  // Rift-dimension items (Rift Damage/Rift Time/Rift Gallery etc.) — their whole stat line only
-  // matters inside the Rift, a separate game mode this calculator doesn't model at all, so
-  // they're dead weight in every picker. Text-scanned rather than a hardcoded id list so any
-  // future Rift item NEU-REPO adds is caught automatically. The Rift-Transferable/-Exportable
-  // footnote line itself doesn't count (see RIFT_FOOTNOTE_RE above) — it means the opposite of
-  // Rift-exclusive. Nor does any other rift mention on an item carrying the real "Works while in
-  // Accessory Bag!" tag (see ACCESSORY_BAG_MARKER_RE above).
+  // Rift-dimension items (Rift Damage, Rift Time, Rift Gallery): their stat lines only matter inside
+  // the Rift, a mode this calculator doesn't model, so they are dead weight in every picker.
+  // Text-scanned rather than an id list, so future Rift items are caught automatically. The
+  // Rift-Transferable footnote doesn't count (RIFT_FOOTNOTE_RE), nor does a rift mention on an item
+  // carrying the "Works while in Accessory Bag!" tag (ACCESSORY_BAG_MARKER_RE).
   if (
     !RIFT_MENTION_KEEP_IDS.has(raw.internalname) &&
     !raw.lore.some((line) => ACCESSORY_BAG_MARKER_RE.test(line)) &&
@@ -247,12 +217,9 @@ for (const file of files) {
 
   const isWeapon = WEAPON_TYPES.some((t) => category.endsWith(t));
   const isArmor = !isWeapon && ARMOR_TYPES.some((t) => category.endsWith(t));
-  // Equipment additionally requires a real tier: unlike weapon/armor
-  // (where every category-matching file so far has genuinely been real
-  // gear), one Rift NPC dialogue item's last lore line happens to end in
-  // "...AND THE SILKRIDER SAFETY BELT" — a sentence, not a rarity tag —
-  // and would otherwise false-positive as a BELT. A real equipment item
-  // always has a parsed tier; dialogue text doesn't.
+  // Equipment additionally requires a parsed tier: one Rift NPC dialogue item's last lore line ends
+  // "...AND THE SILKRIDER SAFETY BELT", a sentence rather than a rarity tag, which would otherwise
+  // false-positive as a BELT. Real equipment always has a tier; dialogue text doesn't.
   const isEquipment = !isWeapon && !isArmor && tier && EQUIPMENT_TYPES.some((t) => category.endsWith(t));
   const isPetItem = !isWeapon && !isArmor && !isEquipment && tier && category === PET_ITEM_CATEGORY;
   const isPowerStone = !isWeapon && !isArmor && !isEquipment && !isPetItem && tier && category === POWER_STONE_CATEGORY;
@@ -261,9 +228,7 @@ for (const file of files) {
   if (!isWeapon && !isArmor && !isEquipment && !isPetItem && !isPowerStone && !isAccessory) continue;
 
   if (isPetItem) {
-    // Pet items have no slot-matching `category` concept (there's only
-    // ever one pet-item slot) and no consumer needs one — matches the
-    // shape the old live-fetch code produced.
+    // Pet items have no slot-matching `category` concept — there is only ever one pet-item slot.
     petItems.push({
       id: raw.internalname,
       name: stripColorCodes(raw.displayname || raw.internalname || ''),
@@ -286,9 +251,8 @@ for (const file of files) {
   }
 
   if (isAccessory) {
-    // Only rarity (for the live Magical Power calc) and name/material (in case a future picker
-    // wants to render one) matter here — no `category` breakdown the way weapons/armor get one,
-    // since every accessory shares the single bare "ACCESSORY" tag regardless of family.
+    // Only rarity, for the live Magical Power calculation, and name/material for rendering matter
+    // here — there is no category breakdown, since every accessory shares the bare "ACCESSORY" tag.
     accessories.push({
       id: raw.internalname,
       name: stripColorCodes(raw.displayname || raw.internalname || ''),
@@ -307,13 +271,12 @@ for (const file of files) {
     tier,
     lore: raw.lore,
   };
-  // Only weapon/armor slots ever take real stars (see optimizer.js's evaluateStarsCandidates) —
-  // omitted on equipment items to avoid bloating equipment.json with a field nothing reads there.
+  // Only weapon and armor slots take stars (optimizer.js's evaluateStarsCandidates), so this is
+  // omitted on equipment items rather than bloating equipment.json with a field nothing reads.
   if ((isWeapon || isArmor) && upgradeCostsById.has(raw.internalname)) {
     item.upgrade_costs = upgradeCostsById.get(raw.internalname);
   }
-  // Same weapon/armor-only scope as upgrade_costs above — confirmed live that equipment items have
-  // no gemstone_slots at all (real Skyblock equipment doesn't have gem sockets).
+  // Same weapon/armor-only scope as upgrade_costs above: equipment has no gemstone sockets.
   if ((isWeapon || isArmor) && gemstoneSlotsById.has(raw.internalname)) {
     item.gemstone_slots = gemstoneSlotsById.get(raw.internalname);
   }

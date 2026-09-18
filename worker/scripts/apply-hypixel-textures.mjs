@@ -1,69 +1,41 @@
 #!/usr/bin/env node
 /**
- * Build-time ingest: pulls Hypixel's official SkyBlock resource pack
- * (https://api.hypixel.net/v2/resources/packs) and copies out the subset of
- * item textures that map cleanly onto items in weapons.json/armor.json,
- * into frontend/public/images/skyblock/{ITEM_ID}.png.
+ * Build-time ingest: pulls Hypixel's SkyBlock resource pack
+ * (https://api.hypixel.net/v2/resources/packs) and copies out the item textures that map onto
+ * entries in weapons.json/armor.json, into frontend/public/images/skyblock/{ITEM_ID}.png.
  *
- * The API only returns a zip download (one per supported pack format) —
- * there's no per-texture endpoint — so this downloads it once and keeps the
- * extracted PNGs as regular committed files rather than re-fetching at
- * runtime. Re-run this + rebuild the frontend to pick up pack updates.
+ * The API only serves a zip per pack format, with no per-texture endpoint, so this downloads it
+ * once and keeps the extracted PNGs as committed files. Re-run it and rebuild the frontend to pick
+ * up pack updates.
  *
- * Most items DON'T have bespoke SkyBlock art here: the pack overrides
- * vanilla item textures per unique item via 1.21.4+ item-model predicates
- * (assets/hypixel_skyblock/items/item/**.json -> models -> textures), not
- * by vanilla material, and only a fraction of items (mostly higher-rarity
- * or otherwise distinctive gear) get one. Everything without a match here
- * is expected to fall back to the generic vanilla-material icon (see
- * frontend/src/lib/icons.js) — not a bug.
+ * Most items have no bespoke art: the pack overrides vanilla textures per item through 1.21.4+
+ * item-model predicates (assets/hypixel_skyblock/items/item/**.json -> models -> textures) rather
+ * than by material, and only a fraction of items get one. Anything unmatched falls back to the
+ * generic vanilla-material icon (frontend/src/lib/icons.js).
  *
- * Matching is tiered, cheapest/most-precise first:
- *  1. Item-definition resolution: look up items/item/**\/{slug}.json — the
- *     pack's actual item-identity keying, matched by slugified display name
- *     first and internal id second (see below for why name wins), then walk
- *     its item-model predicate tree (condition/select/range_dispatch/
- *     composite, recursively) down to a leaf model, then read that model's
- *     texture. This is the only tier that gets skin-variant items right:
- *     e.g. id "BURSTFIRE_DAGGER" (displayed as "Kindlebane Dagger") has no
- *     "burstfire_dagger.png" *or* "kindlebane_dagger.png" — the real files
- *     are "kindlebane_dagger_ashen.png"/"_auric.png" (powder-track skins),
- *     and only items/item/slayer/blaze/swords/kindlebane_dagger.json says
- *     which one is the default. For items whose id is "STARRED_"-prefixed
- *     (our weapons.json entry for the max-stat variant), this tier first
- *     tries "{slug}_fragged" — Hypixel's internal name for what players
- *     call "starred" — before falling back to the un-starred "{slug}". It's
- *     a *separate* top-level item-def file with its own distinct texture
- *     (e.g. "daedalus_blade_fragged.json"/.png next to "daedalus_blade"),
- *     not a condition inside the base item's def, and only about a
- *     quarter of starred items in our data actually have one — the rest
- *     share their base item's texture, which is correct (no fragged file
- *     exists for them in the pack either).
- *  2. Exact: item id lowercased == texture basename (e.g. "ASPECT_OF_THE_VOID"
- *     -> aspect_of_the_void.png). Works when the id and the in-pack name
- *     agree, which is most items.
- *  3. Exact: slugified display name == texture basename. The pack is
- *     actually keyed by in-game display name, not internal id, so renamed/
- *     nicknamed items (id "DAEDALUS_AXE", texture "daedalus_blade.png",
- *     because the item is really called "Daedalus Blade") only resolve this
- *     way. Starred (max-stat reforge) items carry a leading Hypixel-font
- *     glyph before the name — strip it before slugifying, same fix as the
- *     weapon-search box.
- *  4. Fuzzy: slugified display name within Levenshtein distance 1 of a
- *     texture basename, e.g. "hunter_knife" -> "hunters_knife" (the real
- *     name has a possessive the slug drops) or "bouquet_of_lies" ->
- *     "bouqet_of_lies" (a typo in Hypixel's own filename). Gated to names
- *     >=6 chars with a *unique* closest match — short names produce
- *     coincidental one-edit collisions with unrelated items (e.g. "bow" is
- *     distance 2 from the unrelated "wob", "iron_sword" is distance 3 from
- *     "broken_sword"), so this is intentionally conservative rather than a
- *     general fuzzy search.
+ * Matching is tiered, most precise first:
+ *  1. Item-definition resolution: look up items/item/**\/{slug}.json — the pack's own item-identity
+ *     keying, matched by slugified display name first and internal id second — then walk its
+ *     item-model predicate tree (condition/select/range_dispatch/composite) to a leaf model and read
+ *     that model's texture. Only this tier resolves skin-variant items: "BURSTFIRE_DAGGER" (displayed
+ *     as Kindlebane Dagger) has neither burstfire_dagger.png nor kindlebane_dagger.png — the real
+ *     files are kindlebane_dagger_ashen.png and _auric.png, and only the item-def names the default.
+ *     For a "STARRED_"-prefixed id this tier first tries "{slug}_fragged", Hypixel's internal name
+ *     for starred, which is a separate top-level item-def with its own texture rather than a
+ *     condition inside the base item; about a quarter of starred items have one, and the rest share
+ *     the base texture.
+ *  2. Exact: item id lowercased == texture basename (ASPECT_OF_THE_VOID -> aspect_of_the_void.png).
+ *  3. Exact: slugified display name == texture basename. The pack is keyed by display name, so a
+ *     renamed item (id DAEDALUS_AXE, texture daedalus_blade.png) resolves only this way. Starred
+ *     items carry a leading Hypixel-font glyph, stripped before slugifying.
+ *  4. Fuzzy: slugified display name within edit distance 1 of a basename — "hunter_knife" ->
+ *     "hunters_knife", or "bouquet_of_lies" -> "bouqet_of_lies", a typo in Hypixel's own filename.
+ *     Gated to names of 6+ characters with a unique closest match, since short names collide by
+ *     coincidence ("bow" is distance 2 from the unrelated "wob").
  *
- * Tiers 2-4 are a basename-guessing fallback for items with no
- * items/item/**.json entry at all. Empirically, matching weapons.json/
- * armor.json entries against items/item/**.json basenames hits on name 45x
- * more than on id alone (992 items: 45 name-only, 8 id-only, 123 both) —
- * name is checked first in tier 1 for the same reason.
+ * Tiers 2-4 are a basename-guessing fallback for items with no items/item/**.json entry. Across 992
+ * items, matching on name hits 45 times where id alone doesn't, against 8 the other way, which is
+ * why name is checked first in tier 1 too.
  *
  * Usage: node apply-hypixel-textures.mjs
  */
@@ -154,17 +126,12 @@ function stripNamespace(ref) {
   return idx === -1 ? ref : ref.slice(idx + 1);
 }
 
-// Walks an item-model predicate node (the "model" field of an
-// items/item/**.json file, or any nested model within it) down to a single
-// leaf model reference string. Handles the predicate types actually seen in
-// the pack: minecraft:model (leaf), condition (take on_false, the
-// non-special-cased default state), minecraft:select keyed on
-// minecraft:display_context (take the "gui" case — that's what's shown in
-// an inventory slot, which is what we're rendering), range_dispatch (take
-// fallback, i.e. no special property active), and composite (take the
-// first layer, e.g. a drill's head). Falls back to a best-effort deep
-// search for any nested "model" string so unrecognized/future predicate
-// shapes degrade gracefully instead of throwing.
+// Walks an item-model predicate node — the "model" field of an items/item/**.json file, or any
+// nested model within it — down to a single leaf model reference. Handles the predicate types the
+// pack uses: minecraft:model (leaf), condition (take on_false, the default state), minecraft:select
+// on minecraft:display_context (take "gui", what an inventory slot shows), range_dispatch (take the
+// fallback) and composite (take the first layer, such as a drill's head). Falls back to a deep
+// search for any nested "model" string, so unrecognized shapes degrade rather than throw.
 function resolveModelRef(node, depth = 0) {
   if (!node || typeof node !== 'object' || depth > 8) return null;
   const type = node.type;
@@ -271,15 +238,10 @@ async function main() {
     let src = null;
     let tier = null;
 
-    // Starred (max-stat) items get a genuinely different texture in the
-    // pack, keyed as a *separate* top-level item-def basename suffixed
-    // "_fragged" (Hypixel's internal name for what players call
-    // "starred") — e.g. "daedalus_blade" (base) vs
-    // "daedalus_blade_fragged" (starred), two unrelated files, not a
-    // condition/select inside one. Only ~7 of 27 starred items in our
-    // data actually have one; the rest fall through to the shared base
-    // texture same as before. Name checked before id — see module doc for
-    // why the pack's own item-identity keying favors display name.
+    // Starred items have a different texture in the pack, keyed as a separate top-level item-def
+    // basename suffixed "_fragged" — daedalus_blade against daedalus_blade_fragged, two files rather
+    // than one conditional def. Only ~7 of 27 starred items here have one; the rest fall through to
+    // the base texture. Name is checked before id, as in tier 1.
     const candidateKeys = starred ? [`${nameKey}_fragged`, `${idKey}_fragged`, nameKey, idKey] : [nameKey, idKey];
     for (const key of candidateKeys) {
       const defPath = itemDefByBasename.get(key);
@@ -314,13 +276,9 @@ async function main() {
     tally[tier]++;
   }
 
-  // The pack also has real per-gem, per-tier item art for the Gemstones
-  // collection at a fixed, well-known path — read directly from there
-  // rather than through byBasename, which dedupes by basename alone and
-  // would drop these: some gems (e.g. Opal) have a same-named but visually
-  // different reskinned texture elsewhere in the pack (a Blaze Slayer
-  // drop), which is a real ambiguity for the general id/name matching
-  // above but not here, since we know exactly which path we want.
+  // The pack also carries per-gem, per-tier art for the Gemstones collection at a fixed path, read
+  // directly rather than through byBasename: that map dedupes by basename, and some gems (Opal) have
+  // a same-named but different reskin elsewhere in the pack. Here the exact path is known.
   mkdirSync(GEMSTONE_OUT_DIR, { recursive: true });
   let gemstoneCopied = 0;
   for (const gemId of GEMSTONE_IDS) {

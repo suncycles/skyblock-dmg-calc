@@ -5,21 +5,18 @@ import { WORKER_BASE_URL } from './apiConfig';
 import { INFERNAL_CRIMSON_MAX_STACKS } from './armorSetBonuses';
 import { GOD_POTION_MIXINS } from './godPotion';
 
-/* Encodes the entire build into one compact, URL-safe string and decodes it back — powers
-   the "Loadouts" Export/Import buttons and the /loadout/:code share-link route. Only
-   `item.id`/`petId`+`tier`/power `id` is stored per slot (never the item's heavy `lore`
-   array, reconstructed from itemData on decode); everything else passes through as plain
-   JSON. Modifiers are diffed against their type's defaults before encoding (most items only
-   touch a handful of the ~15 fields) and re-filled with defaults on decode — most real builds
-   shrink substantially since a lot of slots and stats sit at their default value. Deflated via
-   the browser's native CompressionStream, then base64url-encoded.
+/* Encodes the whole build into one URL-safe string and decodes it back, powering the Loadouts
+   Export/Import buttons and the /loadout/:code share-link route. Only item.id, petId + tier and the
+   power id are stored per slot — never the item's `lore`, which is reconstructed from itemData on
+   decode — and everything else passes through as JSON. Modifiers are diffed against their type's
+   defaults before encoding and re-filled on decode, since most slots sit at their defaults. The
+   result is deflated with the browser's CompressionStream and base64url-encoded.
 
-   shortenLoadoutCode() additionally uploads that encoded blob to the Worker's KV store (see
-   worker/src/index.js) under a short random id — decodeLoadoutCode() tries the embedded-blob
-   decode first and only falls back to resolving `code` as a KV id if that fails, so both a raw
-   embedded blob and a short id can hit the same /loadout/:code route with no separate URL shape
-   needed to tell them apart. Only the Export/share-link flow shortens; saved-locally Loadouts
-   keep the plain embedded blob so loading your own saved builds never needs a network round trip. */
+   shortenLoadoutCode() additionally uploads that blob to the Worker's KV store under a short random
+   id. decodeLoadoutCode() tries the embedded-blob decode first and falls back to resolving `code` as
+   a KV id, so both forms share the same route with no separate URL shape. Only the Export and
+   share-link flow shortens; locally saved Loadouts keep the embedded blob, so loading your own build
+   needs no network round trip. */
 
 const FORMAT_VERSION = 2;
 // v1 links (gzip-wrapped, enchant/gemstone entries as keyed objects) are still decodable —
@@ -52,10 +49,9 @@ function withDefaults(diff, defaults) {
   return { ...defaults, ...(diff || {}) };
 }
 
-// v2 packs {id, level, maxLevel} enchant entries and {gem, tier} gemstone entries as plain
-// positional tuples instead of keyed objects — same values, just without the repeated field-name
-// text (JSON key names are otherwise the single biggest compressible-but-still-there cost for a
-// fully-decked item with a dozen-plus enchants and 3-4 gemstones).
+// v2 packs {id, level, maxLevel} enchant entries and {gem, tier} gemstone entries as positional
+// tuples rather than keyed objects — the same values without the repeated field names, which are
+// the biggest remaining cost for a fully-enchanted item.
 function packEnchant(e) {
   return [e.id, e.level, e.maxLevel];
 }
@@ -69,9 +65,9 @@ function unpackGemstone(t) {
   return t ? { gem: t[0], tier: t[1] } : null;
 }
 
-// Only called for v2 compacts — v1's enchant/gemstone entries are already the keyed-object shape
-// withDefaults() expects, so running them through this would silently scramble them instead of
-// throwing (array-index access on a plain object just reads undefined).
+// Only called for v2 compacts: v1's enchant and gemstone entries are already the keyed-object shape
+// withDefaults() expects, and running them through this would scramble them silently, since
+// array-index access on an object reads undefined rather than throwing.
 function unpackModifiersDiff(diff) {
   if (!diff) return diff;
   const out = { ...diff };
@@ -81,9 +77,8 @@ function unpackModifiersDiff(diff) {
   return out;
 }
 
-// Drops zero-valued numeric entries — safe wherever the decode side already zero-fills missing
-// keys itself (BuildContext's loadFullState merges attributes/playerStats/miscStats over their
-// own defaults), so no matching "fill" step is needed here.
+// Drops zero-valued numeric entries, safe because the decode side zero-fills missing keys:
+// BuildContext's loadFullState merges attributes, playerStats and miscStats over their defaults.
 function trimZeros(obj) {
   const result = {};
   for (const [key, value] of Object.entries(obj || {})) {
@@ -288,9 +283,9 @@ async function decompressGzip(bytes) {
   return readAllChunks(stream.readable);
 }
 
-// Old (v1) links were gzip-wrapped; gzip's fixed 2-byte magic number (0x1f 0x8b) identifies them
-// unambiguously — raw deflate (v2+) has no header at all, so a byte-signature check is enough to
-// route each format to the right decompressor without needing a separate URL shape for old vs new.
+// v1 links were gzip-wrapped, and gzip's 2-byte magic number (0x1f 0x8b) identifies them
+// unambiguously, since raw deflate has no header — so a byte check routes each format to the right
+// decompressor without a separate URL shape.
 async function decompress(bytes) {
   if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return decompressGzip(bytes);
   return decompressDeflateRaw(bytes);
@@ -311,12 +306,10 @@ async function decodeEmbeddedBlob(code, itemData) {
   return expandState(compact, itemData);
 }
 
-// Returns the expanded state, or throws if `code` doesn't decode to valid JSON, is an
-// unsupported format version, or isn't the right shape — callers should catch and show a friendly
-// error. `code` is either a self-contained embedded blob (the original scheme, and still what
-// saved-locally Loadouts use) or a short id minted by shortenLoadoutCode() — tried in that order,
-// since a short id is the wrong shape entirely to parse as an embedded blob and will always fail
-// fast, so no separate URL pattern is needed to tell the two apart.
+// Returns the expanded state, or throws when `code` doesn't decode to valid JSON, is an unsupported
+// version, or is the wrong shape; callers should catch and show a friendly error. `code` is either a
+// self-contained embedded blob or a short id from shortenLoadoutCode(), tried in that order — a
+// short id is the wrong shape to parse as a blob and fails fast, so no separate URL pattern is needed.
 export async function decodeLoadoutCode(code, itemData) {
   try {
     return await decodeEmbeddedBlob(code, itemData);

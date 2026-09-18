@@ -20,10 +20,10 @@ import PageHeader from '../components/PageHeader';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Raised-bevel Minecraft-button treatment for every selectable row on the Review screen (weapon
-// candidates, Wardrobe source sets, per-slot include toggles) — mirrors the same bevel already
-// used for this page's own Import button (grey-unselected / green-selected) instead of native
-// radio/checkbox inputs, so a whole group of options reads as a stack of buttons.
+// Raised-bevel button treatment for every selectable row on the Review screen — weapon candidates,
+// Wardrobe source sets, per-slot include toggles — mirroring this page's Import button
+// (grey unselected, green selected) rather than native radio and checkbox inputs, so a group of
+// options reads as a stack of buttons.
 const optionButtonBase =
   'flex items-center gap-2 px-2.5 py-2 text-sm text-left border-[3px] outline outline-2 outline-black transition-[filter] w-full min-w-0';
 const optionButtonOff =
@@ -40,9 +40,9 @@ const SKIP_WEAPON = 'skip';
 // Same "explicit skip" treatment for the pet picker, offered alongside every owned pet.
 const SKIP_PET = 'skip';
 
-// Icon-only square tiles for the Pet grid — a full name+level row per pet (the optionButton*
-// treatment above) doesn't scale to accounts with 100+ pets, so this shows just the skull icon;
-// name/level/equipped move to the native `title` tooltip and small corner badges instead.
+// Icon-only square tiles for the Pet grid: a full name-and-level row per pet doesn't scale to
+// accounts with 100+ pets, so this shows the skull icon, with name, level and equipped state in the
+// `title` tooltip and corner badges.
 const petTileBase =
   'relative flex items-center justify-center w-10 h-10 border-[3px] outline outline-2 outline-black transition-[filter] cursor-pointer hover:brightness-110 shrink-0';
 const petTileOff =
@@ -132,17 +132,13 @@ function pickSource(sets, choice, fallback) {
   return choice == null ? fallback : sets?.find((s) => s.index === choice);
 }
 
-// Imports currently-worn armor/equipment/Accessory Power, plus computed pet level, attribute
-// levels, Wolf Slayer level, and Combat/Skyblock/Foraging/Catacombs/Taming/Alchemy/Enchanting
-// level, from a real Hypixel account. Accessory Power/levels are always imported unconditionally;
-// weapon, pet, and each armor/equipment slot go through a Review step first — weapon because
-// Skyblock has no dedicated weapon slot (the Worker returns every carried candidate, not a
-// guess), pet because the account may own more than one (the Worker returns every owned pet,
-// pre-selecting whichever is currently equipped), armor/equipment because the user may want to
-// keep what's already in a given loadout slot instead of having the import overwrite it. Both
-// armor and equipment can additionally be sourced from any non-empty Wardrobe set instead of
-// currently-worn. Can auto-run on mount when EntryScreen navigates here with a username already
-// typed in.
+// Imports worn armor, equipment and Accessory Power, plus computed pet level, attribute levels and
+// the skill levels, from a Hypixel account. Accessory Power and levels import unconditionally;
+// weapon, pet and each armor or equipment slot go through a Review step first — weapon because
+// Skyblock has no dedicated weapon slot and the Worker returns every carried candidate, pet because
+// an account may own many (the equipped one is pre-selected), and the gear slots because the user
+// may want to keep what a slot already holds. Armor and equipment can also be sourced from any
+// non-empty Wardrobe set. Can auto-run on mount when EntryScreen navigates here with a username.
 export default function HypixelImport() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -273,8 +269,8 @@ export default function HypixelImport() {
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
     importHypixelMaxedCollectionsCount(maxedCollectionsCount);
     setHasJellyfishPet(hasJellyfishPet);
-    // A fresh import turns God Potion on (user-specified 2026-09-15). Picking a Catacombs target
-    // mob still turns it back off on its own — see BuildContext's toggleTargetMob.
+    // A fresh import turns God Potion on. Picking a Catacombs target mob still turns it back off —
+    // see BuildContext's toggleTargetMob.
     setGodPotionActive(true);
     importHypixelWeaponList(await buildWeaponInventoryList(rawImport, itemData));
     navigate('/');

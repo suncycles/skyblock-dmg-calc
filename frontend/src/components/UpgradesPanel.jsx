@@ -24,12 +24,10 @@ import { ENCHANTED_BOOK_ICON, getGemstoneIcon } from '../lib/icons';
 import NumberInput from './NumberInput';
 import WeaponIcon from './WeaponIcon';
 
-// The Recommended Upgrades panel — ONE implementation for both places it appears: the column docked
+// The Recommended Upgrades panel, one implementation for both places it appears: the column docked
 // beside the gear board on Landing (variant="column") and the standalone /optimizer page
-// (variant="page"). It used to be two copies (OptimizerSidebar.jsx and Optimizer.jsx) that had to
-// change in lockstep and didn't — the same black-on-black contrast bug shipped on both. It also
-// used to be a draggable floating window; it's in normal page flow now (user-specified 2026-09-14),
-// so it never covers the board and needs no window manager of its own.
+// (variant="page"). It sits in normal page flow rather than being a floating window, so it never
+// covers the board and needs no window management.
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
@@ -66,8 +64,8 @@ const CATEGORY_COLORS = {
   Attribute: '#c084fc',
 };
 
-// User-specified: reaching 82% Bonus Attack Speed is Slayer's single highest priority — shown as
-// context here rather than special-cased into the ranking's sort order (confirmed).
+// Reaching 82% Bonus Attack Speed is Slayer's highest priority, shown as context here rather than
+// special-cased into the ranking's sort order.
 const SLAYER_ATTACK_SPEED_TARGET = 82;
 
 const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slots: {}, otherResults: [] };
@@ -109,8 +107,8 @@ function Chip({ active, onClick, title, children }) {
 }
 
 // One row per candidate, whatever produced it. Both figures are the same swap measured two ways: the
-// % is relative to the current build, the flat number is the raw gain in the mode's own metric —
-// a big % on a small baseline and a small % on a large one look identical without it.
+// % against the current build, and the flat gain in the mode's own metric — without which a big %
+// on a small baseline and a small % on a large one look identical.
 function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat }) {
   const flatIncrease = typeof result.value === 'number' && typeof baselineValue === 'number' ? result.value - baselineValue : null;
   const cornerBadge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
@@ -145,8 +143,8 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
           </span>
           <span className="text-[12px] text-white truncate">{result.label}</span>
           <span className="text-[10px] text-white/65">
-            {/* Three states, worded apart: a real price, a confirmed "costs nothing", and no price
-                data at all — a bare "Cost: ?" read as a bug rather than as "unpriced". */}
+            {/* Three states, worded apart: a price, a confirmed "costs nothing", and no price data
+                at all, since a bare "Cost: ?" reads as a bug rather than as unpriced. */}
             {typeof result.cost !== 'number' || !Number.isFinite(result.cost)
               ? 'Cost: unpriced'
               : result.cost === 0
@@ -158,8 +156,8 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
           {result.slotNote && <span className="text-[10px] text-amber-300/80 truncate">{result.slotNote}</span>}
         </div>
         <span className="flex flex-col items-end leading-tight whitespace-nowrap">
-          {/* 3 significant figures: at 1 decimal every sub-0.05% candidate collapsed to "+0.0%",
-              exactly where the ranking is tightest (user-specified 2026-09-10). */}
+          {/* 3 significant figures: at 1 decimal every sub-0.05% candidate collapses to "+0.0%",
+              exactly where the ranking is tightest. */}
           {showPercent && <span className="text-[12px] font-mono font-bold text-green-400">+{round3Sig(result.percentIncrease)}%</span>}
           {showFlat && flatIncrease != null && (
             <span className="text-[11px] font-mono text-green-400">+{Math.round(flatIncrease).toLocaleString()}</span>
@@ -187,9 +185,9 @@ export default function UpgradesPanel({ variant = 'column' }) {
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
 
-  // "Auto" follows what the page is already showing — the Mage/Dungeon/DPS toggles and the target —
-  // so this list can't quietly optimize for a different kind of content than the damage number
-  // beside it. An explicit pick is kept, and remembered, as an override.
+  // "Auto" follows what the page is already showing — the Mage, Dungeon and DPS toggles and the
+  // target — so this list can't optimize for different content than the damage number beside it. An
+  // explicit pick is kept and remembered as an override.
   const [override, setOverrideState] = useState(loadOptimizerModeOverride);
   const setOverride = (next) => {
     setOverrideState(next);
@@ -253,8 +251,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
   const [sortBy, setSortBy] = useState('ratio');
   const [showPercent, setShowPercent] = useState(true);
   const [showFlat, setShowFlat] = useState(false);
-  // Free upgrades cost time, not coins — they'd sit permanently atop Best Value on an infinite
-  // ratio. Off by default: the common question is "what should I buy next".
+  // Free upgrades cost time rather than coins, so an infinite ratio would pin them to the top of Best
+  // Value. Off by default, the common question being what to buy next.
   const [showFree, setShowFree] = useState(false);
   // ✕ hides a suggestion for the rest of this visit; not persisted.
   const [skippedKeys, setSkippedKeys] = useState(() => new Set());
@@ -271,8 +269,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
   const resultKey = (r) => `${r.category}:${r.slot}:${r.label}`;
 
   const slotResults = OPTIMIZER_GEAR_SLOTS.flatMap((slot) => state.slots[slot] || []);
-  // maxBudget 0 = no limit. Unpriced ('?') candidates always stay: their real cost might be free or
-  // just unverified, so hiding them would be a false negative.
+  // maxBudget 0 means no limit. Unpriced ('?') candidates always stay: their cost may be free or
+  // merely unverified, so hiding them would be a false negative.
   const withinBudget = (r) => !build.maxBudget || typeof r.cost !== 'number' || r.cost <= build.maxBudget;
   const unfilteredResults = [...slotResults, ...state.otherResults, ...(mpResult?.results || [])]
     .filter(withinBudget)
@@ -357,8 +355,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
         )}
       </label>
 
-      {/* Native <details> — a disclosure with zero JS. Budget and category filters are set rarely,
-          so they fold away and the results start higher; the count says when any are active. */}
+      {/* Native <details>, a disclosure with no JS. Budget and category filters are set rarely, so
+          they fold away and the results start higher; the count shows when any are active. */}
       <details className="group rounded-sm border border-white/20 bg-white/5">
         <summary className="flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
           <span aria-hidden="true" className="text-[9px] text-white/70 transition-transform group-open:rotate-90">
@@ -481,9 +479,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
         </div>
       )}
 
-      {/* A footnote now rather than a banner above the list: it still says the important thing —
-          this ranks single swaps against the current build, not a full plan — without pushing the
-          results below the fold. */}
+      {/* A footnote rather than a banner: it still says this ranks single swaps against the current
+          build rather than a full plan, without pushing the results below the fold. */}
       <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 pt-1.5 border-t border-white/10">
         <span aria-hidden="true" className="shrink-0 leading-none pt-px">
           ⚠
