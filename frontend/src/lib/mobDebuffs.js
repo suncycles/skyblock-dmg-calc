@@ -1,6 +1,6 @@
 // Player-applied debuffs on the TARGET — the mirror of lib/dungeonBlessing.js, which buffs the
 // player. All four are Catacombs mechanics, so the panel they live on is Dungeon-gated the same
-// way the Blessings panel is (user-specified 2026-09-14).
+// way the Blessings panel is.
 //
 // They split into two kinds, and the difference is the whole reason this file exists:
 //
@@ -19,9 +19,9 @@
 // anything against an ordinary mob.
 
 export const ICE_SPRAY_MULTIPLIER = 1.1;
-// ponytail: modelled as a general final-damage multiplier, exactly as specified alongside Ice
-// Spray (user-specified 2026-09-14) — NOT scoped to bow damage despite the name. Scope it to the
-// bow metric in lib/finalDamage.js if the real item only buffs arrows.
+// Modelled as a general final-damage multiplier, like Ice Spray — NOT scoped to bow damage
+// despite the name. Scope it to the bow metric in lib/finalDamage.js if the real item only buffs
+// arrows.
 export const TWILIGHT_ARROW_POISON_MULTIPLIER = 1.1;
 
 export const LAST_BREATH_MAX_LEVEL = 5;
@@ -47,7 +47,7 @@ export function lethalityStacks(debuffs) {
 }
 
 // What the mob's Defense stat is multiplied BY. Last Breath and Lethality are multiplicative with
-// each other, not additive (user-confirmed 2026-09-14): at Last Breath 5 + Lethality 4 that's
+// each other, not additive: at Last Breath 5 + Lethality 4 that's
 // 0.5 * 0.64 = 0.32, i.e. 68% off — NOT the 86% an additive reading would give.
 export function mobDefenseDebuffMultiplier(debuffs) {
   const lastBreath = lastBreathLevel(debuffs) * LAST_BREATH_PERCENT_PER_LEVEL;

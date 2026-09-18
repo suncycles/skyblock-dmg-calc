@@ -450,8 +450,8 @@ const MAGE_BEAM_ARMOR_PROGRESSION = {
   boots: [[{ id: 'WISE_WITHER_BOOTS' }]],
 };
 
-// Balloon Snake and Rift Necklace are real sidegrades despite the rarity gap (RARE vs LEGENDARY,
-// user-specified) — both always compared, not a strict tier order. Only necklace/belt have
+// Balloon Snake and Rift Necklace are real sidegrades despite the rarity gap (RARE vs LEGENDARY)
+// — both always compared, not a strict tier order. Only necklace/belt have
 // curated Mage picks; cloak/gloves fall through to the brute-forced categories, same as any
 // other uncurated slot.
 const MAGE_EQUIPMENT_PROGRESSION = {
@@ -459,7 +459,7 @@ const MAGE_EQUIPMENT_PROGRESSION = {
   belt: [[{ id: 'IMPLOSION_BELT' }]],
 };
 
-// The curated dungeon equipment picks — user-specified 2026-09-11, and the ONLY equipment any
+// The curated dungeon equipment picks, and the ONLY equipment any
 // dungeon mode suggests. Shared by all three (Archer, Mage Beam, Mage Ability) since the lines are
 // the same; the two mage-only entries are layered on below rather than duplicated here.
 //
@@ -469,7 +469,7 @@ const MAGE_EQUIPMENT_PROGRESSION = {
 // Gloves and Balloon Snake have no Starred form, which is why only the other three gain a tier.
 //
 // Bone Necklace stays on the list for every dungeon mode even though its base block offers only
-// Crit Chance and so reads weak next to the rest (user-specified) — it is still the pick.
+// Crit Chance and so reads weak next to the rest — it is still the pick.
 const DUNGEON_EQUIPMENT_PROGRESSION = {
   necklace: [[{ id: 'BONE_NECKLACE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
   cloak: [[{ id: 'SHADOW_ASSASSIN_CLOAK' }], [{ id: 'STARRED_SHADOW_ASSASSIN_CLOAK' }]],
@@ -492,11 +492,11 @@ const MAGE_ABILITY_EQUIPMENT_PROGRESSION = {
   belt: [[{ id: 'ADAPTIVE_BELT' }, { id: 'IMPLOSION_BELT' }], [{ id: 'STARRED_ADAPTIVE_BELT' }]],
 };
 
-// User-specified: no clear universal best (situational, like Slayer's pet list) — all 4 real ids
-// sit in one flat tier, always compared against each other.
+// No clear universal best (situational, like Slayer's pet list) — all 4 real ids sit in one flat
+// tier, always compared against each other.
 const MAGE_PET_PROGRESSION = [[{ petId: 'GUARDIAN' }, { petId: 'CROW' }, { petId: 'SHEEP' }, { petId: 'GOLDEN_DRAGON' }]];
 
-// Pet Items (Textbook, Minos Relic, Hephaestus Relic — user-specified as Mage-relevant) get no
+// Pet Items (Textbook, Minos Relic, Hephaestus Relic — the Mage-relevant ones) get no
 // curated list here: evaluatePetItemCandidates already brute-forces every real pet item
 // regardless of mode (see this file's header comment), so a hand-authored allowlist would only
 // ever narrow that, not improve it — the optimizer already surfaces whichever of these (or
@@ -883,7 +883,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
       }
       const evaluateCandidate = async (candidate) => {
         // Frozen Blaze (Dungeon/Archer) is only a real sidegrade while a Blaze pet is equipped
-        // (user-specified 2026-08-29) — any candidate can carry this gate, not just Frozen Blaze.
+        //  — any candidate can carry this gate, not just Frozen Blaze.
         if (candidate.requiresPetId && loadout.pet?.item?.petId !== candidate.requiresPetId) return null;
         const resolved = resolveGearSummary({ id: candidate.id }, itemData);
         if (!resolved) return null; // catalog lookup failed — skip rather than guess
@@ -897,7 +897,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
         // first written — a candidate with real gemstones stripped off looked artificially worse
         // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
-        // value" bug stars had (user-confirmed 2026-08-23). Carried over, same as reforge/stars —
+        // value" bug stars had. Carried over, same as reforge/stars —
         // but clipped to the candidate's own real slot count (see clipGemstonesToSlots) rather
         // than blind, since a socket-count mismatch between old and new item can otherwise
         // overstate a candidate's value enough to flip a real downgrade into an apparent upgrade.

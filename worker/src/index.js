@@ -868,9 +868,8 @@ function isHatAccessory(item) {
 }
 
 // Real Hypixel tooltip label text for the 3 stats individually-owned accessories are parsed for
-// (Strength/Crit Chance/Crit Damage only — user-scoped; no real accessory has Crit Chance as a
-// base stat, confirmed by checking every one's real lore, so that key is here for completeness
-// but never actually matches anything today) — used to read the real "Stat: +X" lore line
+// (Strength/Crit Chance/Crit Damage only; no real accessory has Crit Chance as a base stat, so
+// that key is here for completeness but never actually matches anything today) — used to read the real "Stat: +X" lore line
 // directly, only for the fixed id list in PARSABLE_ACCESSORY_STAT_IDS below.
 const ACCESSORY_STAT_LABELS = {
   strength: "Strength",
@@ -1140,7 +1139,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
 
     const tier = realAccessoryTier(raw);
     let magicalPower = tier && RARITY_MAGICAL_POWER[tier] != null ? RARITY_MAGICAL_POWER[tier] : 0;
-    // Hegemony Artifact doubles its own Magical Power contribution — user-confirmed.
+    // Hegemony Artifact doubles its own Magical Power contribution.
     if (id === "HEGEMONY_ARTIFACT") magicalPower *= 2;
     if (isHatAccessory(raw)) {
       hatMagicalPower = Math.max(hatMagicalPower, magicalPower);

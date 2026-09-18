@@ -15,7 +15,7 @@ const PROC_LABELS = {
   venomousDamage: 'Venomous (amortized)',
 };
 
-// One line per damage source rather than a single summed line (user-specified 2026-09-05) — a
+// One line per damage source rather than a single summed line — a
 // stacked total hides which source is actually moving. Same key order as PROC_LABELS so the
 // legend and the tooltip read in the same order.
 const SOURCE_SERIES = [
@@ -28,8 +28,8 @@ const SOURCE_SERIES = [
 const TOTAL_COLOR = '#4ade80';
 
 // The damage axis deliberately does NOT start at zero. Anchored at 0, a real build's variance is
-// invisible — at ~5,000,000 per hit a 10,000 swing is 0.2% of the axis, a flat line (user-reported
-// 2026-09-05). Fitting the axis to the values actually plotted turns that same swing into real
+// invisible — at ~5,000,000 per hit a 10,000 swing is 0.2% of the axis, a flat line. Fitting the
+// axis to the values actually plotted turns that same swing into real
 // vertical movement. Padded by 8% of the span so the extremes aren't welded to the frame, and only
 // clamped at 0 when the padding would otherwise push below it.
 function damageDomain(hits, keys) {
@@ -92,7 +92,7 @@ function HitTooltip({ active, payload, label }) {
 // DpsByHitGraph's flat steady-state extrapolation with an actual per-hit damage sequence against
 // the mob's real starting HP, so Execute/Prosecute's ramp and Fire Aspect/Thunderlord/Crimson
 // Swipe's individual procs show up as real bumps/growth instead of being smoothed into one
-// constant DPS number (user-specified 2026-08-31). `hasRealHp` false means no confirmed HP number
+// constant DPS number. `hasRealHp` false means no confirmed HP number
 // exists for this mob yet (docs/mob-hp-followups.md) — the sequence still simulates (holding Mob
 // HP% constant at the slider's value instead of draining a real pool), so a small note explains why.
 export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps }) {

@@ -103,9 +103,8 @@ export async function buildFullItemTooltipLines(
     // for an ordinary item (computeItemStatTotals' own pristine IS a parse of this same text), but
     // diverge for a Gear-Score tiered-stat item (lib/tieredArmorStats.js): its bundled catalog
     // lore permanently shows the tier-1 tiered_stats value while t.pristine is the real per-copy
-    // tiered value, so subtracting t.pristine here under-counted the real total by exactly that
-    // gap (bug found live 2026-09-03: Skeleton Master Chestplate showed Crit Damage 73.8% instead
-    // of the real 119.8%, off by the tier-1/tier-10 pristine difference).
+    // tiered value, so subtracting t.pristine here under-counts the real total by exactly that
+    // gap (a Skeleton Master Chestplate would show Crit Damage 73.8% instead of its real 119.8%).
     const textPristine = parseBaseStatValue(lore, statKey) || 0;
     if (finalValue !== textPristine) finalValues[statKey] = finalValue - textPristine;
   }

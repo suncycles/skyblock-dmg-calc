@@ -1,6 +1,6 @@
 // Small "at a glance" corner badge shown on an item's icon wherever it renders (equipped slot
 // tiles, the Optimizer's upgrade rows) — a shorthand hint for a stat that isn't otherwise visible
-// on the icon itself. Two cases so far, both user-specified:
+// on the icon itself. Two cases:
 // - Crown of Avarice (either variant): its Coins Consumed special value, coin-shorthand (67m, 1b).
 // - The 5 Blaze Slayer variant families (Aurora/Crimson/Fervor/Hollow/Terror): which of the 5 real
 //   power tiers (Basic..Infernal) this specific piece is, as "T0"-"T4" (0-indexed, matching

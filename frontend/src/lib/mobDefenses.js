@@ -1,25 +1,16 @@
-// Mob-side damage reduction — three fields every mob conceptually has, all currently derived from
-// real confirmed rules rather than stored per-mob (no per-mob table exists yet beyond the specific
-// cases below; everything else genuinely defaults to 0 per CLAUDE.md's "don't guess game-mechanic
-// numbers" — these are the only rules confirmed so far, 2026-08-27):
+// Mob-side damage reduction — three fields every mob has:
 //
 // - Damage Reduction: a direct final multiplier on ANY dealt damage (melee, ability, beam, procs).
 // - Magic Resistance: a direct final multiplier on Ability damage only.
-// - Defense: the real Hypixel mob Defense stat. User-supplied 2026-09-03 (hypixelskyblock wiki's
-//   InfoboxMobStats, cross-checked against every Catacombs mob's full wikitext — only these 6 of
-//   51 have a published number at all): Necron 2,100 / Goldor 1,800 / Storm 1,200 / Maxor 1,000 —
-//   all four Master-Mode-only (0 in Normal Mode, user-confirmed), and Angry Archaeologist 900
-//   Normal / 1,200 Master (user-confirmed both modes). Lost Adventurer's wiki entry (100) carries
-//   no Normal/Master split at all, unlike the other four — treated as unconditional (both modes)
-//   on that basis, NOT user-confirmed; flag if wrong.
-//   No real per-mob values exist for the other 45 Catacombs mobs, or for anything outside The
-//   Catacombs — MOB_DEFENSE_TABLE lookups for those stay a real 0.
-//   User-confirmed 2026-09-03: Defense is its own final multiplier on damage dealt (independent
-//   of Damage Reduction/Magic Resistance above, not merged into either) — mult = 1 -
-//   Defense/(100+Defense). At Defense=0 (almost every mob) this is exactly 1, i.e. a no-op.
-//   Wither Dragon (user-renamed from the wiki's real name "Apex Dragon" 2026-09-03) is the secret
-//   post-Necron chase boss on Master Mode Floor VII — no Normal Mode variant exists at all, so
-//   normal stays 0 (unreachable in practice, same as every other unlisted mob).
+// - Defense: the real Hypixel mob Defense stat, its own final multiplier on damage dealt,
+//   independent of the two above and not merged into either — mult = 1 - Defense/(100+Defense),
+//   so Defense=0 is exactly 1, i.e. a no-op.
+//
+// Only six Catacombs mobs have a published Defense number: Necron 2,100 / Goldor 1,800 / Storm
+// 1,200 / Maxor 1,000, all four Master-Mode-only (0 in Normal Mode); Angry Archaeologist 900
+// Normal / 1,200 Master; and Lost Adventurer 100 in both modes. Every other mob, in or out of The
+// Catacombs, stays a real 0. Wither Dragon is the Master-Mode-only Floor VII chase boss, so its
+// Normal Mode value is unreachable in practice.
 
 import { getMobLocations } from './mobLocations';
 
@@ -41,7 +32,7 @@ function isInCatacombs(mob) {
   return !!mob?.name && getMobLocations(mob.name).includes('The Catacombs');
 }
 
-// User-confirmed: Mythological mobs are immune to all damage (100% reduction) unless the
+// Mythological mobs are immune to all damage (100% reduction) unless the
 // equipped pet is a Griffin — the real reason Griffin is the one BiS Diana pet (see
 // DIANA_PET_PROGRESSION in optimizer.js), not just Sacred Strength's Strength bonus.
 export function computeMobDamageReduction(mob, isGriffinPet) {
@@ -49,7 +40,7 @@ export function computeMobDamageReduction(mob, isGriffinPet) {
   return 0;
 }
 
-// User-confirmed: Mythological mobs 50%, any Catacombs-located mob a further/separate 10%
+// Mythological mobs 50%, any Catacombs-located mob a further/separate 10%
 // (additive — no real mob is currently both Mythological-typed and Catacombs-located, so a real
 // stacking order between the two has never come up).
 export function computeMobMagicResistance(mob) {

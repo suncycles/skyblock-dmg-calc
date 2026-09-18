@@ -12,8 +12,8 @@ import {
    curve[catacombsLevel] + Catacombs Stars (10%/star, the item's real star count, uncapped by the
    Overworld 5-star norm) + General's Medallion digits (1%/digit) + Master Stars (5%/star,
    dungeon-only) — applied to hiddenBase (pristine + reforge + gems + books + everything else,
-   never the Overworld 2%/star term). "old" is the pre-0.26.1 curve, "new" is current — both
-   user-supplied, index = Catacombs level. */
+   never the Overworld 2%/star term). "old" is the pre-0.26.1 curve, "new" is current; index =
+   Catacombs level. */
 export const DUNGEONIZE_CURVE_OLD = [
   10, 14, 18, 22, 26, 30, 35, 40, 45, 50, 55, 61, 67, 73, 79, 85, 92, 99, 106, 113, 120, 128, 136, 144, 152, 160, 169,
   178, 187, 196, 205, 215, 225, 235, 245, 255, 267, 279, 291, 303, 315, 329, 343, 357, 371, 385, 401, 418, 436, 455, 475,
@@ -56,7 +56,7 @@ export const MASTER_STAR_COLOR = 'q'; // dark blue (#1d213d) — Catacombs Boost
 
 // Stat keys using the Ability Damage stat's own Catacombs Stats Boost formula (Stars(10%) +
 // General's Medallion digits(1%) + Master Stars(5%) — no Catacombs Level curve term) instead of
-// the general one every other stat gets — user-confirmed 2026-08-30: Bonus Attack Speed and Crit
+// the general one every other stat gets: Bonus Attack Speed and Crit
 // Chance both follow this same curve-less behavior, same as the Ability Damage stat already did.
 // Exported for lib/itemStatTotals.js's own use (picks the same formula per stat when computing).
 export const ABILITY_STYLE_BOOST_STAT_KEYS = new Set(['ability_damage', 'bonus_attack_speed', 'crit_chance']);

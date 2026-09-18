@@ -1,18 +1,14 @@
 #!/usr/bin/env node
-// Regression guard for behaviors that have already broken once (fixed 2026-09-02, see git log):
-// item Stars must stay at a flat 2%/star out of a dungeon and jump to a separate 10%/star
-// Catacombs Boost total inside one; Master Stars must stay an independent, additive-only term
-// that only ever applies while Master Mode is on; an imported item's own dungeonized flag must
-// trust only Hypixel's real per-item NBT flag; every stat number the tooltip displays must come
-// from lib/itemStatTotals.js's single computed source, never re-derived by parsing rendered lore
-// text; an imported item's displayed enchant list must always come from this app's own parsing of
-// summary.enchantments; and Gear-Score tiered stats (Skeleton Master/Zombie Knight families) must
-// replace the catalog pristine value and independently bump rarity. Plain assert-based check, no
-// test framework — run with `npm run verify`.
+// Regression guard for behaviours that have broken before: item Stars stay at a flat 2%/star
+// outside a dungeon and become a separate 10%/star Catacombs Boost inside one; Master Stars stay an
+// additive-only term applying only in Master Mode; an imported item's dungeonized flag follows
+// lib/hypixelImport.js's resolveDungeonizedFlag; every displayed stat comes from
+// lib/itemStatTotals.js rather than re-parsed lore text; an imported item's enchant list comes from
+// this app's own parsing of summary.enchantments; and Gear-Score tiered stats replace the catalog
+// pristine value and bump rarity. Plain assert-based checks, no framework — run `npm run verify`.
 //
-// Uses Vite's own module graph (ssrLoadModule) rather than plain `node script.js`, since lib/*.js
-// files use extensionless relative imports that only Vite's resolver (not Node's ESM loader)
-// understands — this also means the check runs against the exact same code the app ships.
+// Uses Vite's module graph (ssrLoadModule) rather than plain node, since lib/*.js use extensionless
+// relative imports only Vite's resolver understands — so the checks run against the shipped code.
 
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -102,9 +98,8 @@ try {
     assert.equal(withMaster - withoutMaster, 20, `4 Master Stars should add exactly +20% (5%/star) on top, got +${withMaster - withoutMaster}%`);
   });
 
-  // 3b. Master Stars only ever apply while the Master Mode toggle is on — even with the Dungeon
-  // toggle on and real Master Stars present, useMasterMode=false must return the withoutMaster
-  // total (this exact leak happened once already this session — see finalDamage.js's own comment).
+  // 3b. Master Stars apply only while Master Mode is on: with the Dungeon toggle on and Master Stars
+  // present, useMasterMode=false must still return the withoutMaster total.
   await check('Master Stars gated behind the Master Mode toggle', () => {
     const sources = {
       baseStats: { damage: 100 },
@@ -122,18 +117,14 @@ try {
     assert.equal(finalDamage.selectBaseStats(sources, true, true, null).damage, 200, 'Dungeon on + Master Mode on -> full Master Star total');
   });
 
-  // 4. How an item's own `modifiers.dungeonized` flag is decided. The rule has been wrong in both
-  // directions: it once inferred dungeonized from the "DUNGEON" category alone (inflating a fresh
-  // item's stats with the 10%/star Catacombs Boost), then over-corrected to trusting only
-  // ExtraAttributes.dungeon_item — which turns out not to be written for dungeon armour or
-  // equipment AT ALL, so nothing imported as dungeonized (user-reported 2026-09-11). What settles
-  // it now, in order: the NBT flag (still real on weapons), an explicit list of pieces that come
-  // pre-dungeonized in game, a STARRED_ id, and finally stars on a DUNGEON-category piece.
+  // 4. How an item's `modifiers.dungeonized` flag is decided, in order: Hypixel's NBT flag, still
+  // real on weapons; an explicit list of pieces that come pre-dungeonized; a STARRED_ id; and stars
+  // on a DUNGEON-category piece. The category alone is not evidence.
   await check('per-item dungeonized flag uses every real signal', () => {
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', dungeonized: true }), true, 'a real dungeonized copy must resolve to true');
-    // Necron's/Maxor's/Storm's/Goldor's, Shadow Assassin, Spirit/Bonzo Mask, Bone Necklace,
-    // Shadow Assassin Cloak, Adaptive Belt and Soulweaver Gloves all come pre-dungeonized
-    // (user-confirmed 2026-09-11), so they need no per-copy evidence at all — not even stars.
+    // Necron's, Maxor's, Storm's and Goldor's, Shadow Assassin, Spirit and Bonzo Mask, Bone Necklace,
+    // Shadow Assassin Cloak, Adaptive Belt and Soulweaver Gloves come pre-dungeonized, so they need
+    // no per-copy evidence at all, not even stars.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'POWER_WITHER_LEGGINGS', stars: 0 }), true, "Necron's is pre-dungeonized");
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SPEED_WITHER_BOOTS', stars: 0 }), true, "Maxor's is pre-dungeonized");
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BONZO_MASK', stars: 0 }), true, 'Bonzo Mask is pre-dungeonized');
@@ -142,9 +133,8 @@ try {
     // gear as eligible, and a crafted-but-unconverted copy is a real thing.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BOUNCY_BOOTS', stars: 0 }, { category: 'DUNGEON BOOTS' }), false, 'category alone is not proof');
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BOUNCY_BOOTS', stars: 5 }, { category: 'DUNGEON BOOTS' }), true, 'stars on dungeon gear are');
-    // Gear-Score tiered-stat items (mob-drop-only, no non-dungeon variant) are always dungeonized
-    // even when the real per-copy NBT has no `dungeon_item` key at all — see the 2026-09-03 fix
-    // comment above resolveDungeonizedFlag.
+    // Gear-Score tiered-stat items are mob-drop-only with no non-dungeon variant, so they are always
+    // dungeonized even when the per-copy NBT carries no `dungeon_item` key.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SKELETON_MASTER_CHESTPLATE', dungeonized: false }), true, 'a tiered-stat item must resolve dungeonized even without the NBT flag');
 
     // A STARRED_ id is a Master Mode drop — dungeon gear by definition, no stars needed.
@@ -154,8 +144,8 @@ try {
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'INFERNAL_CRIMSON_CHESTPLATE', stars: 10 }, { category: 'CHESTPLATE' }), false, 'Kuudra stars are not dungeon stars');
   });
 
-  // Real, live-captured Necron's Leggings lore (sammui, 2026-09-02) — used below to pin down that
-  // an imported item's real per-account lore is now ignored entirely for stat purposes.
+  // Live-captured Necron's Leggings lore, used below to pin that an imported item's per-account lore
+  // is ignored for stat purposes.
   const REAL_NECRONS_LEGGINGS_LORE = [
     '§7Gear Score: §d1068 §8(5000)',
     '§7Health: §c+410 §e(+60) §9(+7) §8(+2,279.43)',
@@ -172,12 +162,10 @@ try {
     '',
   ];
 
-  // 5. Design decision 2026-09-02: an imported item is rebuilt entirely from the catalog's own
-  // pristine lore plus this app's own formula pipeline — resolveGearSummary must always return the
-  // catalog's lore, ignoring summary.lore (Hypixel's real per-account lore) completely. The
-  // accepted consequence (user-confirmed) is that Gear-Score-scaled stats on an imported item show
-  // the catalog's un-scaled baseline rather than the player's real in-game number — pinned here as
-  // documented, expected behavior rather than something that could silently regress unnoticed.
+  // 5. An imported item is rebuilt from the catalog's pristine lore plus this app's own pipeline, so
+  // resolveGearSummary always returns the catalog's lore and ignores summary.lore. The accepted
+  // consequence is that Gear-Score-scaled stats on an imported item show the catalog baseline rather
+  // than the player's in-game number, pinned here as expected behaviour.
   await check('resolveGearSummary always returns catalog lore, ignoring summary.lore', () => {
     const catalogLore = ['§7Gear Score: §d574', '§7Strength: §c+40'];
     const itemData = { weapons: [], armor: [{ id: 'POWER_WITHER_LEGGINGS', category: 'DUNGEON LEGGINGS', tier: 'LEGENDARY', lore: catalogLore }], equipment: [] };
@@ -187,9 +175,8 @@ try {
     assert.ok(!('liveLore' in resolved), 'no liveLore flag — the live-lore swap mechanism is gone');
   });
 
-  // 6. The core new architecture: hiddenBase -> the three shown tiers, computed directly (not
-  // parsed from any rendered text). Hand-computed synthetic numbers so the formula itself is
-  // pinned exactly: pristine=100, 0 reforge/gems/books, 5 Stars, Catacombs Level 0.
+  // 6. hiddenBase through to the three shown tiers, computed rather than parsed from rendered text.
+  // Synthetic numbers pin the formula: pristine=100, no reforge/gems/books, 5 Stars, Catacombs 0.
   await check('computeItemStatTotals: hidden base -> three shown tiers', async () => {
     const item = { id: 'TEST_SWORD', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100'] };
     const modifiers = { ...BARE_MODIFIERS, stars: 5, dungeonized: true };
@@ -257,15 +244,10 @@ try {
     assert.equal(criticalOccurrences, 1, 'each enchant must appear exactly once in the final tooltip');
   });
 
-  // 10. Gear-Score tiered stats (Skeleton Master / Zombie Knight families only — user-confirmed
-  // 2026-09-03): a real per-copy item_tier + baseStatBoostPercentage replaces the catalog's
-  // pristine value entirely for the stats Hypixel's own tiered_stats table covers, AND
-  // baseStatBoostPercentage at its max independently bumps rarity +1 tier (stacking with
-  // Recombobulator). The exact formula (and this specific item's real tiered_stats numbers) were
-  // separately verified this session against sammui's real, live-decoded Skeleton Master
-  // Chestplate NBT (item_tier: 10, baseStatBoostPercentage: 50) — Health/Defense/Crit Chance
-  // matched Hypixel's own displayed total exactly. This check pins the mechanism itself with
-  // simple, self-contained numbers (no reforge/enchant data needed to hand-verify).
+  // 10. Gear-Score tiered stats (Skeleton Master and Zombie Knight families): a per-copy item_tier
+  // plus baseStatBoostPercentage replaces the catalog's pristine value for the stats Hypixel's
+  // tiered_stats table covers, and baseStatBoostPercentage at its max bumps rarity one tier,
+  // stacking with Recombobulator. Pinned with self-contained numbers.
   await check('Gear-Score tiered stats replace catalog pristine + bump rarity', async () => {
     const catalogItem = {
       id: 'SKELETON_MASTER_CHESTPLATE',
@@ -286,27 +268,23 @@ try {
     const tagLine = lines[lines.length - 2];
     assert.ok(tagLine.includes('MYTHIC'), `boost bump (Epic->Legendary) + recomb bump (Legendary->Mythic) must stack to Mythic, got: ${tagLine}`);
 
-    // A manually-built copy (no real itemTier) must fall back to the catalog's own pristine value,
-    // completely unaffected by this mechanic — regression guard against an always-on tiered lookup.
+    // A manually-built copy, with no per-copy itemTier, falls back to the catalog's pristine value
+    // and is unaffected by this mechanic.
     const manualTotals = await itemStatTotals.computeItemStatTotals(catalogItem, { ...modifiers, itemTier: null, baseStatBoostPercentage: 0 }, itemData, { catacombsLevel: 0 });
     assert.notEqual(manualTotals.health.nonDungeonStarred, 92.4, 'a manually-built item must NOT get the real per-copy tiered total');
   });
 
-  // 11. Bug fix 2026-09-03: the tiered pristine must be CEIL'd, not left as a raw float — Hypixel's
-  // own displayed base stat is always a whole number even when tiered_stats[i] x pieceBoost isn't
-  // (e.g. 45 x 1.5 = 67.5). Missing this produced a small-but-real ~0.5 drift on every downstream
-  // total (Crit Damage 119.3 vs the real 119.8) that looked like a rounding-order mystery until the
-  // user pinned the exact formula.
+  // 11. The tiered pristine is ceiled rather than left a float: Hypixel's displayed base stat is
+  // always whole even when tiered_stats[i] x pieceBoost isn't (45 x 1.5 = 67.5), and without it
+  // every downstream total drifts by up to half a point.
   await check('Gear-Score tiered pristine is ceil()d, not a raw float', () => {
     assert.equal(tieredArmorStats.computeTieredPristineStat('SKELETON_MASTER_CHESTPLATE', 'crit_damage', 10, 50), 68, 'ceil(45 x 1.5 = 67.5) must be 68');
   });
 
-  // 12. End-to-end pin against sammui's real, live-verified Skeleton Master Chestplate (2026-09-03):
-  // Ancient reforge (+1 Crit Damage/Catacombs level, real Catacombs level 45), 5 base Stars + 5
-  // Master Stars, General's Medallion 4 digits — the user-supplied formula
-  // "[ceil(BASE x pieceBoost) + reforgebonus] x totalboost" reproduces Hypixel's own real displayed
-  // Crit Damage EXACTLY: 119.8% out of a dungeon (5-star display), 665.57% inside a non-master
-  // dungeon (this app rounds to 1 decimal vs Hypixel's 2, hence 665.6).
+  // 12. End-to-end pin against a live Skeleton Master Chestplate: Ancient reforge (+1 Crit Damage per
+  // Catacombs level, at level 45), 5 base Stars plus 5 Master Stars, General's Medallion 4 digits.
+  // The formula "[ceil(BASE x pieceBoost) + reforge bonus] x totalboost" reproduces Hypixel's own
+  // displayed Crit Damage: 119.8% outside a dungeon, 665.6% inside a non-master one.
   await check('Gear-Score tiered item reproduces real Crit Damage exactly (119.8 / 665.6)', async () => {
     const catalogItem = {
       id: 'SKELETON_MASTER_CHESTPLATE',
@@ -333,7 +311,7 @@ try {
     assert.equal(totals.crit_damage.nonDungeonStarred, 119.8, `expected the real 119.8, got ${totals.crit_damage.nonDungeonStarred}`);
     assert.equal(totals.crit_damage.dungeonStarred, 665.6, `expected the real 665.57 (rounded to 665.6), got ${totals.crit_damage.dungeonStarred}`);
 
-    // Bug fix 2026-09-03 (round 2): the catalog's own bundled lore for this item already has a
+    // Bug fix (round 2): the catalog's own bundled lore for this item already has a
     // real "Crit Damage: +22" line (Hypixel's tier-1 tiered_stats baseline) — itemTooltip.js's
     // leading-number merge used to subtract computeItemStatTotals' own (tiered-overridden)
     // pristine from the final total and add that delta onto whatever's in the TEXT, silently
@@ -349,7 +327,7 @@ try {
   });
   // Chimera and Manticore Claw both copy the equipped pet's stat spread, and both read the SAME
   // PET_STAT_KEY_MAP — a stat missing from that map is silently dropped by both at once, with no
-  // error anywhere. Ability Damage was missing exactly that way (fixed 2026-09-05) even though the
+  // error anywhere. Ability Damage was missing exactly that way even though the
   // pet catalog carries it and the rest of the pipeline already tracked it end to end. This area
   // has also drifted before via a duplicated definition (see the [[project_chimera_base_stats]]
   // note), so it gets a guard rather than trusting the map to stay complete.
@@ -423,8 +401,8 @@ try {
 
   // 17. Two DIFFERENT gems in the same socket are different upgrade paths, not redundant options.
   // Grouping them together let a cheaper Flawless Jasper delete every Perfect Onyx row from the
-  // list at low Strength, so a Crit-Damage build was never offered the Onyx it was working toward
-  // (user-reported 2026-09-06, again 2026-09-07). Same gem + same socket must still share a group
+  // list at low Strength, so a Crit-Damage build was never offered the Onyx it was working toward.
+  // Same gem + same socket must still share a group
   // so a real bazaar price inversion is still filtered.
   await check('gemstone dominance is scoped per gem, not per socket', () => {
     const { dominanceGroupKey } = optimizer;
@@ -451,7 +429,7 @@ try {
 
   // 18. A Kuudra armor tier-up is CRAFTED from the piece already worn, so the Optimizer must price
   // it from its real recipe (Essence + Kuudra Teeth + coin fee, precomputed per hop by the Worker)
-  // — never from either tier's auction price (user-specified 2026-09-08). Synthetic cost bundle so
+  // — never from either tier's auction price. Synthetic cost bundle so
   // the arithmetic is checked, not the live bazaar.
   await check('a Kuudra tier-up is priced from its prestige recipe, not the auction price', () => {
     const { lookupCandidateCost, prestigeUpgradeCost } = pricing;
@@ -493,7 +471,7 @@ try {
   });
 
   // 19. Inferno Demonlord's Hellion Shield doesn't block Venomous, it cuts it to 1% — it sat in the
-  // outright-immune set until 2026-09-08, so both halves are pinned here: the survivor multiplier
+  // outright-immune set until, so both halves are pinned here: the survivor multiplier
   // AND the fact that Atoned Horror is still genuinely immune.
   await check("Venomous is cut to 1% by Hellion Shield, not zeroed", () => {
     const { computeVenomousProcDamage } = finalDamage;
@@ -520,7 +498,7 @@ try {
   });
 
   // 20. A Catacombs boss head's real base stat is its printed lore value DOUBLED, and every later
-  // boost compounds on the doubled figure (user-specified 2026-09-09). Checked through the real
+  // boost compounds on the doubled figure. Checked through the real
   // computeItemStatTotals pipeline rather than the helper alone, since the whole point is where in
   // that pipeline the doubling lands — and a non-head helmet must be left completely alone.
   await check('Catacombs boss heads double their printed base stats', async () => {
@@ -541,7 +519,7 @@ try {
   });
 
   // 21. Dungeon Blessing effectiveness: four independent sources, multiplicative with each other,
-  // landing on exactly 1.815 when all four are maxed (user-confirmed 2026-09-10 — that figure is
+  // landing on exactly 1.815 when all four are maxed ( — that figure is
   // the whole spec, so it's pinned here). The Mimic Shard's level comes off the Epic 32-cap shard
   // ladder, and the multiplier scales a blessing's own numbers BEFORE they reach the base stats.
   await check('Dungeon Blessing multiplier and Mimic ladder', () => {
@@ -572,9 +550,9 @@ try {
     assert.deepEqual(stone.percent, {}, 'Stone has no percentage clause');
   });
 
-  // 22. Essence-shop perk effects, all user-supplied (2026-09-10) and none of them in any public
-  // data source — so every per-level figure is pinned here at both ends of its range. The three
-  // Catacombs (Undead) ones exist only inside a dungeon; the rest are permanent.
+  // 22. Essence-shop perk effects have no public data source, so every per-level figure is pinned
+  // here at both ends of its range. The three Catacombs (Undead) ones exist only inside a dungeon;
+  // the rest are permanent.
   await check('essence-shop perks grant their real per-level stats', () => {
     const { computeFlatPerkStats, computeBanePercent, computeInfusedDragonCritDamage, computeTwoHeadedStrikeAttackSpeed } = essencePerks;
     const at = (level, dungeon) => {
@@ -618,7 +596,7 @@ try {
   });
 
   // 23. Master Skull's Strength multiplier is MULTIPLICATIVE with the Dungeon Blessings, not summed
-  // into them (user-specified 2026-09-10) — the distinction is the whole point, so both the ladder
+  // into them — the distinction is the whole point, so both the ladder
   // and the compounding are pinned. The ladder changes slope at tier 4, which is exactly the kind
   // of thing a "clever" formula would quietly get wrong.
   await check('Master Skull tiers compound with blessings', () => {
@@ -646,7 +624,7 @@ try {
 
   // 24. A Catacombs boss head's own rarity is SPECIAL, which appears in no reforge's
   // requiredRarities and in no rarity ladder — so heads matched zero reforges and couldn't be
-  // recombobulated (user-reported 2026-09-10). They read a stand-in rarity for both. Pins the
+  // recombobulated. They read a stand-in rarity for both. Pins the
   // BEHAVIOUR rather than the stand-in's value, which is a separate, still-open question.
   await check('boss heads reforge and recombobulate like helmets', () => {
     const { reforgeRarityFor, DUNGEON_HEAD_REFORGE_RARITY } = dungeonHeads;
@@ -670,7 +648,7 @@ try {
   // 25. David's Cloak's Hunting-milestone Strength is imported from the item's own lore, but that
   // lore's leading number ALREADY includes the reforge — and this app applies the reforge itself,
   // so taking the leading number whole double-counted it. Confirmed against a real Strengthened
-  // copy (2026-09-10) reading "§7Strength: §c+7 §9(+7)": milestone 0, reforge 7, app said 14.
+  // copy reading "§7Strength: §c+7 §9(+7)": milestone 0, reforge 7, app said 14.
   await check("David's Cloak imports milestone Strength without the reforge", () => {
     const { parseDavidsCloakFromLore } = hypixelImport;
     const realStrengthened = ['§7Health: §c+50', '§7Strength: §c+7 §9(+7)', '§d§lMYTHIC CLOAK'];
@@ -688,7 +666,7 @@ try {
   });
   // 26. Mining Islands: two separate boosts (the HotM Lonesome Miner perk and a Mithril Golem
   // pet) share one location gate. Both rates are pinned here because both were quoted 10x/0.5
-  // off before being checked against NEU-REPO and confirmed (user-confirmed 2026-09-11):
+  // off before being checked against NEU-REPO and confirmed:
   // hotmlayout.json's "(+ (* level 0.5) 4.5)" and petnums.json's LEGENDARY otherNums[1].
   await check('Mining Island boosts and their location gate', () => {
     const { lonesomeMinerPercent, mithrilGolemPercent, isMiningIslandMob, anyMiningIslandTarget } = miningIslands;
@@ -717,7 +695,7 @@ try {
   // 27. OPTIMIZER_BUILD_KEYS must list every build field runOptimizer reads. Both React callers
   // build their effect's dependency array from it, so a field missing here is a recommendation
   // panel that silently never updates when that input changes — how Dungeon Blessings, essence
-  // perks, Master Mode and three Bestiary/collection inputs went stale (user-reported 2026-09-11).
+  // perks, Master Mode and three Bestiary/collection inputs went stale.
   // Source-scanned rather than called, since the omission is invisible at runtime.
   await check('OPTIMIZER_BUILD_KEYS covers every build field the optimizer reads', async () => {
     const { OPTIMIZER_BUILD_KEYS } = optimizerModule;
@@ -739,8 +717,8 @@ try {
   // 28. Two Optimizer carry-over rules. (a) A reforge/ultimate enchant only rides onto a swap
   // candidate the new item can actually take: BuildContext's selectItem clears both across a
   // weapon-family boundary, but the Optimizer used to re-apply them with its own explicit steps,
-  // so a Sword's Fabled and One For All landed on a Bow and the Bow was ranked as if it had them
-  // (user-reported 2026-09-11). (b) Fabled's midpoint is melee-only.
+  // so a Sword's Fabled and One For All landed on a Bow and the Bow was ranked as if it had them.
+  // (b) Fabled's midpoint is melee-only.
   await check('Optimizer carries only what the new item can take', () => {
     const { carriedReforgeName, carriedUltimateEnchantment } = optimizerModule;
     const sword = { id: 'ASPECT_OF_THE_END', category: 'SWORD', tier: 'LEGENDARY' };
@@ -764,7 +742,7 @@ try {
     assert.equal(carriedReforgeName({}, bow, data), null);
     assert.equal(carriedUltimateEnchantment({}, bow, data), null);
   });
-  // 29. Maxor's: +5% ADDITIVE arrow damage per piece, bow-only (user-specified 2026-09-11). The
+  // 29. Maxor's: +5% ADDITIVE arrow damage per piece, bow-only. The
   // set's real ids are SPEED_WITHER_*, Hypixel's internal name for it — a set keyed on MAXOR_*
   // would silently never match. Additive, so a full set is +20% summed, not 1.05^4 compounded the
   // way Skeleton Master's per-piece multiplier is; keeping those two straight is the point here.
@@ -858,9 +836,8 @@ try {
     assert.equal(canApplyPurely({ apply: [{ type: 'setOwnedAccessory', id: 'X', tier: 'RARE' }] }), false);
   });
   // 31. A bow's fire rate uses its own Attack Speed breakpoints, reached later than melee's, but
-  // shares melee's cap exactly (user-specified 2026-09-11). Both tables are pinned here because
-  // both are user-supplied game data: 0.5s to 0-11, 0.45s to 12-24, 0.4s to 25-42, 0.35s to 43-66,
-  // 0.3s to 67-99, 0.25s to 100-149, 0.2s to 150+.
+  // shares melee's cap exactly. Both tables are pinned: 0.5s to 0-11, 0.45s to 12-24, 0.4s to
+  // 25-42, 0.35s to 43-66, 0.3s to 67-99, 0.25s to 100-149, 0.2s to 150+.
   await check('Bow fire rate has its own breakpoints under the shared cap', () => {
     const { computeBowShotsPerSecond, computeMeleeHitsPerSecond } = finalDamage;
     const bare = {};
@@ -902,7 +879,7 @@ try {
   // 32. Free upgrades. A Skill level costs time, not coins, so it prices to a real 0 rather than
   // null — the UI splits on exactly that (0 is free, '?' is unpriced, and they are different
   // claims). The step also has to survive the pure apply, or a planner would rank a Catacombs
-  // level it can't actually take (user-specified 2026-09-11).
+  // level it can't actually take.
   await check('Skill levels are free and applicable', () => {
     const { applyResultToState, canApplyPurely } = applyResult;
     const step = { type: 'setPlayerLevel', key: 'catacombsLevel', value: 48 };
@@ -915,8 +892,8 @@ try {
     assert.equal(before.playerStats.catacombsLevel, 47, 'apply stays pure');
   });
   // 33. Inside a dungeon the God Potion is REPLACED by the Dungeon Potion — different stats, no
-  // mixin, and two tiers decided by owning a Jellyfish pet rather than by anything drunk
-  // (user-specified 2026-09-11). Both tiers are pinned because both are user-supplied game data.
+  // mixin, and two tiers decided by owning a Jellyfish pet rather than by anything drunk. Both
+  // tiers are pinned.
   await check('Dungeon Potion replaces the God Potion at two tiers', () => {
     const { DUNGEON_POTION_TIERS, dungeonPotionEffects, GOD_POTION_STRENGTH_POTION } = godPotion;
     assert.deepEqual(DUNGEON_POTION_TIERS.tier7, { label: 'Tier VII', strength: 40, critChance: 20, critDamage: 30, arrowDamage: 50 });
@@ -932,7 +909,7 @@ try {
     assert.ok(DUNGEON_POTION_TIERS.jellyfish.strength < GOD_POTION_STRENGTH_POTION, 'even the top dungeon tier trails the God Potion on Strength');
   });
   // 34. Last Breath and Lethality cut the mob's Defense STAT, and they are MULTIPLICATIVE with each
-  // other, not additive (user-confirmed 2026-09-14) — the difference at max is 68% off vs 86% off,
+  // other, not additive — the difference at max is 68% off vs 86% off,
   // which on Master Necron is a 2.8x damage swing vs a 5.6x one. Both are pinned, along with the
   // fact that a Defense cut feeds `1 - Def/(100+Def)` rather than scaling damage directly.
   await check('Defense debuffs are multiplicative and feed the Defense curve', () => {
@@ -991,8 +968,8 @@ try {
     assert.equal(after.loadout.weapon.modifiers.books, 15);
     assert.equal(before.loadout.weapon.modifiers.books, 3, 'apply stays pure');
   });
-  // 36. The Recommended Upgrades panel's "auto" mode follows the page's own toggles and target
-  // (user-specified 2026-09-14), so the list can't be ranking for a different kind of content than
+  // 36. The Recommended Upgrades panel's "auto" mode follows the page's own toggles and target,
+  // so the list can't be ranking for a different kind of content than
   // the damage number beside it. Pins every branch, and that each answer is a real selectable mode.
   await check('Auto recommendation mode follows the page toggles and target', () => {
     const { resolveOptimizerMode, OPTIMIZER_MODES } = optimizerModule;
@@ -1014,7 +991,7 @@ try {
       assert.ok(ids.has(got), `${got} must be a real optimizer mode`);
     }
   });
-  // 37. Item buffs (lib/buffs.js), user-specified 2026-09-15: flat grants in every mode. Ragnarock
+  // 37. Item buffs (lib/buffs.js): flat grants in every mode. Ragnarock
   // copies 1.5x the axe's own Strength (so nothing without an axe), Sword of Bad Health is its +100
   // cap, and the Weirder Tuba grants three stats. Also pins which Ragnarock the buff reads.
   await check('Item buffs grant their stats, Ragnarock from the axe itself', () => {
@@ -1037,7 +1014,7 @@ try {
     assert.equal(findRagnarock([], { weapon: equipped }), equipped, 'an equipped one when nothing is imported');
     assert.equal(findRagnarock(null, { weapon: { item: { id: 'HYPERION' } } }), null);
   });
-  // 38. Blaze pet's Bling Armor (lib/petData.js), user-specified 2026-09-15: +0.4% per pet level to
+  // 38. Blaze pet's Bling Armor (lib/petData.js): +0.4% per pet level to
   // Blaze and Frozen Blaze Armor's RAW base stats, for a Rare/Epic/Legendary Blaze (NEU petnums has
   // the perk from Rare up). Applied to pristine, so it only ever touches those eight pieces.
   await check('Blaze Bling Armor scales Blaze and Frozen Blaze armor base stats', async () => {
@@ -1061,7 +1038,7 @@ try {
     const noPet = await itemStatTotals.computeItemStatTotals(frozen, { ...BARE_MODIFIERS }, EMPTY_ITEM_DATA, {});
     assert.equal(noPet.strength.pristine, 40, 'no Blaze pet, no boost');
   });
-  // 39. Tier Boost pet item (lib/petData.js), user-specified 2026-09-15: raises the pet's rarity by
+  // 39. Tier Boost pet item (lib/petData.js): raises the pet's rarity by
   // one; a pet already at its highest rarity is unchanged. Applied at read time, so it must be
   // idempotent — collectDamageSources applies it, then calls helpers that apply it again.
   await check('Tier Boost raises pet rarity by one, capped at the pet\'s highest rarity', async () => {
@@ -1082,9 +1059,9 @@ try {
     assert.equal(computeBasePetStats({ pet: pet('BLAZE', 'EPIC') }, itemData).STRENGTH, 20, 'stats come from the boosted rarity');
     assert.equal(petItemStatContext(pet('BLAZE', 'EPIC'), itemData).potatoBookDoubled, true, 'Epic Blaze + Tier Boost doubles books like a Legendary');
   });
-  // 40. Crimson Swipe's opening proc (lib/finalDamage.js's simulateHitByHit), user-specified
-  // 2026-09-15: the fight's first hit always procs Swipe, at double damage; every later Swipe keeps
-  // the 1/s cadence at the normal amount.
+  // 40. Crimson Swipe's opening proc (lib/finalDamage.js's simulateHitByHit): the fight's first
+  // hit always procs Swipe, at double damage; every later Swipe keeps the 1/s cadence at the
+  // normal amount.
   await check('Crimson Swipe procs on the first hit at double damage', () => {
     const { simulateHitByHit } = finalDamage;
     const stats = { damage: 100, strength: 100, crit_damage: 100, crit_chance: 100, bonus_attack_speed: 0 };
@@ -1111,7 +1088,7 @@ try {
     assert.equal(swipes[0], later[0] * 2, 'only the opening Swipe is doubled');
     assert.ok(simulateHitByHit(sources, mob, {}, null, 100).hits.every((h) => h.crimsonSwipeDamage === 0), 'no Crimson armor, no Swipe');
 
-    // The graph's x axis is 0-based (user-specified 2026-09-15): x=0 is the opening hit, against a
+    // The graph's x axis is 0-based: x=0 is the opening hit, against a
     // mob still at full HP, so the HP line drops at x=1 instead of x=2. Numbering only — the
     // doubled opening Swipe above still lands on that first recorded row.
     const sim = simulateHitByHit(sources, mob, crimson, 10_000_000, 100);
@@ -1121,7 +1098,7 @@ try {
     assert.ok(sim.hits[1].hpPercent < 100, 'the HP line drops at x=1');
     assert.ok(sim.hits[0].crimsonSwipeDamage > 0, 'the doubled opening Swipe is on the x=0 row');
   });
-  // 41. The player's Defense (lib/playerDefense.js), user-specified 2026-09-15 — Mining Level
+  // 41. The player's Defense (lib/playerDefense.js) — Mining Level
   // (+1/level to 14, +2 after: 106 at 60), God Potion's 66, armor, and Unlimited Fortitude's
   // +0.2%/level on the total. Nothing on screen shows it; its only consumer is Ankylosaurus's
   // Armored Tank, whose own lore is "Gain {0}% of your Defense as Strength. (Max +500)".
@@ -1148,7 +1125,7 @@ try {
     assert.equal(computeAnkylosaurusStrength(4000, [50]), ANKYLOSAURUS_MAX_STRENGTH, 'never past +500');
     assert.equal(computeAnkylosaurusStrength(1000, []), 0, 'no pet numbers, no Strength');
   });
-  // 42. Picking a Slayer boss defaults to its highest tier (user-specified 2026-09-17) — the Tier
+  // 42. Picking a Slayer boss defaults to its highest tier — the Tier
   // I-V ladder only. Every other tiered mob is tiered by spawn rarity or variant, where there's no
   // "highest" to assume, so those still need an explicit pick.
   await check('Slayer bosses default to their highest tier, other tiered mobs do not', async () => {
@@ -1177,7 +1154,7 @@ try {
     assert.equal(resolveStartingHp('Conjoined Brood', false, ''), 20_000_000, 'flat HP still resolves');
     assert.equal(resolveStartingHp('Necron', true, ''), 1_400_000_000, 'single-floor dungeon HP still resolves');
   });
-  // 43. Final Destination's set bonus has to reach the DPS hit rate (user-reported 2026-09-17: the
+  // 43. Final Destination's set bonus has to reach the DPS hit rate (the
   // Optimizer ignored its +20 Attack Speed). selectBaseStats grants it against Ender mobs only, so
   // every DPS path must read the stat through that rather than off the raw sources.baseStats block.
   await check("Final Destination's +20 Attack Speed reaches the DPS hit rate", () => {
@@ -1208,7 +1185,7 @@ try {
     assert.equal(computeDpsBreakdown(sources, undead, {}).meleeHitsPerSecond, 2, 'non-Ender target: the bare rate');
     assert.equal(simulateHitByHit(sources, ender, {}, null, 100).meleeHitsPerSecond, 2.5, 'the fight simulation reads it too');
   });
-  // 44. Accessory Bag slots (lib/accessorySlots.js), user-specified 2026-09-17: a new accessory needs
+  // 44. Accessory Bag slots (lib/accessorySlots.js): a new accessory needs
   // a slot, so when none is free its price carries the cheapest slot on the market. Accessory Size
   // (~1.3M/slot) undercuts Jacobus (10M/slot at the top band) until it is maxed.
   await check('A new accessory pays for its bag slot only when none is free', async () => {

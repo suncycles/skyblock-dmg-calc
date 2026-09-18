@@ -1,7 +1,7 @@
 // What equipping an item into a slot produces: the trimmed item record and the modifiers that
-// survive the swap. Extracted from BuildContext's selectItem so the live UI and
-// lib/applyResult.js's pure planner share one implementation. Everything here is a pure function of
-// its arguments — no React, storage or refs.
+// survive the swap. Shared by BuildContext's selectItem and lib/applyResult.js's pure planner, so
+// both produce the same result. Everything here is a pure function of its arguments — no React,
+// storage or refs.
 
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
 import { MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from './starring';

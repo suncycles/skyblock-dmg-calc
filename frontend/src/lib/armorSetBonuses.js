@@ -133,7 +133,7 @@ export const THUNDER_NECKLACE_ID = 'THUNDERBOLT_NECKLACE';
 export const THUNDER_PERCENT_PER_PIECE = 20;
 
 // Reaper Armor (Chestplate/Leggings/Boots only — no real Reaper helmet in this set, Reaper Mask is
-// a separate item) — user-confirmed 2026-08-23: a flat +100% additive melee damage bonus against
+// a separate item): a flat +100% additive melee damage bonus against
 // Undead mobs once the full 3-piece set is worn, not a per-piece scaling like Magma Lord/Thunder
 // above.
 export const REAPER_ARMOR_SLOTS = ['chestplate', 'leggings', 'boots'];
@@ -142,8 +142,8 @@ export const REAPER_ARMOR_UNDEAD_PERCENT = 100;
 
 // Challenger's/Mythos Armor+Equipment's "Mythos' Might" ability: real lore says "Grants 2x this
 // armor's/equipment's stats while in The Hub during Diana's Mythological Ritual" — a Hub-only,
-// no-combat condition with nothing to model in a damage calculator. User-directed reinterpretation
-// 2026-08-25: apply the same 2x to the piece's own stats (including its reforge/gemstones, i.e.
+// no-combat condition with nothing to model in a damage calculator. Reinterpreted here: apply the
+// same 2x to the piece's own stats (including its reforge/gemstones, i.e.
 // its full settled tooltip total) whenever the TARGET MOB is of the real, existing 'Mythological'
 // type (lib/mobTypes.js — Minotaur/Sphinx/King Minos/etc, the Bestiary's own Mythological Creatures
 // family) instead — the practical condition this app can actually evaluate. Lives here (rather than
@@ -172,10 +172,9 @@ export const MYTHOLOGICAL_STAT_DOUBLE_IDS = new Set([
 // Crimson Swipe: a melee-only proc whose damage depends on how many Crimson-family armor pieces
 // (any of the 5 power tiers — see armorVariants.js's VARIANT_TIERS) are equipped, 2-4, and the
 // LOWEST tier among just those equipped pieces — mixing tiers drags the whole bonus down to the
-// weakest piece's row. User-provided table; each cell is `SwipeMultiplier` in
-// finalDamage.js's computeCrimsonSwipeDamage: Damage_swipe = MeleeFinal * (SwipeMultiplier * 100)
-// / TotalAdditivePercent (user-confirmed 2026-08-23, replacing an earlier flat-14.5%-of-Final-
-// Damage placeholder — see that function for the full formula).
+// weakest piece's row. Each cell is `SwipeMultiplier` in finalDamage.js's
+// computeCrimsonSwipeDamage: Damage_swipe = MeleeFinal * (SwipeMultiplier * 100) /
+// TotalAdditivePercent — see that function for the full formula.
 export const CRIMSON_SWIPE_MIN_PIECES = 2;
 const CRIMSON_SWIPE_TABLE = {
   Basic: { 2: 0.5, 3: 1.0, 4: 1.5 },
@@ -204,7 +203,7 @@ export function computeCrimsonSwipeInfo(loadout, slots) {
 // Taurus Helmet/Flaming Chestplate/Moogma Leggings: 3 independent items (different slots, not a
 // matched set) each granting a flat, melee-only +10% additive damage bonus against Magmatic mobs
 // when worn — stacks if more than one is worn simultaneously. Condition corrected from "Lava Sea
-// Creatures" to "Magmatic" 2026-08-23 (user-confirmed); constant/export names kept as-is.
+// Creatures" to "Magmatic"; constant/export names kept as-is.
 export const LAVA_SEA_CREATURE_ARMOR_PERCENT = 10;
 export const LAVA_SEA_CREATURE_ARMOR_PIECES = [
   { slot: 'helmet', id: 'TAURUS_HELMET', label: 'Taurus Helmet' },

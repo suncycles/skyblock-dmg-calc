@@ -489,13 +489,10 @@ const TABASCO_DRAGON_PET_IDS = new Set(['ROSE_DRAGON', 'GOLDEN_DRAGON', 'ENDER_D
 const BLAZETEKK_HAM_RADIO_BLUETOOTH_DAMAGE = 3;
 const BLAZETEKK_HAM_RADIO_BLUERTOOTH_DAMAGE = 4;
 
-// The ONLY definition of what Chimera/Manticore Claw copy — petData.js's computeBasePetStats,
-// which this delegates to rather than re-deriving. This used to be a second, inline copy of that
-// same "curve + Shining Scales + Primal Force" logic living here, and the two drifted out of sync
-// (see [[project_chimera_base_stats]] memory) — a real regression that looked fixed after editing
-// computeBasePetStats alone, because this file's own copy still had the bug. Do not reintroduce a
-// local reimplementation here; if the scope of "base stats" ever needs to change again, change it
-// in computeBasePetStats and this call picks it up for free.
+// The ONLY definition of what Chimera/Manticore Claw copy is petData.js's computeBasePetStats,
+// which this delegates to rather than re-deriving. Do not reimplement the "curve + Shining Scales
+// + Primal Force" logic here; changing the scope of "base stats" means changing
+// computeBasePetStats, and this call picks it up.
 async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, wolfSlayerLevel, generalsMedallionDigits, out, maxedCollectionsCount, essencePerks) {
   let basePetStats = { STRENGTH: 0, CRIT_CHANCE: 0, CRIT_DAMAGE: 0, BONUS_ATTACK_SPEED: 0 };
   out.enderDragonSuperiorPercent = 0;
@@ -1447,7 +1444,7 @@ export async function collectDamageSources(
   if (skyblockLevelMultiplier !== 1) {
     const skyblockLevelEntry = { id: 'skyblock-level', label: 'Skyblock Level', source: 'Player', value: skyblockLevelMultiplier };
     out.multiplicative.push(skyblockLevelEntry);
-    // Applies identically to Ability Damage, per the user-verified Mage Mode formula.
+    // Applies identically to Ability Damage.
     out.abilityMultiplicative.push(skyblockLevelEntry);
   }
 

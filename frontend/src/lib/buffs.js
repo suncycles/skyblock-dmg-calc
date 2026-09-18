@@ -1,16 +1,15 @@
 // Item buffs — temporary player buffs from items used before a fight (Ragnarock, Sword of Bad
 // Health, Weirder Tuba). Unlike Dungeon Blessings, which only exist inside a Catacombs run, these
-// apply in every mode (user-specified 2026-09-15), as flat grants to the player's base stats.
+// apply in every mode, as flat grants to the player's base stats.
 
 import { computeItemStatTotals } from './itemStatTotals';
 import { computeBasePetStats, computeItemChimeraBonus, petItemStatContext } from './petData';
 
 export const RAGNAROCK_ID = 'RAGNAROCK_AXE';
 // Ragnarock's ability: "gain 1.5x this weapon's Strength". The axe's own real Strength — reforge,
-// stars, books, gems and a Chimera enchant's copied pet stats included — times 1.5 (user-specified).
+// stars, books, gems and a Chimera enchant's copied pet stats included — times 1.5.
 export const RAGNAROCK_STRENGTH_MULTIPLIER = 1.5;
-// Bad Health's lore: "+5 Strength for every 5% of total HP ... Capped at +100". Taken at the cap
-// (user-specified).
+// Bad Health's lore: "+5 Strength for every 5% of total HP ... Capped at +100". Taken at the cap.
 export const SWORD_OF_BAD_HEALTH_STRENGTH = 100;
 export const WEIRDER_TUBA_STATS = { strength: 40, crit_damage: 10, bonus_attack_speed: 5 };
 
@@ -30,7 +29,7 @@ export function hasAnyBuff(buffs) {
 
 // The Ragnarock whose Strength the buff copies: the one from the last Hypixel import, or — for a
 // manually built loadout with no import — an equipped one.
-// ponytail: first match wins; pick the highest-Strength copy if an account ever holds two.
+// First match wins; an account holding two copies is not disambiguated by Strength.
 export function findRagnarock(importedWeapons, loadout) {
   const candidates = [...(importedWeapons || []), loadout?.weapon].filter(Boolean);
   return candidates.find((entry) => entry.item?.id === RAGNAROCK_ID) || null;

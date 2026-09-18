@@ -3,7 +3,7 @@
 // exact behavior has regressed three times: copying ability-granted stats that aren't real base
 // stats (Ankylosaurus); stripping a species perk that genuinely is part of the pet's real total
 // (Golden Dragon's Shining Scales); and stopping before the held Pet Item's boost, when real
-// Chimera copies that too (Golden Dragon + Hephaestus Remedies, confirmed by the user 2026-08-22).
+// Chimera copies that too.
 // No test runner in this project (see CLAUDE.md) — run directly:
 // `node src/lib/petData.selfcheck.mjs`. Fixture stat numbers are real, fetched live from
 // NEU-REPO's petnums.json, not guessed.

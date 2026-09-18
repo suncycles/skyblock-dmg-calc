@@ -1,6 +1,6 @@
 // Master Skull (MASTER_SKULL_TIER_1..7) — a Catacombs accessory whose tier grants a flat Strength
-// MULTIPLIER, multiplicative with the Dungeon Blessings rather than summed into them
-// (user-specified 2026-09-10). Read off the account's talisman bag on import, never typed.
+// MULTIPLIER, multiplicative with the Dungeon Blessings rather than summed into them.
+// Read off the account's talisman bag on import, never typed.
 
 export const MASTER_SKULL_MAX_TIER = 7;
 

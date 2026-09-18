@@ -1,8 +1,8 @@
 // Essence-shop perks — permanent, account-wide upgrades bought with Essence at each shop. Levels
 // come straight off the account (member.player_data.perks, a flat {perkKey: level} map, extracted
 // Worker-side) and are never typed by hand, so this file only models what each level GRANTS.
-// Keys and max levels verified against NEU-REPO's constants/essenceshops.json; the per-level
-// effects are user-supplied (2026-09-10) since no public source carries them.
+// Keys and max levels come from NEU-REPO's constants/essenceshops.json; the per-level effects
+// have no public source and are hardcoded here.
 //
 // Forbidden Blessing (`forbidden_blessing`) is deliberately absent here — it grants no stat of its
 // own, it scales Dungeon Blessings, and so lives in lib/dungeonBlessing.js instead.
@@ -13,7 +13,7 @@
 export const FLAT_STAT_PERKS = [
   { key: 'permanent_strength', name: 'Forbidden Strength', maxLevel: 5, perLevel: 1, stats: ['strength'], dungeonOnly: false },
   { key: 'permanent_intelligence', name: 'Forbidden Intelligence', maxLevel: 5, perLevel: 2, stats: ['intelligence'], dungeonOnly: false },
-  // Not in essenceshops.json (checked 2026-09-10 — it's not an Essence-shop perk), but it is in the
+  // Not in essenceshops.json, but it is in the
   // same member.player_data.perks map and grants a real stat, so it rides along here. 3 levels.
   { key: 'blessing_of_time', name: 'Blessing of Time', maxLevel: 3, perLevel: 2, stats: ['strength', 'intelligence'], dungeonOnly: false },
   { key: 'catacombs_strength', name: 'Strength Essence', maxLevel: 5, perLevel: 10, stats: ['strength'], dungeonOnly: true },

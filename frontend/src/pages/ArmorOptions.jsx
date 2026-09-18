@@ -5,8 +5,8 @@ import { ARMOR_SLOTS } from '../lib/armorSlots';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Popup bubble opened from the tile above the Helmet slot on Landing (user-specified: a popup, not
-// a separate routed page). Two account-wide armor conveniences — clearing every piece at once
+// Popup bubble opened from the tile above the Helmet slot on Landing, not a separate routed page.
+// Two account-wide armor conveniences — clearing every piece at once
 // (and wiping their lastGearModifiers stash so a later re-pick starts clean, not restoring old
 // reforge/stars/gemstones — see BuildContext.jsx's clearGroup), and an "Edit All" mode that
 // broadcasts a Hex modifier edit (enchant/gemstone/reforge/stars/special/recomb/Clean) made to one

@@ -37,7 +37,7 @@ function TextButton({ label, onClick }) {
 
 // [min] as well as [max] per row: zeroing one attribute took clearing the field by hand, while
 // maxing it was a single click — and "min this one" is the more common of the two once a build is
-// already imported at full levels (user-specified 2026-09-08). Ordered min-then-max so the pair
+// already imported at full levels. Ordered min-then-max so the pair
 // reads along the same low-to-high axis as the number beside them.
 function LevelInput({ id, level, onChange }) {
   const maxLevel = getAttributeMaxLevel(id);

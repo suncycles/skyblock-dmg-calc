@@ -1,4 +1,4 @@
-// Gear-Score "tiered stats" mechanic — confirmed real, user-supplied 2026-09-03, scoped to
+// Gear-Score "tiered stats" mechanic — confirmed real, scoped to
 // exactly these two dungeon-mob-drop families (Skeleton Master, Zombie Knight). For these items
 // (and only these — most dungeon armor's real per-account scaling gap is a separate, accepted
 // limitation, see lib/hypixelImport.js's resolveGearSummary), the pristine base stat isn't the
@@ -79,7 +79,7 @@ const TIERED_ARMOR_STAT_TABLES = {
 // item/stat isn't a tiered exception, or the real per-copy itemTier isn't known (manually-built
 // items, or any other real item) — callers fall back to the catalog's own pristine lore value in
 // that case (see lib/itemStatTotals.js).
-// Real formula user-confirmed 2026-09-03 against sammui's Skeleton Master Chestplate (CEIL is the
+// Real formula against sammui's Skeleton Master Chestplate (CEIL is the
 // piece missing before: tiered_stats.CRITICAL_DAMAGE[9]=45 x 1.5 = 67.5, and the real item shows
 // exactly ceil(67.5)=68 as its pristine — reproducing the real 119.8%/665.57% Crit Damage totals
 // exactly through the existing hiddenBase/Star/Catacombs-Boost pipeline unmodified).
@@ -96,7 +96,7 @@ export function computeTieredPristineStat(itemId, statKey, itemTier, baseStatBoo
 // lib/hypixelImport.js's resolveDungeonizedFlag: these items are exclusively mob drops from a
 // dungeon Floor with no non-dungeon-obtainable variant (unlike e.g. Bonzo Staff, buyable and
 // optionally converted via a Dungeonizer), so a real copy is always dungeonized even when its
-// `ExtraAttributes.dungeon_item` flag is absent — confirmed live 2026-09-03: sammui's real
+// `ExtraAttributes.dungeon_item` flag is absent — confirmed live: sammui's real
 // Skeleton Master Chestplate's full decoded NBT has no `dungeon_item` key at all (only
 // `dungeon_skill_req`), yet Hypixel's own rendered lore unambiguously shows a real Catacombs Boost
 // annotation matching this app's formula exactly.

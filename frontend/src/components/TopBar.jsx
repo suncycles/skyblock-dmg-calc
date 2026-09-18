@@ -4,8 +4,7 @@ import { getPageLabel } from '../lib/pageTitles';
 import { ENTRY_DISMISSED_KEY, SHOW_ENTRY_EVENT } from '../lib/entryScreen';
 import { useBuild } from '../context/BuildContext';
 
-// Build tools first (Compare/Optimize/Import were previously reachable *only* from Landing's
-// toolbar — nothing in the app's own nav pointed at them), then the reference pages.
+// Build tools (Compare/Optimize/Import) first, then the reference pages.
 const MENU_SECTIONS = [
   {
     title: 'Build',

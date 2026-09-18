@@ -1,4 +1,4 @@
-// Mage Mode's per-weapon Base Ability Damage/Ability Scaling table — user-provided, cross-checked
+// Mage Mode's per-weapon Base Ability Damage/Ability Scaling table, cross-checked
 // against real ids in worker/src/data/weapons.json (and NEU-REPO directly for the two Voodoo
 // Doll entries, which aren't in weapons.json without the MANUAL_CATEGORY_OVERRIDES fix in
 // worker/scripts/build-item-data.mjs). STARRED_ variants with no distinct value given (Glacial
@@ -13,7 +13,7 @@ export const ABILITY_DAMAGE_TABLE = {
   CELESTE_WAND: { base: 40, scaling: 1 },
   EMBER_ROD: { base: 30, scaling: 1 },
   FIRE_FURY_STAFF: { base: 42000, scaling: 0.3 },
-  FIRE_VEIL_WAND: { base: 15000, scaling: 0.3 }, // user-provided 2026-09-05
+  FIRE_VEIL_WAND: { base: 15000, scaling: 0.3 },
   FROZEN_SCYTHE: { base: 1000, scaling: 0.3 },
   GIANTS_SWORD: { base: 100000, scaling: 0.05 },
   GLACIAL_SCYTHE: { base: 1500, scaling: 0.3 },
@@ -43,10 +43,10 @@ export const ABILITY_DAMAGE_TABLE = {
   VOODOO_DOLL_WILTED: { base: 2222, scaling: 1 }, // Jinxed Voodoo Doll
 };
 
-// Implosion Belt: user-verified 1.25x multiplier to the Implosion ability's own damage
-// specifically (not a generic Ability Damage source) — the belt's bundled lore text describes a
-// different, unrelated "explosion damage" bonus, so this can't be scanned for. User-confirmed
-// scope: every weapon that shares the Implosion ability (Hyperion and its Astraea/Valkyrie/
+// Implosion Belt: a 1.25x multiplier to the Implosion ability's own damage specifically (not a
+// generic Ability Damage source) — the belt's bundled lore text describes a different, unrelated
+// "explosion damage" bonus, so this can't be scanned for. Scope is
+// every weapon that shares the Implosion ability (Hyperion and its Astraea/Valkyrie/
 // Scylla/Necron's Blade (Unrefined) siblings above, none of which have a separate starred id),
 // plus Spirit Sceptre and Yeti Sword's own Implosion-family abilities.
 export const IMPLOSION_BELT_ID = 'IMPLOSION_BELT';
@@ -63,8 +63,8 @@ export const IMPLOSION_BELT_WEAPON_IDS = new Set([
   'STARRED_YETI_SWORD',
 ]);
 
-// Loving (Red Scarf stone, chestplate-only): user-confirmed to be a genuine 1.05x Ability Damage
-// multiplier, not the flat +5 "Ability Damage" stat its bundled reforgeStats table implies —
+// Loving (Red Scarf stone, chestplate-only): a genuine 1.05x Ability Damage multiplier, not the
+// flat +5 "Ability Damage" stat its bundled reforgeStats table implies —
 // pulled out of the generic per-rarity stat merge (lib/reforges.js) so it stacks correctly on
 // top of any other real Ability Damage stat instead of just summing with it.
 export const LOVING_REFORGE_NAME = 'Loving';

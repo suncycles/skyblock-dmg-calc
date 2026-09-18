@@ -103,8 +103,8 @@ export function computeEnchantingAbilityDamageBonus(level) {
   return clamped * ENCHANTING_ABILITY_DAMAGE_PERCENT_PER_LEVEL;
 }
 
-// Mining Level Defense reward: +1/level for 1-14, +2/level for 15-60 — 106 at max
-// (user-specified 2026-09-15), the same two-rate shape Alchemy/Enchanting use above. Defense is
+// Mining Level Defense reward: +1/level for 1-14, +2/level for 15-60 — 106 at max,
+// the same two-rate shape Alchemy/Enchanting use above. Defense is
 // never shown anywhere; its only consumer is the Ankylosaurus pet's Armored Tank perk, which turns
 // it into Strength (see lib/playerDefense.js).
 export const MAX_MINING_LEVEL = 60;
@@ -116,7 +116,7 @@ export function computeMiningDefenseBonus(level) {
 export const MAX_TARANTULA_SLAYER_LEVEL = 9;
 
 // Tarantula Broodfather (Spider) Slayer Crit Damage reward: +1/level for 1-4, +2/level for 5-7,
-// +3/level for 8-9 — cumulative, e.g. level 9 = 4*1 + 3*2 + 2*3 = 16. User-confirmed table.
+// +3/level for 8-9 — cumulative, e.g. level 9 = 4*1 + 3*2 + 2*3 = 16.
 const TARANTULA_SLAYER_CRIT_DAMAGE_BY_LEVEL = [0, 1, 2, 3, 4, 6, 8, 10, 13, 16];
 export function computeTarantulaSlayerCritDamageBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_TARANTULA_SLAYER_LEVEL, level || 0));
@@ -126,14 +126,14 @@ export function computeTarantulaSlayerCritDamageBonus(level) {
 export const MAX_BLAZE_SLAYER_LEVEL = 9;
 
 // Inferno Demonlord (Blaze) Slayer Strength reward: +1 at level 2, +2 more at level 6 (+3 total
-// from level 6 on) — user-confirmed table.
+// from level 6 on).
 const BLAZE_SLAYER_STRENGTH_BY_LEVEL = [0, 0, 1, 1, 1, 1, 3, 3, 3, 3];
 export function computeBlazeSlayerStrengthBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_BLAZE_SLAYER_LEVEL, level || 0));
   return BLAZE_SLAYER_STRENGTH_BY_LEVEL[clamped];
 }
 
-// Combat Level Crit Chance reward: +0.5/level, capped at +30 (level 60) — user-confirmed.
+// Combat Level Crit Chance reward: +0.5/level, capped at +30 (level 60).
 const COMBAT_LEVEL_CRIT_CHANCE_PER_LEVEL = 0.5;
 export function computeCombatLevelCritChanceBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_COMBAT_LEVEL, level || 0));

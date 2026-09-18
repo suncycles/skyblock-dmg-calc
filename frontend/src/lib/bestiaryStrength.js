@@ -1,13 +1,13 @@
 // Bestiary "leveling reward" Strength bonus — every mob has its own Bestiary tier cap (5/10/15/
 // 20/25 depending on the mob), and reaching that mob's OWN max tier grants a flat Strength bonus
-// baked into its final leveling reward. User-confirmed 2026-08-26: tier-15-capped mobs grant +45
+// baked into its final leveling reward.: tier-15-capped mobs grant +45
 // Strength once maxed, tier-20-capped mobs grant +70. Every mob capped at some other tier (5/10/25)
 // isn't covered by that rule and is deliberately left out of this table rather than guessed.
 //
 // A mob's own tier cap isn't a literal field anywhere in NEU-REPO's constants/bestiary.json — it's
 // derived from each mob-family entry's own `cap` (the real kill count shown as 100% complete) by
 // finding that value's index within its `bracket`'s cumulative kill-threshold array; index+1 is
-// the real max tier. Verified against several real mobs live 2026-08-26 (Arachne/King Minos -> cap
+// the real max tier. Verified against several real mobs live (Arachne/King Minos -> cap
 // 100/50 land at index 14 -> tier 15; Gaia Construct/Minos Hunter -> cap 750/1000 land at index 19
 // -> tier 20), then applied across NEU-REPO's full mob-family list and cross-referenced against
 // this app's own MOB_TYPES names (worker/src/index.js's computeBestiaryMaxedMobs does the same

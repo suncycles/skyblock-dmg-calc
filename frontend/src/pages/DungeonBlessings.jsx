@@ -26,8 +26,8 @@ const sectionLabel = 'text-[11px] font-bold text-black uppercase tracking-wide b
 const round1 = (n) => Math.round(n * 10) / 10;
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// Buff/Blessing — reached from the board tile of the same name, which shows in every mode
-// (user-specified 2026-09-15). Item buffs (lib/buffs.js) apply everywhere; the Dungeon Blessing
+// Buff/Blessing — reached from the board tile of the same name, which shows in every mode.
+// Item buffs (lib/buffs.js) apply everywhere; the Dungeon Blessing
 // controls only appear while the Dungeon toggle is on, because blessings only exist inside a
 // Catacombs run. Edits apply as you make them, like every other edit page.
 export default function DungeonBlessings() {

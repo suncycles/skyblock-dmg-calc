@@ -157,7 +157,7 @@ export function lookupCandidateCost(result, itemData) {
       // The One-For-All-alternative bundle (lib/optimizer.js's evaluateCheapestOneForAllAlternative)
       // — several applyEnchant steps at once. Unlike Full Set above, an unpriced step here doesn't
       // make the whole total unknown — the evaluator itself already treats a level with no real
-      // market price as free (0 coins, not excluded — user-specified 2026-09-02), so the total
+      // market price as free, so the total
       // shown here needs to match that same semantics rather than falling back to '?'.
       const steps = (result.apply || []).filter((s) => s.type === 'applyEnchant');
       if (steps.length === 0) return null;
@@ -174,7 +174,7 @@ export function lookupCandidateCost(result, itemData) {
       // evaluatePowerStoneCandidates already stashes the real physical stone's id as `iconId`
       // (for icon rendering), so reuse that for pricing rather than adding a new field. The price
       // feed's entry for that id is a single unit, but unlocking the Power actually takes 9 of it
-      // (user-confirmed) — the real cost is 9x the per-unit market price.
+      //  — the real cost is 9x the per-unit market price.
       if (!step) return null;
       // The Powers unlocked by default (lib/accessoryPowers.js's DEFAULT_POWERS) have no source
       // stone at all — `iconId` is null for exactly those, and free is a real answer, not a
@@ -189,8 +189,8 @@ export function lookupCandidateCost(result, itemData) {
       // A reforge either comes from a physical stone you buy, or it's one the Blacksmith just
       // rolls for you (Hasty, Spicy, Pure, Fierce, ... — all 50 entries in itemData.reforges).
       // Those have no stone to price, which used to resolve to null and render as "unpriced" —
-      // but "there is nothing to buy" is a real answer, not a missing one, so they're 0 now
-      // (user-specified 2026-09-10). itemData.reforgeStones is the discriminator: in it means a
+      // but "there is nothing to buy" is a real answer, not a missing one, so they're 0 now.
+      // itemData.reforgeStones is the discriminator: in it means a
       // real stone (and every one of those currently has a price), absent means Blacksmith.
       if (!itemData?.reforgeStones?.[step.name]) return 0;
       return priceOf(reforgeCosts, step.name);
@@ -231,7 +231,7 @@ export function lookupCandidateCost(result, itemData) {
       // masterStarCost's cumulative 1..count total (the right shape for loadoutCost.js's Setup
       // Cost, "total spent so far", but double-counts already-owned stars here). Bug: a player at
       // Master Star 4 upgrading to 5 was shown the full 1-5 cumulative (~237M) instead of just the
-      // 5th star's own price (~114M) — user-confirmed 2026-09-01.
+      // 5th star's own price (~114M).
       return step ? priceOf(itemPrices, MASTER_STAR_ITEM_IDS[step.count - 1]) : null;
     }
     case 'Gemstone': {

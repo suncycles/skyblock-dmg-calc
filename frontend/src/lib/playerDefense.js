@@ -1,20 +1,19 @@
 // The player's Defense stat. Deliberately invisible — no panel, tooltip or breakdown line shows it
-// (user-specified 2026-09-15) — because exactly one thing in this calculator reads it: the
+//  — because exactly one thing in this calculator reads it: the
 // Ankylosaurus pet's Armored Tank perk, whose real lore is "Gain {0}% of your Defense as Strength.
 // (Max +500)". Before this existed that perk was hardcoded at its +500 ceiling, i.e. it silently
 // assumed 1000 Defense at pet level 100 for every account. See lib/petData.js's
 // computeAnkylosaurusStrength for the conversion, which comes from the pet's own petnums numbers.
 //
-// The four sources modelled are the ones specified with it — armor, Mining Level, God Potion, and
-// the Unlimited Fortitude attribute.
-// ponytail: equipment (cloak/belt/necklace/gloves) and accessories carry real Defense too, but
-// "from armor" was the instruction; add their slots to computeArmorDefense if that changes.
+// Four sources are modelled: armor, Mining Level, God Potion, and the Unlimited Fortitude
+// attribute. Equipment (cloak/belt/necklace/gloves) and accessories carry real Defense too but are
+// not counted; add their slots to computeArmorDefense if that changes.
 import { ARMOR_SLOTS } from './armorSlots';
 import { computeItemStatTotals } from './itemStatTotals';
 import { computeMiningDefenseBonus } from './playerStats';
 import { petItemStatContext } from './petData';
 
-// God Potion's own Defense contribution while it's active (user-specified 2026-09-15).
+// God Potion's own Defense contribution while it's active.
 export const GOD_POTION_DEFENSE = 66;
 
 // "Unlimited Fortitude", the End Stone Protector shard's ability (lib/attributes.js's `fortitude`):

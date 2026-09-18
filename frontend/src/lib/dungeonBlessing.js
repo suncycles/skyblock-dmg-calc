@@ -1,7 +1,7 @@
 // Dungeon Blessings — the per-run buffs picked up inside a Catacombs run. Each is independently
-// levelled during the run (all four can be active at once at different levels, user-confirmed
-// 2026-09-10), and every one of them is scaled by a single account-wide "blessing effectiveness"
-// multiplier before it touches the player's stats at all.
+// levelled during the run (all four can be active at once at different levels), and every one of
+// them is scaled by a single account-wide "blessing effectiveness" multiplier before it touches
+// the player's stats at all.
 
 export const BLESSING_MIN_LEVEL = 0;
 export const BLESSING_MAX_LEVEL = 30;
@@ -9,7 +9,7 @@ export const BLESSING_MAX_LEVEL = 30;
 // The four real blessings this app models, in the order they're shown in the Misc panel. `flat` is
 // the per-level amount added straight to the named base stats; `percent` is the per-level %
 // increase applied AFTERWARDS to those same stats, so it compounds on the flat grant rather than
-// replacing it. Stone is flat-only — it has no percentage clause (user-confirmed 2026-09-10).
+// replacing it. Stone is flat-only — it has no percentage clause.
 export const DUNGEON_BLESSINGS = [
   { id: 'power', label: 'Power', flatPerLevel: 4, flatStats: ['strength', 'crit_damage'], percentPerLevel: 2, percentStats: ['strength', 'crit_damage'] },
   { id: 'time', label: 'Time', flatPerLevel: 4, flatStats: ['intelligence', 'strength'], percentPerLevel: 2, percentStats: ['intelligence', 'strength'] },
@@ -24,7 +24,7 @@ export function emptyBlessingLevels() {
 }
 
 // --- Blessing effectiveness -----------------------------------------------------------------
-// Four independent sources, MULTIPLICATIVE with each other (user-specified 2026-09-10). At all
+// Four independent sources, MULTIPLICATIVE with each other. At all
 // four maxed: 1.10 * 1.10 * 1.20 * 1.25 = 1.815, matching the confirmed +81.5% figure exactly.
 export const BLESSING_BASE_BONUS_PERCENT = 20; // always on, no requirement
 export const PAUL_BUFF_PERCENT = 25; // the Paul mayor perk — a Misc-panel checkbox

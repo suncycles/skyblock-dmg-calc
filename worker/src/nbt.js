@@ -168,16 +168,16 @@ export function extractItemSummary(slotItem) {
     // is where the full rule lives, and is the only thing that should be read as the answer.
     dungeonized: !!ea.dungeon_item,
     hotPotatoBooks: ea.hot_potato_count || 0,
-    // Confirmed live (2026-08-25) against a real weapon with The Art of War applied:
+    // Confirmed live against a real weapon with The Art of War applied:
     // ExtraAttributes.art_of_war_count === 1. See lib/hypixelImport.js's consumer.
     artOfWar: !!ea.art_of_war_count,
-    // The Art of Peace's real field — confirmed live 2026-09-03 against a real armor piece
+    // The Art of Peace's real field — confirmed live against a real armor piece
     // (sammui's Skeleton Master Chestplate): ExtraAttributes.artOfPeaceApplied === 1. Same shape
     // as art_of_war_count above, just a differently-cased/named key. See lib/hypixelImport.js's
     // consumer.
     artOfPeace: !!ea.artOfPeaceApplied,
     // Real per-copy Gear-Score data — which Floor this specific drop came from (1-10) and its
-    // real stat boost % — confirmed live 2026-09-03 against a real Skeleton Master Chestplate
+    // real stat boost % — confirmed live against a real Skeleton Master Chestplate
     // (item_tier: 10, baseStatBoostPercentage: 50). Only meaningful for the handful of tiered-stat
     // items lib/tieredArmorStats.js models; harmless/unused otherwise. See lib/hypixelImport.js's consumer.
     itemTier: ea.item_tier || null,

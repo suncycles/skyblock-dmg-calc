@@ -1,18 +1,17 @@
 // Accessory Bag slots. One thing reads this: the Optimizer's accessory recommendations. A brand-new
 // accessory needs a free slot, and a bag with none makes that "cheap" accessory cost whatever the
-// next slot costs — which is why a 50k accessory can be a worse buy than it looks (user-specified
-// 2026-09-17).
+// next slot costs — which is why a 50k accessory can be a worse buy than it looks.
 //
 // Slot sources, and what each costs:
 //   - 9 base slots, free, everyone has them.
 //   - Redstone Dust collection, 6 slots per tier to 48. No coins, so never offered as a purchase —
 //     but the player's REAL collection decides how many of those slots they already have.
 //   - Redstone Miner (+4) and the Community Center account upgrades (+12): no coins, and the
-//     Hypixel API exposes neither, so they're counted as already owned (user-specified 2026-09-17).
+//     Hypixel API exposes neither, so they're counted as already owned.
 //   - Jacobus: +2 slots per purchase, 99 purchases, rising 1.5M -> 20M.
 //   - The Accessory Size attribute (Hideonring Shard): +1 slot per level, 10 levels, priced from the
 //     live shard feed through the same attributeCostsByLevel the Optimizer already uses.
-// Numbers from the Accessory Bag and Jacobus wiki pages; see the research doc from 2026-09-17.
+// Numbers from the Accessory Bag and Jacobus wiki pages.
 
 export const BASE_SLOTS = 9;
 
@@ -74,8 +73,8 @@ export function readSlotState(loadout, attributes) {
 // The cheapest slot money can buy right now, as coins-per-slot. Accessory Size is ~1.3M/slot against
 // Jacobus's 10M at his top band, so it wins until it's maxed — which is the "cheaper slots first"
 // rule this exists for. Returns null once both are exhausted (a 281-slot bag).
-// ponytail: a Jacobus purchase buys TWO slots, so its per-slot price is halved rather than charging
-// the first accessory for both. The second slot then reads as free, which it effectively is.
+// A Jacobus purchase buys TWO slots, so its per-slot price is halved rather than charging the
+// first accessory for both. The second slot then reads as free, which it effectively is.
 export function nextSlotPurchase(slotState, itemData) {
   if (!slotState) return null;
   const options = [];

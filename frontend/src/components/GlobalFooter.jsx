@@ -4,18 +4,13 @@ import { useItemData } from '../context/ItemDataContext';
 // __BUILD_TIME__ is injected by vite.config.js's `define` at build time — a fixed instant, not "now".
 const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-// Bottom-right dev-artifact cluster, mounted once at the App root (see App.jsx). Item-data cache
-// status/Refresh used to live inline in Hex.jsx's own header (the only page that showed it) —
-// centralized here instead so it's visible (and refreshable) from anywhere, alongside the
-// build-time footer that already lived here.
+// Bottom-right dev-artifact cluster, mounted once at the App root (see App.jsx): item-data cache
+// status/Refresh plus the build-time footer, visible and refreshable from any page.
 //
-// Collapsed to a single "i" bubble by default (user-specified 2026-09-08): this is diagnostics, not
-// content, and expanded it was a persistent two-line block of small print parked over the bottom
-// corner of every page — the same corner the Recommended Upgrades window and the sticky damage
-// readout both occupy. Click to expand to the full text, click again (or anywhere outside, or Esc)
-// to put it away. Carries its own solid background either way: it had none originally, so the text
-// painted directly on whatever it sat over — measured on Landing, six strings from the upgrades
-// list ("Cost: 436K - 12.7K/%", "Pet Item", ...) collided with it.
+// Collapsed to a single "i" bubble by default — this is diagnostics, not content, and it sits in
+// the same corner as the Recommended Upgrades window and the sticky damage readout. Click to
+// expand, click again (or anywhere outside, or Esc) to put it away. Carries its own solid
+// background in both states so text underneath never shows through.
 export default function GlobalFooter() {
   const { status, refresh } = useItemData();
   const [open, setOpen] = useState(false);

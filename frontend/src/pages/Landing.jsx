@@ -228,7 +228,7 @@ export default function Landing() {
     localStorage.setItem(SAVED_LOADOUTS_KEY, JSON.stringify(next));
   }
 
-  // Encodes the current build (reusing the share-link codec) and stores it under a user-given name.
+  // Encodes the current build (reusing the share-link codec) and stores it under the typed name.
   async function handleSaveLoadout() {
     const name = newLoadoutName.trim();
     if (!name) return;

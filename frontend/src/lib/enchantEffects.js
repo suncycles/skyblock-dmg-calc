@@ -95,7 +95,7 @@ async function probeLevels(fileId, enchantsMeta) {
 }
 
 // Mirrors the worker's ENCHANT_FILE_ID_ALIASES — aliases NEU's own mapping tables miss. Duplex is
-// filed under its pre-rename id ULTIMATE_REITERATE (verified 2026-09-04).
+// filed under its pre-rename id ULTIMATE_REITERATE.
 const ENCHANT_FILE_ID_ALIASES = { ultimate_duplex: 'ULTIMATE_REITERATE' };
 
 // Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").

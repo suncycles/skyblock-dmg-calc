@@ -356,16 +356,13 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
 // this function, see optimizer.js), or a bare manual pick straight off itemData.armor/weapons —
 // exposes it under the identical key with no translation to keep in sync.
 //
-// Design decision 2026-09-02: always returns the catalog's OWN pristine `item.lore`, never
+// Always returns the catalog's OWN pristine `item.lore`, never
 // Hypixel's real per-account lore (`summary.lore`) — an imported item is rebuilt entirely from
 // this catalog base plus the real modifiers below (reforge name, gemstones, stars, enchants, ...)
 // through this app's own formula pipeline (lib/itemStatTotals.js), exactly like a manually-built
-// item, with zero special-casing. An earlier version of this function swapped in `summary.lore`
-// for Gear-Score-scaled items (armor and weapons both) to more closely match the player's real
-// in-game numbers, and stripped/re-parsed it accordingly — that machinery is gone: user-confirmed
-// (2026-09-02) tradeoff is that this app has no Gear Score scaling formula, so a Gear-Score item's
-// Health/Defense/True Defense (and any other Gear-Score-scaled stat) will show the catalog's
-// un-scaled baseline rather than the player's real in-game number. `Item Gear Score` itself is not
+// item, with zero special-casing. The tradeoff is that this app has no Gear Score scaling
+// formula, so a Gear-Score item's Health/Defense/True Defense (and any other Gear-Score-scaled
+// stat) shows the catalog's un-scaled baseline rather than the player's real in-game number. `Item Gear Score` itself is not
 // displayed or used anywhere.
 export function resolveGearSummary(summary, itemData) {
   if (!summary) return null;

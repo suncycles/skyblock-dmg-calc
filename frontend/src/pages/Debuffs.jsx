@@ -17,7 +17,7 @@ const translucentPanel =
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // Debuffs applied to the TARGET (lib/mobDebuffs.js) — reached from the Debuffs tile on the gear
-// board, which shows in every mode and applies in every mode (user-specified 2026-09-15). Same
+// board, which shows in every mode and applies in every mode. Same
 // live-apply behavior as the Buff/Blessing page.
 export default function Debuffs() {
   const { debuffs, setIceSpray, setTwilightPoison, setLastBreathLevel, setLethalityStacks } = useBuild();

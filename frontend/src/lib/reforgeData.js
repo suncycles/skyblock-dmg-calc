@@ -83,7 +83,7 @@ export function formatStatValue(statKey, value) {
 // e.g. a Chestplate-exclusive reforge onto boots, or a Legendary-only reforge onto an Epic piece.
 export function isReforgeApplicable(reforge, item) {
   if (!reforge || !item) return false;
-  // ponytail: Gemstone Gauntlet is a one-off — its real category is GAUNTLET (a mining tool, see
+  // Gemstone Gauntlet is a one-off — its real category is GAUNTLET (a mining tool, see
   // build-item-data.mjs), but it reforges off the same table as swords in-game. Matched by id
   // rather than folded into CATEGORY_TO_REFORGE_TYPES, since there's no general "Gauntlet" rule.
   const categoryTypes =

@@ -12,7 +12,7 @@
 //
 // Deliberately NOT modelled: the Armor/Equipment "Edit All" broadcast. Every applyOptimizerResult
 // call already passes respectEditAll: false — a Recommended Upgrade swap-in is scoped to its own
-// slot (user-specified 2026-08-26), so there is nothing here for it to reproduce.
+// slot, so there is nothing here for it to reproduce.
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { MAX_MASTER_STARS, MASTER_STAR_MIN_BASE_STARS, getMaxStarsForItem } from './starring';

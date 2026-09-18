@@ -48,8 +48,8 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
 
   // Two-Headed Strike (Dragon essence shop) adds Bonus Attack Speed to the Renowned and Spiked
   // reforges specifically — folded into the reforge's own stat block rather than added to the
-  // player afterwards, so it inherits everything a reforge stat already gets downstream
-  // (user-specified 2026-09-10). See lib/essencePerks.js.
+  // player afterwards, so it inherits everything a reforge stat already gets downstream.
+  // See lib/essencePerks.js.
   const twoHeaded = computeTwoHeadedStrikeAttackSpeed(essencePerks, reforgeName);
   if (twoHeaded > 0) bonus.bonus_attack_speed = (bonus.bonus_attack_speed || 0) + twoHeaded;
 

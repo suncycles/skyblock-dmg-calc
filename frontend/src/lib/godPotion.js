@@ -24,8 +24,8 @@ export const JERRY_CANDY_FEROCITY = 2;
 export const JERRY_CANDY_INTELLIGENCE = 100;
 export const JERRY_CANDY_MAGIC_FIND = 3;
 
-// Mixins add a real, extra effect on top of the base God Potion (still one potion/one toggle) —
-// user-scoped to just the one this app tracks a stat for.
+// Mixins add a real, extra effect on top of the base God Potion (still one potion/one toggle).
+// Only the one this app tracks a stat for is modelled.
 export const GOD_POTION_MIXINS = {
   none: { label: 'None' },
   spider_egg: { label: 'Spider Egg', critDamage: 15 },
@@ -36,7 +36,7 @@ export function godPotionMixinCritDamage(mixin) {
 
 // Inside a dungeon the God Potion is replaced outright by the Dungeon Potion — not stacked with
 // it, and not a scaled version of it: different stats, and weaker across the board except that the
-// arrow bonus survives (user-specified 2026-09-11). Two tiers, and which one applies is decided by
+// arrow bonus survives. Two tiers, and which one applies is decided by
 // whether the account owns a Jellyfish pet rather than by anything the player drinks.
 export const DUNGEON_POTION_TIERS = {
   tier7: { label: 'Tier VII', strength: 40, critChance: 20, critDamage: 30, arrowDamage: 50 },

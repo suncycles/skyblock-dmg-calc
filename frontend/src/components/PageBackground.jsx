@@ -5,9 +5,8 @@ import { getZoneStyle } from '../lib/background';
 
 // Fixed zone-themed backdrop (see lib/background.js) shared by every page, not just Landing —
 // keyed off the same Target Mob selection so the whole app stays visually consistent no matter
-// which page you're on, and applies the matching GUI theme too. A static (blurred) image rather
-// than the video this used to be — no autoplay/decode cost, and no risk of a black border baked
-// into old footage ever showing through again.
+// which page you're on, and applies the matching GUI theme too. A static (blurred) image, not a
+// video: no autoplay/decode cost.
 export default function PageBackground() {
   const { targetMobs } = useBuild();
   const { setTheme } = useTheme();
