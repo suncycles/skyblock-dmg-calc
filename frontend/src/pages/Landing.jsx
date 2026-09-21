@@ -21,6 +21,7 @@ import { computePlayerDefense } from '../lib/playerDefense';
 import { getPowerById, computeAccessoryTotalStats } from '../lib/accessoryPowers';
 import { getSkyblockLevelColor } from '../lib/playerStats';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { dropdownPanel, dropdownItemActive, dropdownItemMuted } from '../lib/guiStyles';
 import { getMobModelIcon, getMobIconDataUri } from '../lib/mobIcons';
 import { getGodPotionTooltipLines, getDungeonPotionTooltipLines, dungeonPotionEffects } from '../lib/godPotion';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
@@ -1056,13 +1057,13 @@ export default function Landing() {
             onMouseEnter={guardHover((e) => showTooltip(potionTooltip, e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
-            {/* Opens UPWARD: this tile is the bottom row of the grid, so a downward menu would
-                fall off the panel. Same bevelled chrome as every other GUI surface. */}
+            {/* Drops DOWN from the tile. It is the grid's bottom row, so the menu overhangs the
+                panel — z-50 and an opaque background keep it readable over whatever it covers. */}
             {potionMenuOpen && (
               <ul
                 role="listbox"
                 aria-label={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
-                className={`${toolbar} absolute bottom-full left-0 mb-1 z-50 min-w-max py-0.5 flex flex-col cursor-default`}
+                className={`${dropdownPanel} absolute top-full left-0 mt-1 z-50 min-w-max py-0.5 flex flex-col cursor-default`}
                 onMouseEnter={guardHover(hideTooltip)}
               >
                 {potionOptions.map((option, i) => {
@@ -1078,7 +1079,7 @@ export default function Landing() {
                         applyPotionValue(option.value);
                       }}
                       className={`px-2 py-1 text-[10px] font-bold whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                        i === potionMenuIndex ? 'bg-black/25 text-black' : 'text-black/80'
+                        i === potionMenuIndex ? dropdownItemActive : dropdownItemMuted
                       }`}
                     >
                       <span className="w-2 shrink-0">{selected ? '✔' : ''}</span>

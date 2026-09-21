@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DUNGEON_CLASSES, DUNGEON_CLASS_NEUTRAL_ICON, dungeonClassIcon } from '../lib/dungeonClass';
+import { dropdownPanel, dropdownOptionBg, dropdownItem } from '../lib/guiStyles';
 import { useBuild , DPS_KINDS } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
@@ -579,8 +580,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
           {/* The Mage button's old slot, now a class picker: it both chooses the class and shows
               the chosen one. Dimmed with the Dungeon toggle off, where no class grants anything. */}
           <div
-            className={`${panel} pl-3 pr-1 py-1 flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
-              useDungeonizedStats ? '' : 'brightness-50'
+            className={`${dropdownPanel} pl-3 pr-1 py-1 flex items-center gap-2 text-sm font-bold ${dropdownItem} transition-[filter] ${
+              useDungeonizedStats ? '' : 'brightness-75'
             }`}
             title={useDungeonizedStats ? 'Catacombs class' : 'Class bonuses apply only inside a dungeon'}
           >
@@ -595,10 +596,12 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               value={dungeonClass}
               onChange={(e) => setDungeonClass(e.target.value)}
               aria-label="Catacombs class"
-              className="bg-transparent text-black text-sm font-bold outline-none cursor-pointer pr-1"
+              className={`${dropdownOptionBg} ${dropdownItem} text-sm font-bold outline-none cursor-pointer pr-1`}
             >
+              {/* The colours go on the options too: the native popup takes its background from
+                  them, not from the closed control. */}
               {DUNGEON_CLASSES.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.id} className={`${dropdownOptionBg} ${dropdownItem}`}>
                   {c.label}
                 </option>
               ))}

@@ -303,54 +303,38 @@ function loadInitialEssencePerks() {
   }
 }
 
+// Blessing levels and the Paul buff always start at none: they are per-RUN inputs, and silently
+// restoring a previous session's run inflates every number on the page without the player asking
+// for it. The account-wide halves are restored — Forbidden Blessing and the Master Skull tier come
+// from a Hypixel import and are the account's, not a run's.
 function loadInitialBlessing() {
-  const fallback = { levels: emptyBlessingLevels(), forbiddenBlessingLevel: 0, masterSkullTier: 0, paulBuff: false };
+  const fresh = { levels: emptyBlessingLevels(), forbiddenBlessingLevel: 0, masterSkullTier: 0, paulBuff: false };
   const stored = localStorage.getItem(BLESSING_KEY);
-  if (!stored) return fallback;
+  if (!stored) return fresh;
   try {
     const parsed = JSON.parse(stored);
-    const levels = emptyBlessingLevels();
-    for (const id of BLESSING_IDS) {
-      const v = Math.floor(Number(parsed?.levels?.[id]) || 0);
-      levels[id] = Math.max(BLESSING_MIN_LEVEL, Math.min(BLESSING_MAX_LEVEL, v));
-    }
     return {
-      levels,
+      ...fresh,
       forbiddenBlessingLevel: Math.max(0, Math.min(FORBIDDEN_BLESSING_MAX_LEVEL, Math.floor(Number(parsed?.forbiddenBlessingLevel) || 0))),
       masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(parsed?.masterSkullTier) || 0))),
-      paulBuff: !!parsed?.paulBuff,
     };
   } catch (err) {
     console.error('Failed to parse saved dungeon blessing state:', err);
-    return fallback;
+    return fresh;
   }
 }
 
+// Item buffs always start off, same reasoning as the blessing levels above: holding a Ragnarock or
+// a Weirder Tuba is a thing you do for a fight, not a property of the build.
 function loadInitialBuffs() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(BUFFS_KEY) || 'null');
-    return Object.fromEntries(BUFF_ITEMS.map((b) => [b.id, !!parsed?.[b.id]]));
-  } catch (err) {
-    console.error('Failed to parse saved item buffs:', err);
-    return emptyBuffs();
-  }
+  return emptyBuffs();
 }
 
+// Debuffs always start at none: Ice Spray, Twilight Poison, Last Breath and Lethality are all
+// things applied to the mob in front of you, so carrying them into a fresh session would credit
+// damage nobody set up. A share link still carries them, since that is an explicit snapshot.
 function loadInitialDebuffs() {
-  const stored = localStorage.getItem(DEBUFFS_KEY);
-  if (!stored) return emptyDebuffs();
-  try {
-    const parsed = JSON.parse(stored);
-    return {
-      iceSpray: !!parsed?.iceSpray,
-      twilightPoison: !!parsed?.twilightPoison,
-      lastBreath: Math.max(0, Math.min(LAST_BREATH_MAX_LEVEL, Math.floor(Number(parsed?.lastBreath) || 0))),
-      lethality: Math.max(0, Math.min(LETHALITY_MAX_STACKS, Math.floor(Number(parsed?.lethality) || 0))),
-    };
-  } catch (err) {
-    console.error('Failed to parse saved mob debuff state:', err);
-    return emptyDebuffs();
-  }
+  return emptyDebuffs();
 }
 
 function loadInitialMiscStats() {
