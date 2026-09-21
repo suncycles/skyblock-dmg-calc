@@ -1,7 +1,7 @@
 /images/*
   Cache-Control: public, max-age=86400
 
-# Same treatment as /images/* — the Tutorial and Examples screenshots are equally static, but they
+# Same treatment as /images/* - the Tutorial and Examples screenshots are equally static, but they
 # live outside /images/ and so were falling through to Pages' default (max-age=0, must-revalidate),
 # costing a revalidation round-trip per screenshot per visit.
 /tutorial/*

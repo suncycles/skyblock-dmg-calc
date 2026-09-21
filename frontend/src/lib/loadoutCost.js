@@ -1,5 +1,5 @@
 // "Setup Cost": real coin cost to build the CURRENT loadout from scratch, broken down by section
-// — distinct from lib/pricing.js's lookupCandidateCost, which prices one hypothetical Optimizer
+// - distinct from lib/pricing.js's lookupCandidateCost, which prices one hypothetical Optimizer
 // swap. User-triggered (a button on the Landing page), not recomputed live on every loadout edit.
 
 import { ARMOR_SLOTS } from './armorSlots';
@@ -7,7 +7,7 @@ import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import { priceOf, masterStarCost, enchantPrice } from './pricing';
 
 // Sums an equipped gear slot's base item + every priced modifier currently applied to it (reforge,
-// stars, gemstones, ultimate/normal enchants, Recombobulator) — "what it costs to replicate this
+// stars, gemstones, ultimate/normal enchants, Recombobulator) - "what it costs to replicate this
 // exact piece", not just the bare item.
 function gearSlotCost(slot, itemPrices, reforgeCosts, starCosts, recombobulatorCost) {
   if (!slot?.item) return null;
@@ -57,7 +57,7 @@ function petCost(pet, petCosts, itemPrices) {
 }
 
 // Real market price of every accessory the account actually owns (lib/accessoryOptimizer.js's
-// ownedAccessories, from a Hypixel import or an Optimizer "equip" pretending one was bought) — the
+// ownedAccessories, from a Hypixel import or an Optimizer "equip" pretending one was bought) - the
 // real spend behind the current Magical Power total. null (not 0) when there's no import on file
 // at all, vs. a real 0 for an imported account that happens to own nothing priced yet.
 function magicalPowerCost(accessorySlot, itemPrices) {
@@ -106,7 +106,7 @@ export const LOADOUT_COST_SECTIONS = [
   { key: 'attributes', label: 'Attributes' },
 ];
 
-// { breakdown: {sectionKey: number|null}, total, hasUnknown } — null per-section means "no priced
+// { breakdown: {sectionKey: number|null}, total, hasUnknown } - null per-section means "no priced
 // items in that section" (empty slot, or nothing in it has a real market price yet), distinct from
 // a real 0.
 export function computeLoadoutCostBreakdown(loadout, attributes, itemData) {

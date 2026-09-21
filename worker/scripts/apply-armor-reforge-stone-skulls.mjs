@@ -2,7 +2,7 @@
 /**
  * Bakes head-render icons for the Armor-applicable reforge STONES (itemTypes 'ARMOR'/'HELMET'/
  * 'CHESTPLATE', or an item-exclusive internalName list containing an armor piece), using the same
- * skin-texture-hash + mc-heads.net /head/ render as apply-skull-head-icons.mjs — see that
+ * skin-texture-hash + mc-heads.net /head/ render as apply-skull-head-icons.mjs - see that
  * script's header for why the texture hash, not profileId, is what gets rendered.
  *
  * Reforge stones aren't in the bundled data files (worker/src/index.js fetches them live), so
@@ -28,7 +28,7 @@ const ARMOR_PIECE_KEYWORDS = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
 // Mirrors lib/reforgeData.js's own itemTypes handling: most armor stones
 // share a generic 'ARMOR' bucket, a few use piece-specific 'HELMET'/
 // 'CHESTPLATE' strings, and item-exclusive stones (Great Spook set) carry
-// an {internalName: [...]} object instead of a plain string — armor if
+// an {internalName: [...]} object instead of a plain string - armor if
 // any listed id looks like an armor piece.
 function isArmorStone(stone) {
   const types = stone.itemTypes;

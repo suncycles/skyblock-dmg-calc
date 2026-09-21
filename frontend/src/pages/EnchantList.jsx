@@ -73,9 +73,9 @@ export default function EnchantList({ ultimate }) {
 
   const noun = ultimate ? 'ultimate enchants' : 'enchants';
   const contextText = !item
-    ? 'No item selected — go back and pick one to see applicable enchants.'
+    ? 'No item selected - go back and pick one to see applicable enchants.'
     : enchantIds.length === 0
-      ? `Enchanting: ${formatItemName(item.name)} — no cached ${noun} for category "${category}".`
+      ? `Enchanting: ${formatItemName(item.name)} - no cached ${noun} for category "${category}".`
       : `Enchanting: ${formatItemName(item.name)} (${enchantIds.length} ${noun} available)`;
 
   // [T6]-specific overrides: Giant Killer/Drain win their conflict groups at explicit levels, Impaling forced to true max, Divine Gift/Knockback skipped.
@@ -86,7 +86,7 @@ export default function EnchantList({ ultimate }) {
   const T7_EXCLUDED_IDS = new Set(['knockback', 'titan_killer', 'life_steal', 'mana_steal']);
 
   // [T6]/[T7]: applies every normal enchant at (max tier - offset), alphabetically so conflicting pairs resolve like
-  // clicking through by hand — later letter wins — unless overridden via levelOverrides/excludeIds. `simulated`
+  // clicking through by hand - later letter wins - unless overridden via levelOverrides/excludeIds. `simulated`
   // tracks modifiers locally through the loop so each step's conflict check sees what was applied earlier in this run.
   async function applyMassTier(offsetFromMax, { levelOverrides = {}, excludeIds } = {}) {
     if (!modifiers || enchantIds.length === 0 || massApplying) return;
@@ -151,7 +151,7 @@ export default function EnchantList({ ultimate }) {
       const isNavRow = row === 5;
       const key = `${row}-${col}`;
 
-      // Mass-apply shortcuts (T6/T7), top-right of the grid — normal-list only, empty filler on /ultimate-enchants.
+      // Mass-apply shortcuts (T6/T7), top-right of the grid - normal-list only, empty filler on /ultimate-enchants.
       if (row === 0 && col === 8 && !ultimate) {
         const disabled = !item || enchantIds.length === 0 || massApplying;
         cells.push(

@@ -5,7 +5,7 @@ const panel =
 
 const ConfirmDialogContext = createContext(null);
 
-// In-app replacement for window.confirm/window.alert — styled like the rest of the app's
+// In-app replacement for window.confirm/window.alert - styled like the rest of the app's
 // bordered chest-GUI panels (and theme-aware) instead of the browser's native dialog, which
 // looks jarring against the rest of the UI and can't be styled at all.
 export function ConfirmDialogProvider({ children }) {

@@ -5,7 +5,7 @@ import McTooltipLines from '../components/McTooltipLines';
 
 const TooltipContext = createContext(null);
 
-// True on devices with no real hover input (touch/tap-only) — gates every hover-preview
+// True on devices with no real hover input (touch/tap-only) - gates every hover-preview
 // interaction in the app over to "tap to preview, tap again to activate" (see
 // handleTapOrActivate/guardHover below) instead of an immediate, unpreviewable click. A real
 // mouse/trackpad always reads false here, so hover-capable clients are completely unaffected.
@@ -17,12 +17,12 @@ export function TooltipProvider({ children }) {
   const [tooltip, setTooltip] = useState(null); // { lines, point } | null
   const location = useLocation();
   // Which tap-primed target (an arbitrary caller-chosen key, e.g. a gear slot name) currently has
-  // its tooltip open awaiting a confirm tap, and the DOM node that opened it — refs, not state,
+  // its tooltip open awaiting a confirm tap, and the DOM node that opened it - refs, not state,
   // since they're only ever read/written imperatively inside event handlers, never render.
   const primedKeyRef = useRef(null);
   const primedAnchorRef = useRef(null);
-  // The latest pointer position, tracked passively so showTooltip — called from a caller's
-  // onMouseEnter with an anchor element rather than the event — can open the tooltip at the cursor
+  // The latest pointer position, tracked passively so showTooltip - called from a caller's
+  // onMouseEnter with an anchor element rather than the event - can open the tooltip at the cursor
   // instead of at the anchor's bounding box, which on a wide grid cell is far from the pointer.
   const pointerPosRef = useRef({ x: 0, y: 0 });
   useEffect(() => {
@@ -70,7 +70,7 @@ export function TooltipProvider({ children }) {
   }, [location.pathname, hideTooltip]);
 
   // Tapping anywhere outside the currently tap-primed element dismisses its tooltip without
-  // activating it. Capture phase so this runs before the tapped element's own onClick — a tap
+  // activating it. Capture phase so this runs before the tapped element's own onClick - a tap
   // that lands on a DIFFERENT tap-aware element still reaches that element's own handler
   // afterward (as ITS first tap), since this has already cleared the stale primed key by then.
   useEffect(() => {

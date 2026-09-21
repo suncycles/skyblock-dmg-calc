@@ -1,13 +1,13 @@
 import { getMobLocations } from './mobLocations';
 
-// Zone theme+image backdrop, keyed off the first selected Target Mob — checked in this priority
+// Zone theme+image backdrop, keyed off the first selected Target Mob - checked in this priority
 // order: (1) the mob has its own unique background (currently just the 5 named Slayer bosses,
 // whose location is otherwise just the generic "Slayer" bucket), (2) the mob's real Bestiary
 // location (see lib/mobLocations.js) has a mapped background, (3) no mob selected (or an
 // unmapped location) falls back to the Hub, day or night depending on the player's local clock.
 //
 // Each image is a single frame from ALAND's Immersive Skyblock Modpack footage (see Credits),
-// cropped to drop the source recordings' black border and lightly blurred — see
+// cropped to drop the source recordings' black border and lightly blurred - see
 // docs/rebuild-backgrounds.md for the ffmpeg recipe if these ever need regenerating.
 //
 // Image file notes (all /public/images/backgrounds/*.jpg):
@@ -17,7 +17,7 @@ import { getMobLocations } from './mobLocations';
 // - "Lava_SC.jpg" is Lava fishing (Crimson Isle's lava lakes), distinct from Crimson Isle itself.
 // - "Catacombs_1.jpg" is used for The Catacombs.
 // - Sea Creatures - Water/Fishing Festival/Spooky and Private Island/Spooky Festival have no
-//   dedicated footage — all are Hub-hosted activities, so they fall back to "Hub.jpg".
+//   dedicated footage - all are Hub-hosted activities, so they fall back to "Hub.jpg".
 const LOCATION_BACKGROUNDS = {
   'Crimson Isle': { theme: 'inferno', image: '/images/backgrounds/Isle.jpg' },
   'Crystal Hollows': { theme: 'nova', image: '/images/backgrounds/Hollows.jpg' },
@@ -67,7 +67,7 @@ function hubDefault() {
 }
 
 // No mob selected (or its location isn't one of the mapped ones) falls back to the SkyBlock hub
-// — day or night depending on the player's local clock.
+// - day or night depending on the player's local clock.
 export function getZoneStyle(targetMobs) {
   const firstMob = targetMobs && targetMobs[0];
   if (!firstMob) return hubDefault();

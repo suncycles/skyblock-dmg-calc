@@ -32,7 +32,7 @@ export const VANQUISHED_SET_CONDITION = 'Inferno Demonlord';
 
 // Diana's Mythological Ritual reward armor (see optimizer.js's MYTHOLOGICAL_ARMOR_TIER). Mythos'
 // Might doubles only what a piece itself contributes, so swapping one piece away from a Kuudra
-// family — losing that family's set bonus, such as Infernal Crimson's stacking damage — nets
+// family - losing that family's set bonus, such as Infernal Crimson's stacking damage - nets
 // negative even though the full 4-piece set is a large upgrade. That is why it has a dedicated
 // full-set candidate rather than going through the per-slot evaluator. Challenger's (EPIC) is the
 // cheaper rung of the same armor, with the same doubling ability and smaller base stats than Mythos
@@ -49,7 +49,7 @@ export const MONSTER_RAIDER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CR
 export const MONSTER_RAIDER_MULTIPLIER = 1.35;
 
 // Skeleton Master: a bow-only multiplier, and the only set here that scales per piece rather than
-// all-or-nothing — 1.05x each, so a partial set still counts, plus a separate 1.25x at 4 pieces, for
+// all-or-nothing - 1.05x each, so a partial set still counts, plus a separate 1.25x at 4 pieces, for
 // 1.05^4 * 1.25 = 1.5194x. Gated on an equipped bow (godPotion.js's isBowEquipped), so it adds
 // nothing to a melee build in the same armor.
 export const SKELETON_MASTER_SET = [
@@ -63,7 +63,7 @@ export const SKELETON_MASTER_FULL_SET_MULTIPLIER = 1.25;
 export const SKELETON_MASTER_FULL_SET_PIECES = 4;
 
 // Maxor's Armor: "Speed Wither" is Hypixel's internal name for the set, hence the SPEED_WITHER_*
-// ids (the other three are POWER = Necron's, WISE = Storm's, TANK = Goldor's — see optimizer.js's
+// ids (the other three are POWER = Necron's, WISE = Storm's, TANK = Goldor's - see optimizer.js's
 // WITHER_ARMOR_PREFIXES). Each piece grants +5% arrow damage, additive, so a full set is a flat +20%
 // summed with every other additive source rather than the compounding per-piece multiplier Skeleton
 // Master uses. Bow-only, and gated on the weapon rather than the target, so isBowEquipped decides it.
@@ -75,15 +75,15 @@ export function hasFullSet(loadout, slots, setIds) {
   return slots.every((slot, i) => loadout[slot]?.item?.id === setIds[i]);
 }
 
-// How many of `setIds`' pieces are currently equipped, regardless of slot completeness — for
+// How many of `setIds`' pieces are currently equipped, regardless of slot completeness - for
 // partial-set bonuses (e.g. Infernal Crimson's 2-piece damage stacks) rather than full-set-only ones.
 export function countSetPieces(loadout, slots, setIds) {
   return slots.reduce((count, slot, i) => count + (loadout[slot]?.item?.id === setIds[i] ? 1 : 0), 0);
 }
 
-// The top-tier ("Infernal") upgrade of Crimson Armor — the only variant/tier this app currently
+// The top-tier ("Infernal") upgrade of Crimson Armor - the only variant/tier this app currently
 // has a damage mechanic tied to (a 1-10 player-entered "combo stack" slider, +10%/stack additive
-// damage up to +100%, shown only once 2+ pieces are equipped — see pages/DamageSources.jsx).
+// damage up to +100%, shown only once 2+ pieces are equipped - see pages/DamageSources.jsx).
 export const INFERNAL_CRIMSON_SET = [
   'INFERNAL_CRIMSON_HELMET',
   'INFERNAL_CRIMSON_CHESTPLATE',
@@ -132,7 +132,7 @@ export const THUNDER_SET = ['THUNDER_HELMET', 'THUNDER_CHESTPLATE', 'THUNDER_LEG
 export const THUNDER_NECKLACE_ID = 'THUNDERBOLT_NECKLACE';
 export const THUNDER_PERCENT_PER_PIECE = 20;
 
-// Reaper Armor (Chestplate/Leggings/Boots only — no real Reaper helmet in this set, Reaper Mask is
+// Reaper Armor (Chestplate/Leggings/Boots only - no real Reaper helmet in this set, Reaper Mask is
 // a separate item): a flat +100% additive melee damage bonus against
 // Undead mobs once the full 3-piece set is worn, not a per-piece scaling like Magma Lord/Thunder
 // above.
@@ -141,12 +141,12 @@ export const REAPER_ARMOR_SET = ['REAPER_CHESTPLATE', 'REAPER_LEGGINGS', 'REAPER
 export const REAPER_ARMOR_UNDEAD_PERCENT = 100;
 
 // Challenger's/Mythos Armor+Equipment's "Mythos' Might" ability: real lore says "Grants 2x this
-// armor's/equipment's stats while in The Hub during Diana's Mythological Ritual" — a Hub-only,
+// armor's/equipment's stats while in The Hub during Diana's Mythological Ritual" - a Hub-only,
 // no-combat condition with nothing to model in a damage calculator. Reinterpreted here: apply the
 // same 2x to the piece's own stats (including its reforge/gemstones, i.e.
 // its full settled tooltip total) whenever the TARGET MOB is of the real, existing 'Mythological'
-// type (lib/mobTypes.js — Minotaur/Sphinx/King Minos/etc, the Bestiary's own Mythological Creatures
-// family) instead — the practical condition this app can actually evaluate. Lives here (rather than
+// type (lib/mobTypes.js - Minotaur/Sphinx/King Minos/etc, the Bestiary's own Mythological Creatures
+// family) instead - the practical condition this app can actually evaluate. Lives here (rather than
 // damageSources.js, where the damage-calc side of this consumes it) so lib/itemTooltip.js can also
 // import it for the tooltip-display side without a damageSources.js <-> itemTooltip.js import cycle
 // (damageSources.js already imports buildFullItemTooltipLines from itemTooltip.js).
@@ -170,11 +170,11 @@ export const MYTHOLOGICAL_STAT_DOUBLE_IDS = new Set([
 ]);
 
 // Crimson Swipe: a melee-only proc whose damage depends on how many Crimson-family armor pieces
-// (any of the 5 power tiers — see armorVariants.js's VARIANT_TIERS) are equipped, 2-4, and the
-// LOWEST tier among just those equipped pieces — mixing tiers drags the whole bonus down to the
+// (any of the 5 power tiers - see armorVariants.js's VARIANT_TIERS) are equipped, 2-4, and the
+// LOWEST tier among just those equipped pieces - mixing tiers drags the whole bonus down to the
 // weakest piece's row. Each cell is `SwipeMultiplier` in finalDamage.js's
 // computeCrimsonSwipeDamage: Damage_swipe = MeleeFinal * (SwipeMultiplier * 100) /
-// TotalAdditivePercent — see that function for the full formula.
+// TotalAdditivePercent - see that function for the full formula.
 export const CRIMSON_SWIPE_MIN_PIECES = 2;
 const CRIMSON_SWIPE_TABLE = {
   Basic: { 2: 0.5, 3: 1.0, 4: 1.5 },
@@ -202,7 +202,7 @@ export function computeCrimsonSwipeInfo(loadout, slots) {
 
 // Taurus Helmet/Flaming Chestplate/Moogma Leggings: 3 independent items (different slots, not a
 // matched set) each granting a flat, melee-only +10% additive damage bonus against Magmatic mobs
-// when worn — stacks if more than one is worn simultaneously. Condition corrected from "Lava Sea
+// when worn - stacks if more than one is worn simultaneously. Condition corrected from "Lava Sea
 // Creatures" to "Magmatic"; constant/export names kept as-is.
 export const LAVA_SEA_CREATURE_ARMOR_PERCENT = 10;
 export const LAVA_SEA_CREATURE_ARMOR_PIECES = [

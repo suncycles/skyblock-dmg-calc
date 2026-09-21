@@ -29,7 +29,7 @@ export async function computeArmorDefense(loadout, itemData, ctx = {}) {
   return totals.reduce((sum, t) => sum + (t?.defense?.nonDungeonStarred || 0), 0);
 }
 
-// Everything but the armor, which each caller supplies from wherever it already has it —
+// Everything but the armor, which each caller supplies from wherever it already has it -
 // collectDamageSources reuses the per-item totals its own gear loop just computed rather than
 // recomputing all four pieces, which would be a third more stat-total work on every Optimizer
 // candidate.

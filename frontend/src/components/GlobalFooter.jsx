@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useItemData } from '../context/ItemDataContext';
 
-// __BUILD_TIME__ is injected by vite.config.js's `define` at build time — a fixed instant, not "now".
+// __BUILD_TIME__ is injected by vite.config.js's `define` at build time - a fixed instant, not "now".
 const deployTime = new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 // Bottom-right dev-artifact cluster, mounted once at the App root (see App.jsx): item-data cache
 // status/Refresh plus the build-time footer, visible and refreshable from any page.
 //
-// Collapsed to a single "i" bubble by default — this is diagnostics, not content, and it sits in
+// Collapsed to a single "i" bubble by default - this is diagnostics, not content, and it sits in
 // the same corner as the Recommended Upgrades window and the sticky damage readout. Click to
 // expand, click again (or anywhere outside, or Esc) to put it away. Carries its own solid
 // background in both states so text underneath never shows through.
@@ -16,7 +16,7 @@ export default function GlobalFooter() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
-  // Dismiss on outside click / Esc, the way any small popover should — without this the panel
+  // Dismiss on outside click / Esc, the way any small popover should - without this the panel
   // stays open across navigation and re-covers the corner it was collapsed to get out of.
   useEffect(() => {
     if (!open) return;

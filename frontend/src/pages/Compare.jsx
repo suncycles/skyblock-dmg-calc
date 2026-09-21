@@ -25,7 +25,7 @@ const MIN_COMPARE_SLOTS = 2;
 const MAX_COMPARE_SLOTS = 6;
 
 // Second slot defaults to the first saved loadout (not Current Build again) so a first-time
-// visit doesn't show a pointless "Current vs Current" comparison — the first slot always
+// visit doesn't show a pointless "Current vs Current" comparison - the first slot always
 // defaults to Current Build.
 function loadInitialSelections() {
   const stored = localStorage.getItem(SELECTIONS_KEY);
@@ -43,7 +43,7 @@ function loadInitialSelections() {
 
 // Snapshots the live build into the same shape decodeLoadoutCode() produces for a saved
 // loadout, memoized so its identity only changes when the underlying build state actually does
-// (collectDamageSources runs off this identity — see useLoadoutResults below).
+// (collectDamageSources runs off this identity - see useLoadoutResults below).
 function useCurrentBuildState(build) {
   return useMemo(
     () => ({
@@ -71,10 +71,10 @@ function useCurrentBuildState(build) {
       blessing: build.blessing,
       essencePerks: build.essencePerks,
       hasJellyfishPet: build.hasJellyfishPet,
-      // Target-side debuffs (lib/mobDebuffs.js) — same reasoning as the blessing block: both sides
+      // Target-side debuffs (lib/mobDebuffs.js) - same reasoning as the blessing block: both sides
       // of a comparison face the same debuffed mob, so this is account/run state, not gear state.
       debuffs: build.debuffs,
-      // Item buffs and the imported weapon list they read Ragnarock's Strength from — account state,
+      // Item buffs and the imported weapon list they read Ragnarock's Strength from - account state,
       // same as the debuffs above.
       buffs: build.buffs,
       importedWeapons: build.importedWeapons,
@@ -110,7 +110,7 @@ function useCurrentBuildState(build) {
 // Resolves every slot's selection (each either 'current' or a saved-loadout id) into
 // { state, result, missing }, running the same collectDamageSources() pipeline
 // DamageSources.jsx uses for each. A single hook over the whole selections array (rather than
-// one hook call per slot) since the array's length is dynamic — React's rules of hooks forbid
+// one hook call per slot) since the array's length is dynamic - React's rules of hooks forbid
 // calling a hook a variable number of times. Results are cached by selection value, so two
 // slots pointing at the same loadout (including two both left on 'current') share one
 // computation instead of duplicating it. Per-key tokens guard against a stale async resolution
@@ -198,7 +198,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
 }
 
 // `result` and `state` land in state together (see useLoadoutResults above), so there's a render
-// or two — right after switching a slot's selection — where the map still holds no entry yet for
+// or two - right after switching a slot's selection - where the map still holds no entry yet for
 // the new key. Treat that exactly like "still loading" rather than reading off a null `state`.
 function computeSideMobResult(side, mobName) {
   if (side.missing) return { status: 'missing' };
@@ -208,7 +208,7 @@ function computeSideMobResult(side, mobName) {
   const mob = { name: mobName, types };
   const finalDamage = computeFinalDamage(side.result, mob, side.state.useDungeonizedStats, side.state.useMasterMode);
 
-  // Fabled's crit-hit-chance bonus is randomized per hit — main figure stays at the "no bonus" baseline, second figure shows the real max (same treatment as DamageSources.jsx).
+  // Fabled's crit-hit-chance bonus is randomized per hit - main figure stays at the "no bonus" baseline, second figure shows the real max (same treatment as DamageSources.jsx).
   const hasFabledBonus = side.result.multiplicative.some((e) => e.id === FABLED_REFORGE_ID);
   const finalDamageWithFabledMax = hasFabledBonus
     ? computeFinalDamage(
@@ -224,7 +224,7 @@ function computeSideMobResult(side, mobName) {
       )
     : null;
 
-  // DPS Mode (see finalDamage.js's computeDpsBreakdown) — computed unconditionally alongside
+  // DPS Mode (see finalDamage.js's computeDpsBreakdown) - computed unconditionally alongside
   // Final Damage since it's cheap and the toggle only decides which one renders.
   const dps = computeDpsBreakdown(side.result, mob, side.state.loadout, side.state.useDungeonizedStats, side.state.useMasterMode);
 
@@ -243,11 +243,11 @@ function displayedStat(side, key, isMythologicalTarget) {
 }
 
 // `helmetPreview` per option is a formatted item name | '' (no helmet) | undefined (still
-// decoding) — same convention as lib/savedLoadouts.js's useSavedLoadoutHelmetPreviews, appended
+// decoding) - same convention as lib/savedLoadouts.js's useSavedLoadoutHelmetPreviews, appended
 // to each option's label since a native <select> can't render an icon inside <option>.
 function previewSuffix(preview) {
   if (preview === undefined) return '';
-  return preview ? ` — ⛑️ ${preview}` : ' — (no helmet)';
+  return preview ? ` - ⛑️ ${preview}` : ' - (no helmet)';
 }
 
 function LoadoutSelect({ label, value, onChange, savedLoadouts, currentHelmetPreview, helmetPreviews, onRemove }) {
@@ -355,8 +355,8 @@ function DpsResultCard({ label, r }) {
   );
 }
 
-// Side-by-side Final Damage and (Base) Stats comparison of loadouts — Current Build and any saved
-// loadout (lib/savedLoadouts.js) — against the shared target mob selection, so comparing numbers
+// Side-by-side Final Damage and (Base) Stats comparison of loadouts - Current Build and any saved
+// loadout (lib/savedLoadouts.js) - against the shared target mob selection, so comparing numbers
 // needs no swapping of the live build. Starts with 2 slots; every extra slot's delta is shown
 // against slot 0.
 export default function Compare() {
@@ -392,7 +392,7 @@ export default function Compare() {
 
   const currentState = useCurrentBuildState(build);
   // Target-derived like isCrimsonIsleTarget above, and applied to every compared side for the
-  // same reason — see lib/miningIslands.js.
+  // same reason - see lib/miningIslands.js.
   const isMiningIslandTarget = anyMiningIslandTarget(targetMobs);
   const sides = useLoadoutResults(selections, itemData, currentState, savedLoadouts, isCrimsonIsleTarget, isMiningIslandTarget);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, true, itemDataLoading);
@@ -406,7 +406,7 @@ export default function Compare() {
 
   const labels = selections.map(sideLabel);
   const slotLetters = selections.map((_, i) => String.fromCharCode(65 + i));
-  // Same "applies to at least one selected mob" treatment as DamageSources.jsx — the (Base) Stats
+  // Same "applies to at least one selected mob" treatment as DamageSources.jsx - the (Base) Stats
   // panel below is one shared block per loadout side, not per-mob.
   const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
 
@@ -455,7 +455,7 @@ export default function Compare() {
 
         {savedLoadouts.length === 0 && (
           <div className={`${panel} p-3 text-xs text-neutral-700`}>
-            Every slot shows your Current Build for now — save a build from the{' '}
+            Every slot shows your Current Build for now - save a build from the{' '}
             <button className="underline cursor-pointer font-bold" onClick={() => navigate('/')}>
               📁 Loadouts
             </button>{' '}
@@ -467,7 +467,7 @@ export default function Compare() {
           <div className={`${panel} p-4 flex flex-col gap-2`}>
             <div className={sectionTitle}>{build.dpsMode ? 'DPS' : 'Final Damage'}</div>
             <div className="text-xs text-neutral-600 italic">
-              No target selected —{' '}
+              No target selected -{' '}
               <button className="underline cursor-pointer" onClick={() => navigate('/target-mob')}>
                 pick a mob
               </button>{' '}
@@ -552,7 +552,7 @@ export default function Compare() {
                   const value = displayedStat(side, key, isMythologicalTarget);
                   return (
                     <span key={i} className="text-right font-mono">
-                      {value != null ? formatStatValue(key, Math.round(value * 10) / 10) : '—'}
+                      {value != null ? formatStatValue(key, Math.round(value * 10) / 10) : '-'}
                     </span>
                   );
                 })}

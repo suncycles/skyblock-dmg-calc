@@ -1,10 +1,10 @@
-// Bestiary "leveling reward" Strength bonus — every mob has its own Bestiary tier cap (5/10/15/
+// Bestiary "leveling reward" Strength bonus - every mob has its own Bestiary tier cap (5/10/15/
 // 20/25 depending on the mob), and reaching that mob's OWN max tier grants a flat Strength bonus
 // baked into its final leveling reward.: tier-15-capped mobs grant +45
 // Strength once maxed, tier-20-capped mobs grant +70. Every mob capped at some other tier (5/10/25)
 // isn't covered by that rule and is deliberately left out of this table rather than guessed.
 //
-// A mob's own tier cap isn't a literal field anywhere in NEU-REPO's constants/bestiary.json — it's
+// A mob's own tier cap isn't a literal field anywhere in NEU-REPO's constants/bestiary.json - it's
 // derived from each mob-family entry's own `cap` (the real kill count shown as 100% complete) by
 // finding that value's index within its `bracket`'s cumulative kill-threshold array; index+1 is
 // the real max tier. Verified against several real mobs live (Arachne/King Minos -> cap
@@ -12,12 +12,12 @@
 // -> tier 20), then applied across NEU-REPO's full mob-family list and cross-referenced against
 // this app's own MOB_TYPES names (worker/src/index.js's computeBestiaryMaxedMobs does the same
 // derivation server-side, against the real account's actual per-mob kill counts, to decide which
-// of these are actually unlocked for import — see lib/hypixelImport.js's consumer).
+// of these are actually unlocked for import - see lib/hypixelImport.js's consumer).
 //
 // Coverage: 141 of MOB_TYPES' 322 mobs matched a real bestiary.json entry with a 15 or 20 cap
-// (case/singular-plural normalized — "Siamese Lynxes" here is bestiary's own "Siamese Lynx").
+// (case/singular-plural normalized - "Siamese Lynxes" here is bestiary's own "Siamese Lynx").
 // Most of the remainder (bosses, uniques, Slayer bosses, Dragons) genuinely have no Bestiary entry
-// at all in real Skyblock — not a matching gap. A handful of mobs capped at 5/10/25 were matched
+// at all in real Skyblock - not a matching gap. A handful of mobs capped at 5/10/25 were matched
 // but intentionally excluded (see above), and ~10 more (Arachne's Brood/Keeper, and several
 // Mining/Foraging-profile-specific mobs like Stoneworm/Brineling) have a real tier-15/20 bestiary
 // entry but aren't in this app's own MOB_TYPES at all, so there's nothing to attach them to.
@@ -150,7 +150,7 @@ export const BESTIARY_STRENGTH_BY_MOB = {
   Minotaur: 70,
   'Mushroom Bull': 70,
   'Scared Skeleton': 70,
-  // Bestiary's own real name is "Siamese Lynx" (singular) — matched here under this app's own
+  // Bestiary's own real name is "Siamese Lynx" (singular) - matched here under this app's own
   // plural MOB_TYPES name.
   'Siamese Lynxes': 70,
   'Skeleton Lord': 70,
@@ -171,7 +171,7 @@ export const BESTIARY_STRENGTH_BY_MOB = {
 };
 
 // `maxedMobs` is the set/array of real mob names the imported account has actually reached max
-// tier on (worker/src/index.js's computeBestiaryMaxedMobs) — the bonus only silently applies once
+// tier on (worker/src/index.js's computeBestiaryMaxedMobs) - the bonus only silently applies once
 // a real import confirms it, never assumed. Manual/no-import builds always get 0 here.
 export function getBestiaryStrengthBonus(mobName, maxedMobs) {
   if (!mobName || !maxedMobs) return 0;

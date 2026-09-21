@@ -7,7 +7,7 @@
  * Fail-fast: if any step exits non-zero the pipeline stops rather than continuing with partially
  * stale data (every step from build-item-data.mjs onward depends on the previous one's output).
  *
- * Only regenerates local files — no git add/commit/push, no build, no deploy. Review the printed
+ * Only regenerates local files - no git add/commit/push, no build, no deploy. Review the printed
  * `git status` summary and commit/deploy yourself.
  *
  * Usage: node update-data.mjs
@@ -64,6 +64,6 @@ try {
     cwd: REPO_ROOT,
   });
 } catch {
-  // Not fatal — the pipeline itself already succeeded, this is just a convenience summary.
-  console.log('(not a git repo, or git status failed — check worker/src/data and frontend/public/images manually)');
+  // Not fatal - the pipeline itself already succeeded, this is just a convenience summary.
+  console.log('(not a git repo, or git status failed - check worker/src/data and frontend/public/images manually)');
 }

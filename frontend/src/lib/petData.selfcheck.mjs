@@ -1,10 +1,10 @@
-// Guards computeBasePetStats — the single definition of what Chimera/Manticore Claw copy (see the
+// Guards computeBasePetStats - the single definition of what Chimera/Manticore Claw copy (see the
 // comment above it in petData.js, and [[project_chimera_base_stats]] in project memory). This
 // exact behavior has regressed three times: copying ability-granted stats that aren't real base
 // stats (Ankylosaurus); stripping a species perk that genuinely is part of the pet's real total
 // (Golden Dragon's Shining Scales); and stopping before the held Pet Item's boost, when real
 // Chimera copies that too.
-// No test runner in this project (see CLAUDE.md) — run directly:
+// No test runner in this project (see CLAUDE.md) - run directly:
 // `node src/lib/petData.selfcheck.mjs`. Fixture stat numbers are real, fetched live from
 // NEU-REPO's petnums.json, not guessed.
 import assert from 'node:assert/strict';
@@ -29,7 +29,7 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
   };
 }
 
-// Golden Dragon, Legendary, level 200 (its "100" checkpoint), max Gold Collection (9 digits) —
+// Golden Dragon, Legendary, level 200 (its "100" checkpoint), max Gold Collection (9 digits) -
 // Shining Scales must be included: base 50 Strength + ~99.9 from Shining Scales.
 {
   const { loadout, itemData } = petFixture(
@@ -45,7 +45,7 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
   assert.ok(Math.abs(stats.STRENGTH - 149.9) < 1, `Golden Dragon base Strength should be ~149.9, got ${stats.STRENGTH}`);
 }
 
-// Same pet with zero Gold Collection — Shining Scales contributes nothing, base stays the pure curve.
+// Same pet with zero Gold Collection - Shining Scales contributes nothing, base stays the pure curve.
 {
   const { loadout, itemData } = petFixture(
     'GOLDEN_DRAGON',
@@ -58,7 +58,7 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
   assert.equal(stats.STRENGTH, 50, `Golden Dragon base Strength with 0 Gold Collection should be exactly the curve (50), got ${stats.STRENGTH}`);
 }
 
-// Ankylosaurus, Legendary, level 100 — real base stats are Health/Defense/True Defense only.
+// Ankylosaurus, Legendary, level 100 - real base stats are Health/Defense/True Defense only.
 // Unyielding's +500 Strength is ability-granted, not part of the curve, and must stay excluded.
 {
   const { loadout, itemData } = petFixture(
@@ -69,11 +69,11 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
     { HEALTH: 150, DEFENSE: 50, TRUE_DEFENSE: 15 },
   );
   const stats = computeBasePetStats(loadout, itemData);
-  assert.ok(!stats.STRENGTH, `Ankylosaurus has no base Strength stat at all — Unyielding must stay excluded, got ${stats.STRENGTH}`);
+  assert.ok(!stats.STRENGTH, `Ankylosaurus has no base Strength stat at all - Unyielding must stay excluded, got ${stats.STRENGTH}`);
   assert.equal(stats.HEALTH, 150, `Ankylosaurus base Health should be the curve value, got ${stats.HEALTH}`);
 }
 
-// Lion, Legendary, level 100 — Primal Force boosts its native Strength, same rule as Shining Scales.
+// Lion, Legendary, level 100 - Primal Force boosts its native Strength, same rule as Shining Scales.
 {
   const { loadout, itemData } = petFixture(
     'LION',
@@ -89,7 +89,7 @@ function petFixture(petId, tier, level, level1Stats, level100Stats, { goldCollec
 }
 
 // Golden Dragon, Legendary, level 200, max Gold Collection, holding Hephaestus Remedies
-// ("Increases this pet's Strength by 100%") — the real regression case. Base copy must include
+// ("Increases this pet's Strength by 100%") - the real regression case. Base copy must include
 // the pet item's boost: (curve 50 + Shining Scales ~99.9) * 2 = ~299.8, matching the live-verified
 // value shown on the pet's own tooltip with this exact loadout.
 {

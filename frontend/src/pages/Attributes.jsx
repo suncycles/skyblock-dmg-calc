@@ -21,7 +21,7 @@ const ECHO_ATTRIBUTES = [
   { id: 'echo_of_boxes', name: 'Echo of Boxes' },
 ];
 
-// Small bracketed text button — sets a single attribute, one section, or every attribute to its
+// Small bracketed text button - sets a single attribute, one section, or every attribute to its
 // min/max depending on call site.
 function TextButton({ label, onClick }) {
   return (
@@ -36,7 +36,7 @@ function TextButton({ label, onClick }) {
 }
 
 // [min] as well as [max] per row: zeroing one attribute took clearing the field by hand, while
-// maxing it was a single click — and "min this one" is the more common of the two once a build is
+// maxing it was a single click - and "min this one" is the more common of the two once a build is
 // already imported at full levels. Ordered min-then-max so the pair
 // reads along the same low-to-high axis as the number beside them.
 function LevelInput({ id, level, onChange }) {
@@ -69,7 +69,7 @@ function Section({ title, subtitle, maxLabel, onMaxAll, children }) {
   );
 }
 
-// Account-wide attribute levels (1-10 each), not tied to any equipped item — reads/writes BuildContext's `attributes` state directly.
+// Account-wide attribute levels (1-10 each), not tied to any equipped item - reads/writes BuildContext's `attributes` state directly.
 export default function Attributes() {
   const navigate = useNavigate();
   const { attributes, setAttributeLevel } = useBuild();
@@ -98,7 +98,7 @@ export default function Attributes() {
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <Section
           title="Ruler Attributes"
-          subtitle="+3%–30% more Damage against the listed Mob Type."
+          subtitle="+3%-30% more Damage against the listed Mob Type."
           maxLabel="ruler"
           onMaxAll={() => maxAll(rulerIds)}
         >
@@ -133,7 +133,7 @@ export default function Attributes() {
 
         <Section
           title="Strength Elemental"
-          subtitle="Grants Strength +1–10, added directly to base stats."
+          subtitle="Grants Strength +1-10, added directly to base stats."
           maxLabel="elemental"
           onMaxAll={() => maxAll(elementalIds)}
         >
@@ -149,7 +149,7 @@ export default function Attributes() {
 
         <Section
           title="Intelligence Elemental"
-          subtitle="Grants Intelligence +1–10, added directly to base stats."
+          subtitle="Grants Intelligence +1-10, added directly to base stats."
           maxLabel="elemental"
           onMaxAll={() => maxAll(intelligenceElementalIds)}
         >

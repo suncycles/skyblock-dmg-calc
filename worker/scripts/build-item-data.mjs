@@ -10,7 +10,7 @@
  * `nbttag` is stringified SNBT rather than JSON. Rarity and category live only
  * in the last non-empty line of `lore`, e.g. "§6§lLEGENDARY SWORD", so this
  * script strips colour codes from that line, matches the leading words against
- * constants/misc.json's tier_colors, and treats the rest as the category —
+ * constants/misc.json's tier_colors, and treats the rest as the category -
  * kept even when unrecognized, though only weapon and armor categories reach
  * the output.
  *
@@ -46,19 +46,19 @@ const TIER_NAMES = Object.keys(misc.tier_colors)
 // tags itself GLOVES or BRACELET like every other Gloves item.
 const WEAPON_TYPES = ['SWORD', 'BOW', 'LONGSWORD', 'WAND', 'GAUNTLET'];
 const ARMOR_TYPES = ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'];
-// Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) — a
+// Hypixel's "Equipment" gear category (Necklace/Cloak/Belt/Gloves) - a
 // second, parallel armor-like slot set, not variants of HELMET etc.
-// 'BRACELET' is the same Gloves slot under a different tag word — some
+// 'BRACELET' is the same Gloves slot under a different tag word - some
 // Gloves-slot items (Molten Bracelet, Luminous Bracelet, etc.) use it
 // instead of 'GLOVES' in their own real tag line.
 const EQUIPMENT_TYPES = ['NECKLACE', 'CLOAK', 'BELT', 'GLOVES', 'BRACELET'];
-// Pet items — the one held item a summoned pet can equip. Their tag line is just "<TIER> PET ITEM",
+// Pet items - the one held item a summoned pet can equip. Their tag line is just "<TIER> PET ITEM",
 // with no category word. Scanned from the full items/ catalog like every other category here rather
 // than from constants/pets.json's display-name map, which covers only 34 of the ~80 and misses
 // Antique Remedies, Minos Relic and Hephaestus Remedies among others.
 const PET_ITEM_CATEGORY = 'PET ITEM';
 
-// Power Stones (combine 9 at Maxwell to unlock a Stone Power on the Accessory Bag) — same
+// Power Stones (combine 9 at Maxwell to unlock a Stone Power on the Accessory Bag) - same
 // "<TIER> POWER STONE" trailing-lore convention as everything else here. The Power itself, its name
 // and per-MP stat scaling, isn't structured data anywhere in NEU-REPO; only the stone item is, so
 // that half is a hand-curated table in lib/accessoryPowers.js and this script only finds the 21
@@ -69,7 +69,7 @@ const POWER_STONE_CATEGORY = 'POWER STONE';
 // "<TIER> ACCESSORY" whatever the family, including dungeon drops like WITHER_RELIC's
 // "LEGENDARY DUNGEON ACCESSORY", which `category.endsWith` catches as ARMOR_TYPES catches
 // "DUNGEON HELMET". Needed to resolve an account's Accessory Bag contents to rarities for the live
-// Magical Power calculation — see worker/src/index.js.
+// Magical Power calculation - see worker/src/index.js.
 const ACCESSORY_TYPES = ['ACCESSORY'];
 
 // Items that parse as a weapon or armor category but aren't player-obtainable gear: Rift NPC
@@ -79,10 +79,10 @@ const EXCLUDED_IDS = new Set([
   'ARGOFAY_THREEBROTHER_1_RIFT_NPC',
   'ARGOFAY_THREEBROTHER_2_RIFT_NPC',
   'ARGOFAY_THREEBROTHER_3_RIFT_NPC',
-  'TIME_KNIFE', // "Time Shuriken" — Rift cosmetic throwable, not a weapon
+  'TIME_KNIFE', // "Time Shuriken" - Rift cosmetic throwable, not a weapon
 ]);
 
-// Items whose lore matches the /rift/i scan below but are kept anyway — exceptions to that filter
+// Items whose lore matches the /rift/i scan below but are kept anyway - exceptions to that filter
 // rather than to EXCLUDED_IDS above:
 //   GYROKINETIC_WAND: "Create a large rift at the aimed location" describes the ability's visual
 //     effect, not the Rift Dimension.
@@ -98,7 +98,7 @@ const RIFT_FOOTNOTE_RE = /rift-(transferable|exportable)/i;
 // Some ordinary accessories (Respiration Artifact, Hocus-Pocus Cipher) carry a real, non-footnote
 // Rift mention: a bonus that triggers only in the Rift, on top of stats that work everywhere.
 // Hypixel's own "Works while in Accessory Bag!" line is the signal that an item is a normal
-// always-on accessory rather than Rift-exclusive content — it is absent on genuine Rift-only gear —
+// always-on accessory rather than Rift-exclusive content - it is absent on genuine Rift-only gear -
 // so it is checked before excluding on a rift mention.
 const ACCESSORY_BAG_MARKER_RE = /works while in accessory bag/i;
 
@@ -125,7 +125,7 @@ function parseTierAndCategory(lore) {
         return { tier: tierName.replace(/ /g, '_'), category: rest || null };
       }
     }
-    // No recognized tier prefix — keep the whole line as a best-effort
+    // No recognized tier prefix - keep the whole line as a best-effort
     // category rather than discarding the item outright.
     return { tier: null, category: upper || null };
   }
@@ -147,7 +147,7 @@ function materialFromItemId(itemid) {
 // and unlock cost (coins plus specific Flawless or Fine gems) are likewise absent from NEU-REPO and
 // come from the same endpoint. A COMBAT slot accepts any of the 6 gems this app models, while a slot
 // whose type is itself a gem id (Hyperion's SAPPHIRE, Giant's Sword's two JASPER slots) accepts only
-// that one — see lib/gemstones.js's getAllowedGemsForSlotType. Unlock cost is per item rather than
+// that one - see lib/gemstones.js's getAllowedGemsForSlotType. Unlock cost is per item rather than
 // per slot type (Hyperion's SAPPHIRE slot is 250k + 4 Flawless Sapphire; Voidedge Katana's is 100k +
 // 40 Fine Sapphire), so the whole per-slot object is kept.
 console.log('Fetching upgrade_costs/gemstone_slots from Hypixel resources API...');
@@ -228,7 +228,7 @@ for (const file of files) {
   if (!isWeapon && !isArmor && !isEquipment && !isPetItem && !isPowerStone && !isAccessory) continue;
 
   if (isPetItem) {
-    // Pet items have no slot-matching `category` concept — there is only ever one pet-item slot.
+    // Pet items have no slot-matching `category` concept - there is only ever one pet-item slot.
     petItems.push({
       id: raw.internalname,
       name: stripColorCodes(raw.displayname || raw.internalname || ''),
@@ -252,7 +252,7 @@ for (const file of files) {
 
   if (isAccessory) {
     // Only rarity, for the live Magical Power calculation, and name/material for rendering matter
-    // here — there is no category breakdown, since every accessory shares the bare "ACCESSORY" tag.
+    // here - there is no category breakdown, since every accessory shares the bare "ACCESSORY" tag.
     accessories.push({
       id: raw.internalname,
       name: stripColorCodes(raw.displayname || raw.internalname || ''),

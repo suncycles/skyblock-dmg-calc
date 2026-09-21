@@ -21,7 +21,7 @@ export default function Credits() {
         </a>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Item &amp; Pet Data — NotEnoughUpdates-REPO</h2>
+          <h2 className="font-semibold text-white mb-1">Item &amp; Pet Data - NotEnoughUpdates-REPO</h2>
           <p>
             Item, pet, reforge, and enchantment data, plus most icons, come from{' '}
             <a
@@ -46,7 +46,7 @@ export default function Credits() {
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Coin Prices — SkyHelperBot/Prices &amp; Hypixel API</h2>
+          <h2 className="font-semibold text-white mb-1">Coin Prices - SkyHelperBot/Prices &amp; Hypixel API</h2>
           <p>
             The Optimizer's real coin costs come from{' '}
             <a
@@ -71,7 +71,7 @@ export default function Credits() {
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Mob Model Renders — Hypixel SkyBlock Wiki</h2>
+          <h2 className="font-semibold text-white mb-1">Mob Model Renders - Hypixel SkyBlock Wiki</h2>
           <p>
             Mob render images used in the Target Mob picker are from the{' '}
             <a
@@ -96,7 +96,7 @@ export default function Credits() {
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Background Images — ALAND's Immersive Skyblock Modpack</h2>
+          <h2 className="font-semibold text-white mb-1">Background Images - ALAND's Immersive Skyblock Modpack</h2>
           <p>
             Zone backdrop images are captured using{' '}
             <a
@@ -107,13 +107,13 @@ export default function Credits() {
             >
               ALAND's Immersive Skyblock Modpack
             </a>
-            , which bundles a number of shader and resource-pack mods to give SkyBlock this look — full credit to
+            , which bundles a number of shader and resource-pack mods to give SkyBlock this look - full credit to
             that modpack and everything it packages together.
           </p>
         </section>
 
         <section className="bg-neutral-800/60 border border-neutral-700 rounded-md p-3">
-          <h2 className="font-semibold text-white mb-1">Base Assets — Mojang &amp; Hypixel</h2>
+          <h2 className="font-semibold text-white mb-1">Base Assets - Mojang &amp; Hypixel</h2>
           <p>
             Item/block/mob textures and the underlying SkyBlock game content this app calculates around belong to{' '}
             <a className="underline text-blue-300 hover:text-blue-200" href="https://www.minecraft.net/" target="_blank" rel="noreferrer">

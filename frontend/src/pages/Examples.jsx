@@ -17,10 +17,10 @@ const PIECE_LABELS = {
 };
 
 // Real shared-loadout links (KV short ids, see lib/loadoutCode.js's shortenLoadoutCode). Item
-// names/pet/magical power below were read directly off each loadout after loading it — not
+// names/pet/magical power below were read directly off each loadout after loading it - not
 // guessed. A few item names carry a genuine leading space in the underlying catalog data
-// (a NEU-REPO quirk, not a typo here) — trimmed below for clean display.
-// `category` groups the cards on the page below (Eman / Blaze / Other) — assigned by which
+// (a NEU-REPO quirk, not a typo here) - trimmed below for clean display.
+// `category` groups the cards on the page below (Eman / Blaze / Other) - assigned by which
 // dungeon class the loadout is built around, not derived from anything else in the entry.
 const EXAMPLES = [
   {

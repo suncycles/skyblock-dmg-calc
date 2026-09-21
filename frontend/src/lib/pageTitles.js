@@ -1,5 +1,5 @@
 // Maps the current route to a short human label for the global TopBar (see components/TopBar.jsx).
-// Deliberately generic/static — per-item detail (a specific weapon or pet name) stays on the
+// Deliberately generic/static - per-item detail (a specific weapon or pet name) stays on the
 // page's own content, not duplicated up here. Ordered so more specific patterns are tested first
 // (e.g. the blacksmith reforge route before the plain one).
 const ROUTES = [
@@ -39,7 +39,7 @@ const ROUTES = [
   [/^\/resources$/, 'Calculations'],
 ];
 
-// Returns null for "/" (Landing) — the TopBar just shows the bare brand there.
+// Returns null for "/" (Landing) - the TopBar just shows the bare brand there.
 export function getPageLabel(pathname) {
   for (const [pattern, label] of ROUTES) {
     if (pattern.test(pathname)) return label;

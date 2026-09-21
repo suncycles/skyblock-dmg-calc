@@ -2,7 +2,7 @@
 //
 // optimizer.js's applyOptimizerResult does the same job by calling BuildContext's setters, which
 // means it mutates React state and can only run once, from a click. A planner has to apply a
-// result, re-rank against the outcome, and apply the next one — so it needs the same rules as a
+// result, re-rank against the outcome, and apply the next one - so it needs the same rules as a
 // pure transform (see docs: the Optimizer Rebuild plan, phase 02).
 //
 // The two must agree, or a planned sequence would be ranked against a state the real click never
@@ -11,7 +11,7 @@
 // setter's own semantics (clamping, the masterStars resets, the enchant conflict rules).
 //
 // Deliberately NOT modelled: the Armor/Equipment "Edit All" broadcast. Every applyOptimizerResult
-// call already passes respectEditAll: false — a Recommended Upgrade swap-in is scoped to its own
+// call already passes respectEditAll: false - a Recommended Upgrade swap-in is scoped to its own
 // slot, so there is nothing here for it to reproduce.
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
@@ -60,7 +60,7 @@ function setStars(state, slot, count) {
   });
 }
 
-// Mirrors BuildContext.applyEnchant, including One For All's "removes every other enchant" rule —
+// Mirrors BuildContext.applyEnchant, including One For All's "removes every other enchant" rule -
 // the caller supplies removeIds, and an ultimate named there is cleared as well as hex entries.
 function applyEnchant(state, slot, { id, level, maxLevel, removeIds = [] }) {
   return withSlotModifiers(state, slot, (modifiers) => {
@@ -103,7 +103,7 @@ const STEPS = {
   setSpecialValue: (state, step) => withSlotModifiers(state, step.slot, (m) => ({ ...m, special: step.value })),
 
   // rarityOverride only means anything for the milestone-upgrading items that carry a `rarities`
-  // config (currently David's Cloak) — same guard BuildContext.setRarityOverride applies.
+  // config (currently David's Cloak) - same guard BuildContext.setRarityOverride applies.
   setRarityOverride: (state, step) =>
     withSlotModifiers(state, step.slot, (m, item) => (item && !getSpecialConfig(item.id)?.rarities ? m : { ...m, rarityOverride: step.tier })),
 
@@ -173,7 +173,7 @@ const STEPS = {
 // rejected below rather than silently applied as a no-op.
 const UNSUPPORTED_STEPS = new Set(['setOwnedAccessory', 'removeOwnedAccessory']);
 
-// True when every step of `result` can be applied purely — a planner should skip a result that
+// True when every step of `result` can be applied purely - a planner should skip a result that
 // can't be, since applying it partially would rank later steps against a state that never exists.
 export function canApplyPurely(result) {
   return (result.apply || []).every((step) => STEPS[step.type] && !UNSUPPORTED_STEPS.has(step.type));

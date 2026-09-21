@@ -12,9 +12,9 @@ const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
 // Step 1 of applying a gemstone: pick which of the 6 supported gem types goes in this slot. Real
-// per-slot type restrictions (item.gemstone_slots[idx].slot_type, from Hypixel's resources API —
+// per-slot type restrictions (item.gemstone_slots[idx].slot_type, from Hypixel's resources API -
 // see lib/gemstones.js's getAllowedGemsForSlotType) narrow this down for slots that aren't
-// COMBAT/UNIVERSAL — e.g. Deathripper Dagger's 2nd slot only takes Opal, Storm armor's 1st slot
+// COMBAT/UNIVERSAL - e.g. Deathripper Dagger's 2nd slot only takes Opal, Storm armor's 1st slot
 // only takes Sapphire. A gem not allowed in this slot renders disabled instead of being hidden,
 // so it's clear it exists but doesn't fit here.
 export default function GemstoneTypePicker() {
@@ -46,7 +46,7 @@ export default function GemstoneTypePicker() {
               <div
                 key={key}
                 className={`${slotBase} opacity-40 cursor-not-allowed grayscale`}
-                title={`${gem.label} — doesn't fit this slot`}
+                title={`${gem.label} - doesn't fit this slot`}
               >
                 <img src={getGemstoneIcon(gemId, 'rough')} alt={gem.label} className={iconImg} />
               </div>,

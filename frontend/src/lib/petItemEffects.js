@@ -1,5 +1,5 @@
 // Some Pet Items grant a % boost to one or all of a pet's own combat stats (e.g. "Increases
-// the pet's Strength by 80%.") rather than an XP/coin boost — parsed from the item's own
+// the pet's Strength by 80%.") rather than an XP/coin boost - parsed from the item's own
 // real lore before the pet's own {STAT_NAME} placeholders get filled in (see lib/petData.js).
 
 // Maps a pet item's lore stat name to petnums.json's own uppercase stat key.
@@ -42,7 +42,7 @@ export function parsePetItemStatBoost(lore) {
   }
 
   // Some pet items grant a flat stat bump instead of a %, e.g. "Grants +35 Attack Speed."
-  // (Crochet Tiger Plushie) or "Grants +30 Strength and +20 Speed." (multi-stat) — added to the
+  // (Crochet Tiger Plushie) or "Grants +30 Strength and +20 Speed." (multi-stat) - added to the
   // pet's own stat rather than scaling it, so it applies even on a pet lacking that base stat.
   m = /Grants\s+([^.]+)\./i.exec(text);
   if (m) {

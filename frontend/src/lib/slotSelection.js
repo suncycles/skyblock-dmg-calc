@@ -1,6 +1,6 @@
 // What equipping an item into a slot produces: the trimmed item record and the modifiers that
 // survive the swap. Shared by BuildContext's selectItem and lib/applyResult.js's pure planner, so
-// both produce the same result. Everything here is a pure function of its arguments — no React,
+// both produce the same result. Everything here is a pure function of its arguments - no React,
 // storage or refs.
 
 import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './defaultModifiers';
@@ -10,7 +10,7 @@ import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
 import { isReforgeApplicable } from './reforgeData';
 
 // Which broad weapon family a catalog `category` belongs to. Enchants differ meaningfully across
-// them — Sharpness and Critical are melee-only, a Bow's enchants don't apply to a Sword — so
+// them - Sharpness and Critical are melee-only, a Bow's enchants don't apply to a Sword - so
 // persisted upgrades carry across a weapon swap only within one family. SWORD, DUNGEON SWORD,
 // DUNGEON LONGSWORD and GAUNTLET are all melee. Only 'weapon'-slot swaps check this, armor and
 // equipment categories being fixed per slot.
@@ -58,7 +58,7 @@ export function trimItemForSlot(slot, item) {
     tier: item.tier,
     lore: item.lore || [],
     color: item.color,
-    // Real per-slot gemstone type/unlock-cost data (worker/scripts/build-item-data.mjs) — see
+    // Real per-slot gemstone type/unlock-cost data (worker/scripts/build-item-data.mjs) - see
     // lib/optimizer.js's evaluateGemstoneCandidates, the consumer.
     gemstone_slots: item.gemstone_slots || null,
   };
@@ -66,7 +66,7 @@ export function trimItemForSlot(slot, item) {
 
 // The modifiers a gear slot ends up with after equipping `item`.
 //
-// `carried` is whatever modifiers should be inherited — the remove-then-repick stash in the live
+// `carried` is whatever modifiers should be inherited - the remove-then-repick stash in the live
 // UI, and nothing at all for a planner's direct swap. `prevModifiers` is the entry being replaced,
 // read separately because stars carry from a DIRECT swap too, not only from the stash.
 export function resolveGearModifiers({ item, carried, prevModifiers, crossesFamily, itemData }) {
@@ -83,7 +83,7 @@ export function resolveGearModifiers({ item, carried, prevModifiers, crossesFami
   }
 
   // A carried-over reforge can be item-exclusive to the piece being replaced (Gilded belongs to
-  // Midas Sword, matched by id rather than category — see reforgeData.js's isReforgeApplicable). A
+  // Midas Sword, matched by id rather than category - see reforgeData.js's isReforgeApplicable). A
   // lookup miss carries the reforge over rather than assuming it is invalid.
   if (modifiers.reforge) {
     const meta = itemData?.reforges?.[modifiers.reforge] || itemData?.reforgeStones?.[modifiers.reforge];
@@ -97,7 +97,7 @@ export function resolveGearModifiers({ item, carried, prevModifiers, crossesFami
   return modifiers;
 }
 
-// A freshly picked pet defaults to max effectiveness — max level, and for Golden Dragon its maxed
+// A freshly picked pet defaults to max effectiveness - max level, and for Golden Dragon its maxed
 // Legendary Treasure and Shining Scales inputs. An import overwrites these, so it only matters for
 // a from-scratch pick.
 export function freshPetModifiers(item) {

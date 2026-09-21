@@ -9,7 +9,7 @@
 // below the next threshold shows zero marginal gain and a myopic search would never spend toward
 // one. Each round therefore computes how many points reach the next breakpoint and offers that as
 // its own lumpy candidate beside every stat's plain +1, picking whichever has the best value per
-// point — so a breakpoint is bought in one shot exactly when it is worth it.
+// point - so a breakpoint is bought in one shot exactly when it is worth it.
 //
 // Enchant-level lookups are cached per id (enchantEffects.js's fetchEnchantLevels), so repeated
 // computeModeDamage calls stay cheap once the first pass warms that cache.
@@ -25,7 +25,7 @@ const SMOOTH_TUNING_STATS = ['strength', 'crit_damage', 'crit_chance', 'intellig
 const ALL_TUNING_STATS = ['health', 'defense', 'speed', 'strength', 'crit_damage', 'crit_chance', 'bonus_attack_speed', 'intelligence'];
 
 // Points needed for `allocation.bonus_attack_speed` to carry the player from their current
-// (gear-only) Bonus Attack Speed up to the next real hit-rate breakpoint — null if already past
+// (gear-only) Bonus Attack Speed up to the next real hit-rate breakpoint - null if already past
 // every breakpoint, or if reaching the next one would cost more points than are left to spend.
 function pointsToNextAttackSpeedBreakpoint(gearBonusAttackSpeed, allocation, remaining, loadout) {
   const currentAS = gearBonusAttackSpeed + allocation.bonus_attack_speed * TUNING_RATE_PER_POINT.bonus_attack_speed;
@@ -43,7 +43,7 @@ function pointsToNextAttackSpeedBreakpoint(gearBonusAttackSpeed, allocation, rem
 
 // The candidate stats for a mode, excluding the smooth stats its formula provably never reads, so
 // the search never spends a pipeline call confirming a guaranteed zero:
-//   - 'ability': computeAbilityDamage reads Intelligence and nothing else here — no Strength or Crit
+//   - 'ability': computeAbilityDamage reads Intelligence and nothing else here - no Strength or Crit
 //     Damage term, and abilities don't crit. The search short-circuits this case entirely.
 //   - 'dps' (melee/arrow): computeFinalDamage has no Intelligence term; that stat only feeds Ability
 //     Damage.
@@ -55,8 +55,8 @@ function relevantSmoothStats(metric) {
   return SMOOTH_TUNING_STATS.filter((s) => s !== 'intelligence');
 }
 
-// Crit Chance clamps past its cap — 100%, or 200% with an Overload bow (see computeDpsBreakdown's
-// megaCritChance) — so once gear plus spent points cross it, further Crit Chance points are worth 0.
+// Crit Chance clamps past its cap - 100%, or 200% with an Overload bow (see computeDpsBreakdown's
+// megaCritChance) - so once gear plus spent points cross it, further Crit Chance points are worth 0.
 // Checked with the same per-point rate the formula applies, rather than re-confirming a zero with a
 // pipeline call every round.
 function isCritChanceCapped(gearCritChance, allocation, hasOverload) {
@@ -69,13 +69,13 @@ function isCritChanceCapped(gearCritChance, allocation, hasOverload) {
 // reads them multiplies them in as a bare (1 + stat/100[*scaling]) factor with the other stats held
 // fixed during the batch, so each one's marginal rate is constant and batching can't change the
 // final allocation. The risk it does introduce is missing a bonus_attack_speed breakpoint that
-// becomes worth crossing partway through a batch — its point cost is fixed but its value grows with
-// the batched stat — so BATCH_SIZE bounds how long that can go unnoticed to one batch.
+// becomes worth crossing partway through a batch - its point cost is fixed but its value grows with
+// the batched stat - so BATCH_SIZE bounds how long that can go unnoticed to one batch.
 const STREAK_THRESHOLD = 6;
 const BATCH_SIZE = 24;
 
 // Returns { allocation, nextStat }. `allocation` is a full {statKey: points} map over all 8
-// TUNING_STATS keys — 0 for the three damage-irrelevant ones — greedily maximizing
+// TUNING_STATS keys - 0 for the three damage-irrelevant ones - greedily maximizing
 // computeModeDamage for the loadout, mode and mob while spending exactly `totalPoints`. `nextStat`
 // is the stat the last round found best at the margin, reused by accessoryOptimizer.js's topUpTuning
 // instead of re-testing every stat. `loadout.accessory` may be absent: spending Tuning points works
@@ -120,7 +120,7 @@ export async function computeOptimalTuning(loadout, itemData, build, modeConfig,
 
     if (streakStat && streakCount >= STREAK_THRESHOLD) {
       let batch = Math.min(BATCH_SIZE, remaining);
-      // Crit Chance is the one smooth stat with a real cap — don't lump past the point it stops
+      // Crit Chance is the one smooth stat with a real cap - don't lump past the point it stops
       // helping (the other smooth stats are uncapped, so this clamp only ever applies here).
       if (streakStat === 'crit_chance') {
         const capThreshold = hasOverload ? 200 : 100;
@@ -136,7 +136,7 @@ export async function computeOptimalTuning(loadout, itemData, build, modeConfig,
       nextStat = streakStat;
       // One comparison round re-validates rather than restarting the streak: if the same stat wins
       // again, streakCount crosses STREAK_THRESHOLD immediately and the next batch goes out; if
-      // something else wins — a breakpoint became worth crossing — the normal round reassigns it.
+      // something else wins - a breakpoint became worth crossing - the normal round reassigns it.
       streakCount = STREAK_THRESHOLD - 1;
       continue;
     }

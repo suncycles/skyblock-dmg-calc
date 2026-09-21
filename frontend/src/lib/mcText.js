@@ -8,7 +8,7 @@ export const MC_COLORS = {
   c: '#ff5555', d: '#ff55ff', e: '#ffff55', f: '#ffffff',
   // 'p' is separate from 'd' to prevent color-collision with Gemstone stats.
   p: '#ff55fe',
-  // 'q' is the Catacombs Boost total WITH Master Stars — not a vanilla MC color.
+  // 'q' is the Catacombs Boost total WITH Master Stars - not a vanilla MC color.
   q: '#1d213d',
 };
 
@@ -22,7 +22,7 @@ export function rarityColorCode(tier) {
 }
 
 // CSS filter for a rarity-colored glow around an icon's own alpha shape (drop-shadow, not a
-// box — so it hugs the item's silhouette instead of drawing a rectangle behind it). Used on
+// box - so it hugs the item's silhouette instead of drawing a rectangle behind it). Used on
 // equipped-slot icons so the glow tracks the item's rarity and updates automatically whenever
 // that rarity changes (recomb, star upgrades, etc.) since it's recomputed on every render.
 export function rarityGlowFilter(tier) {
@@ -31,14 +31,14 @@ export function rarityGlowFilter(tier) {
   return `drop-shadow(0 0 3px ${hex}) drop-shadow(0 0 6px ${hex})`;
 }
 
-// Max-stat "starred" items lead with a glyph from Hypixel's own font (tofu in a browser) — swapped for a real renderable symbol.
+// Max-stat "starred" items lead with a glyph from Hypixel's own font (tofu in a browser) - swapped for a real renderable symbol.
 const STARRED_GLYPH = '';
 export function formatItemName(name) {
   if (!name) return name;
   return name.replace(STARRED_GLYPH, '⚕');
 }
 
-// Compact coin-amount shorthand for corner badges (e.g. Crown of Avarice's Coins Consumed) — one
+// Compact coin-amount shorthand for corner badges (e.g. Crown of Avarice's Coins Consumed) - one
 // decimal only when the value isn't a whole number, matching common in-game shorthand (67m, 850m, 1b).
 export function formatCoinsShorthand(n) {
   const value = n || 0;

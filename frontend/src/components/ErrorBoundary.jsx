@@ -5,7 +5,7 @@ const panel =
 
 // Catches render-time errors anywhere below it so a bug on one page (e.g. a bad saved-loadout
 // decode) shows a recoverable message instead of unmounting the whole app to a blank black
-// screen — see App.jsx. Must be a class component; React only supports error boundaries via
+// screen - see App.jsx. Must be a class component; React only supports error boundaries via
 // getDerivedStateFromError/componentDidCatch, no hook equivalent exists.
 export default class ErrorBoundary extends Component {
   state = { error: null };

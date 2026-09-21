@@ -1,5 +1,5 @@
 // Shared loading placeholder for the 9x6 chest-GUI-grid picker pages (ArmorVariantTierPicker,
-// PetRarityPicker, ReforgesPicker) — same "pulsing empty shell, not a plain 'Loading...' line"
+// PetRarityPicker, ReforgesPicker) - same "pulsing empty shell, not a plain 'Loading...' line"
 // philosophy as ItemPicker.jsx's own skeleton, just shaped like this family's grid instead of a
 // flat item list, so the layout doesn't jump once the real content (which needs itemData from the
 // Worker's /api/items) arrives.

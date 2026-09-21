@@ -4,11 +4,11 @@ import { SLOT_TEXTURES } from '../lib/icons';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Shared "standalone page" header (Back button + title) — used by every page that isn't part of
+// Shared "standalone page" header (Back button + title) - used by every page that isn't part of
 // the Hex customization grid (those embed their own Back/Close tile in the grid itself, a
 // deliberate separate pattern). One definition instead of several copy-pasted header blocks
 // means layout/styling only needs to change in one place. `right` is an optional node rendered
-// at the header's far right, opposite Back — most pages leave it unset.
+// at the header's far right, opposite Back - most pages leave it unset.
 export default function PageHeader({ title, onBack = '/', backLabel = 'Back', right }) {
   const navigate = useNavigate();
   return (

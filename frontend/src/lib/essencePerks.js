@@ -1,14 +1,14 @@
-// Essence-shop perks — permanent, account-wide upgrades bought with Essence at each shop. Levels
+// Essence-shop perks - permanent, account-wide upgrades bought with Essence at each shop. Levels
 // come straight off the account (member.player_data.perks, a flat {perkKey: level} map, extracted
 // Worker-side) and are never typed by hand, so this file only models what each level GRANTS.
 // Keys and max levels come from NEU-REPO's constants/essenceshops.json; the per-level effects
 // have no public source and are hardcoded here.
 //
-// Forbidden Blessing (`forbidden_blessing`) is deliberately absent here — it grants no stat of its
+// Forbidden Blessing (`forbidden_blessing`) is deliberately absent here - it grants no stat of its
 // own, it scales Dungeon Blessings, and so lives in lib/dungeonBlessing.js instead.
 
 // Flat base-stat perks: `perLevel` of each stat in `stats`, per level. `dungeonOnly` ones are the
-// Catacombs (Undead essence) line — they exist only inside a dungeon run, so they follow the same
+// Catacombs (Undead essence) line - they exist only inside a dungeon run, so they follow the same
 // Dungeon toggle every other Catacombs-scoped bonus does.
 export const FLAT_STAT_PERKS = [
   { key: 'permanent_strength', name: 'Forbidden Strength', maxLevel: 5, perLevel: 1, stats: ['strength'], dungeonOnly: false },
@@ -21,7 +21,7 @@ export const FLAT_STAT_PERKS = [
   { key: 'catacombs_crit_damage', name: 'Critical Essence', maxLevel: 5, perLevel: 10, stats: ['crit_damage'], dungeonOnly: true },
 ];
 
-// The three perks that aren't a flat player stat — each is applied at its own point in the
+// The three perks that aren't a flat player stat - each is applied at its own point in the
 // pipeline, so they're named constants rather than table rows.
 export const BANE_PERK = { key: 'bane', name: 'Bane', maxLevel: 5, percentPerLevel: 3, condition: 'Arthropod' };
 export const INFUSED_DRAGON_PERK = { key: 'edrag_cd', name: 'Infused Dragon', maxLevel: 5, critDamagePerLevel: 2, petId: 'ENDER_DRAGON' };
@@ -58,14 +58,14 @@ export function computeFlatPerkStats(perks, useDungeonizedStats) {
   return out;
 }
 
-// Bane: additive % damage against Arachnids — the app's own name for that Bestiary type is
+// Bane: additive % damage against Arachnids - the app's own name for that Bestiary type is
 // "Arthropod" (see lib/mobTypes.js), which is what conditionMatchesMob matches on.
 export function computeBanePercent(perks) {
   return levelOf(perks, BANE_PERK) * BANE_PERK.percentPerLevel;
 }
 
 // Infused Dragon: Crit Damage folded into the Ender Dragon pet's own raw base stats, so it scales
-// with pet level exactly like the pet's printed stats do — not added to the player afterwards.
+// with pet level exactly like the pet's printed stats do - not added to the player afterwards.
 export function computeInfusedDragonCritDamage(perks, petId) {
   if (petId !== INFUSED_DRAGON_PERK.petId) return 0;
   return levelOf(perks, INFUSED_DRAGON_PERK) * INFUSED_DRAGON_PERK.critDamagePerLevel;

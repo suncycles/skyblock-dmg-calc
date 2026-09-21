@@ -1,9 +1,9 @@
-// Mob-side damage reduction — three fields every mob has:
+// Mob-side damage reduction - three fields every mob has:
 //
 // - Damage Reduction: a direct final multiplier on ANY dealt damage (melee, ability, beam, procs).
 // - Magic Resistance: a direct final multiplier on Ability damage only.
 // - Defense: the real Hypixel mob Defense stat, its own final multiplier on damage dealt,
-//   independent of the two above and not merged into either — mult = 1 - Defense/(100+Defense),
+//   independent of the two above and not merged into either - mult = 1 - Defense/(100+Defense),
 //   so Defense=0 is exactly 1, i.e. a no-op.
 //
 // Only six Catacombs mobs have a published Defense number: Necron 2,100 / Goldor 1,800 / Storm
@@ -33,7 +33,7 @@ function isInCatacombs(mob) {
 }
 
 // Mythological mobs are immune to all damage (100% reduction) unless the
-// equipped pet is a Griffin — the real reason Griffin is the one BiS Diana pet (see
+// equipped pet is a Griffin - the real reason Griffin is the one BiS Diana pet (see
 // DIANA_PET_PROGRESSION in optimizer.js), not just Sacred Strength's Strength bonus.
 export function computeMobDamageReduction(mob, isGriffinPet) {
   if (isMythologicalMob(mob) && !isGriffinPet) return 100;
@@ -41,7 +41,7 @@ export function computeMobDamageReduction(mob, isGriffinPet) {
 }
 
 // Mythological mobs 50%, any Catacombs-located mob a further/separate 10%
-// (additive — no real mob is currently both Mythological-typed and Catacombs-located, so a real
+// (additive - no real mob is currently both Mythological-typed and Catacombs-located, so a real
 // stacking order between the two has never come up).
 export function computeMobMagicResistance(mob) {
   let percent = 0;
@@ -56,7 +56,7 @@ export function computeMobDefense(mob, masterMode) {
   return masterMode ? entry.master : entry.normal;
 }
 
-// mult = 1 - Defense/(100+Defense) — 1 (no-op) at the real Defense=0 default every other mob has.
+// mult = 1 - Defense/(100+Defense) - 1 (no-op) at the real Defense=0 default every other mob has.
 //
 // `defenseMultiplier` is the player's own Defense-shredding debuffs (lib/mobDebuffs.js's Last
 // Breath and Lethality) and scales the Defense STAT before this formula, not the result: the

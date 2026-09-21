@@ -44,7 +44,7 @@ export const ABILITY_DAMAGE_TABLE = {
 };
 
 // Implosion Belt: a 1.25x multiplier to the Implosion ability's own damage specifically (not a
-// generic Ability Damage source) — the belt's bundled lore text describes a different, unrelated
+// generic Ability Damage source) - the belt's bundled lore text describes a different, unrelated
 // "explosion damage" bonus, so this can't be scanned for. Scope is
 // every weapon that shares the Implosion ability (Hyperion and its Astraea/Valkyrie/
 // Scylla/Necron's Blade (Unrefined) siblings above, none of which have a separate starred id),
@@ -64,7 +64,7 @@ export const IMPLOSION_BELT_WEAPON_IDS = new Set([
 ]);
 
 // Loving (Red Scarf stone, chestplate-only): a genuine 1.05x Ability Damage multiplier, not the
-// flat +5 "Ability Damage" stat its bundled reforgeStats table implies —
+// flat +5 "Ability Damage" stat its bundled reforgeStats table implies -
 // pulled out of the generic per-rarity stat merge (lib/reforges.js) so it stacks correctly on
 // top of any other real Ability Damage stat instead of just summing with it.
 export const LOVING_REFORGE_NAME = 'Loving';

@@ -38,7 +38,7 @@ export default function PetDetail() {
   const goldCollection = (loadout.pet && loadout.pet.modifiers && loadout.pet.modifiers.goldCollection) || 0;
   const maxLevel = pet ? getMaxPetLevel(pet.petId) : MAX_PET_LEVEL;
 
-  // A held Tier Boost raises the rarity — lore and name color follow it (lib/petData.js's applyTierBoost).
+  // A held Tier Boost raises the rarity - lore and name color follow it (lib/petData.js's applyTierBoost).
   const tier = loadout.pet ? applyTierBoost(loadout.pet, itemData).item.tier : null;
   const loreId = pet ? petLoreItemId(pet.petId, tier) : null;
   const [rawLore, setRawLore] = useState(null); // null = loading, false = fetch failed, {displayname, lore} = real data
@@ -56,7 +56,7 @@ export default function PetDetail() {
 
   // Ankylosaurus's Armored Tank turns the player's Defense into Strength, so this tooltip needs the
   // same Defense the damage calculation uses (lib/playerDefense.js). Async because armor stat
-  // totals are — 0 until it resolves, which only affects that one pet.
+  // totals are - 0 until it resolves, which only affects that one pet.
   const [playerDefense, setPlayerDefense] = useState(0);
   useEffect(() => {
     let cancelled = false;

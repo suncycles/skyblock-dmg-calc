@@ -16,7 +16,7 @@ const translucentPanel =
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// Debuffs applied to the TARGET (lib/mobDebuffs.js) — reached from the Debuffs tile on the gear
+// Debuffs applied to the TARGET (lib/mobDebuffs.js) - reached from the Debuffs tile on the gear
 // board, which shows in every mode and applies in every mode. Same
 // live-apply behavior as the Buff/Blessing page.
 export default function Debuffs() {
@@ -93,7 +93,7 @@ export default function Debuffs() {
 
         <div className="text-[12px] text-neutral-700 leading-snug border-t border-neutral-500/40 pt-2">
           Mob Defense x{round2(mobDefenseDebuffMultiplier(debuffs))} &middot; Final damage x{round2(finalDamageDebuffMultiplier(debuffs))}
-          {/* Only 7 mobs in the app have a published Defense at all (lib/mobDefenses.js) — without
+          {/* Only 7 mobs in the app have a published Defense at all (lib/mobDefenses.js) - without
               this the two sliders look broken against everything else. */}
           <div className="italic mt-1 text-neutral-600">
             The two Defense sliders only change anything against a mob with a real Defense stat &mdash; the Catacombs

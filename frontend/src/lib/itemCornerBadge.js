@@ -1,5 +1,5 @@
 // Small "at a glance" corner badge shown on an item's icon wherever it renders (equipped slot
-// tiles, the Optimizer's upgrade rows) — a shorthand hint for a stat that isn't otherwise visible
+// tiles, the Optimizer's upgrade rows) - a shorthand hint for a stat that isn't otherwise visible
 // on the icon itself. Two cases:
 // - Crown of Avarice (either variant): its Coins Consumed special value, coin-shorthand (67m, 1b).
 // - The 5 Blaze Slayer variant families (Aurora/Crimson/Fervor/Hollow/Terror): which of the 5 real
@@ -11,7 +11,7 @@ import { getVariantTierIndexForId } from './armorVariants';
 
 const CROWN_OF_AVARICE_IDS = new Set(['CROWN_OF_AVARICE', 'CROWN_OF_AVARICE_CELEBRATION']);
 
-// `modifiers` is optional — pass it when known (equipped slot) for the real Coins Consumed value;
+// `modifiers` is optional - pass it when known (equipped slot) for the real Coins Consumed value;
 // omitted (e.g. an Optimizer candidate not yet equipped) falls back to null, showing no coin badge.
 export function getItemCornerBadge(itemId, slot, modifiers) {
   if (!itemId) return null;

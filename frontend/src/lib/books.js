@@ -5,13 +5,13 @@ import { annotateStatLines } from './statLines';
 // application limit from 10 to 15, not a bigger per-book bonus.
 export const WEAPON_BOOK_STAT_BONUS = { strength: 2, damage: 2 };
 
-// The shared cap, and where Hot Potato Books stop and Fuming ones begin — per the note above, books
+// The shared cap, and where Hot Potato Books stop and Fuming ones begin - per the note above, books
 // 1-10 are Hot and 11-15 are Fuming. lib/pricing.js prices the two halves separately on that basis.
 export const MAX_POTATO_BOOKS = 15;
 export const MAX_HOT_POTATO_BOOKS = 10;
 export const ARMOR_BOOK_STAT_BONUS = { health: 4, defense: 2 };
 
-// §e (yellow) — distinct from Gemstones' pink and Reforges' blue.
+// §e (yellow) - distinct from Gemstones' pink and Reforges' blue.
 export const BOOKS_COLOR = 'e';
 
 // The Art of War: one-time-use, +5 Strength, weapon-only, a boolean toggle rather than a stackable count.
@@ -24,7 +24,7 @@ export const ART_OF_PEACE_STAT_BONUS = { health: 40 };
 export const ART_OF_PEACE_ITEM_ID = 'THE_ART_OF_PEACE';
 export const ART_OF_PEACE_COLOR = '6';
 
-// {statKey: delta} for the Hot/Fuming Potato Book bonus — the calc-facing counterpart of
+// {statKey: delta} for the Hot/Fuming Potato Book bonus - the calc-facing counterpart of
 // applyBooksToLore's own annotation logic below, shared by lib/itemStatTotals.js. `gearType` picks
 // which bonus table applies (equipment can't take Potato Books at all). `potatoBookDoubled`:
 // Legendary-tier Blaze pet doubles the bonus on both weapons and armor (e.g. a weapon's real +30
@@ -36,10 +36,10 @@ export function computeBooksStatBonus(bookCount, gearType, potatoBookDoubled) {
   return Object.fromEntries(Object.entries(perBook).map(([stat, value]) => [stat, value * multiplier]));
 }
 
-// `gearType` also picks whether Art of War/Art of Peace are honored — the one place that enforces
+// `gearType` also picks whether Art of War/Art of Peace are honored - the one place that enforces
 // eligibility. The leading stat number itself is set once, elsewhere, from
 // lib/itemStatTotals.js's computed hidden base (which includes this same book/Art of War/Art of
-// Peace bonus) — this function only ever annotates, never merges.
+// Peace bonus) - this function only ever annotates, never merges.
 export function applyBooksToLore(lore, bookCount, artOfWarApplied, artOfPeaceApplied, insertBeforeLineIdx, gearType, potatoBookDoubled) {
   let result = lore;
   const bonuses = computeBooksStatBonus(bookCount, gearType, potatoBookDoubled);

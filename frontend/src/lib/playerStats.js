@@ -1,5 +1,5 @@
 // Global player-level stats (not tied to any equipped item/pet) that still grant a damage
-// bonus — Combat Level, Skyblock Level, etc. Feed the "player stats" input row on Landing.jsx.
+// bonus - Combat Level, Skyblock Level, etc. Feed the "player stats" input row on Landing.jsx.
 
 import { MC_COLORS } from './mcText';
 
@@ -69,10 +69,10 @@ export function computeAncientReforgeCritDamage(catacombsLevel) {
   return Math.max(0, Math.min(MAX_CATACOMBS_LEVEL, catacombsLevel || 0));
 }
 
-// The Withered reforge (Wither Blood stone, sword/fishing rod): "Withered Bonus — Grants +1
+// The Withered reforge (Wither Blood stone, sword/fishing rod): "Withered Bonus - Grants +1
 // Strength per Catacombs level" (verified against NEU-REPO's WITHER_BLOOD.json + the SkyBlock
 // Wiki). Unlike Ancient, this stacks ON TOP of Withered's own flat per-rarity Strength rather
-// than replacing it — that flat table is correct/current, not stale.
+// than replacing it - that flat table is correct/current, not stale.
 export function computeWitheredReforgeStrength(catacombsLevel) {
   return Math.max(0, Math.min(MAX_CATACOMBS_LEVEL, catacombsLevel || 0));
 }
@@ -103,7 +103,7 @@ export function computeEnchantingAbilityDamageBonus(level) {
   return clamped * ENCHANTING_ABILITY_DAMAGE_PERCENT_PER_LEVEL;
 }
 
-// Mining Level Defense reward: +1/level for 1-14, +2/level for 15-60 — 106 at max,
+// Mining Level Defense reward: +1/level for 1-14, +2/level for 15-60 - 106 at max,
 // the same two-rate shape Alchemy/Enchanting use above. Defense is
 // never shown anywhere; its only consumer is the Ankylosaurus pet's Armored Tank perk, which turns
 // it into Strength (see lib/playerDefense.js).
@@ -116,7 +116,7 @@ export function computeMiningDefenseBonus(level) {
 export const MAX_TARANTULA_SLAYER_LEVEL = 9;
 
 // Tarantula Broodfather (Spider) Slayer Crit Damage reward: +1/level for 1-4, +2/level for 5-7,
-// +3/level for 8-9 — cumulative, e.g. level 9 = 4*1 + 3*2 + 2*3 = 16.
+// +3/level for 8-9 - cumulative, e.g. level 9 = 4*1 + 3*2 + 2*3 = 16.
 const TARANTULA_SLAYER_CRIT_DAMAGE_BY_LEVEL = [0, 1, 2, 3, 4, 6, 8, 10, 13, 16];
 export function computeTarantulaSlayerCritDamageBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_TARANTULA_SLAYER_LEVEL, level || 0));

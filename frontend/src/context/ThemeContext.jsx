@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { THEME_STORAGE_KEY, loadInitialTheme } from '../lib/themes';
 
 // Single source of truth for the active GUI theme (see lib/themes.js), driven by the zone-matched
-// auto theme (lib/background.js) — reads/writes through here so it never drifts out of sync with
+// auto theme (lib/background.js) - reads/writes through here so it never drifts out of sync with
 // the actual data-theme attribute on <html>.
 const ThemeContext = createContext(null);
 

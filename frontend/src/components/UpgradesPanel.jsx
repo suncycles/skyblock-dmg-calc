@@ -71,7 +71,7 @@ const SLAYER_ATTACK_SPEED_TARGET = 82;
 const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slots: {}, otherResults: [] };
 
 // Each run brute-forces hundreds of candidate loadouts, and the dependencies include sliders and
-// free-typed numbers that change many times a second while being edited — so runs are debounced,
+// free-typed numbers that change many times a second while being edited - so runs are debounced,
 // with a token guarding against a stale run landing after a newer one.
 const RUN_DEBOUNCE_MS = 200;
 
@@ -84,7 +84,7 @@ const RUN_DEBOUNCE_MS = 200;
 // unlisted takes SMART_DEFAULT_WEIGHT, the lowest weight here, so a category added later can
 // never outrank a named one by default.
 const SMART_CATEGORY_WEIGHTS = {
-  // Magical Power — every accessory candidate raises the same account-wide stat pool, and the bag
+  // Magical Power - every accessory candidate raises the same account-wide stat pool, and the bag
   // Power is the multiplier that pool feeds (see lib/accessoryPowers.js).
   'New Accessory': 1,
   'Accessory Upgrade': 1,
@@ -159,7 +159,7 @@ function Chip({ active, onClick, title, children }) {
 }
 
 // One row per candidate, whatever produced it. Both figures are the same swap measured two ways: the
-// % against the current build, and the flat gain in the mode's own metric — without which a big %
+// % against the current build, and the flat gain in the mode's own metric - without which a big %
 // on a small baseline and a small % on a large one look identical.
 function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat }) {
   const flatIncrease = typeof result.value === 'number' && typeof baselineValue === 'number' ? result.value - baselineValue : null;
@@ -191,7 +191,7 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
         )}
         <div className="flex flex-col min-w-0 flex-1">
           <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: CATEGORY_COLORS[result.category] || '#999999' }}>
-            {result.category} — {SLOT_LABELS[result.slot] || result.slot}
+            {result.category} - {SLOT_LABELS[result.slot] || result.slot}
           </span>
           <span className="text-[12px] text-white truncate">{result.label}</span>
           <span className="text-[10px] text-white/65">
@@ -220,7 +220,7 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
       <button
         type="button"
         onClick={() => onSkip(result)}
-        title="Skip — hide this suggestion for now"
+        title="Skip - hide this suggestion for now"
         className="shrink-0 px-2 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 cursor-pointer border-l border-white/15"
       >
         ✕
@@ -237,8 +237,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
   const mobName = build.targetMobs[0] || null;
   const mobTypes = mobName ? MOB_TYPES[mobName] : null;
 
-  // "Auto" follows what the page is already showing — the Mage, Dungeon and DPS toggles and the
-  // target — so this list can't optimize for different content than the damage number beside it. An
+  // "Auto" follows what the page is already showing - the Mage, Dungeon and DPS toggles and the
+  // target - so this list can't optimize for different content than the damage number beside it. An
   // explicit pick is kept and remembered as an override.
   const [override, setOverrideState] = useState(loadOptimizerModeOverride);
   const setOverride = (next) => {
@@ -249,10 +249,10 @@ export default function UpgradesPanel({ variant = 'column' }) {
   const mode = override === AUTO_OPTIMIZER_MODE ? autoMode : override;
   const modeLabel = (id) => OPTIMIZER_MODES.find((m) => m.id === id)?.label || id;
 
-  // Real accessory bag list from the last Hypixel import — null means no import has ever happened,
+  // Real accessory bag list from the last Hypixel import - null means no import has ever happened,
   // distinct from an import that found zero accessories.
   const ownedAccessories = build.loadout.accessory?.modifiers?.ownedAccessories ?? null;
-  // One dependency per build field runOptimizer reads — see OPTIMIZER_BUILD_KEYS.
+  // One dependency per build field runOptimizer reads - see OPTIMIZER_BUILD_KEYS.
   const optimizerBuildDeps = OPTIMIZER_BUILD_KEYS.map((key) => build[key]);
 
   const [state, setState] = useState(EMPTY_STATE);
@@ -282,7 +282,7 @@ export default function UpgradesPanel({ variant = 'column' }) {
       setMpResult(null);
       return;
     }
-    // No account on file — still show Magical Power's real effect as generic "+N MP" steps.
+    // No account on file - still show Magical Power's real effect as generic "+N MP" steps.
     const candidates = ownedAccessories
       ? itemData.accessoryFamilies && buildAccessoryCandidates(ownedAccessories, itemData.accessoryFamilies)
       : buildGenericMpCandidates();
@@ -352,7 +352,7 @@ export default function UpgradesPanel({ variant = 'column' }) {
           onChange={(e) => setOverride(e.target.value)}
           className="flex-1 min-w-0 px-2 py-1 text-[12px] font-bold bg-black text-white border-2 border-neutral-700 cursor-pointer"
         >
-          <option value={AUTO_OPTIMIZER_MODE}>Auto — {modeLabel(autoMode)}</option>
+          <option value={AUTO_OPTIMIZER_MODE}>Auto - {modeLabel(autoMode)}</option>
           {OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => (
             <option key={m.id} value={m.id}>
               {m.label}
@@ -363,7 +363,7 @@ export default function UpgradesPanel({ variant = 'column' }) {
       <div className="text-[10px] text-white/55 -mt-1">
         {override === AUTO_OPTIMIZER_MODE
           ? 'Follows the Mage / Dungeon / DPS toggles and your target.'
-          : 'Pinned — choose Auto to follow the page toggles again.'}
+          : 'Pinned - choose Auto to follow the page toggles again.'}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -504,7 +504,7 @@ export default function UpgradesPanel({ variant = 'column' }) {
 
       {state.status === 'no-target' && (
         <div className="text-[12px] text-white/70 italic">
-          No target selected —{' '}
+          No target selected -{' '}
           <button type="button" className="underline cursor-pointer text-white" onClick={() => navigate('/target-mob')}>
             pick a mob
           </button>{' '}

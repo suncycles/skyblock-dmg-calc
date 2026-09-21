@@ -1,4 +1,4 @@
-// God Potion — a simple on/off toggle, grants the max tier of a large assortment of potions.
+// God Potion - a simple on/off toggle, grants the max tier of a large assortment of potions.
 // Real per-tier values:
 //   Strength VIII  -> +75 Strength
 //   Critical IV    -> +25% Crit Chance, +40% Crit Damage
@@ -6,7 +6,7 @@
 //   Archery IV     -> +75% bow damage, bow weapons only
 //   Jerry Candy    -> +100 Health, +20 Strength, +2 Ferocity, +100 Intelligence, +3 Magic Find
 //
-// Only the Strength/Crit Chance/Crit Damage pieces are wired into Damage Sources — this app
+// Only the Strength/Crit Chance/Crit Damage pieces are wired into Damage Sources - this app
 // has no aggregate total for Health/Ferocity/Intelligence/Magic Find/Defense/True
 // Defense/Speed anywhere. God Potion's ~25 other effects (Regeneration, skill XP boosts,
 // etc.) don't correspond to anything this calculator tracks and aren't modeled.
@@ -18,7 +18,7 @@ export const GOD_POTION_SPIRIT_CRIT_DAMAGE = 40; // Spirit Potion IV
 export const GOD_POTION_ARCHERY_DAMAGE = 75; // Archery Potion IV, bow weapons only
 
 export const JERRY_CANDY_STRENGTH = 20;
-// Not wired into baseStats — no aggregate total exists for these anywhere in this app.
+// Not wired into baseStats - no aggregate total exists for these anywhere in this app.
 export const JERRY_CANDY_HEALTH = 100;
 export const JERRY_CANDY_FEROCITY = 2;
 export const JERRY_CANDY_INTELLIGENCE = 100;
@@ -34,7 +34,7 @@ export function godPotionMixinCritDamage(mixin) {
   return GOD_POTION_MIXINS[mixin]?.critDamage || 0;
 }
 
-// Inside a dungeon the God Potion is replaced outright by the Dungeon Potion — not stacked with
+// Inside a dungeon the God Potion is replaced outright by the Dungeon Potion - not stacked with
 // it, and not a scaled version of it: different stats, and weaker across the board except that the
 // arrow bonus survives. Two tiers, and which one applies is decided by
 // whether the account owns a Jellyfish pet rather than by anything the player drinks.

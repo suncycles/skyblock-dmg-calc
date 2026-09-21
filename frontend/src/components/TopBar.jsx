@@ -25,17 +25,17 @@ const MENU_SECTIONS = [
 ];
 
 // Persistent (survives browser restarts, unlike entryScreen.js's ENTRY_DISMISSED_KEY which is
-// sessionStorage-scoped) — tracks whether this browser has ever opened the app before, so the
+// sessionStorage-scoped) - tracks whether this browser has ever opened the app before, so the
 // "check the menu/Tutorial" nudge below only ever shows once, on a genuinely first visit.
 const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 
 // Stacking: the bar (z-[1100]), the drawer's scrim (z-[1100]) and the drawer itself (z-[1110]) sit
-// above everything on the page, the Armor/Equipment Options dialogs (z-[999]) included — the app
+// above everything on the page, the Armor/Equipment Options dialogs (z-[999]) included - the app
 // chrome has to win, since it's how you navigate away.
 //
 // Single persistent top bar, mounted once at the App root (see App.jsx) so it's present on every
 // route without each page re-declaring it. Deliberately a plain modern navbar rather than the
-// chunky Minecraft chest-GUI bevel used everywhere below it — the contrast reads as "app chrome"
+// chunky Minecraft chest-GUI bevel used everywhere below it - the contrast reads as "app chrome"
 // vs. "in-game panel". Solid, not translucent: the bar and the drawer sit ON TOP of the page, and
 // at any alpha the scrolled content underneath reads through them.
 export default function TopBar() {
@@ -58,7 +58,7 @@ export default function TopBar() {
     setShowFirstLaunchHint(false);
   }
 
-  // Opening the menu at all counts as "found it" — no need to keep nudging once they've seen
+  // Opening the menu at all counts as "found it" - no need to keep nudging once they've seen
   // what's inside (the Tutorial link among it).
   function handleMenuToggle() {
     setMenuOpen((v) => !v);
@@ -66,7 +66,7 @@ export default function TopBar() {
   }
 
   // "Home" means the actual landing page (the SkyCrypt-style username-entry gate,
-  // components/EntryScreen.jsx), not the loadout grid — un-dismisses it so a fresh page load
+  // components/EntryScreen.jsx), not the loadout grid - un-dismisses it so a fresh page load
   // shows it again, and fires SHOW_ENTRY_EVENT so an already-mounted Landing.jsx (navigating to
   // "/" while already on "/" is a no-op) shows it immediately too.
   function handleBrandClick() {
@@ -76,7 +76,7 @@ export default function TopBar() {
 
   return (
     <>
-      {/* fixed (not sticky) — sticky's top:0 still lets the bar get dragged along during
+      {/* fixed (not sticky) - sticky's top:0 still lets the bar get dragged along during
           rubber-band overscroll past the top of the page, briefly revealing blank space above it
           since it's the very first element in the document. fixed pins it to the viewport
           regardless of scroll/overscroll; App.jsx adds matching top padding to the routed content
@@ -108,7 +108,7 @@ export default function TopBar() {
           {pageLabel && (
             <>
               {/* The brand itself deliberately opens the entry screen (see handleBrandClick), so
-                  it can't double as "back to my build" — without this crumb there was no one-click
+                  it can't double as "back to my build" - without this crumb there was no one-click
                   way back to the loadout grid from any picker. A plain Link to "/" leaves
                   ENTRY_DISMISSED_KEY alone, so Landing renders the grid. */}
               <span className="text-white/25 text-sm select-none">/</span>
@@ -149,7 +149,7 @@ export default function TopBar() {
                 <RedoIcon />
               </button>
             </div>
-            {/* Damage carries the emphasis, not Credits — it's the app's whole point, and the
+            {/* Damage carries the emphasis, not Credits - it's the app's whole point, and the
                 previous weighting had the least-used link rendered boldest. */}
             {pathname === '/damage-sources' ? (
               <span className="font-bold text-white/60 cursor-default">Damage</span>

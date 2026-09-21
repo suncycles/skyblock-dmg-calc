@@ -18,11 +18,11 @@ import { blingArmorBaseStatMultiplier } from './petData';
 // The canonical per-item stat computation: the only place "how much of stat X does this item have"
 // is worked out. The tooltip renderer (itemTooltip.js) and the damage calculation (damageSources.js)
 // both call this and read its numbers rather than reimplementing any of it. Numbers are computed
-// here and text is generated from them, never the reverse — no re-parsing rendered lore to recover
+// here and text is generated from them, never the reverse - no re-parsing rendered lore to recover
 // a number.
 
 // A few items label their innate attack-speed line "Attack Speed:" rather than "Bonus Attack
-// Speed:" (Deathripper Dagger) — the same stat under an inconsistent label. Normalized before this
+// Speed:" (Deathripper Dagger) - the same stat under an inconsistent label. Normalized before this
 // module or the tooltip renderer parses a value, so every consumer sees one line.
 export function normalizeAttackSpeedLabel(lore) {
   return (lore || []).map((line) => {
@@ -33,7 +33,7 @@ export function normalizeAttackSpeedLabel(lore) {
 }
 
 // "The One" (ultimate_the_one): "Grants +0.5/+1 Health and +0.1/+0.2 Strength per maxed out
-// collection" at levels 4 and 5, its only two levels — NEU-REPO has no item file for 1-3. The
+// collection" at levels 4 and 5, its only two levels - NEU-REPO has no item file for 1-3. The
 // generic parseEnchantStatBonus can't express a rate scaled by a live account counter, so it is
 // special-cased here as Venomous and Fire Aspect are in damageSources.js.
 const THE_ONE_RATE_PER_LEVEL = { 4: { health: 0.5, strength: 0.1 }, 5: { health: 1, strength: 0.2 } };
@@ -87,15 +87,15 @@ function round1(n) {
 //        manticoreClawBonus, potatoBookDoubled, maxedCollectionsCount, blingArmorPercent }
 //   (potatoBookDoubled/blingArmorPercent come from lib/petData.js's petItemStatContext)
 // Returns, per STAT_LABELS key:
-//   pristine    — the item's own unmodified lore value (0 if it has no such line).
-//   hiddenBase  — pristine + gemstones + reforge + books + Art of War/Peace + special (Midas
+//   pristine    - the item's own unmodified lore value (0 if it has no such line).
+//   hiddenBase  - pristine + gemstones + reforge + books + Art of War/Peace + special (Midas
 //                 Sword/David's Cloak) + Wither Blade + Daedalus Taming + Wolf Slayer + Chimera +
 //                 Manticore Claw + enchant stat bonuses. NEVER shown directly.
-//   nonDungeonStarred / dungeonStarred / masterStarred — the three SHOWN totals. dungeonStarred/
+//   nonDungeonStarred / dungeonStarred / masterStarred - the three SHOWN totals. dungeonStarred/
 //   masterStarred equal nonDungeonStarred whenever the item's own modifiers.dungeonized is false
 //   (an un-Dungeonized item gets no Catacombs Boost at all, matching current real behavior).
-//   mythologicalNonDungeonStarred / mythologicalDungeonStarred / mythologicalMasterStarred — the
-//   same three, doubled (Challenger's/Mythos Armor+Equipment vs. a Mythological target — see
+//   mythologicalNonDungeonStarred / mythologicalDungeonStarred / mythologicalMasterStarred - the
+//   same three, doubled (Challenger's/Mythos Armor+Equipment vs. a Mythological target - see
 //   armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS). Computed for every item; only meaningful
 //   when the caller separately checks MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id).
 export async function computeItemStatTotals(item, modifiers, itemData, ctx = {}) {
@@ -133,13 +133,13 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
 
   const totals = {};
   for (const statKey of Object.keys(STAT_LABELS)) {
-    // A Gear-Score tiered-stat item's pristine value (Skeleton Master, Zombie Knight — see
+    // A Gear-Score tiered-stat item's pristine value (Skeleton Master, Zombie Knight - see
     // lib/tieredArmorStats.js) isn't the catalog's bundled lore value. Falls back to the catalog
     // parse for every other item, and when the per-copy itemTier is unknown.
     const tieredPristine = computeTieredPristineStat(item.id, statKey, modifiers.itemTier, modifiers.baseStatBoostPercentage);
     // A Catacombs boss head's base is its printed lore value doubled (lib/dungeonHeads.js), 1x for
-    // everything else, applied to pristine so every later boost — stars, the Catacombs Boost,
-    // reforge, gems — compounds on the doubled base rather than being doubled itself. A Blaze pet's
+    // everything else, applied to pristine so every later boost - stars, the Catacombs Boost,
+    // reforge, gems - compounds on the doubled base rather than being doubled itself. A Blaze pet's
     // Bling Armor scales Blaze and Frozen Blaze Armor's raw base the same way (lib/petData.js).
     const pristine =
       (tieredPristine ?? (parseBaseStatValue(lore, statKey) || 0)) *
@@ -162,7 +162,7 @@ export async function computeItemStatTotals(item, modifiers, itemData, ctx = {})
     )[statKey] || 0;
 
     // Stars scale off this stat's pristine value, tiered-aware as above, rather than a re-parse of
-    // raw lore — see lib/starring.js's PER_STAR_PERCENT.
+    // raw lore - see lib/starring.js's PER_STAR_PERCENT.
     const starBonus = pristine ? Math.round(pristine * (PER_STAR_PERCENT / 100) * (modifiers.stars || 0) * 10) / 10 : 0;
     const nonDungeonStarred = round1(hiddenBase + starBonus);
 

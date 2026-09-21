@@ -10,14 +10,14 @@ export function emptyModifiers() {
     books: 0, // Hot/Fuming Potato Book count, 0-15
     artOfWar: false, // +5 Strength, weapons only
     artOfPeace: false, // +40 Health, armor only
-    special: 0, // weapon-specific ability input — see lib/specialWeapons.js
+    special: 0, // weapon-specific ability input - see lib/specialWeapons.js
     recombobulated: false,
     reforge: null, // reforge name string | null
-    stars: 0, // Item Upgrades star count, 0-15 — see lib/starring.js
+    stars: 0, // Item Upgrades star count, 0-15 - see lib/starring.js
     rarityOverride: null, // real current tier for milestone-upgrading items (e.g. David's Cloak) | null = use the item's own tier
-    dungeonized: false, // Catacombs-level-scaled stat lines — see lib/dungeonize.js
+    dungeonized: false, // Catacombs-level-scaled stat lines - see lib/dungeonize.js
     dungeonizeOldCurve: false, // true = pre-0.26.1 curve, false = current
-    masterStars: 0, // Dungeonize-only stars, 5%/star up to 5 — see lib/starring.js. Always 0 unless dungeonized.
+    masterStars: 0, // Dungeonize-only stars, 5%/star up to 5 - see lib/starring.js. Always 0 unless dungeonized.
     // Per-copy Gear Score data for tiered-stat items (lib/tieredArmorStats.js): the drop's floor
     // 1-10 and its stat boost %. null/0 falls back to the catalog's pristine lore value.
     itemTier: null,
@@ -30,8 +30,8 @@ export function emptyPetModifiers() {
   return {
     level: 1,
     petItem: null, // pet item id string | null
-    bankCoins: 0, // Golden Dragon's "Legendary Treasure" input — see lib/damageSources.js
-    goldCollection: 0, // Golden Dragon's "Shining Scales" input — see lib/petData.js
+    bankCoins: 0, // Golden Dragon's "Legendary Treasure" input - see lib/damageSources.js
+    goldCollection: 0, // Golden Dragon's "Shining Scales" input - see lib/petData.js
   };
 }
 

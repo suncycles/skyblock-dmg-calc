@@ -163,7 +163,7 @@ const TRACKED_STATS = [
   'ferocity',
 ];
 
-// Real Slayer-reward weapons (identified by their own "Combat Wisdom" stat line) — the set Habanero Tactics' bonus requires.
+// Real Slayer-reward weapons (identified by their own "Combat Wisdom" stat line) - the set Habanero Tactics' bonus requires.
 const SLAYER_WEAPON_IDS = new Set([
   'ATOMSPLIT_KATANA',
   'VOIDEDGE_KATANA',
@@ -257,7 +257,7 @@ const WITHER_BLADE_DAMAGE_MULTIPLIER = 1.5;
 const WITHER_BLADE_WEAPON_IDS = new Set(['HYPERION', 'ASTRAEA', 'VALKYRIE', 'SCYLLA']);
 
 // Necron's Blade (Unrefined) carries the same line but is not a Wither Blade, so it keeps the +50%
-// weaponBonusConditional treatment — equivalent while it is the only source.
+// weaponBonusConditional treatment - equivalent while it is the only source.
 const NECRON_BLADE_WITHER_DAMAGE_PERCENT = 50;
 
 // Pooch Sword's "+200% Damage against Wolves" applies as a flat 2x rather than the 3x its text
@@ -316,7 +316,7 @@ const SLAYER_TIER_BONUSES = {
   STING: { bonusPercent: 300, condition: 'Arthropod' },
 };
 
-// Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) — its own damage multiplier.
+// Crown of Avarice's Celebration variant ships permanently maxed (Coins Consumed already at cap) - its own damage multiplier.
 const CROWN_OF_AVARICE_CELEBRATION_MULTIPLIER = 1.15;
 
 function stripToPlain(lines) {
@@ -350,7 +350,7 @@ function stripLeadingHeaderLine(lines) {
   return looksLikeHeader ? lines.slice(1) : lines;
 }
 
-// True if a paragraph is the item/pet's own stat block (starts with "Label: value") — excluded from ability-text scanning.
+// True if a paragraph is the item/pet's own stat block (starts with "Label: value") - excluded from ability-text scanning.
 function isStatBlockParagraph(paragraph) {
   if (!paragraph || paragraph.length === 0) return false;
   return /^[A-Za-z ]+:\s*[+-]?[\d.]/.test(paragraph[0].replace(/§./g, '').trim());
@@ -483,7 +483,7 @@ function addPercentStatBoost(out, statKey, percent, label, base) {
 
 // Challenger's/Mythos "Mythos' Might" doubling (MYTHOLOGICAL_STAT_DOUBLE_IDS). Computed once per
 // item here, folded into a parallel mythologicalBaseStats total, and selected by finalDamage.js's
-// selectBaseStats only when the mob has that type — so the doubling never reaches the toggle-only
+// selectBaseStats only when the mob has that type - so the doubling never reaches the toggle-only
 // baseStats the Base Stats display and Compare page read. itemTooltip.js consumes the same id set
 // separately, to show the doubled number on the item's tooltip.
 
@@ -544,10 +544,10 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
     // Ankylosaurus's Armored Tank is NOT applied here: it converts the player's Defense into
     // Strength, and Defense isn't known until the gear loop below has run. It's added in
-    // collectDamageSources instead, as its own base-stat line — see computeAnkylosaurusStrength.
+    // collectDamageSources instead, as its own base-stat line - see computeAnkylosaurusStrength.
     out.petOtherNums = otherNums;
 
-    // Lion's First Pounce: multiplies First Strike/Triple Strike's bonus — Rare 1.8x, Epic/Legendary 2x.
+    // Lion's First Pounce: multiplies First Strike/Triple Strike's bonus - Rare 1.8x, Epic/Legendary 2x.
     if (pet.petId === 'LION') {
       if (pet.tier === 'RARE') out.firstPounceFactor = 1.8;
       else if (pet.tier === 'EPIC' || pet.tier === 'LEGENDARY') out.firstPounceFactor = 2;
@@ -619,11 +619,11 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
   // The equipped pet's effects on gear stats (lib/petData.js): a Legendary Blaze doubles Hot/Fuming
   // Potato Books, and a Rare+ Blaze's Bling Armor scales Blaze/Frozen Blaze Armor's raw base stats.
-  // Every computeItemStatTotals call below gets both — the Chimera/Manticore ones included, since
+  // Every computeItemStatTotals call below gets both - the Chimera/Manticore ones included, since
   // their totals are diffed against the base totals and a missing input would show up as a delta.
   const { potatoBookDoubled, blingArmorPercent } = petItemStatContext(loadout.pet, itemData);
 
-  // The armor half of the player's Defense (lib/playerDefense.js) — never displayed, and read by
+  // The armor half of the player's Defense (lib/playerDefense.js) - never displayed, and read by
   // exactly one thing: Ankylosaurus's Armored Tank. Summed off the totals this loop already
   // computes rather than by a second pass over the four pieces, which every Optimizer candidate
   // would have paid for.
@@ -648,7 +648,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     for (const statKey of TRACKED_STATS) {
       const t = totals[statKey];
       // dungeonStarred/masterStarred fall back to nonDungeonStarred itself when the item isn't
-      // dungeonized, so the toggle never leaves a stat missing — see lib/itemStatTotals.js.
+      // dungeonized, so the toggle never leaves a stat missing - see lib/itemStatTotals.js.
       addBaseStat(out, statKey, t.nonDungeonStarred, slotLabel, t.dungeonStarred, t.masterStarred);
       out.dungeonizeDelta[statKey] += t.dungeonStarred - t.nonDungeonStarred;
       out.masterDungeonizeDelta[statKey] += t.masterStarred - t.nonDungeonStarred;
@@ -662,7 +662,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // e.g. Hyperion's 10000) is not a lore stat line, so Dungeonize's annotation path never scales
     // it. It scales by the GENERAL Catacombs Stats Boost (lib/dungeonize.js's
     // computeCatacombsBoostPercent), unlike the "Ability Damage" STAT, which uses the curve-less
-    // formula — see CLAUDE.md. Stashed here for the weapon slot so computeAbilityDamage applies
+    // formula - see CLAUDE.md. Stashed here for the weapon slot so computeAbilityDamage applies
     // `table.base * (1 + boost/100)`. Gated on the page's Dungeon toggle rather than the weapon's own
     // dungeonized flag, so Catacombs Level and General's Medallion still apply to a weapon that was
     // never Dungeonized; stars and Master Stars still come from the weapon's own modifiers.
@@ -749,7 +749,7 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
   if (loadout.accessory?.item) {
     const { item, modifiers } = loadout.accessory;
     // Includes each Stone Power's flat Unique Power Bonus (Bizarre's +5 Ability Damage, Hurtful's
-    // +15 Bonus Attack Speed) alongside its MP-scaled base stats and Tuning — see
+    // +15 Bonus Attack Speed) alongside its MP-scaled base stats and Tuning - see
     // lib/accessoryPowers.js's computeAccessoryTotalStats. Only the stats this file tracks are
     // forwarded; Powers can also grant health/defense/speed/true_defense.
     const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
@@ -798,7 +798,7 @@ const ONE_FOR_ALL_DAMAGE_PERCENT = 500;
 // Overload's real per-level lore: "...dealing 10%/20%/30%/40%/50% extra damage" at levels I-V.
 const OVERLOAD_DAMAGE_PERCENT_PER_LEVEL = 10;
 
-// First Strike/Triple Strike only apply on the first hit(s) of a fight — modeled as active only at 100% mob HP.
+// First Strike/Triple Strike only apply on the first hit(s) of a fight - modeled as active only at 100% mob HP.
 const FIRST_HIT_ENCHANT_IDS = new Set(['first_strike', 'triple_strike']);
 
 // Fire Aspect and Thunderlord's per-level lore ("dealing 9% of your damage per second." / "dealing
@@ -837,7 +837,7 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
       continue;
     }
 
-    // Ultimate Legion: boost% = legionPlayers × 0.07 × enchant level — final multiplier, not additive.
+    // Ultimate Legion: boost% = legionPlayers × 0.07 × enchant level - final multiplier, not additive.
     if (key === 'ultimate_legion') {
       out.legionEnchantLevel = entry.level;
       continue;
@@ -929,12 +929,12 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
 }
 
 // ---------------------------------------------------------------------
-// Pet ability text (Zombie's Rotten Blade, Ender Dragon's End Strike — see ABILITY_ELIGIBLE_PET_IDS
+// Pet ability text (Zombie's Rotten Blade, Ender Dragon's End Strike - see ABILITY_ELIGIBLE_PET_IDS
 // below): two damage-bonus phrasings, object-last ("deals +X% damage to Y") and subject-first
 // ("Y mobs take Nx damage"). "Y mobs DEAL Nx damage" is an incoming-damage penalty and is excluded.
 const INCOMING_DAMAGE_RE = /[^.]+?\s+mobs?\s+deals?\s+\+?[\d.]+x\s+damage/i;
 // "Every Nth strike/hit, deal +X% damage" (Tarantula/Primordial armor's Octodexterity) is a periodic
-// proc rather than a per-hit bonus, and the generic match below cannot tell the two apart — every
+// proc rather than a per-hit bonus, and the generic match below cannot tell the two apart - every
 // piece repeats the paragraph, so it would count four times. Excluded entirely, like INCOMING_DAMAGE_RE.
 const PERIODIC_PROC_RE = /\bevery\s+\d+(?:st|nd|rd|th)\s+(?:strike|hit)\b/i;
 // "to X" and "against X" are the same mechanic; the trailing "mobs" suffix is optional.
@@ -976,7 +976,7 @@ function pushParagraphMatch(out, text, label, source, id, abilityEligible) {
 }
 
 // ---------------------------------------------------------------------
-// Special-mechanic weapons already have their bonus computed from the player's entered value (lib/specialWeapons.js) — read directly rather than re-parsed from lore.
+// Special-mechanic weapons already have their bonus computed from the player's entered value (lib/specialWeapons.js) - read directly rather than re-parsed from lore.
 function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, out) {
   const config = getSpecialConfig(item.id);
   if (!config) return;
@@ -1002,7 +1002,7 @@ function collectSpecialMechanicEntries(item, modifiers, itemLabel, slotLabel, ou
       value: damageMultiplier,
     });
   }
-  // midasSword/midasStaff are already merged into base stats — nothing more to add.
+  // midasSword/midasStaff are already merged into base stats - nothing more to add.
 }
 
 // ---------------------------------------------------------------------
@@ -1081,7 +1081,7 @@ async function collectPetEntriesInto(pet, modifiers, itemData, out) {
             abilityEligible: true,
           });
         }
-        return; // handled — don't also generic-scan this paragraph
+        return; // handled - don't also generic-scan this paragraph
       }
     }
 
@@ -1164,7 +1164,7 @@ function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, 
     });
   }
 
-  // Attack Speed shard ("Inferno Demonlord") — always-active, feeds Bonus Attack Speed directly
+  // Attack Speed shard ("Inferno Demonlord") - always-active, feeds Bonus Attack Speed directly
   // rather than a % damage source, same treatment as the Elemental families above.
   const attackSpeedLevel = attributes.attack_speed || 0;
   if (attackSpeedLevel) {
@@ -1189,7 +1189,7 @@ function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, 
     });
   }
 
-  // Item buffs — Ragnarock, Sword of Bad Health, Weirder Tuba (lib/buffs.js). Flat grants in every
+  // Item buffs - Ragnarock, Sword of Bad Health, Weirder Tuba (lib/buffs.js). Flat grants in every
   // mode, placed with the other flat grants: before the Dungeon Blessings' percentages, Master Skull
   // and Unlimited Power below, so those scale a buff's Strength like any other flat Strength.
   for (const grant of buffGrants) addBaseStat(out, grant.stat, grant.value, grant.label);
@@ -1255,46 +1255,46 @@ export async function collectDamageSources(
   bestiaryMaxedMobs = null,
   godPotionMixin = 'none',
   maxedCollectionsCount = 0,
-  // One trailing object rather than four more positional slots on an already-long list —
+  // One trailing object rather than four more positional slots on an already-long list -
   // { levels: {power,time,stone,wisdom}, forbiddenBlessingLevel, masterSkullTier, paulBuff }.
   // See lib/dungeonBlessing.js; only read while useDungeonizedStats is on.
   blessing = null,
-  // The account's Essence-shop perk levels, {perkKey: level} — see lib/essencePerks.js. Imported
+  // The account's Essence-shop perk levels, {perkKey: level} - see lib/essencePerks.js. Imported
   // only, never typed; null for a manually-built loadout.
   essencePerks = null,
   // Whether the selected target lives on a Mining Island (lib/miningIslands.js). Derived from the
-  // target mob at the call site and passed in, exactly as blazeCrimsonIsle above is — this
+  // target mob at the call site and passed in, exactly as blazeCrimsonIsle above is - this
   // function never receives the mob itself.
   onMiningIsland = false,
-  // Account-wide pet OWNERSHIP, not the equipped pet — a Jellyfish in the pet menu upgrades the
+  // Account-wide pet OWNERSHIP, not the equipped pet - a Jellyfish in the pet menu upgrades the
   // Dungeon Potion from Tier VII to Jellyfish VII (see lib/godPotion.js).
   hasJellyfishPet = false,
-  // Player-applied debuffs on the TARGET — { iceSpray, lastBreath, lethality }, see
+  // Player-applied debuffs on the TARGET - { iceSpray, lastBreath, lethality }, see
   // lib/mobDebuffs.js. Nothing here touches the player's own stats, so this is stashed on the
   // result untouched for finalDamage.js to apply alongside the mob's own Defense/Damage
   // Reduction, exactly as isGriffinPet below is.
   debuffs = null,
-  // Item buffs — { ragnarock, swordOfBadHealth, weirderTuba } toggles, see lib/buffs.js.
+  // Item buffs - { ragnarock, swordOfBadHealth, weirderTuba } toggles, see lib/buffs.js.
   buffs = null,
-  // The last import's weapon inventory ({item, modifiers} entries) — only read to find the
+  // The last import's weapon inventory ({item, modifiers} entries) - only read to find the
   // Ragnarock whose own Strength its buff copies.
   importedWeapons = null,
-  // The picked Catacombs class — { id, level }, see lib/dungeonClass.js. Only read while
+  // The picked Catacombs class - { id, level }, see lib/dungeonClass.js. Only read while
   // useDungeonizedStats is on, as blessing above is.
   dungeonClass = null,
 ) {
-  // A held Tier Boost raises the pet's rarity. Resolved once here, so every pet read below — its
-  // stat curve, rarity-gated perks, lore, and the petEntriesCache key — sees the boosted rarity.
+  // A held Tier Boost raises the pet's rarity. Resolved once here, so every pet read below - its
+  // stat curve, rarity-gated perks, lore, and the petEntriesCache key - sees the boosted rarity.
   loadout = { ...loadout, pet: applyTierBoost(loadout.pet, itemData) };
   const out = {
     // Applies in every mode: the Debuffs tile is shown whether or not the Dungeon toggle is on, and a
     // visible control that silently did nothing outside a dungeon would be a trap.
     debuffs,
     // Stashed so finalDamage.js's computeFinalDamage (which only receives `sources`/`mob`, not
-    // the full loadout) can check weapon-specific target restrictions — see DAGGER_LINE_WEAPON_IDS.
+    // the full loadout) can check weapon-specific target restrictions - see DAGGER_LINE_WEAPON_IDS.
     weaponId: loadout.weapon?.item?.id ?? null,
     // Stashed the same way, so computeFinalDamage/computeAbilityDamage can look up the target
-    // mob's Damage Reduction (lib/mobDefenses.js — Mythological mobs are 100% immune without a
+    // mob's Damage Reduction (lib/mobDefenses.js - Mythological mobs are 100% immune without a
     // Griffin pet equipped) without needing the full loadout themselves.
     isGriffinPet: loadout.pet?.item?.petId === 'GRIFFIN',
     // Stashed unchanged, being mob-independent, so finalDamage.js's selectBaseStats can apply the
@@ -1320,12 +1320,12 @@ export async function collectDamageSources(
     mythologicalDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     mythologicalMasterDungeonizeDelta: Object.fromEntries(TRACKED_STATS.map((key) => [key, 0])),
     // Weapon-only Catacombs Stats Boost percentage for computeAbilityDamage's Base Ability Damage
-    // scaling — see the `abilityBaseDamageBoost` assignment in collectBaseStats. 0 when the equipped
+    // scaling - see the `abilityBaseDamageBoost` assignment in collectBaseStats. 0 when the equipped
     // weapon isn't dungeonized, so the toggle never leaves it undefined.
     abilityBaseDamageBoost: { withoutMaster: 0, withMaster: 0 },
     additiveNonConditional: [],
     additiveConditional: [],
-    // The equipped weapon's own "+X% damage" ability bonuses — kept separate from the
+    // The equipped weapon's own "+X% damage" ability bonuses - kept separate from the
     // additive pool since they apply as their own independent factor (see lib/finalDamage.js).
     weaponBonusNonConditional: [],
     weaponBonusConditional: [],
@@ -1338,7 +1338,7 @@ export async function collectDamageSources(
     situational: [],
     overloadBonusPercent: 0,
     // Venomous/Fire Aspect/Thunderlord proc data ({id, label, source, level, percent}), null when
-    // not equipped — see lib/finalDamage.js's computeVenomousProcDamage/computeEnchantProcDamage.
+    // not equipped - see lib/finalDamage.js's computeVenomousProcDamage/computeEnchantProcDamage.
     venomousProc: null,
     fireAspectProc: null,
     thunderlordProc: null,
@@ -1355,14 +1355,14 @@ export async function collectDamageSources(
     out,
     maxedCollectionsCount,
     // Reaches the reforge bonus (Two-Headed Strike) and the pet's raw base stats (Infused Dragon)
-    // — see lib/essencePerks.js.
+    // - see lib/essencePerks.js.
     essencePerks,
   );
   // The player's Defense, and the only thing in this app that reads it: Ankylosaurus's Armored
   // Tank converts a share of it into Strength (lib/petData.js's computeAnkylosaurusStrength).
   // Computed here rather than inside collectBaseStats because it needs that function's finished
   // armor total AND the Mining Level / God Potion / Unlimited Fortitude inputs, which only this
-  // scope has. Deliberately never added to baseStats — Defense itself is invisible to the user.
+  // scope has. Deliberately never added to baseStats - Defense itself is invisible to the user.
   out.playerDefense = combinePlayerDefense(out.armorDefense, playerStats, attributes, godPotionActive);
   if (loadout.pet?.item?.petId === 'ANKYLOSAURUS') {
     const armoredTank = computeAnkylosaurusStrength(out.playerDefense, out.petOtherNums);
@@ -1379,8 +1379,8 @@ export async function collectDamageSources(
 
   // Blazetekk™ Ham Radio carries no Damage line itself: Bluetooth Ring's lore adds +3 Damage to it
   // and Bluertooth Ring's +4 (their separate "+1/+2 Damage if 6+ players on island" bonus is a
-  // different mechanic, not modeled). Ham Radio ownership has no import signal — it is a placed or
-  // inventory item rather than equipped gear — so it is a manual toggle on the Levels page
+  // different mechanic, not modeled). Ham Radio ownership has no import signal - it is a placed or
+  // inventory item rather than equipped gear - so it is a manual toggle on the Levels page
   // (playerStats.blazetekkHamRadio). Ring ownership does have one, via ownedAccessories.
   if (playerStats?.blazetekkHamRadio) {
     const ownedAccessories = loadout.accessory?.modifiers?.ownedAccessories || [];
@@ -1401,7 +1401,7 @@ export async function collectDamageSources(
   addBaseStat(out, 'intelligence', miscStats?.intelligence || 0, 'Misc');
 
   // One potion toggle, two different potions: inside a dungeon the God Potion is replaced by the
-  // weaker, mixin-less Dungeon Potion — never both at once. See lib/godPotion.js's
+  // weaker, mixin-less Dungeon Potion - never both at once. See lib/godPotion.js's
   // DUNGEON_POTION_TIERS.
   if (godPotionActive && useDungeonizedStats) {
     const tier = dungeonPotionEffects(hasJellyfishPet);
@@ -1477,7 +1477,7 @@ export async function collectDamageSources(
   }
   if (classStats.firstHitMultiplier !== 1) {
     // Berserker's opening-hit bonus covers ability damage as well as melee and ranged, so it goes
-    // in both buckets — unlike its melee multiplier, which is weapon damage only.
+    // in both buckets - unlike its melee multiplier, which is weapon damage only.
     const firstHitEntry = {
       id: DUNGEON_CLASS_FIRST_HIT_ID,
       label: `${className} (First Hit)`,
@@ -1519,7 +1519,7 @@ export async function collectDamageSources(
       id: 'implosion-belt-inactive',
       label: 'Implosion Belt',
       source: 'Ability Damage',
-      note: `Not currently active — equipping the Implosion Belt alongside this weapon would add a +${Math.round((IMPLOSION_BELT_ABILITY_MULTIPLIER - 1) * 100)}% Ability Damage multiplier.`,
+      note: `Not currently active - equipping the Implosion Belt alongside this weapon would add a +${Math.round((IMPLOSION_BELT_ABILITY_MULTIPLIER - 1) * 100)}% Ability Damage multiplier.`,
       formula: null,
     });
   }
@@ -1676,7 +1676,7 @@ export async function collectDamageSources(
     }
 
     // Loving: a 1.05x Ability Damage multiplier rather than the flat stat its bundled reforgeStats
-    // table implies (stripped from the base-stat merge in lib/reforges.js) — see abilityDamage.js.
+    // table implies (stripped from the base-stat merge in lib/reforges.js) - see abilityDamage.js.
     if (slot === 'chestplate' && equipped.modifiers.reforge === LOVING_REFORGE_NAME) {
       out.abilityMultiplicative.push({
         id: 'loving-reforge-ability-damage',
@@ -1746,7 +1746,7 @@ export async function collectDamageSources(
   }
 
   // Skeleton Master: 1.05x per piece plus a separate 1.25x at 4 pieces (armorSetBonuses.js).
-  // Bow-only, so it is skipped for a melee weapon rather than pushed as a conditional — the
+  // Bow-only, so it is skipped for a melee weapon rather than pushed as a conditional - the
   // condition is on the equipped weapon, not the target, which is what additiveConditional covers.
   // Shown as two lines because they are two effects: one number would hide that 3 pieces gets the
   // per-piece stacking but not the set bonus.
@@ -1818,7 +1818,7 @@ export async function collectDamageSources(
     }
   }
 
-  // Reaper Armor's "Trolling The Reaper" — a real full-set bonus, hardcoded here.
+  // Reaper Armor's "Trolling The Reaper" - a real full-set bonus, hardcoded here.
   if (hasFullSet(loadout, REAPER_ARMOR_SLOTS, REAPER_ARMOR_SET)) {
     out.additiveConditional.push({
       id: 'reaper-armor',
@@ -1880,7 +1880,7 @@ export async function collectDamageSources(
   collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks, computeBuffGrants(buffs, ragnarockStrength));
 
   // Final-multiplier stat-boost perks, applied last on the fully-summed combat-stat totals and never
-  // on Damage — the same mechanism as Unlimited Power above. Covers Strength, Crit Chance, Crit
+  // on Damage - the same mechanism as Unlimited Power above. Covers Strength, Crit Chance, Crit
   // Damage, Intelligence, Ability Damage, Bonus Attack Speed and Ferocity, since Renowned, Ender
   // Dragon Superior, Blaze Crimson Isle, Legion and Superior Dragon are combat-stat boosts rather
   // than damage-specific ones.
@@ -1913,7 +1913,7 @@ export async function collectDamageSources(
     statBoostSources.push({ percent: BLAZE_CRIMSON_ISLE_PERCENT, label: 'Blaze (In Crimson Isle)' });
   }
 
-  // Both Mining Island boosts — the HotM perk and the pet ability — share a target check and raise
+  // Both Mining Island boosts - the HotM perk and the pet ability - share a target check and raise
   // the same two stats, so they sit together, each with its own labelled row.
   if (onMiningIsland) {
     const lonesomeMiner = lonesomeMinerPercent(playerStats?.lonesomeMinerLevel);
@@ -1970,7 +1970,7 @@ export async function collectDamageSources(
   }
 
   // Tarantula/Primordial Helmet's Radioactive bonus reads the final Strength total, after the
-  // stat-boost stage above, as a player's own Strength stat does — including the Dungeon/Master
+  // stat-boost stage above, as a player's own Strength stat does - including the Dungeon/Master
   // total and its own 1,000 cap while the toggle is on.
   const radioactiveRate = RADIOACTIVE_CRIT_DAMAGE_PER_10_STRENGTH[loadout.helmet?.item?.id];
   if (radioactiveRate) {

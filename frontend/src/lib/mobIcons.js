@@ -4,9 +4,9 @@ import MOB_MODEL_ICONS from './mobModelIcons.json';
 // Skyblock's ~211 mobs have no unique head/skin asset in this app's bundled data, so each mob
 // is classified to its underlying vanilla entity type and rendered as a "spawn egg" icon
 // using that entity's real spawn-egg colors. Classification is 3-tier, checked in order:
-//  1. NAME_OVERRIDES — exact mob name, for reskins/bosses whose name doesn't contain their vanilla base entity's name.
-//  2. SUBSTRING_RULES — mob name contains a vanilla entity's name, most-specific match first.
-//  3. TYPE_FALLBACK — first matching Skyblock Mob Type maps to a representative vanilla
+//  1. NAME_OVERRIDES - exact mob name, for reskins/bosses whose name doesn't contain their vanilla base entity's name.
+//  2. SUBSTRING_RULES - mob name contains a vanilla entity's name, most-specific match first.
+//  3. TYPE_FALLBACK - first matching Skyblock Mob Type maps to a representative vanilla
 //     entity; mobs missing from MOB_TYPES fall through to a grey "unknown" egg.
 
 const VANILLA_TYPE_COLORS = {
@@ -73,7 +73,7 @@ const NAME_OVERRIDES = {
   'Grim Reaper': 'wither_skeleton',
 };
 
-// Checked in order — more specific/compound entries must come before the bare substrings they contain.
+// Checked in order - more specific/compound entries must come before the bare substrings they contain.
 const SUBSTRING_RULES = [
   ['ender dragon', 'ender_dragon'],
   ['dragon', 'ender_dragon'],
@@ -162,7 +162,7 @@ function buildSpawnEggSvg(base, spots) {
   );
 }
 
-// Real baked mob-model render, when one exists for this mob (see mobModelIcons.json) —
+// Real baked mob-model render, when one exists for this mob (see mobModelIcons.json) -
 // otherwise null, and the caller should fall back to the classified spawn-egg icon.
 export function getMobModelIcon(mobName) {
   return MOB_MODEL_ICONS[mobName] || null;

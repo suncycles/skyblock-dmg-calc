@@ -1,5 +1,5 @@
 // Shared chrome for dropdown menus. The chest-GUI panel used everywhere else is #c6c6c6, which
-// white text is unreadable on, so a dropdown gets its own OPAQUE dark surface instead — opaque
+// white text is unreadable on, so a dropdown gets its own OPAQUE dark surface instead - opaque
 // rather than a tint, since a menu floats over gear tiles and a target-mob render.
 //
 // Shared by the potion menu on Landing and the class picker on Damage Sources: the two are the

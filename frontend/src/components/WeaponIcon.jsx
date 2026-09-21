@@ -16,14 +16,14 @@ function buildCandidates(id, material) {
 }
 
 // The bundled leather-armor renders are pre-shaded at Minecraft's default leather
-// color (0xA06540 = 160,101,64) rather than a plain white/grey mask — each pixel is
+// color (0xA06540 = 160,101,64) rather than a plain white/grey mask - each pixel is
 // effectively `shading * defaultColor`. To dye it, divide out the default color to
 // recover the per-pixel shading factor, then multiply by the target color. This
 // matches vanilla's own leather-armor tint math; a flat CSS blend mode (e.g. overlay)
 // on top of this already-brown source produces a muddy, wrong-hued result instead.
 const DEFAULT_LEATHER_COLOR = [160, 101, 64];
 
-// Keyed by src+color — the same leather item at the same dye color is tinted often (every grid
+// Keyed by src+color - the same leather item at the same dye color is tinted often (every grid
 // cell showing it, every remount), and the canvas pixel loop is the expensive part, not the fetch.
 const tintCache = new Map();
 
@@ -95,7 +95,7 @@ export default function WeaponIcon({ id, material, alt, className, color, style 
 
   // alt="" (decorative) rather than the item name: every cell already carries the name as a
   // visible label or a hover tooltip, and until the icon loads the browser paints alt text inside
-  // the cell, on top of that label. No loading="lazy" either — these icons are the primary
+  // the cell, on top of that label. No loading="lazy" either - these icons are the primary
   // above-the-fold content of every picker and the loadout grid. No native title: the app's own
   // tooltip (TooltipContext) owns hover on every surface this appears on.
   return (

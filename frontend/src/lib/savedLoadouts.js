@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { decodeLoadoutCode } from './loadoutCode';
 import { formatItemName } from './mcText';
 
-// Shared localStorage-backed saved-loadouts list — used by Landing's Loadouts panel and by
+// Shared localStorage-backed saved-loadouts list - used by Landing's Loadouts panel and by
 // DamageSources' in-page loadout swapper, so both read/write the exact same storage key/shape.
 export const SAVED_LOADOUTS_KEY = 'skydmgSavedLoadouts';
 
@@ -16,7 +16,7 @@ export function loadSavedLoadoutsFromStorage() {
   }
 }
 
-// entry.id -> formatted Helmet name | '' (no helmet) | undefined (not decoded yet) — a saved
+// entry.id -> formatted Helmet name | '' (no helmet) | undefined (not decoded yet) - a saved
 // loadout's code only holds item ids, so a preview needs a real decode per entry rather than
 // just reading entry.name. Decoded lazily (only while `enabled`), since it's otherwise pure
 // wasted work on every page load. Shared by Landing's Loadouts panel and Compare's loadout

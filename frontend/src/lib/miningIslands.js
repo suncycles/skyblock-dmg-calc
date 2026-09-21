@@ -1,8 +1,8 @@
-// "Mining Islands" — the zone group two separate combat boosts are gated on. Hypixel's own lore
+// "Mining Islands" - the zone group two separate combat boosts are gated on. Hypixel's own lore
 // uses this exact phrase for both (Lonesome Miner: "while on §bMining Islands§7"; Mithril Golem's
 // Subterranean Battler: "on §bMining Islands§7"), so it's the game's grouping, not this app's.
 //
-// Both boosts raise the same two stats here — Strength and Crit Damage.
+// Both boosts raise the same two stats here - Strength and Crit Damage.
 // The real perks are broader: Lonesome Miner's lore also lists Crit Chance, Defense and Health,
 // and Subterranean Battler says "all Combat Stats". Only the two that this calculator's damage
 // number actually turns on are modelled; widening either is a one-line change to its `stats`.
@@ -13,14 +13,14 @@ import { MOB_LOCATIONS } from './mobLocations';
 export const MINING_ISLAND_LOCATIONS = ['Dwarven Mines', 'Crystal Hollows', 'Deep Caverns'];
 export const MINING_ISLANDS_LABEL = 'Mining Islands';
 
-// Which stats both boosts raise — the same list for each, so they read as one group in the
+// Which stats both boosts raise - the same list for each, so they read as one group in the
 // breakdown even though they come from different sources.
 export const MINING_ISLAND_BOOST_STATS = ['strength', 'crit_damage'];
 
 const MINING_ISLAND_SET = new Set(MINING_ISLAND_LOCATIONS);
 
 // True when a mob (by name) lives on any of the three. A mob with no location entry at all is
-// not on a Mining Island — same "absent means no" treatment MOB_TYPES lookups already get.
+// not on a Mining Island - same "absent means no" treatment MOB_TYPES lookups already get.
 export function isMiningIslandMob(name) {
   return (MOB_LOCATIONS[name] || []).some((loc) => MINING_ISLAND_SET.has(loc));
 }
@@ -32,7 +32,7 @@ export function anyMiningIslandTarget(names) {
 }
 
 // Heart of the Mountain's Lonesome Miner perk. NEU-REPO's hotmlayout.json gives the real formula
-// outright — `"stat": "(+ (* level 0.5) 4.5)"`, maxLevel 45 — so level 1 is +5% and level 45 is
+// outright - `"stat": "(+ (* level 0.5) 4.5)"`, maxLevel 45 - so level 1 is +5% and level 45 is
 // +27%.
 // Level 0 means the perk is unbought and grants nothing, NOT the formula's 4.5% intercept.
 export const LONESOME_MINER_MAX_LEVEL = 45;
@@ -45,7 +45,7 @@ export function lonesomeMinerPercent(level) {
   return n * LONESOME_MINER_PERCENT_PER_LEVEL + LONESOME_MINER_BASE_PERCENT;
 }
 
-// Mithril Golem's "Subterranean Battler". 0.2%/level — +20% at level 100 — from NEU-REPO's
+// Mithril Golem's "Subterranean Battler". 0.2%/level - +20% at level 100 - from NEU-REPO's
 // petnums.json (LEGENDARY otherNums[1]: 0.2 at level 1, 20 at level 100). Not otherNums[0], which
 // is Mithril Affinity's Mining Speed.
 // Tier-agnostic, matching how BLAZE_CRIMSON_ISLE_PERCENT already treats its pet. The real ladder

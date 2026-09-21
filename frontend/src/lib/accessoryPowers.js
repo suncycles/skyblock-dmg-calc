@@ -1,7 +1,7 @@
 // Accessory Bag Powers: the 10 Default Powers + 22 Stone Powers, each with MP-scaled
 // baseStats mapping onto lib/reforgeData.js's STAT_LABELS keys, plus (Stone Powers only) a
 // flat "Unique Power Bonus" that does NOT scale with Magical Power. (23 real stone items exist
-// in worker/src/data/powerStones.json; Unhealthy/VITAMIN_LIFE is deliberately excluded — see
+// in worker/src/data/powerStones.json; Unhealthy/VITAMIN_LIFE is deliberately excluded - see
 // the comment after HEALTHY below.)
 
 import { TUNING_BOX_RATE, ECHO_OF_BOXES_RATE, computeEchoBoost } from './attributes';
@@ -381,7 +381,7 @@ export const STONE_POWERS = [
   },
   // Unhealthy (VITAMIN_LIFE) deliberately excluded: an April Fools joke power (99,999,999x
   // combine cost, "Combat Skill Level MCCXII" requirement) whose only stats are -324 Health
-  // base / -200 Health unique — health isn't a damage-calc stat this app tracks at all, so
+  // base / -200 Health unique - health isn't a damage-calc stat this app tracks at all, so
   // modeling it would add a selectable power with zero effect anywhere in the app.
 ];
 
@@ -403,8 +403,8 @@ export function computeTuningPoints(mp) {
 }
 
 // Total spendable Tuning Points: Magical Power-derived points, plus the Tuning Box attribute's
-// own flat grant — which Echo of Boxes boosts (itself boosted by Echo of Echoes, same chained-
-// boost mechanism as Echo of Ruler/Echo of Elemental — see lib/attributes.js's computeEchoBoost).
+// own flat grant - which Echo of Boxes boosts (itself boosted by Echo of Echoes, same chained-
+// boost mechanism as Echo of Ruler/Echo of Elemental - see lib/attributes.js's computeEchoBoost).
 // The Magical Power-derived points are NOT affected by Echo of Boxes.
 export function computeTotalTuningPoints(mp, tuningBoxLevel, echoOfBoxesLevel, echoOfEchoesLevel) {
   const echoOfBoxesBoost = computeEchoBoost(ECHO_OF_BOXES_RATE, echoOfBoxesLevel, echoOfEchoesLevel);

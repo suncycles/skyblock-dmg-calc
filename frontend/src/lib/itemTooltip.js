@@ -45,9 +45,9 @@ export function insertEnchantLines(lore, enchantLines) {
   return [...lore.slice(0, blankIdx + 1), ...enchantLines, '', ...lore.slice(blankIdx + 1)];
 }
 
-// Builds the exact real-item tooltip (title + lore) with every applied modifier baked in —
+// Builds the exact real-item tooltip (title + lore) with every applied modifier baked in -
 // gemstones, reforge, books/Art of War, special-weapon numbers, enchant stat bonuses and
-// name lines, and recombobulation — resolved off the item's current rarity. Shared by every
+// name lines, and recombobulation - resolved off the item's current rarity. Shared by every
 // screen showing an equipped item's tooltip. Async because of the enchant stat-bonus lookup;
 // callers should capture the hover anchor before awaiting.
 export async function buildFullItemTooltipLines(
@@ -60,7 +60,7 @@ export async function buildFullItemTooltipLines(
   chimeraBonus,
   generalsMedallionDigits,
   manticoreClawBonus,
-  // The equipped pet's effects on this item's stats — lib/petData.js's petItemStatContext(pet), the
+  // The equipped pet's effects on this item's stats - lib/petData.js's petItemStatContext(pet), the
   // same object lib/damageSources.js feeds its own stat totals, so the tooltip and the damage
   // number can't disagree (Legendary Blaze's doubled Potato Books, Blaze's Bling Armor).
   petItemCtx,
@@ -74,7 +74,7 @@ export async function buildFullItemTooltipLines(
   const displayTier = getDisplayTier(item, modifiers);
   const gearType = getGearType(item.category);
 
-  // The single canonical computation (lib/itemStatTotals.js) — every number this tooltip shows
+  // The single canonical computation (lib/itemStatTotals.js) - every number this tooltip shows
   // for a stat comes from here, never re-derived by parsing rendered lore text back out.
   const totals = await computeItemStatTotals(item, modifiers, itemData, {
     catacombsLevel,
@@ -89,7 +89,7 @@ export async function buildFullItemTooltipLines(
   });
   const isMythological = isMythologicalTarget && MYTHOLOGICAL_STAT_DOUBLE_IDS.has(item.id);
 
-  // Sets every stat line's leading number exactly once, from the already-computed total — on
+  // Sets every stat line's leading number exactly once, from the already-computed total - on
   // still-pristine lore, before any of the annotate-only passes below run, so each of them finds
   // the real final number already in place and only ever appends an informational "(+X)" next to
   // it (never re-adds into it). A stat the pristine item doesn't show at all gets a brand-new line
@@ -99,7 +99,7 @@ export async function buildFullItemTooltipLines(
   for (const [statKey, t] of Object.entries(totals)) {
     const finalValue = isMythological ? t.mythologicalNonDungeonStarred : t.nonDungeonStarred;
     // mergeStatIntoBase ADDS this delta onto whatever number is literally printed in the lore
-    // text below — that's the catalog's raw baseline, NOT necessarily t.pristine. The two match
+    // text below - that's the catalog's raw baseline, NOT necessarily t.pristine. The two match
     // for an ordinary item (computeItemStatTotals' own pristine IS a parse of this same text), but
     // diverge for a Gear-Score tiered-stat item (lib/tieredArmorStats.js): its bundled catalog
     // lore permanently shows the tier-1 tiered_stats value while t.pristine is the real per-copy
@@ -111,7 +111,7 @@ export async function buildFullItemTooltipLines(
   lore = mergeStatIntoBase(lore, finalValues, lore.indexOf(''));
 
   lore = applyGemstonesToLore(lore, modifiers.gemstones, displayTier);
-  // Reforge could be a free blacksmith one or a stone-exclusive one — check both maps.
+  // Reforge could be a free blacksmith one or a stone-exclusive one - check both maps.
   const reforge = modifiers.reforge
     ? itemData.reforges?.[modifiers.reforge] || itemData.reforgeStones?.[modifiers.reforge]
     : null;
@@ -121,14 +121,14 @@ export async function buildFullItemTooltipLines(
 
   // Dungeonize: a dark-grey "Catacombs Boost" annotation for every stat the item already has, a
   // dark-blue second one adding Master Stars on top (shown only when the item actually has Master
-  // Stars) — both already-computed totals (lib/itemStatTotals.js), just formatted here.
+  // Stars) - both already-computed totals (lib/itemStatTotals.js), just formatted here.
   if (modifiers.dungeonized) {
     lore = applyDungeonizeToLore(lore, totals, modifiers.masterStars, isMythological);
   }
 
   lore = insertEnchantLines(lore, buildAppliedEnchantLines(modifiers));
   if (modifiers.rarityOverride) lore = applyRarityTagToLore(lore, item.tier, baseTier);
-  // Real Gear-Score tiered-stat item (Skeleton Master/Zombie Knight — lib/tieredArmorStats.js) at
+  // Real Gear-Score tiered-stat item (Skeleton Master/Zombie Knight - lib/tieredArmorStats.js) at
   // its max boost bumps rarity +1 tier, independent of and BEFORE any Recombobulator bump (mirrors
   // getDisplayTier's own ordering above: catalog Epic -> this bump -> Legendary -> recomb bump ->
   // Mythic).

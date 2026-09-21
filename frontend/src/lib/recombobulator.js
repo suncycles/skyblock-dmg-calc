@@ -2,7 +2,7 @@ import { rarityColorCode } from './mcText';
 import { MAX_BASE_STAT_BOOST_PERCENTAGE } from './tieredArmorStats';
 import { reforgeRarityFor } from './dungeonHeads';
 
-// Recombobulator 3000 has no flat stat bonus of its own — its real effect is bumping which
+// Recombobulator 3000 has no flat stat bonus of its own - its real effect is bumping which
 // rarity's reforge-stat column a reforge reads from, plus the rarity color/label on the tooltip.
 const RARITY_UPGRADE_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
@@ -18,7 +18,7 @@ export function bumpRarity(tier) {
   return RARITY_UPGRADE_ORDER[idx + 1].toUpperCase();
 }
 
-// An equipped slot's current effective rarity — accounts for a Recombobulator bump, a real
+// An equipped slot's current effective rarity - accounts for a Recombobulator bump, a real
 // Gear-Score tiered-stat item's own baseStatBoostPercentage=50 bump (see lib/tieredArmorStats.js;
 // independent of and stacking with Recombobulator: catalog Epic -> boost bump -> Legendary ->
 // recomb bump -> Mythic), and items whose real tier is tracked separately from the bundled data
@@ -26,7 +26,7 @@ export function bumpRarity(tier) {
 // item's rarity without building the full tooltip (e.g. Landing's per-slot rarity glow).
 export function getDisplayTier(item, modifiers) {
   if (!item) return null;
-  // A Catacombs boss head's own rarity is SPECIAL, which sits outside this ladder entirely — it
+  // A Catacombs boss head's own rarity is SPECIAL, which sits outside this ladder entirely - it
   // reads its stand-in rarity instead (lib/dungeonHeads.js), which is what makes reforging and
   // recombobulating one work at all. Everything else passes its real tier through.
   let tier = modifiers?.rarityOverride || reforgeRarityFor(item.id, item.tier);
@@ -36,7 +36,7 @@ export function getDisplayTier(item, modifiers) {
 }
 
 // Rewrites the item's trailing "§{color}§l{RARITY} {CATEGORY}" tag line to a different rarity,
-// no annotation — a plain correction (e.g. a milestone-upgrading item's real current tier).
+// no annotation - a plain correction (e.g. a milestone-upgrading item's real current tier).
 export function applyRarityTagToLore(lore, fromTier, toTier) {
   if (!lore || lore.length === 0) return lore;
   const fromWord = (fromTier || '').toUpperCase();
@@ -44,7 +44,7 @@ export function applyRarityTagToLore(lore, fromTier, toTier) {
   if (!fromWord || !toWord || fromWord === toWord) return lore;
 
   const lastIdx = lore.length - 1;
-  if (!lore[lastIdx].includes(fromWord)) return lore; // unexpected shape — leave untouched
+  if (!lore[lastIdx].includes(fromWord)) return lore; // unexpected shape - leave untouched
 
   const updated = lore[lastIdx].replace(fromWord, toWord).replace(/§[0-9a-f](§l)/, `§${rarityColorCode(toTier)}$1`);
   return [...lore.slice(0, lastIdx), updated];

@@ -1,5 +1,5 @@
 // Hypixel Skyblock Attributes: Hunting shards syphoned to level an account-wide, non-item-bound
-// attribute 1-10. Only the damage-relevant subset is modeled — Ruler (per-Mob-Type % damage), the
+// attribute 1-10. Only the damage-relevant subset is modeled - Ruler (per-Mob-Type % damage), the
 // Echo chain (relative boosts to Ruler, Elemental and Tuning Box), Strength and Intelligence
 // Elementals, Deadeye (bow-only), Warrior (melee-only, Deadeye's inverse), Elite (scoped to the 5
 // Slayer bosses, see lib/damageSources.js's ELITE_BOSS_MOBS), Unlimited Power/Energy/Torrent
@@ -45,7 +45,7 @@ export const RULER_ATTRIBUTES = [
 export const ECHO_OF_RULER_RATE = 2; // %/level, boosts every attribute whose name contains "Ruler"
 export const ECHO_OF_ECHOES_RATE = 5; // %/level, boosts every attribute whose name contains "Echo"
 export const ECHO_OF_ELEMENTAL_RATE = 2; // %/level, boosts the (Strength-granting) Elemental family
-// Legendary tier. Boosts Tuning Box's own point grant (not the Magical Power-derived points) —
+// Legendary tier. Boosts Tuning Box's own point grant (not the Magical Power-derived points) -
 // +2%-20% at level 10, boosted by Echo of Echoes up to +30% total at both maxed. See
 // lib/accessoryPowers.js's computeTotalTuningPoints.
 export const ECHO_OF_BOXES_RATE = 2; // %/level, boosts Tuning Box's point grant
@@ -65,31 +65,31 @@ export const INTELLIGENCE_ELEMENTAL_ATTRIBUTES = ['Fog', 'Water', 'Torrent', 'Fr
 export const DEADEYE_RATE = 2.5; // %/level, "+2.5%-25% damage from ranged weapons" (bow only)
 export const WARRIOR_RATE = 2.5; // %/level, "Increases melee damage dealt by +2.5%-25%" (non-bow only)
 export const ELITE_RATE = 3; // %/level, "+3%-30% more Damage against bosses and mini-bosses"
-export const UNLIMITED_POWER_RATE = 0.1; // %/level, Strength — applied after everything else
-export const UNLIMITED_ENERGY_RATE = 0.1; // %/level, Crit Damage — applied after everything else
-export const MAXIMAL_TORMENT_RATE = 0.1; // %/level, Intelligence — applied after everything else
+export const UNLIMITED_POWER_RATE = 0.1; // %/level, Strength - applied after everything else
+export const UNLIMITED_ENERGY_RATE = 0.1; // %/level, Crit Damage - applied after everything else
+export const MAXIMAL_TORMENT_RATE = 0.1; // %/level, Intelligence - applied after everything else
 export const ALMIGHTY_RATE = 5; // %/level, 'Your "Unlimited" Attributes are +5%-50% stronger'
 export const TUNING_BOX_RATE = 1; // Tuning Points/level, "+1-10 Tuning Points"
-export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" — treated as always-active
+export const DOMINANCE_RATE = 1.5; // %/level, "+1.5%-15% more Damage when at full health" - treated as always-active
 // The "Inferno Demonlord" shard (ATTRIBUTE_SHARD_ATTACK_SPEED, EPIC, 32 shards to level 10).
 // Always active, and feeds the Bonus Attack Speed base stat directly rather than a % damage source.
 export const ATTACK_SPEED_SHARD_RATE = 1; // Bonus Attack Speed %/level, "+1%-10% Bonus Attack Speed"
-// "Mimic" shard — same EPIC 32-shard ladder as Inferno Demonlord above, but what it grants isn't a
+// "Mimic" shard - same EPIC 32-shard ladder as Inferno Demonlord above, but what it grants isn't a
 // stat: it scales Dungeon Blessings before they touch the player (see lib/dungeonBlessing.js's
 // MIMIC_SHARD_PERCENT_PER_LEVEL, the rate this mirrors). It lives here, with the other shards,
-// rather than beside the blessings it feeds — it's an attribute the player levels like any other.
+// rather than beside the blessings it feeds - it's an attribute the player levels like any other.
 export const MIMIC_SHARD_RATE = 1; // % blessing effectiveness/level
 // The "End Stone Protector" shard, ability name "Unlimited Fortitude"
 // (ATTRIBUTE_SHARD_FORTITUDE, LEGENDARY, 24 shards to level 10). Hypixel keys it `fortitude` in
 // member.attributes.stacks, matching this id, so the import needs no remap. Grants Defense, which
-// only the Ankylosaurus pet reads — see lib/playerDefense.js.
+// only the Ankylosaurus pet reads - see lib/playerDefense.js.
 export const UNLIMITED_FORTITUDE_RATE = 0.2; // % Defense/level
-// "Hideonring" shard (RARE): +1 Accessory Bag slot per level, 10 at max. Not a damage stat — it's
+// "Hideonring" shard (RARE): +1 Accessory Bag slot per level, 10 at max. Not a damage stat - it's
 // here because the Optimizer charges a new accessory for the bag slot it needs, and this is the
 // cheapest slot on the market. See lib/accessorySlots.js.
 export const ACCESSORY_SIZE_RATE = 1; // bag slots/level
 
-// Non-Ruler/Elemental/Echo attributes needing a single number input — shared shape for pages/Attributes.jsx to render generically.
+// Non-Ruler/Elemental/Echo attributes needing a single number input - shared shape for pages/Attributes.jsx to render generically.
 export const OTHER_ATTRIBUTES = [
   { id: 'deadeye', name: 'Deadeye', rate: DEADEYE_RATE, unit: '%' },
   { id: 'warrior', name: 'Warrior', rate: WARRIOR_RATE, unit: '%' },

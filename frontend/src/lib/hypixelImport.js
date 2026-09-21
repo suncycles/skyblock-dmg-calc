@@ -21,7 +21,7 @@ import { isTieredArmorStatItem } from './tieredArmorStats';
    before mapHypixelImportToLoadout resolves them into the loadout. */
 
 // Hypixel keys 10 of the 17 Rulers as "<mobType>_ruler", the reverse of this app's
-// "ruler_<mobType>". Every other attribute id matches Hypixel's raw key 1:1 — note the shard's
+// "ruler_<mobType>". Every other attribute id matches Hypixel's raw key 1:1 - note the shard's
 // internalName is "MAXIMAL_TORMENT" though its displayed ability reads "Unlimited Torment".
 const STANDARD_PATTERN_RULER_TYPES = [
   'airborne',
@@ -38,7 +38,7 @@ const STANDARD_PATTERN_RULER_TYPES = [
 // The other 7 Rulers use unrelated legacy shard ids rather than the "<mobType>_ruler" pattern, so
 // their levels import only through this map. Humanoid Ruler is a further special case: a raw
 // "humanoid_ruler" key exists but tracks a different ability ("Undead Fortune"), while the real
-// stack lives under "humanoid_ruler_new" — the plain key is deliberately left unmapped.
+// stack lives under "humanoid_ruler_new" - the plain key is deliberately left unmapped.
 const RAW_ATTRIBUTE_ID_REMAP = {
   ...Object.fromEntries(STANDARD_PATTERN_RULER_TYPES.map((t) => [`${t}_ruler`, `ruler_${t}`])),
   blazing: 'ruler_infernal',
@@ -86,7 +86,7 @@ function mapHypixelAttributeLevels(rawAttributeLevels) {
 
 const GEAR_SLOT_KEYS = ['weapon', 'helmet', 'chestplate', 'leggings', 'boots', 'necklace', 'cloak', 'belt', 'gloves'];
 
-// Only the 6 "combat" gemstones this calculator models (see lib/gemstoneData.js) — anything
+// Only the 6 "combat" gemstones this calculator models (see lib/gemstoneData.js) - anything
 // else (Peridot/Amber/Topaz/Citrine/Aquamarine/Jade) is silently dropped, same as manual entry.
 const COMBAT_GEM_TYPES = ['RUBY', 'JASPER', 'SAPPHIRE', 'AMETHYST', 'ONYX', 'OPAL'];
 
@@ -134,7 +134,7 @@ function buildReforgeNameLookup(itemData) {
   return map;
 }
 
-// Reads one slot's quality out of the raw gems compound — a bare string on most slots, but
+// Reads one slot's quality out of the raw gems compound - a bare string on most slots, but
 // Hypixel writes {uuid, quality} for gems that carry a tracked instance id.
 function readGemQuality(gems, key) {
   const value = gems?.[key];
@@ -142,7 +142,7 @@ function readGemQuality(gems, key) {
 }
 
 // Per-slot socketed gem and unlock state, mapped onto the item's own catalog slot order
-// (`catalogSlots` — item.gemstone_slots). Hypixel keys each slot "<TYPE>_<n>" where n restarts at 0
+// (`catalogSlots` - item.gemstone_slots). Hypixel keys each slot "<TYPE>_<n>" where n restarts at 0
 // per distinct slot_type rather than running across the whole item, so this walks the catalog's
 // ordered slots with a per-type counter instead of trusting key order. A slot with a gem socketed is
 // unlocked by construction; only an empty slot needs `gems.unlocked_slots` to tell locked from open.
@@ -278,7 +278,7 @@ const SPECIAL_LORE_LABELS = {
 const DUNGEON_CATEGORY_PREFIX = 'DUNGEON ';
 const STARRED_ID_PREFIX = 'STARRED_';
 
-// Pieces that come out of the game already dungeonized, needing no per-copy evidence — this closes
+// Pieces that come out of the game already dungeonized, needing no per-copy evidence - this closes
 // the 0-star gap above, since the NBT carries nothing and the category alone stays ambiguous for
 // gear that can be crafted unconverted. A narrow allowlist by id, as in tieredArmorStats.js and
 // starring.js's HIGH_STAR_ITEM_IDS.
@@ -301,7 +301,7 @@ export function resolveDungeonizedFlag(summary, item) {
   if (summary.dungeonized) return true;
   if (isTieredArmorStatItem(summary.id)) return true;
   // A STARRED_ id is a Master Mode drop and a distinct, stronger catalog item than its base (Bone
-  // Necklace Defense +35 against Starred's +45), not the same item with a boost applied — so it is
+  // Necklace Defense +35 against Starred's +45), not the same item with a boost applied - so it is
   // always dungeon gear, and the Catacombs boost layers on top of those printed stats.
   const id = String(summary.id || '');
   if (id.startsWith(STARRED_ID_PREFIX)) return true;
@@ -327,7 +327,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     books: Math.min(15, summary.hotPotatoBooks || 0),
     recombobulated: !!summary.recombobulated,
     reforge: summary.modifier ? reforgeLookup[summary.modifier] || null : null,
-    // ExtraAttributes.art_of_war_count (see nbt.js) — real, weapon-only.
+    // ExtraAttributes.art_of_war_count (see nbt.js) - real, weapon-only.
     artOfWar: !!summary.artOfWar,
     // nbt.js also captures ExtraAttributes.artOfPeaceApplied, but it is not threaded in here:
     // applying ART_OF_PEACE_STAT_BONUS ({ health: 40 }, see books.js) to a real armor piece carrying
@@ -336,7 +336,7 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
     stars,
     masterStars,
     dungeonized: resolveDungeonizedFlag(summary, item),
-    // Real per-copy Gear-Score data (see nbt.js) — only meaningful for the handful of tiered-stat
+    // Real per-copy Gear-Score data (see nbt.js) - only meaningful for the handful of tiered-stat
     // items lib/tieredArmorStats.js models, harmless/unused otherwise.
     itemTier: summary.itemTier || null,
     baseStatBoostPercentage: summary.baseStatBoostPercentage || 0,
@@ -347,17 +347,17 @@ async function buildItemModifiers(item, summary, itemData, reforgeLookup) {
 
 // Resolves a raw decoded item summary (just {id, ...modifiers}) against the current item catalog
 // into the {id, name, material, category, tier, lore, color, gemstone_slots} shape both the loadout
-// and the Review screen's candidate rows (icon/name) need — null if the id doesn't match anything
+// and the Review screen's candidate rows (icon/name) need - null if the id doesn't match anything
 // in the current NEU-REPO catalog (renamed/removed item since the account last equipped it).
-// `gemstone_slots` (real per-slot type + unlock cost, worker/scripts/build-item-data.mjs — Hypixel's
+// `gemstone_slots` (real per-slot type + unlock cost, worker/scripts/build-item-data.mjs - Hypixel's
 // own resources API) is passed through unchanged (snake_case, same as the catalog field itself,
 // same treatment as `upgrade_costs` elsewhere) rather than renamed, so every path that can put an
-// item into the loadout — a real import via this function, an Optimizer-suggested swap (also via
-// this function, see optimizer.js), or a bare manual pick straight off itemData.armor/weapons —
+// item into the loadout - a real import via this function, an Optimizer-suggested swap (also via
+// this function, see optimizer.js), or a bare manual pick straight off itemData.armor/weapons -
 // exposes it under the identical key with no translation to keep in sync.
 //
 // Always returns the catalog's OWN pristine `item.lore`, never
-// Hypixel's real per-account lore (`summary.lore`) — an imported item is rebuilt entirely from
+// Hypixel's real per-account lore (`summary.lore`) - an imported item is rebuilt entirely from
 // this catalog base plus the real modifiers below (reforge name, gemstones, stars, enchants, ...)
 // through this app's own formula pipeline (lib/itemStatTotals.js), exactly like a manually-built
 // item, with zero special-casing. The tradeoff is that this app has no Gear Score scaling
@@ -490,13 +490,13 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
         tuning: mapHypixelTuning(raw.accessory.tuning),
         enrichmentCount: raw.accessory.enrichmentCount || 0,
         enrichmentType: raw.accessory.enrichmentType || 'none',
-        // Each owned accessory's own stat line, summed by the worker from Accessory Bag lore — see
+        // Each owned accessory's own stat line, summed by the worker from Accessory Bag lore - see
         // worker/src/index.js's computeLiveAccessoryStats.
         individualAccessoryStats: raw.accessory.itemStats || {},
         // Persisted so the Optimizer's Magical Power section can rank missing and upgradeable
         // accessories without a second account fetch (see lib/accessoryOptimizer.js).
         ownedAccessories: raw.accessory.owned || [],
-        // How big the bag is — see lib/accessorySlots.js, which turns these into free slots and,
+        // How big the bag is - see lib/accessorySlots.js, which turns these into free slots and,
         // when there are none, the coin cost of the next one.
         bagUpgradesPurchased: raw.accessory.bagUpgradesPurchased || 0,
         redstoneCollection: raw.accessory.redstoneCollection || 0,
@@ -514,13 +514,13 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   if (typeof raw.skills?.enchanting === 'number') playerStats.enchantingLevel = raw.skills.enchanting;
   if (typeof raw.skills?.combat === 'number') playerStats.combatLevel = raw.skills.combat;
   if (typeof raw.skills?.foraging === 'number') playerStats.foragingLevel = raw.skills.foraging;
-  // Feeds Defense, which only the Ankylosaurus pet reads — see lib/playerDefense.js.
+  // Feeds Defense, which only the Ankylosaurus pet reads - see lib/playerDefense.js.
   if (typeof raw.skills?.mining === 'number') playerStats.miningLevel = raw.skills.mining;
   if (typeof raw.skills?.taming === 'number') playerStats.tamingLevel = raw.skills.taming;
   if (typeof raw.skills?.catacombs === 'number') playerStats.catacombsLevel = raw.skills.catacombs;
   if (typeof raw.skills?.skyblock === 'number') playerStats.skyblockLevel = raw.skills.skyblock;
   // Heart of the Mountain's Lonesome Miner perk level, off the account's selected mining skill tree
-  // (worker/src/index.js's hotmNodeLevel) — see lib/miningIslands.js.
+  // (worker/src/index.js's hotmNodeLevel) - see lib/miningIslands.js.
   if (typeof raw.lonesomeMinerLevel === 'number') playerStats.lonesomeMinerLevel = raw.lonesomeMinerLevel;
 
   // The Catacombs class the account last picked in-game, and that class's own level.
@@ -533,7 +533,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   }
 
   // Mob names the account has maxed the Bestiary on (worker/src/index.js's computeBestiaryMaxedMobs)
-  // — see lib/bestiaryStrength.js.
+  // - see lib/bestiaryStrength.js.
   // The Dungeon Potion tier depends on OWNING a Jellyfish rather than equipping one, and `raw.pets`
   // is every pet on the account, so ownership is answerable from it.
   const hasJellyfishPet = (raw.pets || []).some((pet) => String(pet?.type || '').toUpperCase() === 'JELLYFISH');
@@ -542,7 +542,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
 
   // Daedalus Blade's "Combined Mythological Bestiary Tiers" input, derived worker-side from
   // member.bestiary.kills. An owned Daedalus Blade still reads the value off its own NBT lore above;
-  // this top-level number covers the case NBT can't — the Optimizer proposing a Daedalus Blade the
+  // this top-level number covers the case NBT can't - the Optimizer proposing a Daedalus Blade the
   // player doesn't own (see lib/optimizer.js's Diana weapon progression).
   const combinedMythologicalBestiaryTiers =
     typeof raw.combinedMythologicalBestiaryTiers === 'number' ? raw.combinedMythologicalBestiaryTiers : 0;
@@ -557,10 +557,10 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // arrives through attributeLevels.
   const blessingInputs = {
     forbiddenBlessingLevel: raw.forbiddenBlessingLevel || 0,
-    // Off the talisman bag, alongside Magical Power — see the Worker's computeLiveAccessoryStats.
+    // Off the talisman bag, alongside Magical Power - see the Worker's computeLiveAccessoryStats.
     masterSkullTier: raw.accessory?.masterSkullTier || 0,
   };
-  // Essence-shop perk levels, {perkKey: level} — see lib/essencePerks.js.
+  // Essence-shop perk levels, {perkKey: level} - see lib/essencePerks.js.
   const essencePerks = raw.essencePerks || {};
   return {
     loadout,

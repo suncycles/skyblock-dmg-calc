@@ -43,7 +43,7 @@ export function getTierOptions(mobName) {
   return entry.tiers;
 }
 
-// Highest tier of a Slayer boss — the tiered mobs whose labels form the "Tier I-V" ladder.
+// Highest tier of a Slayer boss - the tiered mobs whose labels form the "Tier I-V" ladder.
 // Tiered mobs labelled by spawn rarity or variant return null.
 export function defaultTierSelection(mobName) {
   const tiers = getTierOptions(mobName);

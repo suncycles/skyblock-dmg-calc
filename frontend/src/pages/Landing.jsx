@@ -171,7 +171,7 @@ export default function Landing() {
   const [showArmorOptions, setShowArmorOptions] = useState(false);
   const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
 
-  // Close the potion menu on an outside click or Escape — the two things a native <select> did
+  // Close the potion menu on an outside click or Escape - the two things a native <select> did
   // that a div does not.
   useEffect(() => {
     if (!potionMenuOpen) return undefined;
@@ -190,7 +190,7 @@ export default function Landing() {
   }, [potionMenuOpen]);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
   const [costResult, setCostResult] = useState(null);
-  // Whether any currently-selected target is Mythological-typed — Challenger's/Mythos' doubled-stat
+  // Whether any currently-selected target is Mythological-typed - Challenger's/Mythos' doubled-stat
   // tooltip preview (buildFullItemTooltipLines' isMythologicalTarget param) only makes sense to show
   // when it'd actually apply in combat.
   const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
@@ -199,7 +199,7 @@ export default function Landing() {
     setCostResult((prev) => (prev ? null : computeLoadoutCostBreakdown(loadout, attributes, itemData)));
   }
 
-  // Wipes this app's localStorage — current build, saved Loadouts, theme — and reloads, so every
+  // Wipes this app's localStorage - current build, saved Loadouts, theme - and reloads, so every
   // context re-initializes as for a new visitor. localStorage.clear() rather than a hand-picked key
   // list, so it stays comprehensive as new persisted state appears, at the cost of clearing anything
   // else this origin stores.
@@ -282,7 +282,7 @@ export default function Landing() {
   }
 
   // Copies an existing saved loadout's code under a new name/id, inserted right after the
-  // original — lets the user branch off a build (e.g. try a different reforge) without losing it.
+  // original - lets the user branch off a build (e.g. try a different reforge) without losing it.
   function handleDuplicateSavedLoadout(entry) {
     const copy = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -366,7 +366,7 @@ export default function Landing() {
   async function handleGearHover(slot, label, e) {
     const equipped = loadout[slot];
     if (!equipped) {
-      showTooltip([`§7${label}`, '§8Empty — click to pick one'], e.currentTarget);
+      showTooltip([`§7${label}`, '§8Empty - click to pick one'], e.currentTarget);
       return;
     }
     const anchor = e.currentTarget;
@@ -444,7 +444,7 @@ export default function Landing() {
 
   async function handleWeaponHover(e) {
     if (!loadout.weapon) {
-      showTooltip(['§7Weapon', '§8Empty — click to pick one'], e.currentTarget);
+      showTooltip(['§7Weapon', '§8Empty - click to pick one'], e.currentTarget);
       return;
     }
     const anchor = e.currentTarget;
@@ -470,7 +470,7 @@ export default function Landing() {
 
   async function handlePetHover(e) {
     if (!loadout.pet) {
-      showTooltip(['§7Pet', '§8Empty — click to pick one'], e.currentTarget);
+      showTooltip(['§7Pet', '§8Empty - click to pick one'], e.currentTarget);
       return;
     }
     const anchor = e.currentTarget;
@@ -479,7 +479,7 @@ export default function Landing() {
     const rawLoreData = await fetchNeuItem(petLoreItemId(pet.petId, applyTierBoost(loadout.pet, itemData).item.tier));
     const rawLore = rawLoreData && rawLoreData.lore && rawLoreData.lore.length > 0 ? rawLoreData : false;
     // Ankylosaurus's Armored Tank turns Defense into Strength, so the tooltip needs the same
-    // Defense the damage calculation uses — see lib/playerDefense.js.
+    // Defense the damage calculation uses - see lib/playerDefense.js.
     const playerDefense = await computePlayerDefense(loadout, itemData, playerStats, attributes, godPotionActive);
     const lines = buildPetTooltipLines(pet, modifiers, itemData, rawLore, playerDefense);
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
@@ -490,8 +490,8 @@ export default function Landing() {
       const mp = loadout.accessory?.modifiers?.magicalPower;
       showTooltip(
         mp
-          ? ['§7Accessories', `§7Magical Power: §b${mp}`, '§8No Power Stone selected yet — click to pick one']
-          : ['§7Accessories', '§8Empty — click to pick a power'],
+          ? ['§7Accessories', `§7Magical Power: §b${mp}`, '§8No Power Stone selected yet - click to pick one']
+          : ['§7Accessories', '§8Empty - click to pick a power'],
         e.currentTarget,
       );
       return;
@@ -510,7 +510,7 @@ export default function Landing() {
 
   function handleTargetMobHover(e) {
     if (targetMobs.length === 0) {
-      showTooltip(['§7Target Mobs', '§8Empty — click to pick some'], e.currentTarget);
+      showTooltip(['§7Target Mobs', '§8Empty - click to pick some'], e.currentTarget);
       return;
     }
     const lines = ['§d§lTarget Mobs'];
@@ -527,7 +527,7 @@ export default function Landing() {
     clearTargetMobs();
   }
 
-  // Renders one gear slot cell (icon + bottom label + remove button when equipped) — shared by both gear columns.
+  // Renders one gear slot cell (icon + bottom label + remove button when equipped) - shared by both gear columns.
   function renderGearSlot(key, slot, label, pickerPath) {
     const equipped = loadout[slot];
     const tier = equipped ? getDisplayTier(equipped.item, equipped.modifiers) : null;
@@ -583,7 +583,7 @@ export default function Landing() {
     for (let col = 0; col < 9; col++) {
       const key = `${row}-${col}`;
 
-      // Column B, row 0 (above Necklace): Equipment Options — clear-all + "Edit All" mode for the
+      // Column B, row 0 (above Necklace): Equipment Options - clear-all + "Edit All" mode for the
       // 4 equipment slots below, opened as a popup bubble (see pages/EquipmentOptions.jsx) instead
       // of a routed page.
       if (col === 1 && row === 0) {
@@ -603,7 +603,7 @@ export default function Landing() {
         continue;
       }
 
-      // Column C, row 0 (above Helmet): Armor Options — same 2 conveniences for the 4 armor slots
+      // Column C, row 0 (above Helmet): Armor Options - same 2 conveniences for the 4 armor slots
       // below, opened as a popup bubble (see pages/ArmorOptions.jsx) instead of a routed page.
       if (col === 2 && row === 0) {
         cells.push(
@@ -636,7 +636,7 @@ export default function Landing() {
         continue;
       }
 
-      // Column D, row 1: Player Levels — shows Skyblock Level colored by its level-color bracket; click opens the edit page.
+      // Column D, row 1: Player Levels - shows Skyblock Level colored by its level-color bracket; click opens the edit page.
       if (col === 3 && row === 1) {
         cells.push(
           <div
@@ -773,7 +773,7 @@ export default function Landing() {
         continue;
       }
 
-      // Column E, rows 1-4, beside Weapon: the imported-weapons list — every weapon
+      // Column E, rows 1-4, beside Weapon: the imported-weapons list - every weapon
       // lib/hypixelImport.js's buildWeaponInventoryList found in the account's inventory, not only the
       // equipped one, so swapping between owned weapons needs no re-import. One spanning tile holding
       // a scrollable icon grid, since a name-and-level row per weapon doesn't fit a 1-column cell.
@@ -831,7 +831,7 @@ export default function Landing() {
       }
       if (col === 4 && row >= 2 && row <= 4) continue;
 
-      // Columns F/G/H, rows 1-4: Target Mob — one tile spanning the full 3x4 block, filled with
+      // Columns F/G/H, rows 1-4: Target Mob - one tile spanning the full 3x4 block, filled with
       // the real mob-model renders of every selected mob (overlapping when there's more than one).
       if (col === 5 && row === 1) {
         cells.push(
@@ -850,8 +850,8 @@ export default function Landing() {
               <div className="relative w-full h-full">
                 {targetMobs.map((name, i) => {
                   const n = targetMobs.length;
-                  // Each mob centers on its own divider — the midpoint of the tile split into n
-                  // equal columns — but stays oversized relative to that column so neighbors overlap.
+                  // Each mob centers on its own divider - the midpoint of the tile split into n
+                  // equal columns - but stays oversized relative to that column so neighbors overlap.
                   const center = ((i + 0.5) / n) * 100;
                   const size = Math.max(42, 72 - Math.max(0, n - 2) * 7);
                   return (
@@ -894,7 +894,7 @@ export default function Landing() {
       }
       if (col >= 5 && col <= 7 && row >= 1 && row <= 4) continue;
 
-      // Row 5, columns B and C: Buff/Blessing and Debuffs, shown in every mode — item buffs and
+      // Row 5, columns B and C: Buff/Blessing and Debuffs, shown in every mode - item buffs and
       // debuffs apply everywhere, and only the Dungeon Blessings inside the first page are
       // Dungeon-gated. Board tiles rather than panels in the damage breakdown, lit green when
       // something is active, the same cue the Attributes tile uses.
@@ -904,7 +904,7 @@ export default function Landing() {
         let tooltipLines;
         if (isBlessings) {
           const activeBuffs = BUFF_ITEMS.filter((b) => buffs?.[b.id]);
-          // Blessings only count while they can apply — outside a dungeon they're inert, so they
+          // Blessings only count while they can apply - outside a dungeon they're inert, so they
           // neither light the tile nor list in its tooltip.
           const activeBlessings = useDungeonizedStats ? DUNGEON_BLESSINGS.filter((b) => (blessing.levels?.[b.id] || 0) > 0) : [];
           const paulBuff = useDungeonizedStats && !!blessing.paulBuff;
@@ -915,7 +915,7 @@ export default function Landing() {
             ...activeBlessings.map((b) => `§7${b.label} Blessing §f${blessing.levels[b.id]}`),
             ...(paulBuff ? ['§6Paul Buff'] : []),
             ...(useDungeonizedStats ? [`§8Blessing effectiveness x${Math.round(computeBlessingMultiplier(blessing, attributes) * 100) / 100}`] : []),
-            ...(lit ? [] : ['§8None active — click to edit']),
+            ...(lit ? [] : ['§8None active - click to edit']),
           ];
         } else {
           lit = hasAnyDebuff(debuffs);
@@ -925,7 +925,7 @@ export default function Landing() {
                 `§7Mob Defense §fx${Math.round(mobDefenseDebuffMultiplier(debuffs) * 100) / 100}`,
                 `§7Final damage §fx${Math.round(finalDamageDebuffMultiplier(debuffs) * 100) / 100}`,
               ]
-            : ['§7Debuffs', '§8None active — click to edit'];
+            : ['§7Debuffs', '§8None active - click to edit'];
         }
         const path = isBlessings ? '/blessings' : '/debuffs';
         const handleHover = (e) => showTooltip(tooltipLines, e.currentTarget);
@@ -945,12 +945,12 @@ export default function Landing() {
         continue;
       }
 
-      // Column D, row 5 (right below Pet): Attributes — plain text tile, account-wide rather than tied to an item.
+      // Column D, row 5 (right below Pet): Attributes - plain text tile, account-wide rather than tied to an item.
       if (col === 3 && row === 5) {
         const leveledCount = Object.values(attributes).filter((v) => v > 0).length;
         const attributesTooltipLines = leveledCount > 0
           ? [`§d§lAttributes`, `§7${leveledCount} attribute${leveledCount === 1 ? '' : 's'} leveled`]
-          : ['§7Attributes', '§8None leveled — click to edit'];
+          : ['§7Attributes', '§8None leveled - click to edit'];
         const handleAttributesHover = (e) => showTooltip(attributesTooltipLines, e.currentTarget);
         cells.push(
           <div
@@ -987,8 +987,8 @@ export default function Landing() {
         continue;
       }
 
-      // Bottom-left: the potion. Which one depends on the Dungeon toggle — inside a dungeon it is the
-      // Dungeon Potion, a different set of effects with no mixin (lib/godPotion.js) — so the tile
+      // Bottom-left: the potion. Which one depends on the Dungeon toggle - inside a dungeon it is the
+      // Dungeon Potion, a different set of effects with no mixin (lib/godPotion.js) - so the tile
       // relabels rather than pretending one potion covers both. Styled like every other tile, with the
       // bottom-anchored white label; the <select> stays a transparent full-tile overlay so the picker,
       // keyboard and screen readers behave as before.
@@ -1058,7 +1058,7 @@ export default function Landing() {
             onMouseLeave={guardHover(hideTooltip)}
           >
             {/* Drops DOWN from the tile. It is the grid's bottom row, so the menu overhangs the
-                panel — z-50 and an opaque background keep it readable over whatever it covers. */}
+                panel - z-50 and an opaque background keep it readable over whatever it covers. */}
             {potionMenuOpen && (
               <ul
                 role="listbox"
@@ -1123,8 +1123,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      {/* Below xl everything stacks in DOM order — toolbar, board, Recommended Upgrades, the jump
-          button, the breakdown — so the panel lands under the board. At xl the panel moves into its
+      {/* Below xl everything stacks in DOM order - toolbar, board, Recommended Upgrades, the jump
+          button, the breakdown - so the panel lands under the board. At xl the panel moves into its
           own right-hand column, spanning every row and sticky, so it stays beside whatever you are
           reading and can't cover the board. 700 + 340 + gap clears the edges at 1280px even with
           index.css's site-wide 1.15 zoom. */}
@@ -1272,7 +1272,7 @@ export default function Landing() {
         View Damage Breakdown
       </button>
 
-      {/* Merged inline (see the lazy DamageSources import above) instead of a separate route —
+      {/* Merged inline (see the lazy DamageSources import above) instead of a separate route -
           equipping gear above and reading its damage breakdown below now happen on one page. */}
       <div ref={damageSectionRef} className="w-full mt-6 pt-6 border-t-2 border-white/10 flex flex-col items-center xl:col-start-1">
         <Suspense fallback={<div className="text-sm text-neutral-400">Loading damage calculation...</div>}>

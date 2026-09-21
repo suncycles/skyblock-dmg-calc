@@ -1,7 +1,7 @@
 // Magical Power Optimizer: ranks accessories the player doesn't own, or could upgrade, by the DPS
 // increase from the resulting MP gain, through lib/optimizer.js's "one change against the baseline"
-// pipeline. Catalog data — names, rarities, upgrade-family exclusivity, duplicates, "of Power"
-// Perfect Gemstone upgrades and non-recombobulatable ids — lives in
+// pipeline. Catalog data - names, rarities, upgrade-family exclusivity, duplicates, "of Power"
+// Perfect Gemstone upgrades and non-recombobulatable ids - lives in
 // worker/src/data/accessoryFamilies.json.
 //
 // Magical Power is modeled the same two ways the rest of the app tracks it: the Accessory Power
@@ -44,7 +44,7 @@ function lookupAccessoryCost(candidate, itemData) {
   }
   if (candidate.kind === 'upgrade') {
     // Net cost: the higher tier's own price minus the already-owned lower tier's price, not the
-    // higher tier's full price — the player isn't buying this family from zero.
+    // higher tier's full price - the player isn't buying this family from zero.
     const toPrice = itemPrices[candidate.id];
     const fromPrice = itemPrices[candidate.fromId];
     return typeof toPrice === 'number' && typeof fromPrice === 'number' ? toPrice - fromPrice : null;
@@ -141,7 +141,7 @@ function canonicalizeOwned(owned, families) {
 
 // Builds every real MP-gaining candidate for this account: missing family-best accessories
 // (`kind: 'missing'`), recombobulating an owned-but-not-maxed one (`kind: 'recombobulate'`), and
-// the "of Power" family's own Perfect Gemstone rarity upgrade (`kind: 'gemstone-upgrade'`) — no
+// the "of Power" family's own Perfect Gemstone rarity upgrade (`kind: 'gemstone-upgrade'`) - no
 // DPS number yet, just the real id/name/target rarity/mpGain. `owned` is the worker's
 // `accessory.owned` array (`[{id, tier, recombobulated}]`) from a Hypixel import.
 export function buildAccessoryCandidates(owned, families) {
@@ -172,7 +172,7 @@ export function buildAccessoryCandidates(owned, families) {
     }
     if (fromId) {
       // A Recombobulator use carries through the family's crafting upgrade, so the higher tier keeps
-      // the bump — the same carry-over rule the gear-slot evaluators use for reforges and gemstones.
+      // the bump - the same carry-over rule the gear-slot evaluators use for reforges and gemstones.
       const resultRarity = fromRecombobulated && canRecombobulate(meta.rarity) ? bumpRarity(meta.rarity) : meta.rarity;
       const mpGain = (MAGICAL_POWER_BY_RARITY[resultRarity] || 0) - currentTierMp;
       if (mpGain > 0) {
@@ -198,10 +198,10 @@ export function buildAccessoryCandidates(owned, families) {
           mpGain,
           kind: 'gemstone-upgrade',
           gemstonesNeeded: gem.gemstonesNeeded,
-          nextRecombobulated: recombobulated, // gemstones don't touch recomb status — preserve it
+          nextRecombobulated: recombobulated, // gemstones don't touch recomb status - preserve it
         });
       }
-      continue; // Recombobulator doesn't apply to these two rarity jumps — real mechanic is gemstones only.
+      continue; // Recombobulator doesn't apply to these two rarity jumps - real mechanic is gemstones only.
     }
     // Recombobulator use is a one-time per-item flag independent of tier: an item's current tier
     // already reflects any past bump, so canRecombobulate(tier) alone can't tell a never-recombed
@@ -244,7 +244,7 @@ function accessoryEvalCacheKey(loadout, build, mode, mob, candidates) {
 }
 
 // Runs every candidate through the damage pipeline, varying Magical Power on top of the current
-// loadout, mode and mob — the same one-change-against-baseline evaluation lib/optimizer.js uses.
+// loadout, mode and mob - the same one-change-against-baseline evaluation lib/optimizer.js uses.
 // Baseline and candidates both auto-spend Tuning Points optimally (lib/tuningOptimizer.js) rather
 // than carrying a manual allocation, so the comparison is like for like: the full optimal tuning is
 // computed once at current MP, then each candidate only needs a cheap top-up over its own extra
@@ -282,7 +282,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   const tunedCritChance = tunedSources.baseStats.crit_chance || 0;
   const hasOverload = (tunedSources.overloadBonusPercent || 0) > 0;
 
-  // How full the Accessory Bag is, and what another slot would cost — null without a Hypixel import,
+  // How full the Accessory Bag is, and what another slot would cost - null without a Hypixel import,
   // which leaves every candidate priced exactly as it was before (lib/accessorySlots.js).
   const slotState = readSlotState(loadout, build.attributes);
 
@@ -298,7 +298,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
     const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints, tunedCritChance, hasOverload, baselineNextStat) : baselineTuning;
     // A new accessory carries its own innate stat line (Shark Tooth Necklace's Strength, Red Claw's
     // Crit Damage) on top of its Magical Power, added onto what the account's other accessories
-    // already contribute — individualAccessoryStats is a running sum across the bag, not per item.
+    // already contribute - individualAccessoryStats is a running sum across the bag, not per item.
     // Recombobulate/Perfect-Gemstone/Accessory-Upgrade candidates upgrade an owned copy whose
     // current-tier stat is already in that sum, and the tier-up's own delta is not modeled.
     const innateStats = candidate.kind === 'missing' ? itemData.accessoryInnateStats?.[candidate.id] : null;
@@ -359,8 +359,8 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   return { baselineValue, currentMp, results };
 }
 
-// For the small deltas a single accessory's MP gain produces (0-2 points typically), `nextStat` —
-// computeOptimalTuning's last-round marginal winner, a byproduct of the baseline search — is reused
+// For the small deltas a single accessory's MP gain produces (0-2 points typically), `nextStat` -
+// computeOptimalTuning's last-round marginal winner, a byproduct of the baseline search - is reused
 // rather than re-testing every stat, since on a smooth multiplicative formula the winner doesn't
 // flip over 1-2 points. A larger jump, or a null `nextStat` when the baseline search never ran,
 // falls back to a one-round re-test across every damage-relevant stat.

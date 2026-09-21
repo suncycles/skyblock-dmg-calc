@@ -56,7 +56,7 @@ export default function SpecialPicker() {
           : config.kind === 'crownOfAvarice'
             ? (() => {
                 const { magicFind, damageMultiplier } = crownOfAvariceStats(config, bonus);
-                return `${bonus} digit${bonus === 1 ? '' : 's'} — +${damageMultiplier}x Damage, +${magicFind} Magic Find vs Mythological mobs`;
+                return `${bonus} digit${bonus === 1 ? '' : 's'} - +${damageMultiplier}x Damage, +${magicFind} Magic Find vs Mythological mobs`;
               })()
             : config.kind === 'flatStrength'
               ? `+${bonus} Strength (max ${config.max})`
@@ -104,7 +104,7 @@ export default function SpecialPicker() {
               ))}
             </select>
             <div className="text-xs text-neutral-600 italic">
-              This item's real rarity upgrades over time (Hunting milestones) rather than from a Recombobulator — pick the tier it's actually at.
+              This item's real rarity upgrades over time (Hunting milestones) rather than from a Recombobulator - pick the tier it's actually at.
             </div>
           </div>
         )}

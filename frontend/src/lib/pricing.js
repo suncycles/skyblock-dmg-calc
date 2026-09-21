@@ -1,7 +1,7 @@
 // Coin cost per Optimizer candidate: a lookup against the Worker-precomputed `itemData.costs` bundle
 // (worker/src/index.js's resolveCosts) rather than a client-side computation. Coin cost is
-// loadout-independent, so the arithmetic — prices times Essence and material sums for Stars and the
-// rest — happens once per refresh cycle server-side, and this module matches a candidate's category
+// loadout-independent, so the arithmetic - prices times Essence and material sums for Stars and the
+// rest - happens once per refresh cycle server-side, and this module matches a candidate's category
 // to the right precomputed key. Returns a number when priceable, or null when no cost source exists;
 // lib/optimizer.js's withCost turns null into the '?' sentinel.
 
@@ -59,7 +59,7 @@ function findStep(apply, type) {
 
 // A few enchants' top level is applied by consuming a single-use item rather than a book, so no
 // ENCHANTMENT_<name>_<level> price exists for Ender Slayer 7, Smite 7, Venomous 7 or Bane of
-// Arthropods 7, despite each being obtainable. Venomous 7 has no NEU-REPO item file either — see
+// Arthropods 7, despite each being obtainable. Venomous 7 has no NEU-REPO item file either - see
 // enchantEffects.js's VENOMOUS_LEVELS.
 const SPECIAL_ENCHANT_LEVEL_ITEMS = {
   ender_slayer: { 7: 'ENDSTONE_IDOL' },
@@ -68,7 +68,7 @@ const SPECIAL_ENCHANT_LEVEL_ITEMS = {
   bane_of_arthropods: { 7: 'ENSNARED_SNAIL' },
 };
 
-// Real coin price for one enchant at one level — the single source of truth both this file's own
+// Real coin price for one enchant at one level - the single source of truth both this file's own
 // Enchant/Ultimate Enchant candidate pricing below and loadoutCost.js's Setup Cost breakdown call
 // through, so the special-item exceptions above only ever need handling in one place.
 export function enchantPrice(itemPrices, id, level) {
@@ -87,7 +87,7 @@ export function prestigeUpgradeCost(fromItemId, toItemId, prestigeCosts) {
   if (!fromItemId || !toItemId || !prestigeCosts) return null;
   let total = 0;
   let id = fromItemId;
-  // VARIANT_TIERS is 5 long, so 4 hops is the real maximum — the bound is a cycle guard, not a rule.
+  // VARIANT_TIERS is 5 long, so 4 hops is the real maximum - the bound is a cycle guard, not a rule.
   for (let hop = 0; hop < 5; hop++) {
     const step = prestigeCosts[id];
     if (!step) return null;
@@ -107,7 +107,7 @@ export function lookupCandidateCost(result, itemData) {
   // coins actually spent into the item, so cost is the item's market price plus that counter, 1 coin
   // counted being 1 coin spent. Checked before the general Weapon/Armor branch below, since these
   // candidates carry those categories too. David's Cloak's `special` is a Strength value and Daedalus
-  // Blade's a Bestiary Tier count — neither is coins, so both stay unpriced rather than misread.
+  // Blade's a Bestiary Tier count - neither is coins, so both stay unpriced rather than misread.
   // Emerald Blade's "Coins in Purse" is a balance check rather than coins spent, so it is excluded.
   const COIN_DENOMINATED_SPECIAL_IDS = new Set(['CROWN_OF_AVARICE', 'MIDAS_SWORD', 'STARRED_MIDAS_SWORD', 'MIDAS_STAFF', 'STARRED_MIDAS_STAFF']);
   if (COIN_DENOMINATED_SPECIAL_IDS.has(result.itemId) && result.special != null) {
@@ -155,8 +155,8 @@ export function lookupCandidateCost(result, itemData) {
     }
     case 'Enchant Set': {
       // The One-For-All-alternative bundle (lib/optimizer.js's evaluateCheapestOneForAllAlternative)
-      // — several applyEnchant steps at once. Unlike Full Set above, an unpriced step here doesn't
-      // make the whole total unknown — the evaluator itself already treats a level with no real
+      // - several applyEnchant steps at once. Unlike Full Set above, an unpriced step here doesn't
+      // make the whole total unknown - the evaluator itself already treats a level with no real
       // market price as free, so the total
       // shown here needs to match that same semantics rather than falling back to '?'.
       const steps = (result.apply || []).filter((s) => s.type === 'applyEnchant');
@@ -170,14 +170,14 @@ export function lookupCandidateCost(result, itemData) {
     }
     case 'Power Stone': {
       const step = findStep(result.apply, 'selectItem');
-      // `item.id` here is the abstract Power's own id (e.g. "STRONG"), not a real catalog item —
+      // `item.id` here is the abstract Power's own id (e.g. "STRONG"), not a real catalog item -
       // evaluatePowerStoneCandidates already stashes the real physical stone's id as `iconId`
       // (for icon rendering), so reuse that for pricing rather than adding a new field. The price
       // feed's entry for that id is a single unit, but unlocking the Power actually takes 9 of it
-      //  — the real cost is 9x the per-unit market price.
+      //  - the real cost is 9x the per-unit market price.
       if (!step) return null;
       // The Powers unlocked by default (lib/accessoryPowers.js's DEFAULT_POWERS) have no source
-      // stone at all — `iconId` is null for exactly those, and free is a real answer, not a
+      // stone at all - `iconId` is null for exactly those, and free is a real answer, not a
       // missing price.
       if (!step.item.iconId) return 0;
       const unitPrice = priceOf(itemPrices, step.item.iconId);
@@ -187,8 +187,8 @@ export function lookupCandidateCost(result, itemData) {
       const step = findStep(result.apply, 'applyReforge');
       if (!step) return null;
       // A reforge either comes from a physical stone you buy, or it's one the Blacksmith just
-      // rolls for you (Hasty, Spicy, Pure, Fierce, ... — all 50 entries in itemData.reforges).
-      // Those have no stone to price, so they cost a real 0 rather than the "unpriced" null —
+      // rolls for you (Hasty, Spicy, Pure, Fierce, ... - all 50 entries in itemData.reforges).
+      // Those have no stone to price, so they cost a real 0 rather than the "unpriced" null -
       // "there is nothing to buy" is an answer, not a missing one.
       // itemData.reforgeStones is the discriminator: in it means a
       // real stone (and every one of those currently has a price), absent means Blacksmith.
@@ -227,7 +227,7 @@ export function lookupCandidateCost(result, itemData) {
     case 'Master Stars': {
       const step = findStep(result.apply, 'setMasterStarCount');
       // Each candidate is a single incremental step (evaluateMasterStarsCandidates always offers
-      // "current + 1"), so its real cost is just that ONE star's own item price — not
+      // "current + 1"), so its real cost is just that ONE star's own item price - not
       // masterStarCost's cumulative 1..count total (the right shape for loadoutCost.js's Setup
       // Cost, "total spent so far", but double-counts already-owned stars here). Bug: a player at
       // Master Star 4 upgrading to 5 was shown the full 1-5 cumulative (~237M) instead of just the
@@ -240,7 +240,7 @@ export function lookupCandidateCost(result, itemData) {
       const gemPrice = priceOf(itemPrices, `${step.tier.toUpperCase()}_${step.gem}_GEM`);
       if (gemPrice == null) return null;
       if (result.gemstoneOpen) return gemPrice;
-      // Slot isn't unlocked yet — a real one-time unlock fee (coins + specific gem items) is
+      // Slot isn't unlocked yet - a real one-time unlock fee (coins + specific gem items) is
       // required before the gem can even be socketed, so it has to be part of a fair cost
       // comparison against an already-open slot. No real cost data for this specific slot (rather
       // than a confirmed-free slot) leaves the whole thing unpriced instead of silently
@@ -248,7 +248,7 @@ export function lookupCandidateCost(result, itemData) {
       // treatment Full Set gives a missing item price.
       return result.gemstoneUnlockCost != null ? gemPrice + result.gemstoneUnlockCost : null;
     }
-    // Time, not coins. A real 0 rather than null, so it reads as free rather than unpriced — see
+    // Time, not coins. A real 0 rather than null, so it reads as free rather than unpriced - see
     // withCost, which only treats a numeric cost as real.
     case 'Skill':
       return 0;
@@ -256,14 +256,14 @@ export function lookupCandidateCost(result, itemData) {
     // purchase, priced as the level-100 Legendary petCosts holds.
     case 'Potion': {
       if (result.potionKind === 'jellyfish') return priceOf(petCosts, 'JELLYFISH');
-      // A Spider Egg is a real purchase, but the feed carries no price for it — unpriced ('?')
+      // A Spider Egg is a real purchase, but the feed carries no price for it - unpriced ('?')
       // rather than 0, since "no price found" and "costs nothing" are different claims.
       if (result.potionKind === 'mixin') return priceOf(itemPrices, 'SPIDER_EGG');
       return 0;
     }
     case 'Essence Perk': {
       // Essence bought at the shop, priced through the same feed as everything else (the Worker
-      // precomputes the cumulative coin ladder — see its computeEssencePerkCosts). The Optimizer
+      // precomputes the cumulative coin ladder - see its computeEssencePerkCosts). The Optimizer
       // only ever offers a jump straight to max, but the account is rarely at level 0, so the
       // charge is the ladder's difference rather than its whole total.
       const ladder = costs.essencePerkCosts?.[result.perkKey];

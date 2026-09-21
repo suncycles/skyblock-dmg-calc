@@ -9,11 +9,11 @@ import PageBackground from './components/PageBackground';
 import TopBar from './components/TopBar';
 import GlobalFooter from './components/GlobalFooter';
 import ErrorBoundary from './components/ErrorBoundary';
-// Landing is the highest-traffic route (every fresh visit hits it) — kept as a normal eager
+// Landing is the highest-traffic route (every fresh visit hits it) - kept as a normal eager
 // import so there's zero Suspense-fallback flash on first load. Every other page is only reached
 // by clicking into it from Landing (or a direct deep link), so Vite code-splits each one into its
 // own chunk fetched on demand instead of bundling all 30+ pages' code into a single JS payload
-// every visitor downloads regardless of which page they actually use — the previous shape was a
+// every visitor downloads regardless of which page they actually use - the previous shape was a
 // single ~520KB bundle with zero splitting.
 import Landing from './pages/Landing';
 const WeaponPicker = lazy(() => import('./pages/WeaponPicker'));
@@ -53,7 +53,7 @@ const Tutorial = lazy(() => import('./pages/Tutorial'));
 const Examples = lazy(() => import('./pages/Examples'));
 const ComingSoon = lazy(() => import('./pages/ComingSoon'));
 
-// Matches LoadoutLoader's own "Loading..." panel style — only visible on a slow connection
+// Matches LoadoutLoader's own "Loading..." panel style - only visible on a slow connection
 // (fast chunk loads resolve before this would ever paint), so it stays a plain, cheap fallback
 // rather than a full skeleton.
 function RouteFallback() {
@@ -72,7 +72,7 @@ export default function App() {
               <TopBar />
               {/* pt-12 matches TopBar's fixed h-12, which reserves no space in normal flow.
                   ErrorBoundary is keyed by pathname so a crash on one page doesn't stay stuck
-                  once the user navigates elsewhere (Back to Home) — a fresh key remounts it. */}
+                  once the user navigates elsewhere (Back to Home) - a fresh key remounts it. */}
               <div className="pt-12">
                 <ErrorBoundary key={location.pathname}>
                   <Suspense fallback={<RouteFallback />}>

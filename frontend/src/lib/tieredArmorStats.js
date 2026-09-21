@@ -1,6 +1,6 @@
-// Gear-Score "tiered stats" mechanic — confirmed real, scoped to
+// Gear-Score "tiered stats" mechanic - confirmed real, scoped to
 // exactly these two dungeon-mob-drop families (Skeleton Master, Zombie Knight). For these items
-// (and only these — most dungeon armor's real per-account scaling gap is a separate, accepted
+// (and only these - most dungeon armor's real per-account scaling gap is a separate, accepted
 // limitation, see lib/hypixelImport.js's resolveGearSummary), the pristine base stat isn't the
 // catalog's bundled NEU-REPO snapshot at all: it's Hypixel's own public per-item `tiered_stats`
 // table (https://api.hypixel.net/v2/resources/skyblock/items, one array of 10 values per stat,
@@ -9,7 +9,7 @@
 // ×1.5). Verified exactly against sammui's real, live-decoded Skeleton Master Chestplate: Health
 // and Defense matched Hypixel's own displayed total to the decimal once this scaled value was fed
 // into the existing hiddenBase/Star pipeline unmodified.
-export const MAX_BASE_STAT_BOOST_PERCENTAGE = 50; // the threshold that also bumps rarity +1 tier — see lib/recombobulator.js's getDisplayTier
+export const MAX_BASE_STAT_BOOST_PERCENTAGE = 50; // the threshold that also bumps rarity +1 tier - see lib/recombobulator.js's getDisplayTier
 
 const HYPIXEL_STAT_KEY_MAP = {
   DEFENSE: 'defense',
@@ -21,7 +21,7 @@ const HYPIXEL_STAT_KEY_MAP = {
   DAMAGE: 'damage',
 };
 
-// Hardcoded rather than fetched — a narrow, real, confirmed exception (this codebase's established
+// Hardcoded rather than fetched - a narrow, real, confirmed exception (this codebase's established
 // convention for these, e.g. starring.js's HIGH_STAR_ITEM_IDS, pricing.js's
 // SPECIAL_ENCHANT_LEVEL_ITEMS), not a general "any item with tiered_stats" rule.
 const TIERED_ARMOR_STAT_TABLES = {
@@ -77,11 +77,11 @@ const TIERED_ARMOR_STAT_TABLES = {
 
 // The real, scaled pristine value for one stat on one of the items above, or null when this
 // item/stat isn't a tiered exception, or the real per-copy itemTier isn't known (manually-built
-// items, or any other real item) — callers fall back to the catalog's own pristine lore value in
+// items, or any other real item) - callers fall back to the catalog's own pristine lore value in
 // that case (see lib/itemStatTotals.js).
 // Real formula against sammui's Skeleton Master Chestplate (CEIL is the
 // piece missing before: tiered_stats.CRITICAL_DAMAGE[9]=45 x 1.5 = 67.5, and the real item shows
-// exactly ceil(67.5)=68 as its pristine — reproducing the real 119.8%/665.57% Crit Damage totals
+// exactly ceil(67.5)=68 as its pristine - reproducing the real 119.8%/665.57% Crit Damage totals
 // exactly through the existing hiddenBase/Star/Catacombs-Boost pipeline unmodified).
 export function computeTieredPristineStat(itemId, statKey, itemTier, baseStatBoostPercentage) {
   const table = TIERED_ARMOR_STAT_TABLES[itemId];
@@ -92,7 +92,7 @@ export function computeTieredPristineStat(itemId, statKey, itemTier, baseStatBoo
   return Math.ceil(tiered * (1 + (baseStatBoostPercentage || 0) / 100));
 }
 
-// Whether an item id is one of the Gear-Score tiered-stat exceptions above — used by
+// Whether an item id is one of the Gear-Score tiered-stat exceptions above - used by
 // lib/hypixelImport.js's resolveDungeonizedFlag: these items are exclusively mob drops from a
 // dungeon Floor with no non-dungeon-obtainable variant (unlike e.g. Bonzo Staff, buyable and
 // optionally converted via a Dungeonizer), so a real copy is always dungeonized even when its

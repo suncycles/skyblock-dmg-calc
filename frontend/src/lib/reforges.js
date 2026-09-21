@@ -4,11 +4,11 @@ import { computeAncientReforgeCritDamage, computeWitheredReforgeStrength } from 
 import { LOVING_REFORGE_NAME } from './abilityDamage';
 import { computeTwoHeadedStrikeAttackSpeed } from './essencePerks';
 
-// §9 (blue) — distinct from Gemstones' pink and Books' green.
+// §9 (blue) - distinct from Gemstones' pink and Books' green.
 export const REFORGE_COLOR = '9';
 
 // The Ancient reforge's real mechanic is +1 Crit Damage per Catacombs level at every
-// rarity — its bundled reforgeStats table is a stale snapshot, so always overridden here.
+// rarity - its bundled reforgeStats table is a stale snapshot, so always overridden here.
 const ANCIENT_REFORGE_NAME = 'Ancient';
 
 // Withered (Wither Blood stone): flat per-rarity Strength (its bundled reforgeStats table is
@@ -19,7 +19,7 @@ const WITHERED_REFORGE_NAME = 'Withered';
 export const FABLED_REFORGE_NAME = 'Fabled';
 export const FABLED_CRIT_BONUS_MAX_PERCENT = 15;
 
-// Fabled's crit-chance bonus makes real output damage a range, not a fixed number — shown as
+// Fabled's crit-chance bonus makes real output damage a range, not a fixed number - shown as
 // an explainer block at the bottom of the tooltip. The item's own "Damage:" line is left
 // untouched; the range itself is computed separately via the multiplicative bucket.
 export function applyFabledToLore(lore, reforgeName) {
@@ -39,7 +39,7 @@ export function applyFabledToLore(lore, reforgeName) {
   return [...lore.slice(0, cut), ...explainer, ...lore.slice(cut)];
 }
 
-// The real stat bonus a given reforge grants on a given item — every name-specific override
+// The real stat bonus a given reforge grants on a given item - every name-specific override
 // (Ancient/Withered/Loving) lives here so both applyReforgeToLore and lib/itemStatTotals.js's
 // hidden-base computation share one answer.
 export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel, essencePerks) {
@@ -47,7 +47,7 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
   const bonus = { ...getReforgeStatBonus(reforge, itemTier) };
 
   // Two-Headed Strike (Dragon essence shop) adds Bonus Attack Speed to the Renowned and Spiked
-  // reforges specifically — folded into the reforge's own stat block rather than added to the
+  // reforges specifically - folded into the reforge's own stat block rather than added to the
   // player afterwards, so it inherits everything a reforge stat already gets downstream.
   // See lib/essencePerks.js.
   const twoHeaded = computeTwoHeadedStrikeAttackSpeed(essencePerks, reforgeName);
@@ -65,7 +65,7 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
   }
 
   // Loving's bundled reforgeStats table lists a flat "+5 Ability Damage" stat, but that's really
-  // a 1.05x Ability Damage multiplier — applied separately via abilityMultiplicative
+  // a 1.05x Ability Damage multiplier - applied separately via abilityMultiplicative
   // (lib/damageSources.js) so it stacks correctly on top of any other real Ability Damage stat
   // instead of just summing with it. Stripped here so it isn't double-counted as a base stat.
   if (reforgeName === LOVING_REFORGE_NAME) delete bonus.ability_damage;
@@ -74,7 +74,7 @@ export function computeReforgeStatBonus(reforgeName, reforge, itemTier, catacomb
 }
 
 // The leading stat number itself is set once, elsewhere, from lib/itemStatTotals.js's computed
-// hidden base (which includes this same reforge bonus) — this function only ever annotates.
+// hidden base (which includes this same reforge bonus) - this function only ever annotates.
 export function applyReforgeToLore(lore, reforgeName, reforge, itemTier, insertBeforeLineIdx, catacombsLevel, essencePerks) {
   if (!reforge) return lore;
   const bonus = computeReforgeStatBonus(reforgeName, reforge, itemTier, catacombsLevel, essencePerks);

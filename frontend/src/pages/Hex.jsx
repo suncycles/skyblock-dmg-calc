@@ -48,7 +48,7 @@ const interactiveIcon = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// One action cell: icon, permanent label, and — when this modifier is actually set — a badge
+// One action cell: icon, permanent label, and - when this modifier is actually set - a badge
 // carrying its VALUE (★5, 3 enchants, the gemstone count), so the cell says what is applied
 // rather than just that something is.
 function IconCell({ icon, iconNode, label, title, enabled, badge, onClick }) {
@@ -83,12 +83,12 @@ export default function Hex() {
   const gearType = item ? getGearType(item.category) : null;
   const slotLabel = slot === 'weapon' ? 'Weapon' : ARMOR_SLOT_LABELS[slot] || EQUIPMENT_SLOT_LABELS[slot] || slot;
   const closeTo = '/';
-  // Same destination Landing's empty slot opens — see the 'change' cell below.
+  // Same destination Landing's empty slot opens - see the 'change' cell below.
   const pickerPath =
     slot === 'weapon' ? '/weapon' : ARMOR_SLOT_LABELS[slot] ? `/armor/${slot}` : `/equipment/${slot}`;
 
   // Per-action enabled/disabled state, the reason when disabled, and the badge showing what's
-  // currently applied — one table for all eight actions.
+  // currently applied - one table for all eight actions.
   function iconConfig(label, currentItem, modifiers) {
     if (!currentItem) return { enabled: false, disabledReason: 'select an item first' };
     switch (label) {
@@ -133,14 +133,14 @@ export default function Hex() {
         return {
           enabled: Boolean(getSpecialConfig(currentItem.id)),
           disabledReason: 'no special ability mechanic for this item',
-          title: "Special — this item's own ability mechanic",
+          title: "Special - this item's own ability mechanic",
           badge: modifiers.special > 0 ? '✓' : null,
           onClick: () => navigate(`/special/${slot}`),
         };
       case 'Item Upgrades':
         return {
           enabled: true,
-          title: 'Item Upgrades — Starring',
+          title: 'Item Upgrades - Starring',
           badge: modifiers.stars > 0 ? `★${modifiers.stars}` : null,
           onClick: () => navigate(`/stars/${slot}`),
         };
@@ -148,14 +148,14 @@ export default function Hex() {
         return {
           enabled: canRecombobulate(modifiers.rarityOverride || reforgeRarityFor(currentItem.id, currentItem.tier)),
           disabledReason: "this item can't be recombobulated",
-          title: 'Recombobulator 3000 — click to toggle',
+          title: 'Recombobulator 3000 - click to toggle',
           badge: modifiers.recombobulated ? '✓' : null,
           onClick: () => toggleRecombobulated(slot),
         };
       case 'Clean':
         return {
           enabled: true,
-          title: 'Clean — remove every modifier from this item',
+          title: 'Clean - remove every modifier from this item',
           onClick: () => cleanModifiers(slot),
         };
       default:
@@ -217,7 +217,7 @@ export default function Hex() {
                     {item ? (
                       <WeaponIcon id={item.id} material={item.material} alt={item.name} className={iconImg} color={item.color} />
                     ) : (
-                      <span title="No item selected — use Close to pick one" className="text-2xl">
+                      <span title="No item selected - use Close to pick one" className="text-2xl">
                         {slot === 'weapon' ? '⚔️' : '🛡️'}
                       </span>
                     )}
@@ -233,7 +233,7 @@ export default function Hex() {
                     key={key}
                     icon={CATEGORY_ICONS[label]}
                     label={label}
-                    title={cfg.enabled ? cfg.title || label : `${label} — ${cfg.disabledReason}`}
+                    title={cfg.enabled ? cfg.title || label : `${label} - ${cfg.disabledReason}`}
                     enabled={cfg.enabled}
                     badge={cfg.badge}
                     onClick={cfg.onClick}
@@ -247,7 +247,7 @@ export default function Hex() {
                 return (
                   <IconCell
                     key={key}
-                    // The equipped item's own icon, dimmed — reads as "this is what's in the slot,
+                    // The equipped item's own icon, dimmed - reads as "this is what's in the slot,
                     // click to swap it" without needing a generic action glyph.
                     iconNode={
                       item ? (
@@ -256,7 +256,7 @@ export default function Hex() {
                     }
                     icon={SLOT_TEXTURES.emptyGemSlot}
                     label="Change"
-                    title={item ? `Change Item — pick a different ${slotLabel}` : `Pick a ${slotLabel}`}
+                    title={item ? `Change Item - pick a different ${slotLabel}` : `Pick a ${slotLabel}`}
                     enabled
                     onClick={() => navigate(pickerPath)}
                   />

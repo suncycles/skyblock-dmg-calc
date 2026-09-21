@@ -25,14 +25,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IMAGES_ROOT = path.join(__dirname, '..', '..', 'frontend', 'public', 'images');
 
 // Every dir whose contents are addressed by lib/icons.js's path builders or its literal
-// SLOT_TEXTURES/CATEGORY_ICONS maps. mob_images is deliberately absent — those are hand-curated
+// SLOT_TEXTURES/CATEGORY_ICONS maps. mob_images is deliberately absent - those are hand-curated
 // animations, already converted, and not produced by this pipeline.
 const ICON_DIRS = ['skyblock', 'vanilla', 'reforgestones', 'gemstones', 'manual', 'ui'];
 
 try {
   execFileSync('cwebp', ['-version'], { stdio: 'ignore' });
 } catch {
-  console.error('cwebp not found — install it with `brew install webp` (or your platform\'s libwebp package).');
+  console.error('cwebp not found - install it with `brew install webp` (or your platform\'s libwebp package).');
   process.exit(1);
 }
 
@@ -63,7 +63,7 @@ for (const dir of ICON_DIRS) {
 }
 
 if (!converted) {
-  console.log('Nothing to convert — every icon is already WebP.');
+  console.log('Nothing to convert - every icon is already WebP.');
 } else {
   const saved = Math.round((1 - afterBytes / beforeBytes) * 100);
   console.log(`\n${converted} icons: ${Math.round(beforeBytes / 1024)}KB -> ${Math.round(afterBytes / 1024)}KB (${saved}% smaller)`);

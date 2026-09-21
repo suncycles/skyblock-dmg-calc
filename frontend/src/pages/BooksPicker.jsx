@@ -145,7 +145,7 @@ export default function BooksPicker() {
             <div
               key={key}
               className={`${navSlot} ${artOfWarApplied ? 'bg-green-400' : ''}`}
-              title="The Art of War — click to toggle"
+              title="The Art of War - click to toggle"
               onClick={handleTapOrActivate('art-of-war', handleArtOfWarHover, () => toggleArtOfWar(slot))}
               onMouseEnter={guardHover(handleArtOfWarHover)}
               onMouseLeave={guardHover(handleArtOfWarLeave)}
@@ -153,7 +153,7 @@ export default function BooksPicker() {
               <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
             </div>
           ) : (
-            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of War — only weapons can use it">
+            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of War - only weapons can use it">
               <img src={ART_OF_WAR_ICON} alt="The Art of War" className={iconImg} />
             </div>
           ),
@@ -164,7 +164,7 @@ export default function BooksPicker() {
             <div
               key={key}
               className={`${navSlot} ${artOfPeaceApplied ? 'bg-green-400' : ''}`}
-              title="The Art of Peace — click to toggle"
+              title="The Art of Peace - click to toggle"
               onClick={handleTapOrActivate('art-of-peace', handleArtOfPeaceHover, () => toggleArtOfPeace(slot))}
               onMouseEnter={guardHover(handleArtOfPeaceHover)}
               onMouseLeave={guardHover(handleArtOfPeaceLeave)}
@@ -172,7 +172,7 @@ export default function BooksPicker() {
               <img src={ART_OF_WAR_ICON} alt="The Art of Peace" className={iconImg} />
             </div>
           ) : (
-            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of Peace — only armor can use it">
+            <div key={key} className={`${slotBase} opacity-40 cursor-not-allowed`} title="The Art of Peace - only armor can use it">
               <img src={ART_OF_WAR_ICON} alt="The Art of Peace" className={iconImg} />
             </div>
           ),

@@ -17,7 +17,7 @@ const navSlot = `${slotBase} cursor-pointer hover:brightness-110`;
 const iconImg = 'w-[70%] h-[70%] object-contain pixelated';
 const slotFillImg = 'w-full h-full object-cover pixelated';
 
-// Shared by /reforges and /reforges/blacksmith — reforge stone items applied directly to the weapon
+// Shared by /reforges and /reforges/blacksmith - reforge stone items applied directly to the weapon
 // vs. the Blacksmith NPC's free anvil rolls, kept as two separate itemData maps. Picking a reforge
 // applies and closes immediately (no further choice like Enchants' level picker).
 export default function ReforgesPicker({ blacksmith }) {
@@ -44,7 +44,7 @@ export default function ReforgesPicker({ blacksmith }) {
   const current = loadout[slot]?.modifiers?.reforge;
 
   // Passing the full `reforge` object (not just its name) lets applyReforge validate real
-  // applicability against each other piece when Edit All is on — see BuildContext.jsx.
+  // applicability against each other piece when Edit All is on - see BuildContext.jsx.
   function handleSelect(reforge) {
     applyReforge(slot, reforge ? reforge.name : null, true, reforge);
     navigate(`/hex/${slot}`);
@@ -84,9 +84,9 @@ export default function ReforgesPicker({ blacksmith }) {
   }
 
   const contextText = !weapon
-    ? `No weapon selected — go back and pick one to see applicable ${noun}.`
+    ? `No weapon selected - go back and pick one to see applicable ${noun}.`
     : applicable.length === 0
-      ? `Reforging: ${weapon.name} — no applicable ${noun} found.`
+      ? `Reforging: ${weapon.name} - no applicable ${noun} found.`
       : `Reforging: ${weapon.name} (${applicable.length} ${noun} available)`;
 
   const cells = [];

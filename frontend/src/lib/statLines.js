@@ -2,7 +2,7 @@ import { STAT_LABELS, formatStatValue } from './reforgeData';
 
 // Appends a "§{color}(+X)" annotation to each lore line whose stat label matches a key in
 // `bonuses` ({statKey: numericValue}), or adds a brand-new "§7Label: §{color}+X" line for any
-// bonus the item's lore doesn't already show. Used by Reforges/Books/Gemstones — purely
+// bonus the item's lore doesn't already show. Used by Reforges/Books/Gemstones - purely
 // informational display; the leading number itself is set once, elsewhere, from
 // lib/itemStatTotals.js's computed hidden base (which already includes this same bonus).
 export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
@@ -41,7 +41,7 @@ export function annotateStatLines(lore, bonuses, color, insertBeforeLineIdx) {
 }
 
 // Same line-matching as annotateStatLines, but rewrites the base number itself in place
-// instead of appending an annotation — for bonuses that read as part of the item's own base
+// instead of appending an annotation - for bonuses that read as part of the item's own base
 // stat. Text already following the number (a "%" suffix, or another modifier's annotation) is preserved.
 export function mergeStatIntoBase(lore, bonuses, insertBeforeLineIdx) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => v);

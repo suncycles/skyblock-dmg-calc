@@ -1,5 +1,5 @@
 /* Gemstone stat-boost table (Rough/Flawed/Fine/Flawless/Perfect tiers x COMMON-MYTHIC item
-   rarity). Only the 6 "combat" gemstones are wired up — the other 6 boost mining/foraging/
+   rarity). Only the 6 "combat" gemstones are wired up - the other 6 boost mining/foraging/
    farming stats this calculator doesn't model. */
 
 export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
@@ -16,7 +16,7 @@ export const TIER_TO_RARITY = {
 };
 
 // `symbol`/`colorCode` are the gem's own slot-type icon/identity color. `valueColor` is the
-// color a stat's value is shown in on a real item tooltip (e.g. Strength = red) — used when
+// color a stat's value is shown in on a real item tooltip (e.g. Strength = red) - used when
 // a gemstone creates a brand-new stat line so it matches how that stat is normally colored.
 export const GEMSTONES = {
   RUBY: {
@@ -113,7 +113,7 @@ export const GEMSTONES = {
 
 export const GEMSTONE_IDS = Object.keys(GEMSTONES);
 
-// Item rarities beyond MYTHIC aren't in RARITY_ORDER — clamped to the last column.
+// Item rarities beyond MYTHIC aren't in RARITY_ORDER - clamped to the last column.
 export function getGemstoneBoost(gemId, tier, itemRarity) {
   const gem = GEMSTONES[gemId];
   if (!gem) return 0;

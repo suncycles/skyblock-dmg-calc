@@ -1,12 +1,12 @@
 import { reforgeRarityFor } from './dungeonHeads';
 /* Reforge stat tables come from NEU-REPO's constants/reforges.json (the ~50 "free" reforges
    the blacksmith can roll) and constants/reforgestones.json (the ~81 that need a specific
-   reforge-stone item) — worker/src/index.js keeps these as two separate
+   reforge-stone item) - worker/src/index.js keeps these as two separate
    {[reforgeName]: {itemTypes, requiredRarities, reforgeStats}} maps, matching the real game's
    UI split.
 
    itemTypes is usually a plain string, but the two sources spell the same weapon type
-   differently (reforges.json's "SWORD/ROD" vs reforgestones.json's "SWORD") —
+   differently (reforges.json's "SWORD/ROD" vs reforgestones.json's "SWORD") -
    getApplicableReforges checks every spelling. A few item-exclusive reforges use
    {internalName: [...ids]} or {itemId: [...]} instead, matched against item.id directly
    rather than item.material (material is just this project's icon-fallback field, shared by
@@ -54,7 +54,7 @@ export const STAT_LABELS = {
   ferocity: { label: 'Ferocity', color: 'c', isPercent: false },
   magic_find: { label: 'Magic Find', color: 'a', isPercent: false },
   speed: { label: 'Speed', color: 'f', isPercent: false },
-  // Real item lore prefixes this line "Bonus Attack Speed:" (not just "Attack Speed") — matters
+  // Real item lore prefixes this line "Bonus Attack Speed:" (not just "Attack Speed") - matters
   // for every exact `^label:` lore-line match against real tooltip text (see
   // lib/itemStatTotals.js's normalizeAttackSpeedLabel). The 'Bonus Attack Speed' -> 'Attack Speed'
   // alias in lib/damageSymbols.js still highlights it correctly wherever it's displayed.
@@ -76,14 +76,14 @@ export function formatStatValue(statKey, value) {
 }
 
 // Whether one specific reforge (an {itemTypes, requiredRarities, ...} entry from the reforges/
-// reforgeStones tables) is real-game-applicable to a given item — matching itemTypes and
+// reforgeStones tables) is real-game-applicable to a given item - matching itemTypes and
 // requiring a rarity the item actually has. Factored out of getApplicableReforges below so
 // BuildContext.jsx's Edit All broadcast (updateSlotModifiers) can run the same real check against
-// each OTHER equipped piece before copying a reforge onto it — without this, Edit All could apply
+// each OTHER equipped piece before copying a reforge onto it - without this, Edit All could apply
 // e.g. a Chestplate-exclusive reforge onto boots, or a Legendary-only reforge onto an Epic piece.
 export function isReforgeApplicable(reforge, item) {
   if (!reforge || !item) return false;
-  // Gemstone Gauntlet is a one-off — its real category is GAUNTLET (a mining tool, see
+  // Gemstone Gauntlet is a one-off - its real category is GAUNTLET (a mining tool, see
   // build-item-data.mjs), but it reforges off the same table as swords in-game. Matched by id
   // rather than folded into CATEGORY_TO_REFORGE_TYPES, since there's no general "Gauntlet" rule.
   const categoryTypes =

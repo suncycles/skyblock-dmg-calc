@@ -1,10 +1,10 @@
 // Accessory Bag slots. One thing reads this: the Optimizer's accessory recommendations. A brand-new
 // accessory needs a free slot, and a bag with none makes that "cheap" accessory cost whatever the
-// next slot costs — which is why a 50k accessory can be a worse buy than it looks.
+// next slot costs - which is why a 50k accessory can be a worse buy than it looks.
 //
 // Slot sources, and what each costs:
 //   - 9 base slots, free, everyone has them.
-//   - Redstone Dust collection, 6 slots per tier to 48. No coins, so never offered as a purchase —
+//   - Redstone Dust collection, 6 slots per tier to 48. No coins, so never offered as a purchase -
 //     but the player's REAL collection decides how many of those slots they already have.
 //   - Redstone Miner (+4) and the Community Center account upgrades (+12): no coins, and the
 //     Hypixel API exposes neither, so they're counted as already owned.
@@ -23,7 +23,7 @@ export function redstoneCollectionSlots(collection) {
   return REDSTONE_COLLECTION_TIERS.filter((tier) => (collection || 0) >= tier).length * SLOTS_PER_REDSTONE_TIER;
 }
 
-// Redstone Miner + Community Center. Free, unreadable, assumed owned — see the header.
+// Redstone Miner + Community Center. Free, unreadable, assumed owned - see the header.
 export const ASSUMED_FREE_SLOTS = 16;
 
 export const JACOBUS_SLOTS_PER_PURCHASE = 2;
@@ -52,7 +52,7 @@ export const ACCESSORY_SIZE_SLOTS_PER_LEVEL = 1;
 export function readSlotState(loadout, attributes) {
   const modifiers = loadout?.accessory?.modifiers;
   const owned = modifiers?.ownedAccessories;
-  // No import on file — the bag's real contents are unknown, so slots stay out of the pricing.
+  // No import on file - the bag's real contents are unknown, so slots stay out of the pricing.
   if (!owned) return null;
   // An import predating the Worker's bag fields (or made against a Worker that doesn't send them
   // yet) carries neither: absent is NOT zero. Treating it as zero would compute a 35-slot bag for a
@@ -71,7 +71,7 @@ export function readSlotState(loadout, attributes) {
 }
 
 // The cheapest slot money can buy right now, as coins-per-slot. Accessory Size is ~1.3M/slot against
-// Jacobus's 10M at his top band, so it wins until it's maxed — which is the "cheaper slots first"
+// Jacobus's 10M at his top band, so it wins until it's maxed - which is the "cheaper slots first"
 // rule this exists for. Returns null once both are exhausted (a 281-slot bag).
 // A Jacobus purchase buys TWO slots, so its per-slot price is halved rather than charging the
 // first accessory for both. The second slot then reads as free, which it effectively is.
@@ -96,7 +96,7 @@ export function nextSlotPurchase(slotState, itemData) {
 
 // What one more accessory really costs in bag space: nothing while slots are free, otherwise the
 // cheapest slot on the market. `null` coins = a real slot is needed but nothing prices it (no
-// import, or every source maxed) — the caller leaves its own cost unchanged rather than guessing.
+// import, or every source maxed) - the caller leaves its own cost unchanged rather than guessing.
 export function slotCostForNewAccessory(slotState, itemData) {
   if (!slotState) return { coins: 0, free: true, note: null };
   if (slotState.free > 0) {
@@ -107,6 +107,6 @@ export function slotCostForNewAccessory(slotState, itemData) {
   return {
     coins: Math.round(purchase.coinsPerSlot),
     free: false,
-    note: `Bag full (${slotState.used}/${slotState.total}) — includes a slot from ${purchase.source}`,
+    note: `Bag full (${slotState.used}/${slotState.total}) - includes a slot from ${purchase.source}`,
   };
 }

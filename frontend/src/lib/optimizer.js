@@ -6,8 +6,8 @@
 // - Curated progressions (weapons, armor, equipment, pets): hand-authored worst-to-best tiers per
 //   mode. Every tier from the current one onward is evaluated. Kuudra-family armor never skips a
 //   power tier and only unlocks the next once the current piece is fully starred (see
-//   evaluateItemSlotCandidates' maxIndexOverride). A slot may have several independent chains —
-//   weapons per Slayer type, the two Mage helmet lines — see resolveChainsToWalk.
+//   evaluateItemSlotCandidates' maxIndexOverride). A slot may have several independent chains -
+//   weapons per Slayer type, the two Mage helmet lines - see resolveChainsToWalk.
 // - Brute force over enumerable catalogs: enchant levels, ultimate enchants, Power Stones, Stars,
 //   Pet Items, weapon/equipment Reforges, and Gemstones.
 
@@ -128,7 +128,7 @@ export function saveOptimizerModeOverride(mode) {
   try {
     localStorage.setItem(OPTIMIZER_MODE_OVERRIDE_KEY, mode);
   } catch {
-    // Storage blocked — the pick still holds for this visit.
+    // Storage blocked - the pick still holds for this visit.
   }
 }
 
@@ -145,13 +145,13 @@ const MODE_CONFIG = {
   dungeon_mage_ability: { useDungeonizedStats: true, metric: 'ability' },
   // One mode per Catacombs class, each a clone of dungeon_archer for now. Their weapon chains are
   // still dungeon_archer's bow-only list, so a Berserker is offered bows until a melee chain
-  // replaces it — the class STATS are unaffected, this only shapes the upgrade candidates.
+  // replaces it - the class STATS are unaffected, this only shapes the upgrade candidates.
   dungeon_berserk: { useDungeonizedStats: true, metric: 'dps' },
   dungeon_healer_tank: { useDungeonizedStats: true, metric: 'dps' },
 };
 
 // Samples spent on one candidate's fight. The fight average only needs the shape of the HP curve,
-// not every hit on it, and this runs per candidate — walking a long fight in full costs 10-40x
+// not every hit on it, and this runs per candidate - walking a long fight in full costs 10-40x
 // more for a number that lands in the same place.
 const OPTIMIZER_FIGHT_SAMPLES = 40;
 
@@ -267,7 +267,7 @@ const SLAYER_PET_PROGRESSION = [
   ],
 ];
 
-// Diana: Griffin only — its Sacred Strength scales Strength with pet level.
+// Diana: Griffin only - its Sacred Strength scales Strength with pet level.
 const DIANA_PET_PROGRESSION = [[{ petId: 'GRIFFIN' }]];
 
 // Slayer weapon rewards: one worst-to-best chain per Slayer type, independent of the others.
@@ -290,7 +290,7 @@ const SLAYER_WEAPON_PROGRESSION = {
 // Diana armor and equipment: Slayer's chains with Challenger's/Mythos gear appended per slot.
 // Mythos' Might doubles a piece's stats against Mythological targets (armorSetBonuses.js's
 // MYTHOLOGICAL_STAT_DOUBLE_IDS). Appended to every family chain rather than standing alone, so an
-// already-owned Kuudra piece reaches it — resolveChainsToWalk only walks matching chains.
+// already-owned Kuudra piece reaches it - resolveChainsToWalk only walks matching chains.
 function appendTierToEachChain(chainsByFamily, tier) {
   return Object.fromEntries(Object.entries(chainsByFamily).map(([family, chain]) => [family, [...chain, tier]]));
 }
@@ -471,7 +471,7 @@ const MAGE_BEAM_ARMOR_PROGRESSION = {
 };
 
 // Balloon Snake and Rift Necklace are real sidegrades despite the rarity gap (RARE vs LEGENDARY)
-// — both always compared, not a strict tier order. Only necklace/belt have
+// - both always compared, not a strict tier order. Only necklace/belt have
 // curated Mage picks; cloak/gloves fall through to the brute-forced categories, same as any
 // other uncurated slot.
 const MAGE_EQUIPMENT_PROGRESSION = {
@@ -489,7 +489,7 @@ const MAGE_EQUIPMENT_PROGRESSION = {
 // Gloves and Balloon Snake have no Starred form, which is why only the other three gain a tier.
 //
 // Bone Necklace stays on the list for every dungeon mode even though its base block offers only
-// Crit Chance and so reads weak next to the rest — it is still the pick.
+// Crit Chance and so reads weak next to the rest - it is still the pick.
 const DUNGEON_EQUIPMENT_PROGRESSION = {
   necklace: [[{ id: 'BONE_NECKLACE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
   cloak: [[{ id: 'SHADOW_ASSASSIN_CLOAK' }], [{ id: 'STARRED_SHADOW_ASSASSIN_CLOAK' }]],
@@ -498,13 +498,13 @@ const DUNGEON_EQUIPMENT_PROGRESSION = {
 };
 
 // Balloon Snake is a mage-only sidegrade of the base necklace tier (RARE against Bone Necklace's
-// EPIC — already confirmed a real sidegrade despite the rarity gap).
+// EPIC - already confirmed a real sidegrade despite the rarity gap).
 const MAGE_BEAM_EQUIPMENT_PROGRESSION = {
   ...DUNGEON_EQUIPMENT_PROGRESSION,
   necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
 };
 
-// Mage Ability adds the Implosion Belt, whose 1.25x is Ability Damage only (see abilityDamage.js) —
+// Mage Ability adds the Implosion Belt, whose 1.25x is Ability Damage only (see abilityDamage.js) -
 // which is exactly why it belongs here and in no other mode. Offered alongside Adaptive Belt rather
 // than above it: they are different builds, not a progression.
 const MAGE_ABILITY_EQUIPMENT_PROGRESSION = {
@@ -512,14 +512,14 @@ const MAGE_ABILITY_EQUIPMENT_PROGRESSION = {
   belt: [[{ id: 'ADAPTIVE_BELT' }, { id: 'IMPLOSION_BELT' }], [{ id: 'STARRED_ADAPTIVE_BELT' }]],
 };
 
-// No clear universal best (situational, like Slayer's pet list) — all 4 real ids sit in one flat
+// No clear universal best (situational, like Slayer's pet list) - all 4 real ids sit in one flat
 // tier, always compared against each other.
 const MAGE_PET_PROGRESSION = [[{ petId: 'GUARDIAN' }, { petId: 'CROW' }, { petId: 'SHEEP' }, { petId: 'GOLDEN_DRAGON' }]];
 
-// Pet Items (Textbook, Minos Relic, Hephaestus Relic — the Mage-relevant ones) get no
+// Pet Items (Textbook, Minos Relic, Hephaestus Relic - the Mage-relevant ones) get no
 // curated list here: evaluatePetItemCandidates already brute-forces every real pet item
 // regardless of mode (see this file's header comment), so a hand-authored allowlist would only
-// ever narrow that, not improve it — the optimizer already surfaces whichever of these (or
+// ever narrow that, not improve it - the optimizer already surfaces whichever of these (or
 // anything else) is genuinely best for the equipped pet.
 
 const ARMOR_PROGRESSION_BY_MODE = {
@@ -600,17 +600,17 @@ function withCost(result, itemData) {
   };
 }
 
-// Drops a candidate when another priced option in the same group — a higher or lower tier of the
+// Drops a candidate when another priced option in the same group - a higher or lower tier of the
 // SAME option (the same gem in the same socket, the same enchant on the same item, the same
-// attribute; see dominanceGroupKey) — costs no more, gains no less, and is strictly better on one
+// attribute; see dominanceGroupKey) - costs no more, gains no less, and is strictly better on one
 // axis. Unpriced ('?') candidates never dominate and are never dropped. groupKeyFn is required:
 // there is no default group, so a slot's alternatives are never pruned against each other.
 function dropDominated(results, groupKeyFn) {
   const byGroup = new Map();
   for (const r of results) {
-    if (typeof r.cost !== 'number') continue; // unpriced — can't dominate, can't be judged dominated
+    if (typeof r.cost !== 'number') continue; // unpriced - can't dominate, can't be judged dominated
     const key = groupKeyFn(r);
-    if (key == null) continue; // not a recognized mutually-exclusive group — leave alone
+    if (key == null) continue; // not a recognized mutually-exclusive group - leave alone
     if (!byGroup.has(key)) byGroup.set(key, []);
     byGroup.get(key).push(r);
   }
@@ -666,7 +666,7 @@ function findStep(apply, type) {
   return (apply || []).find((s) => s.type === type);
 }
 
-// Whether the equipped item is already at this tier — its own id, or one of the equivalent lines a
+// Whether the equipped item is already at this tier - its own id, or one of the equivalent lines a
 // tier declares via `alsoAtThisTier`. Separate from evaluateTieredProgression's `isCurrent`, which
 // stays id-based so an equivalent-but-different item is still offered the swap.
 function candidateCoversId(candidate, currentId) {
@@ -854,7 +854,7 @@ function withRealisticInfernalStacks(build, baselinePieces, candidateLoadout) {
 }
 
 // Gemstones carry over like reforge and recomb, but a candidate can have fewer sockets than the
-// item it replaces, so carried gems are capped at the candidate's real slot count — otherwise the
+// item it replaces, so carried gems are capped at the candidate's real slot count - otherwise the
 // ranking counts a gem the candidate cannot hold.
 function clipGemstonesToSlots(gemstones, resolved) {
   const slotCount = resolved?.gemstone_slots?.length || 0;
@@ -868,7 +868,7 @@ function withDungeonizedIfRelevant(modifiers, modeConfig) {
   return modifiers;
 }
 
-// What of the equipped item's reforge and ultimate enchant the candidate can actually hold —
+// What of the equipped item's reforge and ultimate enchant the candidate can actually hold -
 // selectItem drops both on a cross-family swap (Sword/Bow/Wand) or an item-exclusive reforge. The
 // value and the apply steps both read this, so they cannot diverge. An unrecognised reforge name
 // carries over unchanged.
@@ -899,7 +899,7 @@ export function carriedHexEnchantments(currentModifiers, item, itemData) {
   return applied.filter((entry) => entry?.id && allowed.has(entry.id.toLowerCase()));
 }
 
-// applyOptimizerResult replays these against BuildContext, whose selectItem resets the slot — so
+// applyOptimizerResult replays these against BuildContext, whose selectItem resets the slot - so
 // every carried modifier needs its own step or it is lost on the swap-in.
 function applyEnchantSteps(slot, enchantments) {
   return enchantments.map((entry) => ({
@@ -943,10 +943,10 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
       }
       const evaluateCandidate = async (candidate) => {
         // Frozen Blaze (Dungeon/Archer) is only a real sidegrade while a Blaze pet is equipped
-        //  — any candidate can carry this gate, not just Frozen Blaze.
+        //  - any candidate can carry this gate, not just Frozen Blaze.
         if (candidate.requiresPetId && loadout.pet?.item?.petId !== candidate.requiresPetId) return null;
         const resolved = resolveGearSummary({ id: candidate.id }, itemData);
-        if (!resolved) return null; // catalog lookup failed — skip rather than guess
+        if (!resolved) return null; // catalog lookup failed - skip rather than guess
         const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
         if (candidate.special != null) modifiers.special = candidate.special;
         if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
@@ -957,9 +957,9 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         const carriedHex = carriedHexEnchantments(currentModifiers, resolved, itemData);
         if (carriedHex.length) modifiers.hexEnchantments = carriedHex;
         // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
-        // first written — a candidate with real gemstones stripped off looked artificially worse
+        // first written - a candidate with real gemstones stripped off looked artificially worse
         // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
-        // value" bug stars had. Carried over, same as reforge/stars —
+        // value" bug stars had. Carried over, same as reforge/stars -
         // but clipped to the candidate's own real slot count (see clipGemstonesToSlots) rather
         // than blind, since a socket-count mismatch between old and new item can otherwise
         // overstate a candidate's value enough to flip a real downgrade into an apparent upgrade.
@@ -999,7 +999,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         apply.push(...applyEnchantSteps(slot, carriedHex));
         // A Kuudra tier-up is a craft that consumes the worn piece, so it is priced from its recipe
         // (Essence + Kuudra Teeth + coin fee) rather than the new tier's auction price. Which piece is
-        // consumed is stashed for lib/pricing.js to price. Same-family swaps only — leaving the family
+        // consumed is stashed for lib/pricing.js to price. Same-family swaps only - leaving the family
         // consumes nothing and is a plain purchase.
         const replaces =
           currentKuudraFamily && resolved.id !== currentId && resolved.id.includes(currentKuudraFamily)
@@ -1101,7 +1101,7 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
   for (const set of FULL_SET_CANDIDATES) {
     if (set.dianaOnly && mode !== 'diana') continue;
     if (set.slayerOnly && mode !== 'slayer') continue;
-    if (hasFullSet(loadout, set.slots, set.setIds)) continue; // already wearing it — nothing to suggest
+    if (hasFullSet(loadout, set.slots, set.setIds)) continue; // already wearing it - nothing to suggest
     const candidateLoadout = { ...loadout };
     const apply = [];
     let allResolved = true;
@@ -1145,7 +1145,7 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       }
       apply.push(...applyEnchantSteps(slot, carriedHex));
     }
-    if (!allResolved) continue; // catalog lookup failed — skip rather than guess
+    if (!allResolved) continue; // catalog lookup failed - skip rather than guess
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({ category: set.category, slot: set.slots.join('/'), label: set.label, value, apply });
   }
@@ -1172,7 +1172,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
     const currentIndex = findTierIndex(progression, (c) => c.id === currentId);
     const evaluated = await evaluateTieredProgression(progression, currentIndex, (c) => c.id === currentId, baselineValue, async (candidate) => {
       const resolved = resolveGearSummary({ id: candidate.id }, itemData);
-      if (!resolved) return null; // catalog lookup failed — skip rather than guess
+      if (!resolved) return null; // catalog lookup failed - skip rather than guess
       // Carries over the current weapon's reforge and ultimate enchant, as evaluateItemSlotCandidates
       // does. `forcedReforge` (Midas Sword's Gilded) replaces that carry-over with the item-exclusive
       // reforge. `special` gives the candidate its own best-case value (Midas Sword's Price Paid cap);
@@ -1251,7 +1251,7 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
   const currentIndex = findTierIndex(progression, (c) => c.petId === currentPetId);
   return evaluateTieredProgression(progression, currentIndex, (c) => c.petId === currentPetId, baselineValue, async (candidate) => {
     const petCatalog = itemData.pets?.[candidate.petId];
-    if (!petCatalog) return null; // catalog lookup failed — skip rather than guess
+    if (!petCatalog) return null; // catalog lookup failed - skip rather than guess
     const tiers = Object.keys(petCatalog);
     const tier = tiers.includes('LEGENDARY') ? 'LEGENDARY' : tiers[tiers.length - 1];
     const petItem = { id: `${candidate.petId}_${tier}`, petId: candidate.petId, name: derivePetDisplayName(candidate.petId), tier, material: 'BONE' };
@@ -1298,7 +1298,7 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
 }
 
 // The second Golden Dragon row: the same pet with bank balance and Gold collection maxed, offered in
-// every mode. Deliberately unpriced — banking a billion coins isn't a purchase.
+// every mode. Deliberately unpriced - banking a billion coins isn't a purchase.
 async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeConfig, mob, baselineValue) {
   const petCatalog = itemData.pets?.GOLDEN_DRAGON;
   if (!petCatalog) return [];
@@ -1369,7 +1369,7 @@ async function evaluateEnchantCandidates(loadout, itemData, build, modeConfig, m
 }
 
 // Recommends a type-bane enchant (Smite/Ender Slayer/Bane of Arthropods/Smoldering/Cubism/Impaling/
-// Arcane — mobTypes.js's ENCHANT_ID_MOB_TYPES) that isn't equipped and whose mob-type condition
+// Arcane - mobTypes.js's ENCHANT_ID_MOB_TYPES) that isn't equipped and whose mob-type condition
 // matches the target. Separate from evaluateMissingEnchantCandidates below because only the one bane
 // relevant to the target is offered. Recommended at the enchant's own max level.
 async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
@@ -1465,7 +1465,7 @@ async function evaluateMissingEnchantCandidates(loadout, itemData, build, modeCo
 //  1. Rank every priced enchant applicable to this weapon (hex enchants + non-OFA ultimates) by
 //     standalone %DPS per coin from a bare baseline. The ordering is a heuristic, not load-bearing.
 //  2. Add them most-efficient-first, resolving each addition's "Conflicts:" lore against what is
-//     already picked and re-measuring the cumulative total against the pipeline after each addition —
+//     already picked and re-measuring the cumulative total against the pipeline after each addition -
 //     never assumed additive, since some enchants land in a multiplicative bucket.
 //  3. Stop as soon as the total crosses One For All's value, keeping the cheapest crossing found.
 // Approximate rather than provably cheapest. Runs only when One For All is the weapon's current
@@ -1484,7 +1484,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
   const bareValue = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: bareModifiers } }, itemData, build, modeConfig, mob);
 
   // Applies one pick (id + level, hex or ultimate) to `modifiers`, resolving "Conflicts:" lore and
-  // stripping any existing entry for the same id — a paid level replaces that id's free pick rather
+  // stripping any existing entry for the same id - a paid level replaces that id's free pick rather
   // than stacking with it.
   function applyPick(modifiers, pick) {
     const removeIds = computeConflictingEntries(pick.id, pick.lore, modifiers).map((e) => e.id);
@@ -1500,7 +1500,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
   }
 
   // Phase 1: every level of every id, tested once against the bare baseline rather than max level
-  // only — a top level can cost far more for barely more damage.
+  // only - a top level can cost far more for barely more damage.
   const perIdLevels = new Map();
   for (const id of allIds) {
     if (id.toLowerCase() === 'ultimate_one_for_all') continue;
@@ -1536,7 +1536,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
   }
 
   // Phase 2: each id's free tier is taken unconditionally when it adds value, before the paid ranking
-  // — otherwise a free level's unbounded efficiency crowds out the paid levels that carry the real
+  // - otherwise a free level's unbounded efficiency crowds out the paid levels that carry the real
   // gains.
   let currentModifiers = bareModifiers;
   let currentValue = bareValue;
@@ -1599,7 +1599,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
     }
   }
 
-  if (currentValue <= baselineValue) return []; // exhausted every real candidate — nothing beats it here
+  if (currentValue <= baselineValue) return []; // exhausted every real candidate - nothing beats it here
 
   // Rebuilt from the final winning state rather than the walk's history, so a pick later removed by
   // a conflict leaves no stale entry. Only the first step clears One For All; the final picks are
@@ -1628,7 +1628,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
 
 // Brute-forces every ultimate enchant applicable to the weapon's category, at its max level, as an
 // alternative to the equipped one. Removes whatever computeConflictingEntries says the item would
-// lose — most importantly One For All's "removes every other enchant" rule, which both the damage
+// lose - most importantly One For All's "removes every other enchant" rule, which both the damage
 // number and the swap-in action's removeIds depend on.
 async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const weapon = loadout.weapon;
@@ -1770,7 +1770,7 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
       results.push({
         category: 'Stars',
         slot,
-        label: `${formatItemName(equipped.item.name)} — ${stars}✩`,
+        label: `${formatItemName(equipped.item.name)} - ${stars}✩`,
         // Per-item id, so lib/pricing.js can look up the cumulative star cost without the loadout.
         itemId: equipped.item.id,
         value,
@@ -1785,7 +1785,7 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
 // capped at 5, offered one at a time.
 // They only pay out while Master Mode is on (lib/finalDamage.js's selectBaseStats), so candidates
 // are valued with Master Mode forced on and measured against runOptimizer's matching
-// `masterModeBaselineValue` — a non-Master baseline would credit one star with the whole mode's boost.
+// `masterModeBaselineValue` - a non-Master baseline would credit one star with the whole mode's boost.
 async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob) {
   if (!modeConfig.useDungeonizedStats) return [];
   const masterConfig = { ...modeConfig, useMasterMode: true };
@@ -1796,7 +1796,7 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
   for (const slot of ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOTS]) {
     const equipped = loadout[slot];
     if (!equipped?.item || !isStarrableItem(equipped.item)) continue;
-    // Master Stars exist only on a dungeonized copy — lib/itemStatTotals.js computes a masterStarred
+    // Master Stars exist only on a dungeonized copy - lib/itemStatTotals.js computes a masterStarred
     // total only when the item's dungeonized flag is set.
     if (!equipped.modifiers.dungeonized) continue;
     if ((equipped.modifiers.stars || 0) < MASTER_STAR_MIN_BASE_STARS) continue;
@@ -1808,7 +1808,7 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
     results.push({
       category: 'Master Stars',
       slot,
-      label: `${formatItemName(equipped.item.name)} — Master Star ${masterStars}`,
+      label: `${formatItemName(equipped.item.name)} - Master Star ${masterStars}`,
       itemId: equipped.item.id,
       value,
       apply: [{ type: 'setMasterStarCount', slot, count: masterStars }],
@@ -1818,7 +1818,7 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
 }
 
 // Pet Items: brute-forced against the full catalog (worker/src/data/petItems.json). No relevance
-// allowlist is needed — lib/petItemEffects.js's parsePetItemStatBoost reads combat-stat boosts from
+// allowlist is needed - lib/petItemEffects.js's parsePetItemStatBoost reads combat-stat boosts from
 // lore, so an XP or cosmetic item computes no increase and is filtered out below.
 async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, mob) {
   const pet = loadout.pet;
@@ -1832,7 +1832,7 @@ async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, m
     results.push({
       category: 'Pet Item',
       slot: 'pet',
-      label: `${derivePetDisplayName(pet.item.petId)} — ${formatItemName(petItem.name)}`,
+      label: `${derivePetDisplayName(pet.item.petId)} - ${formatItemName(petItem.name)}`,
       itemId: petItem.id,
       material: petItem.material,
       value,
@@ -1851,7 +1851,7 @@ const ARMOR_REFORGE_PROGRESSION = [
 ];
 
 // A reforge changes the equipped item rather than swapping it, so results go to `otherResults`
-// rather than the per-slot gear picker — same as Stars below.
+// rather than the per-slot gear picker - same as Stars below.
 async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
   const results = [];
   for (const slot of ARMOR_SLOTS) {
@@ -1870,7 +1870,7 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
         return {
           category: 'Reforge',
           slot,
-          label: `${formatItemName(equipped.item.name)} — ${candidate.name}`,
+          label: `${formatItemName(equipped.item.name)} - ${candidate.name}`,
           value,
           apply: [{ type: 'applyReforge', slot, name: candidate.name }],
         };
@@ -1903,7 +1903,7 @@ function hasFabledReforgeEquipped(loadout) {
   return ['weapon', ...EQUIPMENT_SLOTS].some((slot) => loadout[slot]?.modifiers?.reforge === FABLED_REFORGE_NAME);
 }
 
-// Dungeon/Archer narrows equipment reforges to these 4 for speed — ~130 reforges across 4 slots on
+// Dungeon/Archer narrows equipment reforges to these 4 for speed - ~130 reforges across 4 slots on
 // top of its 26-bow weapon pool is slow. The weapon slot stays fully brute-forced.
 const DUNGEON_ARCHER_EQUIPMENT_REFORGE_NAMES = new Set(['Blended', 'Waxed', 'Menacing', 'Strengthened']);
 
@@ -1928,7 +1928,7 @@ async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, bu
       results.push({
         category: 'Reforge',
         slot,
-        label: `${formatItemName(equipped.item.name)} — ${reforge.name}`,
+        label: `${formatItemName(equipped.item.name)} - ${reforge.name}`,
         value,
         apply: [{ type: 'applyReforge', slot, name: reforge.name }],
       });
@@ -1961,7 +1961,7 @@ const GEMSTONE_TIERS_FINE_UP = GEMSTONE_TIERS.slice(GEMSTONE_TIERS.indexOf('fine
 // Gemstones: brute-forced per socket across armor and the weapon, over the gems and tiers relevant
 // to the mode, narrowed again to what each socket's own slot type accepts (lib/gemstones.js's
 // getAllowedGemsForSlotType). A socketed slot skips its own current (gem, tier), and is unlocked by
-// construction. Equipment is excluded — 1 of 143 equipment items has a socket at all.
+// construction. Equipment is excluded - 1 of 143 equipment items has a socket at all.
 //
 // A locked slot also needs its one-time unlock price (coins + specific gem items) on top of the
 // gem's market price, stashed as `gemstoneOpen`/`gemstoneUnlockCost` for lib/pricing.js, since only
@@ -1997,7 +1997,7 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
           results.push({
             category: 'Gemstone',
             slot,
-            label: `${formatItemName(equipped.item.name)} — Slot ${index + 1}: ${GEMSTONE_TIER_LABELS[tier]} ${GEMSTONES[gem].label}`,
+            label: `${formatItemName(equipped.item.name)} - Slot ${index + 1}: ${GEMSTONE_TIER_LABELS[tier]} ${GEMSTONES[gem].label}`,
             gem,
             tier,
             value,
@@ -2062,12 +2062,12 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
 }
 
 // The potion rows. Inside a dungeon this is the Dungeon Potion, outside it the God Potion
-// (lib/godPotion.js) — never both, so the branches are exclusive.
+// (lib/godPotion.js) - never both, so the branches are exclusive.
 //
 // Drinking is free either way, so it ranks with the Skill levels rather than on coins-per-percent,
 // and the row is worth whatever the account can reach (Jellyfish VII for a Jellyfish owner).
 //
-// The two upgrade rows — the Jellyfish pet and the Spider Egg mixin — are measured potion-on in both
+// The two upgrade rows - the Jellyfish pet and the Spider Egg mixin - are measured potion-on in both
 // directions; against a potion-off baseline either would be credited with the whole potion.
 async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
   const results = [];
@@ -2156,13 +2156,13 @@ const SKILL_LEVEL_CANDIDATES = [
   { key: 'tamingLevel', name: 'Taming', max: MAX_TAMING_LEVEL },
   { key: 'alchemyLevel', name: 'Alchemy', max: MAX_ALCHEMY_LEVEL },
   { key: 'enchantingLevel', name: 'Enchanting', max: MAX_ENCHANTING_LEVEL },
-  // Only moves damage with an Ankylosaurus equipped (it feeds Defense, which only that pet reads —
+  // Only moves damage with an Ankylosaurus equipped (it feeds Defense, which only that pet reads -
   // lib/playerDefense.js); the shared percentIncrease filter drops it for every other loadout.
   { key: 'miningLevel', name: 'Mining', max: MAX_MINING_LEVEL },
   { key: 'wolfSlayerLevel', name: 'Wolf Slayer', max: MAX_WOLF_SLAYER_LEVEL },
   { key: 'tarantulaSlayerLevel', name: 'Tarantula Slayer', max: MAX_TARANTULA_SLAYER_LEVEL },
   { key: 'blazeSlayerLevel', name: 'Blaze Slayer', max: MAX_BLAZE_SLAYER_LEVEL },
-  // No cap — Skyblock Level keeps going, and it feeds a real Ability Damage multiplier.
+  // No cap - Skyblock Level keeps going, and it feeds a real Ability Damage multiplier.
   { key: 'skyblockLevel', name: 'Skyblock Level', max: null },
 ];
 
@@ -2203,7 +2203,7 @@ const ALL_ATTRIBUTES = [
   ...OTHER_ATTRIBUTES,
 ];
 
-// Attributes are compared at max level only — a level jump is bought as one stack of shards rather
+// Attributes are compared at max level only - a level jump is bought as one stack of shards rather
 // than ground out one at a time. Cost is the Worker-precomputed shard price x shards to max
 // (worker/src/index.js's computeAttributeCosts, see lib/pricing.js's 'Attribute' case).
 async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob) {
@@ -2217,7 +2217,7 @@ async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig,
     results.push({
       category: 'Attribute',
       slot: 'attribute',
-      label: `${attribute.name} — ${maxLevel}`,
+      label: `${attribute.name} - ${maxLevel}`,
       value,
       apply: [{ type: 'setAttributeLevel', id: attribute.id, level: maxLevel }],
     });
@@ -2225,7 +2225,7 @@ async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig,
   return results;
 }
 
-// Recombobulator 3000: a single choice — toggle it on — brute-forced across every weapon, armor and
+// Recombobulator 3000: a single choice - toggle it on - brute-forced across every weapon, armor and
 // equipment slot below its rarity cap. A modifier change rather than a gear swap.
 async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
@@ -2239,7 +2239,7 @@ async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeCo
     results.push({
       category: 'Recombobulator',
       slot,
-      label: `${formatItemName(equipped.item.name)} — Recombobulator 3000`,
+      label: `${formatItemName(equipped.item.name)} - Recombobulator 3000`,
       value,
       apply: [{ type: 'toggleRecombobulated', slot }],
     });
@@ -2248,13 +2248,13 @@ async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeCo
 }
 
 // NEU-REPO lists 8 ultimates for the armor categories (Bank, Last Stand, Legion, No Pain No Gain,
-// Wisdom, Habanero Tactics, Bobbin Time, Refrigerate — Habanero needs lib/enchantEffects.js's
+// Wisdom, Habanero Tactics, Bobbin Time, Refrigerate - Habanero needs lib/enchantEffects.js's
 // MISSING_CATEGORY_ENCHANTS patch). Only Habanero Tactics has a damage effect this formula can
 // produce, so Slayer prunes to it rather than evaluating all 8 across 4 armor slots at every level.
 const SLAYER_ARMOR_ULTIMATE_IDS = new Set(['ultimate_habanero_tactics']);
 
 // Hot/Fuming Potato Books on the weapon: one candidate straight to the 15 cap, like the other
-// brute-forced upgrades. Weapon only — a book's armor bonus is Health/Defense. `fromBooks` rides
+// brute-forced upgrades. Weapon only - a book's armor bonus is Health/Defense. `fromBooks` rides
 // along because books 1-10 are Hot and 11-15 Fuming (lib/pricing.js).
 async function evaluatePotatoBookCandidates(loadout, itemData, build, modeConfig, mob) {
   const weapon = loadout.weapon;
@@ -2266,7 +2266,7 @@ async function evaluatePotatoBookCandidates(loadout, itemData, build, modeConfig
     {
       category: 'Potato Books',
       slot: 'weapon',
-      label: `${formatItemName(weapon.item.name)} — Potato Books ${current} → ${MAX_POTATO_BOOKS}`,
+      label: `${formatItemName(weapon.item.name)} - Potato Books ${current} → ${MAX_POTATO_BOOKS}`,
       value,
       fromBooks: current,
       apply: [{ type: 'setBookCount', slot: 'weapon', count: MAX_POTATO_BOOKS }],
@@ -2308,7 +2308,7 @@ async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, 
         results.push({
           category: 'Ultimate Enchant',
           slot,
-          label: `${formatItemName(equipped.item.name)} — ${titleCaseEnchantId(id)} ${toRoman(level)}`,
+          label: `${formatItemName(equipped.item.name)} - ${titleCaseEnchantId(id)} ${toRoman(level)}`,
           value,
           apply: [{ type: 'applyEnchant', slot, id, level, maxLevel, removeIds }],
         });
@@ -2328,7 +2328,7 @@ export const OPTIMIZER_GEAR_SLOTS = ['weapon', ...ARMOR_SLOTS, ...EQUIPMENT_SLOT
 //   sidegrades shows each. Empty when the slot has nothing configured or nothing beats what's worn.
 // - `otherResults`: the brute-forced, non-tiered categories (Enchant, Ultimate Enchant, Power
 //   Stone, Stars), sorted by %.
-// Every result carries `cost`/`ratio` via withCost and lib/pricing.js — a number when a cost source
+// Every result carries `cost`/`ratio` via withCost and lib/pricing.js - a number when a cost source
 // covers that candidate, '?'/null when none does.
 // OPTIMIZER_BUILD_KEYS lists every `build` field runOptimizer READS, as opposed to the mutators
 // applyOptimizerResult calls. React callers use it as their dependency list, so a new read must be
@@ -2505,7 +2505,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
   };
 }
 
-// Executes one result's `apply` steps against a live BuildContext — the swap-in action. `build` must
+// Executes one result's `apply` steps against a live BuildContext - the swap-in action. `build` must
 // expose selectItem/applyEnchant/setSpecialValue/setStarCount. Steps run in order, since a Crown of
 // Avarice candidate needs its item selected before its Special value can be set. Modifier setters
 // pass `respectEditAll: false`: the Armor/Equipment Options "Edit All" broadcast is scoped to the

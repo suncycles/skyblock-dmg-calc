@@ -5,12 +5,14 @@
 // lib/hypixelImport.js's resolveDungeonizedFlag; every displayed stat comes from
 // lib/itemStatTotals.js rather than re-parsed lore text; an imported item's enchant list comes from
 // this app's own parsing of summary.enchantments; and Gear-Score tiered stats replace the catalog
-// pristine value and bump rarity. Plain assert-based checks, no framework — run `npm run verify`.
+// pristine value and bump rarity. Plain assert-based checks, no framework - run `npm run verify`.
 //
 // Uses Vite's module graph (ssrLoadModule) rather than plain node, since lib/*.js use extensionless
-// relative imports only Vite's resolver understands — so the checks run against the shipped code.
+// relative imports only Vite's resolver understands - so the checks run against the shipped code.
 
 import { readFile } from 'node:fs/promises';
+import { readFileSync, readdirSync } from 'node:fs';
+import { extname } from 'node:path';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
@@ -24,7 +26,7 @@ async function check(name, fn) {
   }
 }
 
-// Minimal, self-contained itemData for the synthetic-item checks below — no real catalog lookup
+// Minimal, self-contained itemData for the synthetic-item checks below - no real catalog lookup
 // needed since these items are passed in directly, not resolved by id.
 const EMPTY_ITEM_DATA = { weapons: [], armor: [], equipment: [], reforges: {}, reforgeStones: {}, enchants: {} };
 const BARE_MODIFIERS = {
@@ -130,7 +132,7 @@ try {
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SPEED_WITHER_BOOTS', stars: 0 }), true, "Maxor's is pre-dungeonized");
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BONZO_MASK', stars: 0 }), true, 'Bonzo Mask is pre-dungeonized');
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SOULWEAVER_GLOVES', stars: 0 }), true, 'Soulweaver Gloves are pre-dungeonized');
-    // A DUNGEON-category piece NOT on that list still needs real evidence — the category marks
+    // A DUNGEON-category piece NOT on that list still needs real evidence - the category marks
     // gear as eligible, and a crafted-but-unconverted copy is a real thing.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BOUNCY_BOOTS', stars: 0 }, { category: 'DUNGEON BOOTS' }), false, 'category alone is not proof');
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'BOUNCY_BOOTS', stars: 5 }, { category: 'DUNGEON BOOTS' }), true, 'stars on dungeon gear are');
@@ -138,9 +140,9 @@ try {
     // dungeonized even when the per-copy NBT carries no `dungeon_item` key.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'SKELETON_MASTER_CHESTPLATE', dungeonized: false }), true, 'a tiered-stat item must resolve dungeonized even without the NBT flag');
 
-    // A STARRED_ id is a Master Mode drop — dungeon gear by definition, no stars needed.
+    // A STARRED_ id is a Master Mode drop - dungeon gear by definition, no stars needed.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'STARRED_BONE_NECKLACE', stars: 0 }), true, 'a STARRED_ id is dungeon gear');
-    // Kuudra armour also uses upgrade_level for its stars but is not dungeon gear — the category
+    // Kuudra armour also uses upgrade_level for its stars but is not dungeon gear - the category
     // gate is what keeps it out.
     assert.equal(hypixelImport.resolveDungeonizedFlag({ id: 'INFERNAL_CRIMSON_CHESTPLATE', stars: 10 }, { category: 'CHESTPLATE' }), false, 'Kuudra stars are not dungeon stars');
   });
@@ -173,7 +175,7 @@ try {
     const resolved = hypixelImport.resolveGearSummary({ id: 'POWER_WITHER_LEGGINGS', lore: REAL_NECRONS_LEGGINGS_LORE }, itemData);
     assert.ok(resolved, 'should resolve a real catalog id');
     assert.deepEqual(resolved.lore, catalogLore, "must return the catalog's own lore unconditionally, never summary.lore");
-    assert.ok(!('liveLore' in resolved), 'no liveLore flag — the live-lore swap mechanism is gone');
+    assert.ok(!('liveLore' in resolved), 'no liveLore flag - the live-lore swap mechanism is gone');
   });
 
   // 6. hiddenBase through to the three shown tiers, computed rather than parsed from rendered text.
@@ -190,7 +192,7 @@ try {
     assert.equal(t.dungeonStarred, 160, 'hiddenBase(100) x 1.60 = 160');
   });
 
-  // 7. Text is a RENDER of computed numbers, never a source parsed back into numbers — the
+  // 7. Text is a RENDER of computed numbers, never a source parsed back into numbers - the
   // tooltip's leading number for a stat must exactly equal computeItemStatTotals's own
   // nonDungeonStarred for that same stat.
   await check('tooltip leading number matches computeItemStatTotals exactly', async () => {
@@ -207,7 +209,7 @@ try {
     }
   });
 
-  // 8. Same consistency check for the Dungeonize dark-grey/dark-blue annotations — they must
+  // 8. Same consistency check for the Dungeonize dark-grey/dark-blue annotations - they must
   // exactly equal the already-computed dungeonStarred/masterStarred, never re-derived.
   await check('Dungeonize annotations match computed dungeonStarred/masterStarred', async () => {
     const item = { id: 'TEST_SWORD', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100'] };
@@ -225,7 +227,7 @@ try {
 
   // 9. Positive check: the SYNTHESIZED enchant list (our own implementation) is what actually
   // determines display content, sourced from summary.enchantments via this app's own
-  // id->display-name table — and each enchant appears exactly once in a final, assembled tooltip.
+  // id->display-name table - and each enchant appears exactly once in a final, assembled tooltip.
   await check('displayed enchant list is built from our own parsing, exactly once', () => {
     const modifiers = {
       ultimateEnchantment: { id: 'ultimate_wise', level: 5, maxLevel: 5 },
@@ -325,7 +327,7 @@ try {
     assert.equal(leading, 119.8, `rendered Crit Damage leading number must be the real 119.8, got ${leading} (line: ${critDamageLine})`);
   });
   // Chimera and Manticore Claw both copy the equipped pet's stat spread, and both read the SAME
-  // PET_STAT_KEY_MAP — a stat missing from that map is silently dropped by both at once, with no
+  // PET_STAT_KEY_MAP - a stat missing from that map is silently dropped by both at once, with no
   // error anywhere. Ability Damage was missing exactly that way even though the
   // pet catalog carries it and the rest of the pipeline already tracked it end to end. This area
   // has also drifted before via a duplicated definition (see the [[project_chimera_base_stats]]
@@ -353,7 +355,7 @@ try {
     assert.equal(noAbility.strength, 100, 'unrelated stats must still be copied');
   });
   // Skeleton Master stacks PER PIECE and adds a separate full-set bonus on top, so the full set
-  // is 1.05^4 * 1.25 = 1.5194x — not 1.25x, and not 1.05*1.25. It's also bow-only. Both are easy
+  // is 1.05^4 * 1.25 = 1.5194x - not 1.25x, and not 1.05*1.25. It's also bow-only. Both are easy
   // to get subtly wrong (a single flat multiplier, or forgetting the weapon gate), and neither
   // fails loudly.
   await check('Skeleton Master is 1.05x per piece plus 1.25x at 4, bow-only', () => {
@@ -380,7 +382,7 @@ try {
     assert.equal(godPotion.isBowEquipped(sword), false, 'a sword must not trigger the bow-only bonus');
   });
   // A gemstone slot with no `costs` in Hypixel's catalog ships already unlocked. Reading that
-  // absence as "price unknown" instead made every candidate for such a slot unpriced — and
+  // absence as "price unknown" instead made every candidate for such a slot unpriced - and
   // unpriced results are exempt from dropDominated, so two identical COMBAT slots on the same
   // weapon disagreed about the same gem (Perfect Onyx surfaced for socket 1 while socket 2
   // correctly dropped it as dominated). Nothing about that failed loudly.
@@ -392,7 +394,7 @@ try {
       false,
       'a real costs block means it must be unlocked first',
     );
-    // A missing catalog entry is genuinely unknown, NOT confirmed-free — it has to keep the
+    // A missing catalog entry is genuinely unknown, NOT confirmed-free - it has to keep the
     // unpriced treatment rather than being silently priced as gem-cost-only.
     assert.equal(gemstoneSlotShipsOpen(undefined), false, 'no catalog data is unknown, not free');
     assert.equal(gemstoneSlotShipsOpen(null), false, 'null catalog data is unknown, not free');
@@ -428,7 +430,7 @@ try {
 
   // 18. A Kuudra armor tier-up is CRAFTED from the piece already worn, so the Optimizer must price
   // it from its real recipe (Essence + Kuudra Teeth + coin fee, precomputed per hop by the Worker)
-  // — never from either tier's auction price. Synthetic cost bundle so
+  // - never from either tier's auction price. Synthetic cost bundle so
   // the arithmetic is checked, not the live bazaar.
   await check('a Kuudra tier-up is priced from its prestige recipe, not the auction price', () => {
     const { lookupCandidateCost, prestigeUpgradeCost } = pricing;
@@ -457,19 +459,19 @@ try {
       15_200_654 + 37_996_737,
       'a multi-tier jump sums every hop',
     );
-    // Every other gear swap is bought outright — no `replaces`, so the market price still stands.
+    // Every other gear swap is bought outright - no `replaces`, so the market price still stands.
     assert.equal(
       lookupCandidateCost(row(null, 'FIERY_CRIMSON_CHESTPLATE'), itemData),
       85_000_000,
       'a non-craft swap keeps its market price',
     );
     // A chain that never reaches the target (different family, non-Kuudra item) must not invent a
-    // number — it falls back to the market price rather than summing the whole ladder.
+    // number - it falls back to the market price rather than summing the whole ladder.
     assert.equal(prestigeUpgradeCost('BURNING_CRIMSON_CHESTPLATE', 'FIERY_HOLLOW_CHESTPLATE', itemData.costs.prestigeCosts), null);
     assert.equal(prestigeUpgradeCost('NECRON_CHESTPLATE', 'FIERY_CRIMSON_CHESTPLATE', itemData.costs.prestigeCosts), null);
   });
 
-  // 19. Inferno Demonlord's Hellion Shield doesn't block Venomous, it cuts it to 1% — it sat in the
+  // 19. Inferno Demonlord's Hellion Shield doesn't block Venomous, it cuts it to 1% - it sat in the
   // outright-immune set until, so both halves are pinned here: the survivor multiplier
   // AND the fact that Atoned Horror is still genuinely immune.
   await check("Venomous is cut to 1% by Hellion Shield, not zeroed", () => {
@@ -487,7 +489,7 @@ try {
     assert.equal(demonlord.finalDamage, 6000, 'Inferno Demonlord takes exactly 1% of that');
     assert.equal(demonlord.reductionLabel, 'Hellion Shield', 'the reduction names its real mechanic');
     assert.equal(normal.reductionLabel, null, 'an unreduced mob carries no label');
-    // Fully immune, as distinct from Inferno Demonlord's reduced-but-present case above — the two
+    // Fully immune, as distinct from Inferno Demonlord's reduced-but-present case above - the two
     // treatments live in separate tables and must not drift into each other.
     for (const immune of ['Atoned Horror', 'Quazii', 'Typhoeus']) {
       const r = at(immune, ['Boss']);
@@ -499,7 +501,7 @@ try {
   // 20. A Catacombs boss head's real base stat is its printed lore value DOUBLED, and every later
   // boost compounds on the doubled figure. Checked through the real
   // computeItemStatTotals pipeline rather than the helper alone, since the whole point is where in
-  // that pipeline the doubling lands — and a non-head helmet must be left completely alone.
+  // that pipeline the doubling lands - and a non-head helmet must be left completely alone.
   await check('Catacombs boss heads double their printed base stats', async () => {
     const { diamondCounterpartFor, parseDungeonHead } = dungeonHeads;
     const head = { id: 'GOLD_BONZO_HEAD', name: 'Gold Bonzo Head', tier: 'SPECIAL', lore: ['§7Health: §c+20', '§7Strength: §c+5'] };
@@ -518,7 +520,7 @@ try {
   });
 
   // 21. Dungeon Blessing effectiveness: four independent sources, multiplicative with each other,
-  // landing on exactly 1.815 when all four are maxed ( — that figure is
+  // landing on exactly 1.815 when all four are maxed ( - that figure is
   // the whole spec, so it's pinned here). The Mimic Shard's level comes off the Epic 32-cap shard
   // ladder, and the multiplier scales a blessing's own numbers BEFORE they reach the base stats.
   await check('Dungeon Blessing multiplier and Mimic ladder', () => {
@@ -530,7 +532,7 @@ try {
       '1.10 * 1.10 * 1.20 * 1.25',
     );
     // Mimic is a normal attribute (lib/attributes.js's OTHER_ATTRIBUTES), so it reaches the
-    // multiplier through the attributes map — never off the blessing block, which doesn't carry
+    // multiplier through the attributes map - never off the blessing block, which doesn't carry
     // it. A stale `mimicShardLevel` on the blessing must be ignored, not silently honoured.
     assert.equal(
       Number(computeBlessingMultiplier({ mimicShardLevel: 10 }, {}).toFixed(4)),
@@ -539,7 +541,7 @@ try {
     );
     const effects = computeBlessingEffects({ power: 30 }, 1.815);
     assert.equal(effects.length, 1, 'only levelled blessings produce an effect');
-    // 30 x 4 x 1.815 flat, then 30 x 2% x 1.815 — the boost scales the blessing, not the stat.
+    // 30 x 4 x 1.815 flat, then 30 x 2% x 1.815 - the boost scales the blessing, not the stat.
     assert.equal(Number(effects[0].flat.strength.toFixed(1)), 217.8);
     assert.equal(Number(effects[0].percent.crit_damage.toFixed(1)), 108.9);
     assert.deepEqual(computeBlessingEffects({ power: 0, time: 0, stone: 0, wisdom: 0 }, 1.815), [], 'level 0 is inert');
@@ -588,14 +590,14 @@ try {
     assert.equal(computeTwoHeadedStrikeAttackSpeed(maxed, 'Renowned'), 10, '2-10 Attack Speed');
     assert.equal(computeTwoHeadedStrikeAttackSpeed(maxed, 'Spiked'), 10);
     assert.equal(computeTwoHeadedStrikeAttackSpeed(maxed, 'Ancient'), 0, 'Renowned/Spiked only');
-    // A manually-built loadout has no perk map at all — that must be inert, not a crash.
+    // A manually-built loadout has no perk map at all - that must be inert, not a crash.
     assert.deepEqual(computeFlatPerkStats(null, true), []);
     assert.equal(computeBanePercent(null), 0);
     assert.equal(computeTwoHeadedStrikeAttackSpeed(null, 'Renowned'), 0);
   });
 
   // 23. Master Skull's Strength multiplier is MULTIPLICATIVE with the Dungeon Blessings, not summed
-  // into them — the distinction is the whole point, so both the ladder
+  // into them - the distinction is the whole point, so both the ladder
   // and the compounding are pinned. The ladder changes slope at tier 4, which is exactly the kind
   // of thing a "clever" formula would quietly get wrong.
   await check('Master Skull tiers compound with blessings', () => {
@@ -622,20 +624,20 @@ try {
   });
 
   // 24. A Catacombs boss head's own rarity is SPECIAL, which appears in no reforge's
-  // requiredRarities and in no rarity ladder — so heads matched zero reforges and couldn't be
+  // requiredRarities and in no rarity ladder - so heads matched zero reforges and couldn't be
   // recombobulated. They read a stand-in rarity for both. Pins the
   // BEHAVIOUR rather than the stand-in's value, which is a separate, still-open question.
   await check('boss heads reforge and recombobulate like helmets', () => {
     const { reforgeRarityFor, DUNGEON_HEAD_REFORGE_RARITY } = dungeonHeads;
     assert.equal(reforgeRarityFor('GOLD_BONZO_HEAD', 'SPECIAL'), DUNGEON_HEAD_REFORGE_RARITY);
     assert.equal(reforgeRarityFor('DIAMOND_NECRON_HEAD', 'SPECIAL'), DUNGEON_HEAD_REFORGE_RARITY);
-    // Every other item keeps its own tier — the stand-in must not leak.
+    // Every other item keeps its own tier - the stand-in must not leak.
     assert.equal(reforgeRarityFor('POWER_WITHER_HELMET', 'LEGENDARY'), 'LEGENDARY');
     assert.equal(reforgeRarityFor('HYPERION', 'MYTHIC'), 'MYTHIC');
     assert.equal(reforgeRarityFor(null, 'EPIC'), 'EPIC');
 
     // The stand-in has to be a rarity the reforge tables actually carry, or a head matches nothing
-    // again — which was the whole bug.
+    // again - which was the whole bug.
     assert.ok(
       ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'].includes(DUNGEON_HEAD_REFORGE_RARITY),
       'stand-in must be a real reforge-table column',
@@ -645,7 +647,7 @@ try {
   });
 
   // 25. David's Cloak's Hunting-milestone Strength is imported from the item's own lore, but that
-  // lore's leading number ALREADY includes the reforge — and this app applies the reforge itself,
+  // lore's leading number ALREADY includes the reforge - and this app applies the reforge itself,
   // so taking the leading number whole double-counted it. Confirmed against a real Strengthened
   // copy reading "§7Strength: §c+7 §9(+7)": milestone 0, reforge 7, app said 14.
   await check("David's Cloak imports milestone Strength without the reforge", () => {
@@ -657,7 +659,7 @@ try {
     assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+34', '§d§lMYTHIC CLOAK']).special, 34);
     // ...and with one, only the reforge's share comes off.
     assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+41 §9(+7)', '§d§lLEGENDARY CLOAK']).special, 34);
-    // The §8 parenthetical is the Catacombs Stats Boost preview — it is NOT part of the leading
+    // The §8 parenthetical is the Catacombs Stats Boost preview - it is NOT part of the leading
     // number, so subtracting it too would swing the milestone value wildly negative.
     assert.equal(parseDavidsCloakFromLore(['§7Strength: §c+41 §9(+7) §8(+99)', '§d§lMYTHIC CLOAK']).special, 34);
     assert.equal(parseDavidsCloakFromLore(['§7Health: §c+50', '§d§lMYTHIC CLOAK']).special, 0, 'no Strength line is 0');
@@ -670,19 +672,19 @@ try {
   await check('Mining Island boosts and their location gate', () => {
     const { lonesomeMinerPercent, mithrilGolemPercent, isMiningIslandMob, anyMiningIslandTarget } = miningIslands;
 
-    // Level 0 is "perk unbought" — NOT the formula's 4.5% intercept, the easy off-by-one here.
+    // Level 0 is "perk unbought" - NOT the formula's 4.5% intercept, the easy off-by-one here.
     assert.equal(lonesomeMinerPercent(0), 0, 'an unbought perk grants nothing');
     assert.equal(lonesomeMinerPercent(1), 5, 'level 1 is +5%');
     assert.equal(lonesomeMinerPercent(45), 27, 'level 45 caps at +27%, not +27.5%');
     assert.equal(lonesomeMinerPercent(999), 27, 'level is clamped to the cap');
     assert.equal(lonesomeMinerPercent(null), 0);
 
-    // 0.2%/level, so +20% at level 100 — the 2%/level figure belongs to Mithril Affinity.
+    // 0.2%/level, so +20% at level 100 - the 2%/level figure belongs to Mithril Affinity.
     assert.equal(mithrilGolemPercent(100), 20, 'level 100 is +20%, not +200%');
     assert.equal(mithrilGolemPercent(1), 0.2);
     assert.equal(mithrilGolemPercent(0), 0);
 
-    // The gate is by LOCATION, not by mob type — all three islands count, nothing else does.
+    // The gate is by LOCATION, not by mob type - all three islands count, nothing else does.
     assert.equal(isMiningIslandMob('Diamond Goblin'), true, 'Dwarven Mines');
     assert.equal(isMiningIslandMob('Automaton'), true, 'Crystal Hollows');
     assert.equal(isMiningIslandMob('Emerald Slime'), true, 'Deep Caverns');
@@ -693,14 +695,14 @@ try {
   });
   // 27. OPTIMIZER_BUILD_KEYS must list every build field runOptimizer reads. Both React callers
   // build their effect's dependency array from it, so a field missing here is a recommendation
-  // panel that silently never updates when that input changes — how Dungeon Blessings, essence
+  // panel that silently never updates when that input changes - how Dungeon Blessings, essence
   // perks, Master Mode and three Bestiary/collection inputs went stale.
   // Source-scanned rather than called, since the omission is invisible at runtime.
   await check('OPTIMIZER_BUILD_KEYS covers every build field the optimizer reads', async () => {
     const { OPTIMIZER_BUILD_KEYS } = optimizerModule;
     const src = await readFile(new URL('../src/lib/optimizer.js', import.meta.url), 'utf8');
     // The set*/apply*/toggle*/remove*/selectItem members are BuildContext mutators that
-    // applyOptimizerResult calls — actions, not inputs, so they are deliberately not dependencies.
+    // applyOptimizerResult calls - actions, not inputs, so they are deliberately not dependencies.
     const isMutator = (f) => /^(set|apply|toggle|remove)[A-Z]/.test(f) || f === 'selectItem';
     const read = [...new Set([...src.matchAll(/\bbuild\.([a-zA-Z_][a-zA-Z0-9_]*)/g)].map((m) => m[1]))]
       .filter((f) => !isMutator(f))
@@ -715,7 +717,7 @@ try {
   });
   // 28. Two Optimizer carry-over rules. (a) A reforge/ultimate enchant only rides onto a swap
   // candidate the new item can actually take: BuildContext's selectItem clears both across a
-  // weapon-family boundary, and the Optimizer's own steps must not re-apply them — a Sword's
+  // weapon-family boundary, and the Optimizer's own steps must not re-apply them - a Sword's
   // Fabled and One For All landing on a Bow would rank that Bow as if it had them.
   // (b) Fabled's midpoint is melee-only.
   await check('Optimizer carries only what the new item can take', () => {
@@ -728,21 +730,21 @@ try {
     const data = {
       reforges: { Fabled: { name: 'Fabled', itemTypes: 'SWORD', requiredRarities: ['LEGENDARY'] } },
       reforgeStones: {},
-      // getCategoryEnchantIds reads enchantsMeta.enchants[CATEGORY] — the nesting is real.
+      // getCategoryEnchantIds reads enchantsMeta.enchants[CATEGORY] - the nesting is real.
       enchants: { enchants: { SWORD: ['ultimate_one_for_all', 'sharpness'], BOW: ['power', 'ultimate_soul_eater'] } },
     };
     assert.equal(carriedReforgeName(mods, sword, data), 'Fabled', 'a sword keeps a sword reforge');
     assert.equal(carriedReforgeName(mods, bow, data), null, 'a bow cannot take a sword-only reforge');
     assert.equal(carriedUltimateEnchantment(mods, sword, data)?.id, 'ultimate_one_for_all');
     assert.equal(carriedUltimateEnchantment(mods, bow, data), null, "a bow cannot take the sword's ultimate");
-    // An unrecognised reforge name carries over rather than being guessed invalid — same
+    // An unrecognised reforge name carries over rather than being guessed invalid - same
     // permissive fallback selectItem uses when a name is in neither real table.
     assert.equal(carriedReforgeName({ reforge: 'Unknown' }, bow, data), 'Unknown');
     assert.equal(carriedReforgeName({}, bow, data), null);
     assert.equal(carriedUltimateEnchantment({}, bow, data), null);
   });
   // 29. Maxor's: +5% ADDITIVE arrow damage per piece, bow-only. The
-  // set's real ids are SPEED_WITHER_*, Hypixel's internal name for it — a set keyed on MAXOR_*
+  // set's real ids are SPEED_WITHER_*, Hypixel's internal name for it - a set keyed on MAXOR_*
   // would silently never match. Additive, so a full set is +20% summed, not 1.05^4 compounded the
   // way Skeleton Master's per-piece multiplier is; keeping those two straight is the point here.
   await check("Maxor's stacks additively per piece, bows only", () => {
@@ -751,7 +753,7 @@ try {
     assert.equal(MAXOR_SET.length * MAXOR_ARROW_DAMAGE_PERCENT_PER_PIECE, 20, 'a full set is +20%, additive');
 
     // countSetPieces aligns setIds to ARMOR_SLOTS by INDEX, so the array order above is load
-    // bearing — a helmet id sitting in the chestplate position would count zero pieces.
+    // bearing - a helmet id sitting in the chestplate position would count zero pieces.
     const slots = ['helmet', 'chestplate', 'leggings', 'boots'];
     const wear = (n) => Object.fromEntries(slots.slice(0, n).map((slot, i) => [slot, { item: { id: MAXOR_SET[i] } }]));
     assert.equal(countSetPieces(wear(0), slots, MAXOR_SET), 0);
@@ -764,7 +766,7 @@ try {
     );
   });
   // 30. The pure apply (lib/applyResult.js) is what lets a planner apply a candidate, re-rank
-  // against the outcome, and continue — optimizer.js's applyOptimizerResult can't, since it writes
+  // against the outcome, and continue - optimizer.js's applyOptimizerResult can't, since it writes
   // through BuildContext's setters. The two have to agree or a planned sequence gets ranked
   // against a state a real click never produces, so the shared rules live in lib/slotSelection.js
   // and the checks below pin the ones with real logic behind them.
@@ -794,7 +796,7 @@ try {
     };
     const data = { reforges: { Fabled: { name: 'Fabled', itemTypes: 'SWORD', requiredRarities: ['LEGENDARY'] } }, reforgeStones: {} };
 
-    // Crossing the weapon family drops every persisted upgrade — the rule BuildContext's own
+    // Crossing the weapon family drops every persisted upgrade - the rule BuildContext's own
     // selectItem applies, now shared rather than reimplemented.
     const swapped = applyResultToState(base, { apply: [{ type: 'selectItem', slot: 'weapon', item: bow }] }, data);
     assert.equal(swapped.loadout.weapon.item.id, 'JUJU_SHORTBOW');
@@ -807,7 +809,7 @@ try {
     assert.equal(base.loadout.weapon.modifiers.reforge, 'Fabled');
 
     // Master Stars clear whenever the base stars drop below the eligibility threshold, and again
-    // when dungeonized is turned off — both mirror their setters.
+    // when dungeonized is turned off - both mirror their setters.
     const starred = applyResultToState(
       { ...base, loadout: { weapon: { ...base.loadout.weapon, modifiers: { ...base.loadout.weapon.modifiers, dungeonized: true, stars: 5, masterStars: 3 } } } },
       { apply: [{ type: 'setStarCount', slot: 'weapon', count: 1 }] },
@@ -829,7 +831,7 @@ try {
     assert.equal(perked.essencePerks.bane, 5);
     assert.equal(perked.attributes.mimic, 10);
 
-    // A result touching the owned-accessory inventory isn't purely applicable — a planner must
+    // A result touching the owned-accessory inventory isn't purely applicable - a planner must
     // skip it rather than apply it partially and rank the rest against a state that never exists.
     assert.equal(canApplyPurely({ apply: [{ type: 'selectItem', slot: 'weapon', item: bow }] }), true);
     assert.equal(canApplyPurely({ apply: [{ type: 'setOwnedAccessory', id: 'X', tier: 'RARE' }] }), false);
@@ -842,7 +844,7 @@ try {
     const bare = {};
     const rate = (as) => Number(computeBowShotsPerSecond(as, bare).toFixed(3));
 
-    // Each row holds from its own threshold up to one below the next — a lookup, not a curve.
+    // Each row holds from its own threshold up to one below the next - a lookup, not a curve.
     assert.equal(rate(0), 2, '0 is 0.5s per shot');
     assert.equal(rate(11), 2, '11 is still 0.5s');
     assert.equal(rate(12), Number((1 / 0.45).toFixed(3)), '12 crosses to 0.45s');
@@ -859,7 +861,7 @@ try {
     assert.equal(rate(149), 4, 'Attack Speed is capped at 100');
     assert.equal(rate(10000), 4, 'and the cap is a clamp, not a bug to overflow past');
 
-    // ...which makes the 0.2s row reachable only through Thermodynamic's raised 150 cap — the one
+    // ...which makes the 0.2s row reachable only through Thermodynamic's raised 150 cap - the one
     // real exception, and the same one melee already has.
     const thermo = {
       helmet: { item: { id: 'THERMODYNAMIC_HELMET' } },
@@ -876,7 +878,7 @@ try {
     assert.equal(rate(82), Number((1 / 0.3).toFixed(3)), 'the same Attack Speed is slower on a bow');
   });
   // 32. Free upgrades. A Skill level costs time, not coins, so it prices to a real 0 rather than
-  // null — the UI splits on exactly that (0 is free, '?' is unpriced, and they are different
+  // null - the UI splits on exactly that (0 is free, '?' is unpriced, and they are different
   // claims). The step also has to survive the pure apply, or a planner would rank a Catacombs
   // level it can't actually take.
   await check('Skill levels are free and applicable', () => {
@@ -890,7 +892,7 @@ try {
     assert.equal(after.playerStats.catacombsLevel, 48);
     assert.equal(before.playerStats.catacombsLevel, 47, 'apply stays pure');
   });
-  // 33. Inside a dungeon the God Potion is REPLACED by the Dungeon Potion — different stats, no
+  // 33. Inside a dungeon the God Potion is REPLACED by the Dungeon Potion - different stats, no
   // mixin, and two tiers decided by owning a Jellyfish pet rather than by anything drunk. Both
   // tiers are pinned.
   await check('Dungeon Potion replaces the God Potion at two tiers', () => {
@@ -904,18 +906,18 @@ try {
       assert.ok(DUNGEON_POTION_TIERS.jellyfish[key] > DUNGEON_POTION_TIERS.tier7[key], `Jellyfish VII must beat Tier VII on ${key}`);
     }
     // It is weaker than the God Potion it replaces, which is the whole reason it can't just be a
-    // scaled copy — a dungeon run is not a God Potion run.
+    // scaled copy - a dungeon run is not a God Potion run.
     assert.ok(DUNGEON_POTION_TIERS.jellyfish.strength < GOD_POTION_STRENGTH_POTION, 'even the top dungeon tier trails the God Potion on Strength');
   });
   // 34. Last Breath and Lethality cut the mob's Defense STAT, and they are MULTIPLICATIVE with each
-  // other, not additive — the difference at max is 68% off vs 86% off,
+  // other, not additive - the difference at max is 68% off vs 86% off,
   // which on Master Necron is a 2.8x damage swing vs a 5.6x one. Both are pinned, along with the
   // fact that a Defense cut feeds `1 - Def/(100+Def)` rather than scaling damage directly.
   await check('Defense debuffs are multiplicative and feed the Defense curve', () => {
     const { mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier, ICE_SPRAY_MULTIPLIER, TWILIGHT_ARROW_POISON_MULTIPLIER } = mobDebuffs;
     const { computeMobDefenseMultiplier } = mobDefenses;
     const maxed = { iceSpray: false, lastBreath: 5, lethality: 4 };
-    // 0.5 * 0.64 — NOT 1 - (0.5 + 0.36).
+    // 0.5 * 0.64 - NOT 1 - (0.5 + 0.36).
     assert.ok(Math.abs(mobDefenseDebuffMultiplier(maxed) - 0.32) < 1e-9, 'max debuffs leave 32% of Defense');
     assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lastBreath: 5 }) - 0.5) < 1e-9);
     assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lethality: 4 }) - 0.64) < 1e-9);
@@ -924,7 +926,7 @@ try {
     assert.equal(mobDefenseDebuffMultiplier({ lastBreath: 99, lethality: 99 }), mobDefenseDebuffMultiplier(maxed));
 
     // The curve, not the damage: Master Necron's 2100 Defense at 0.32 is 672, and
-    // 1 - 672/772 = 0.1295 — a 2.85x gain over the undebuffed 1 - 2100/2200 = 0.0455.
+    // 1 - 672/772 = 0.1295 - a 2.85x gain over the undebuffed 1 - 2100/2200 = 0.0455.
     const necron = { name: 'Necron', types: [] };
     const plain = computeMobDefenseMultiplier(necron, true);
     const shredded = computeMobDefenseMultiplier(necron, true, mobDefenseDebuffMultiplier(maxed));
@@ -932,12 +934,12 @@ try {
     assert.ok(Math.abs(shredded - (1 - 672 / 772)) < 1e-9);
     assert.ok(shredded / plain > 2.8 && shredded / plain < 2.9, 'max Defense shred is worth ~2.85x, not ~5.6x');
 
-    // A mob with no published Defense is untouched however far the sliders go — the honest result
+    // A mob with no published Defense is untouched however far the sliders go - the honest result
     // for the 200-odd mobs with no real number, and the reason the panel says so.
     const zombie = { name: 'Zombie', types: [] };
     assert.equal(computeMobDefenseMultiplier(zombie, true, mobDefenseDebuffMultiplier(maxed)), 1);
 
-    // The two flat multipliers are the debuffs that apply to every target, Defense or not — and
+    // The two flat multipliers are the debuffs that apply to every target, Defense or not - and
     // they are multiplicative with each other, so both on is 1.21 rather than 1.2.
     assert.equal(finalDamageDebuffMultiplier({ iceSpray: true }), ICE_SPRAY_MULTIPLIER);
     assert.equal(finalDamageDebuffMultiplier({ twilightPoison: true }), TWILIGHT_ARROW_POISON_MULTIPLIER);
@@ -1039,7 +1041,7 @@ try {
   });
   // 39. Tier Boost pet item (lib/petData.js): raises the pet's rarity by
   // one; a pet already at its highest rarity is unchanged. Applied at read time, so it must be
-  // idempotent — collectDamageSources applies it, then calls helpers that apply it again.
+  // idempotent - collectDamageSources applies it, then calls helpers that apply it again.
   await check('Tier Boost raises pet rarity by one, capped at the pet\'s highest rarity', async () => {
     const { applyTierBoost, computeBasePetStats, petItemStatContext, TIER_BOOST_ID } = petData;
     const levels = (strength) => ({ 1: { statNums: { STRENGTH: strength / 100 }, otherNums: [] }, 100: { statNums: { STRENGTH: strength }, otherNums: [] } });
@@ -1088,7 +1090,7 @@ try {
     assert.ok(simulateHitByHit(sources, mob, {}, null, 100).hits.every((h) => h.crimsonSwipeDamage === 0), 'no Crimson armor, no Swipe');
 
     // The graph's x axis is 0-based: x=0 is the opening hit, against a
-    // mob still at full HP, so the HP line drops at x=1 instead of x=2. Numbering only — the
+    // mob still at full HP, so the HP line drops at x=1 instead of x=2. Numbering only - the
     // doubled opening Swipe above still lands on that first recorded row.
     const sim = simulateHitByHit(sources, mob, crimson, 10_000_000, 100);
     assert.equal(sim.hits[0].hit, 0, 'the hit counter starts at 0');
@@ -1097,7 +1099,7 @@ try {
     assert.ok(sim.hits[1].hpPercent < 100, 'the HP line drops at x=1');
     assert.ok(sim.hits[0].crimsonSwipeDamage > 0, 'the doubled opening Swipe is on the x=0 row');
   });
-  // 41. The player's Defense (lib/playerDefense.js) — Mining Level
+  // 41. The player's Defense (lib/playerDefense.js) - Mining Level
   // (+1/level to 14, +2 after: 106 at 60), God Potion's 66, armor, and Unlimited Fortitude's
   // +0.2%/level on the total. Nothing on screen shows it; its only consumer is Ankylosaurus's
   // Armored Tank, whose own lore is "Gain {0}% of your Defense as Strength. (Max +500)".
@@ -1124,7 +1126,7 @@ try {
     assert.equal(computeAnkylosaurusStrength(4000, [50]), ANKYLOSAURUS_MAX_STRENGTH, 'never past +500');
     assert.equal(computeAnkylosaurusStrength(1000, []), 0, 'no pet numbers, no Strength');
   });
-  // 42. Picking a Slayer boss defaults to its highest tier — the Tier
+  // 42. Picking a Slayer boss defaults to its highest tier - the Tier
   // I-V ladder only. Every other tiered mob is tiered by spawn rarity or variant, where there's no
   // "highest" to assume, so those still need an explicit pick.
   await check('Slayer bosses default to their highest tier, other tiered mobs do not', async () => {
@@ -1271,7 +1273,7 @@ try {
     assert.ok(!ontoBow.includes('sharpness') && !ontoBow.includes('critical'), 'melee enchants never reach a bow');
     assert.ok(ontoBow.includes('power'), 'the Bow enchant does');
 
-    // Levels ride along untouched — a carried enchant is the same enchant, not a re-rolled one.
+    // Levels ride along untouched - a carried enchant is the same enchant, not a re-rolled one.
     assert.deepEqual(
       carriedHexEnchantments(worn, sword, enchantData).find((e) => e.id === 'sharpness'),
       { id: 'sharpness', level: 7, maxLevel: 7 },
@@ -1295,7 +1297,7 @@ try {
     assert.equal(at('mage', 50).ability_damage, 20);
     assert.equal(at('mage', 25).intelligence, 625);
     assert.equal(at('mage', 25).ability_damage, 15);
-    // Mage grants no multiplier at all — its whole contribution is two flat stats.
+    // Mage grants no multiplier at all - its whole contribution is two flat stats.
     assert.equal(at('mage', 50).meleeMultiplier, 1);
     assert.equal(at('mage', 50).arrowMultiplier, 1);
 
@@ -1354,7 +1356,7 @@ try {
   // 47. The class stats reach the damage pipeline. Two halves that have to hold together: a class
   // flat stat rides on selectBaseStats' post-selection layer, where the Catacombs Boost can't scale
   // it, and Berserker's opening-hit multiplier is gated by the same excludeFirstHitOnly flag the
-  // additive loop already honours — the multiplicative loop did not check it before classes existed.
+  // additive loop already honours - the multiplicative loop did not check it before classes existed.
   await check('Class stats reach Final Damage, and the opening-hit one is gated', () => {
     const { selectBaseStats, computeFinalDamage } = finalDamage;
     const { dungeonClassStats } = dungeonClass;
@@ -1467,7 +1469,7 @@ try {
   });
 
   // 49. The Execute vs Prosecute dilemma. Execute's bonus climbs as the mob's HP drains and
-  // Prosecute's falls, so at equal rates they are worth the same over a whole kill — but a window
+  // Prosecute's falls, so at equal rates they are worth the same over a whole kill - but a window
   // truncated at the fight's first 40 hits sees only the top of the HP bar and hands Prosecute a
   // ~25% edge it does not have. The optimizer ranks on a sampled WHOLE fight for exactly this
   // reason: samples spread across the HP curve cost what 40 hits cost and land within ~1% of
@@ -1538,6 +1540,36 @@ try {
     // An unsampled run weights every hit at 1, so nothing above changes the graph's own numbers.
     const plain = simulateHitByHit(sourcesFor('execute'), mob, { weapon: { item: { category: 'SWORD' }, modifiers: {} } }, HP, 100, true, false, 40);
     assert.ok(plain.hits.every((h) => h.weight === 1), 'the graph walks real hits, one for one');
+  });
+
+  // 50. No em-dashes or en-dashes in source. User direction, and a rule nobody can hold in their
+  // head across 140 files - so the harness holds it instead. Plain hyphens only.
+  await check('No em-dashes or en-dashes in source', () => {
+    const roots = ['src', 'scripts', '../worker/src', '../worker/scripts'];
+    const exts = new Set(['.js', '.jsx', '.mjs', '.css', '.json', '.html']);
+    const offenders = [];
+    const walk = (dir) => {
+      let entries;
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return; // a root that does not exist here is not a failure
+      }
+      for (const entry of entries) {
+        const full = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) {
+          if (entry.name !== 'node_modules' && entry.name !== 'dist') walk(full);
+          continue;
+        }
+        if (!exts.has(extname(entry.name))) continue;
+        const lines = readFileSync(full, 'utf8').split('\n');
+        lines.forEach((line, i) => {
+          if (line.includes('\u2014') || line.includes('\u2013')) offenders.push(`${full}:${i + 1}`);
+        });
+      }
+    };
+    for (const root of roots) walk(root);
+    assert.deepEqual(offenders, [], `use a plain hyphen instead:\n  ${offenders.slice(0, 10).join('\n  ')}`);
   });
 } finally {
   await server.close();

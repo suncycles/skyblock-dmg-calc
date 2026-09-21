@@ -3,7 +3,7 @@ import { useBuild } from '../context/BuildContext';
 import { useTheme } from '../context/ThemeContext';
 import { getZoneStyle } from '../lib/background';
 
-// Fixed zone-themed backdrop (see lib/background.js) shared by every page, not just Landing —
+// Fixed zone-themed backdrop (see lib/background.js) shared by every page, not just Landing -
 // keyed off the same Target Mob selection so the whole app stays visually consistent no matter
 // which page you're on, and applies the matching GUI theme too. A static (blurred) image, not a
 // video: no autoplay/decode cost.
@@ -18,7 +18,7 @@ export default function PageBackground() {
 
   return (
     // Outer wrapper is a plain (non-replaced) box pinned via inset-0 alone, with no width/height
-    // of its own — that's the one sizing technique with zero cross-browser ambiguity for a fixed
+    // of its own - that's the one sizing technique with zero cross-browser ambiguity for a fixed
     // element (unlike a percentage or vw/vh width, which resolve against the initial containing
     // block and have historically been inconsistent across browsers/scrollbar configurations).
     // The <img> then just fills 100%/100% of THIS already-guaranteed-correct box instead of the

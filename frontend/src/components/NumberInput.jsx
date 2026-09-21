@@ -6,7 +6,7 @@ import { parseCoinsShort } from '../lib/damageFormat';
 // the display collapsing mid-edit. Commits (clamped) on every valid keystroke, same as a plain
 // controlled input; only the empty state is deferred to blur (where it commits 0).
 // `min`/`max` pass `null` to leave that bound unclamped (e.g. fields that allow negative values).
-// `allowSuffix` accepts K/M/B/T shorthand (lib/damageFormat's parseCoinsShort) for coin fields —
+// `allowSuffix` accepts K/M/B/T shorthand (lib/damageFormat's parseCoinsShort) for coin fields -
 // switches to a plain text input since a native type="number" field rejects letter keystrokes
 // outright, so "5m" could never even be typed into one.
 export default function NumberInput({ id, value, onChange, min = 0, max, step = 1, className, placeholder, allowSuffix = false }) {
@@ -19,7 +19,7 @@ export default function NumberInput({ id, value, onChange, min = 0, max, step = 
   }
 
   useEffect(() => {
-    // Skips the reset while the buffered text already parses to this same value — otherwise
+    // Skips the reset while the buffered text already parses to this same value - otherwise
     // re-stringifying the committed number over text the user is still typing (e.g. "2.5m" resolves
     // correctly after every keystroke, but echoing "2500000" back mid-type would erase the "." or
     // the not-yet-typed "m") would fight them.

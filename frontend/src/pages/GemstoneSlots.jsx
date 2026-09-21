@@ -127,10 +127,10 @@ export default function GemstoneSlots() {
 
       <div className="w-full max-w-[700px] text-[13px] text-neutral-300 mb-2.5">
         {!item
-          ? 'No item selected — go back and pick one.'
+          ? 'No item selected - go back and pick one.'
           : slotCount === 0
             ? 'This item has no Gemstone Slots.'
-            : `${formatItemName(item.name)} — ${slotCount} Gemstone Slot${slotCount === 1 ? '' : 's'}`}
+            : `${formatItemName(item.name)} - ${slotCount} Gemstone Slot${slotCount === 1 ? '' : 's'}`}
       </div>
 
       <div className="w-full max-w-[700px] overflow-x-auto">

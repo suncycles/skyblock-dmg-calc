@@ -52,11 +52,11 @@ const MISC_STATS_KEY = 'hexMiscStats';
 // Dungeon Blessings (lib/dungeonBlessing.js): the four per-run slider levels, the Paul checkbox,
 // and the two account-wide effectiveness inputs the Hypixel import fills in.
 const BLESSING_KEY = 'hexDungeonBlessing';
-// Essence-shop perk levels, {perkKey: level} — imported from the account, never typed by hand.
+// Essence-shop perk levels, {perkKey: level} - imported from the account, never typed by hand.
 const ESSENCE_PERKS_KEY = 'hexEssencePerks';
 // Player-applied debuffs on the target (lib/mobDebuffs.js): Ice Spray, Last Breath, Lethality.
 const DEBUFFS_KEY = 'hexMobDebuffs';
-// Item buffs (lib/buffs.js): Ragnarock, Sword of Bad Health, Weirder Tuba — on/off toggles.
+// Item buffs (lib/buffs.js): Ragnarock, Sword of Bad Health, Weirder Tuba - on/off toggles.
 const BUFFS_KEY = 'hexBuffs';
 const MOB_HP_PERCENT_KEY = 'hexMobHpPercent';
 const MOB_HP_SELECTIONS_KEY = 'hexMobHpSelections';
@@ -101,7 +101,7 @@ function loadInitialGodPotion() {
   return localStorage.getItem(GOD_POTION_KEY) === 'true';
 }
 
-// Loads the God Potion's selected Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) — 'none' for
+// Loads the God Potion's selected Mixin (see lib/godPotion.js's GOD_POTION_MIXINS) - 'none' for
 // anything unrecognized (a fresh browser, or a stale value from before this existed).
 function loadInitialGodPotionMixin() {
   const stored = localStorage.getItem(GOD_POTION_MIXIN_KEY);
@@ -109,7 +109,7 @@ function loadInitialGodPotionMixin() {
 }
 
 // Loads the Armor/Equipment Options screens' "Edit All" toggles (above the Helmet/Necklace
-// slots) — while on, a modifier edit made to one piece via the Hex screen (enchants, gemstones,
+// slots) - while on, a modifier edit made to one piece via the Hex screen (enchants, gemstones,
 // reforge, stars, special, recomb, Clean, ...) is broadcast to every other equipped piece in the
 // same group. See updateSlotModifiers/setStarCount's `respectEditAll` param below.
 function loadInitialEditAllArmor() {
@@ -124,12 +124,12 @@ function loadInitialUseDungeonizedStats() {
   return localStorage.getItem(USE_DUNGEONIZED_STATS_KEY) === 'true';
 }
 
-// Loads the "Toggle Master Mode" on/off switch — only meaningful alongside useDungeonizedStats.
+// Loads the "Toggle Master Mode" on/off switch - only meaningful alongside useDungeonizedStats.
 function loadInitialUseMasterMode() {
   return localStorage.getItem(USE_MASTER_MODE_KEY) === 'true';
 }
 
-// Loads the "Mage Mode" on/off switch (see lib/abilityDamage.js) — reframes Damage Sources
+// Loads the "Mage Mode" on/off switch (see lib/abilityDamage.js) - reframes Damage Sources
 // around the Ability Damage formula instead of melee/ranged Final Damage.
 function loadInitialMageMode() {
   return localStorage.getItem(MAGE_MODE_KEY) === 'true';
@@ -150,7 +150,7 @@ function loadInitialDungeonClassLevels() {
     const parsed = JSON.parse(localStorage.getItem(DUNGEON_CLASS_LEVEL_KEY) || '{}');
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
   } catch {
-    // Unparseable or a pre-map single number — start empty rather than guessing which class it was.
+    // Unparseable or a pre-map single number - start empty rather than guessing which class it was.
   }
   return {};
 }
@@ -159,7 +159,7 @@ function clampClassLevel(value) {
   return Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, Number(value) || 0));
 }
 
-// Loads the "DPS Mode" on/off switch (see lib/finalDamage.js's computeDpsBreakdown) — reframes
+// Loads the "DPS Mode" on/off switch (see lib/finalDamage.js's computeDpsBreakdown) - reframes
 // Damage Sources' Final Damage panel around per-second damage instead of a single per-hit number.
 function loadInitialDpsMode() {
   return localStorage.getItem(DPS_MODE_KEY) === 'true';
@@ -188,7 +188,7 @@ function loadInitialMobHpPercent() {
 
 // Loads the per-mob Floor/Tier picks used to disambiguate a mob with more than one possible
 // starting HP (a Catacombs trash mob spawning on several floors, or a Slayer/Mythological boss
-// with several tiers — see lib/mobHp.js's getFloorOptions/getTierOptions/resolveStartingHp).
+// with several tiers - see lib/mobHp.js's getFloorOptions/getTierOptions/resolveStartingHp).
 // Keyed by mob name; a mob whose HP is already unambiguous never gets an entry here.
 function loadInitialMobHpSelections() {
   const stored = localStorage.getItem(MOB_HP_SELECTIONS_KEY);
@@ -203,28 +203,28 @@ function loadInitialMobHpSelections() {
 }
 
 // The Infernal Crimson combo-stack count (1-10, default 10, i.e. max stacks maintained). Applied
-// once 2+ Infernal Crimson pieces are equipped — see lib/armorSetBonuses.js.
+// once 2+ Infernal Crimson pieces are equipped - see lib/armorSetBonuses.js.
 function loadInitialInfernalCrimsonStacks() {
   const stored = localStorage.getItem(INFERNAL_CRIMSON_STACKS_KEY);
   const parsed = stored != null ? Number(stored) : INFERNAL_CRIMSON_MAX_STACKS;
   return Number.isFinite(parsed) ? Math.max(1, Math.min(INFERNAL_CRIMSON_MAX_STACKS, parsed)) : INFERNAL_CRIMSON_MAX_STACKS;
 }
 
-// Loads the Ultimate Swarm "Swarm Mobs" count (1-10, default 1) — see lib/damageSources.js.
+// Loads the Ultimate Swarm "Swarm Mobs" count (1-10, default 1) - see lib/damageSources.js.
 function loadInitialSwarmMobs() {
   const stored = localStorage.getItem(SWARM_MOBS_KEY);
   const parsed = stored != null ? Number(stored) : 1;
   return Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_SWARM_MOBS, parsed)) : 1;
 }
 
-// Loads the Ultimate Combo "Combo Kills" count (1-10, default 1) — see lib/damageSources.js.
+// Loads the Ultimate Combo "Combo Kills" count (1-10, default 1) - see lib/damageSources.js.
 function loadInitialComboKills() {
   const stored = localStorage.getItem(COMBO_KILLS_KEY);
   const parsed = stored != null ? Number(stored) : 1;
   return Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_COMBO_KILLS, parsed)) : 1;
 }
 
-// Loads the Ultimate Legion "Legion Players" count (0-20, default 0) — see lib/damageSources.js.
+// Loads the Ultimate Legion "Legion Players" count (0-20, default 0) - see lib/damageSources.js.
 function loadInitialLegionPlayers() {
   const stored = localStorage.getItem(LEGION_PLAYERS_KEY);
   const parsed = stored != null ? Number(stored) : 0;
@@ -237,7 +237,7 @@ function loadInitialBlazeCrimsonIsle() {
 }
 
 // Mob names (matching lib/mobTypes.js's MOB_TYPES keys) the imported account has maxed the Bestiary
-// on — see lib/bestiaryStrength.js. Import-only, with no manual editing UI.
+// on - see lib/bestiaryStrength.js. Import-only, with no manual editing UI.
 function loadInitialBestiaryMaxedMobs() {
   try {
     const stored = localStorage.getItem(BESTIARY_MAXED_MOBS_KEY);
@@ -305,7 +305,7 @@ function loadInitialEssencePerks() {
 
 // Blessing levels and the Paul buff always start at none: they are per-RUN inputs, and silently
 // restoring a previous session's run inflates every number on the page without the player asking
-// for it. The account-wide halves are restored — Forbidden Blessing and the Master Skull tier come
+// for it. The account-wide halves are restored - Forbidden Blessing and the Master Skull tier come
 // from a Hypixel import and are the account's, not a run's.
 function loadInitialBlessing() {
   const fresh = { levels: emptyBlessingLevels(), forbiddenBlessingLevel: 0, masterSkullTier: 0, paulBuff: false };
@@ -371,7 +371,7 @@ function loadInitialAttributes() {
 }
 
 // Loads global player levels (Combat, Skyblock, Foraging, Catacombs, Taming, Wolf Slayer,
-// General's Medallion digits — see lib/playerStats.js and lib/dungeonize.js).
+// General's Medallion digits - see lib/playerStats.js and lib/dungeonize.js).
 function loadInitialPlayerStats() {
   const defaults = {
     combatLevel: 0,
@@ -415,7 +415,7 @@ function loadInitialPlayerStats() {
   }
 }
 
-// Loads the loadout — a sparse map, absent slot keys meaning nothing equipped there.
+// Loads the loadout - a sparse map, absent slot keys meaning nothing equipped there.
 function loadInitial() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return {};
@@ -426,7 +426,7 @@ function loadInitial() {
       const entry = parsed[slot];
       if (slot === 'accessory') {
         // Unlike every other slot, Accessory can be saved with no item (just a pre-entered
-        // Magical Power waiting on a Power Stone pick) — item is intentionally optional here.
+        // Magical Power waiting on a Power Stone pick) - item is intentionally optional here.
         if (typeof entry?.modifiers?.magicalPower !== 'number') continue;
         next[slot] = entry;
         continue;
@@ -448,7 +448,7 @@ function loadInitial() {
   }
 }
 
-// Loads the "last modifiers seen per gear slot" stash — see removeSlot/selectItem below. Keyed by
+// Loads the "last modifiers seen per gear slot" stash - see removeSlot/selectItem below. Keyed by
 // slot (weapon/helmet/.../gloves only, never pet or accessory), holding a plain modifiers object.
 function loadInitialLastGearModifiers() {
   const stored = localStorage.getItem(LAST_GEAR_MODIFIERS_KEY);
@@ -462,7 +462,7 @@ function loadInitialLastGearModifiers() {
   }
 }
 
-// Undo/redo history depth — bounds memory for a long session; well past what anyone would
+// Undo/redo history depth - bounds memory for a long session; well past what anyone would
 // actually step back through by hand.
 const MAX_LOADOUT_HISTORY = 50;
 
@@ -479,7 +479,7 @@ export function BuildProvider({ children }) {
 
   // Every call site below calls `setLoadout(updater)`, function or value, exactly like the native
   // useState setter this replaces, so they all get Undo/Redo tracking without changes. A no-op
-  // update — some updaters return `prev` unchanged — is caught by reference equality and not pushed.
+  // update - some updaters return `prev` unchanged - is caught by reference equality and not pushed.
   const setLoadout = useCallback((update) => {
     setLoadoutRaw((prev) => {
       const next = typeof update === 'function' ? update(prev) : update;
@@ -517,7 +517,7 @@ export function BuildProvider({ children }) {
   const canRedo = redoStackRef.current.length > 0;
 
   // Doesn't need to trigger re-renders (only ever read at selectItem time), so a ref instead of
-  // state — keeps removeSlot/selectItem's useCallback deps stable.
+  // state - keeps removeSlot/selectItem's useCallback deps stable.
   const lastGearModifiersRef = useRef(loadInitialLastGearModifiers());
   const [playerStats, setPlayerStats] = useState(loadInitialPlayerStats);
   const [targetMobs, setTargetMobsState] = useState(loadInitialTargetMobs);
@@ -536,7 +536,7 @@ export function BuildProvider({ children }) {
   const mageMode = dungeonClass === 'mage';
   const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
   const [dpsKind, setDpsKindState] = useState(loadInitialDpsKind);
-  // Pet OWNERSHIP, not the equipped pet — it upgrades the Dungeon Potion's tier from the menu.
+  // Pet OWNERSHIP, not the equipped pet - it upgrades the Dungeon Potion's tier from the menu.
   const [hasJellyfishPet, setHasJellyfishPetState] = useState(() => localStorage.getItem(HAS_JELLYFISH_PET_KEY) === 'true');
   const [attributes, setAttributesState] = useState(loadInitialAttributes);
   const [miscStats, setMiscStatsState] = useState(loadInitialMiscStats);
@@ -565,7 +565,7 @@ export function BuildProvider({ children }) {
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(clamped));
   }, []);
 
-  // value=null/'' clears the pick for that mob (back to "no selection" — the DPS-by-hit graph's
+  // value=null/'' clears the pick for that mob (back to "no selection" - the DPS-by-hit graph's
   // fallback to the static Mob HP% slider) rather than storing an empty entry.
   const setMobHpSelection = useCallback((mobName, value) => {
     setMobHpSelectionsState((prev) => {
@@ -624,7 +624,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // One setter for the whole blessing block — the slider levels, the Paul checkbox and the two
+  // One setter for the whole blessing block - the slider levels, the Paul checkbox and the two
   // imported effectiveness inputs all live in the same persisted object.
   const updateBlessing = useCallback((patch) => {
     setBlessingState((prev) => {
@@ -644,7 +644,7 @@ export function BuildProvider({ children }) {
 
   const setPaulBuff = useCallback((value) => updateBlessing({ paulBuff: !!value }), [updateBlessing]);
 
-  // One setter for the whole debuff block, same shape as updateBlessing above — the Ice Spray
+  // One setter for the whole debuff block, same shape as updateBlessing above - the Ice Spray
   // checkbox and the two sliders all live in one persisted object.
   const updateDebuffs = useCallback((patch) => {
     setDebuffsState((prev) => {
@@ -657,7 +657,7 @@ export function BuildProvider({ children }) {
   const setIceSpray = useCallback((value) => updateDebuffs({ iceSpray: !!value }), [updateDebuffs]);
   const setTwilightPoison = useCallback((value) => updateDebuffs({ twilightPoison: !!value }), [updateDebuffs]);
 
-  // One toggle setter for every item buff (lib/buffs.js) — same persisted-object shape as debuffs.
+  // One toggle setter for every item buff (lib/buffs.js) - same persisted-object shape as debuffs.
   const setBuff = useCallback((id, value) => {
     setBuffsState((prev) => {
       const next = { ...prev, [id]: !!value };
@@ -674,7 +674,7 @@ export function BuildProvider({ children }) {
     [updateDebuffs],
   );
 
-  // Imported from the account, but editable afterwards on the Player Levels page — a manually
+  // Imported from the account, but editable afterwards on the Player Levels page - a manually
   // built loadout has no import to get them from. The Mimic shard is deliberately NOT here: it's a
   // normal attribute now (`attributes.mimic`), imported through importHypixelAttributes.
   const importHypixelBlessingInputs = useCallback(
@@ -687,7 +687,7 @@ export function BuildProvider({ children }) {
   );
 
   // Replaces the map wholesale, same "an import is authoritative" rule importHypixelAttributes
-  // follows — a perk the account no longer has must not survive from a previous import.
+  // follows - a perk the account no longer has must not survive from a previous import.
   const importHypixelEssencePerks = useCallback((perks) => {
     const next = {};
     for (const [key, level] of Object.entries(perks || {})) {
@@ -698,7 +698,7 @@ export function BuildProvider({ children }) {
     localStorage.setItem(ESSENCE_PERKS_KEY, JSON.stringify(next));
   }, []);
 
-  // Normally import-only, but the Optimizer can suggest levelling one — see its
+  // Normally import-only, but the Optimizer can suggest levelling one - see its
   // evaluateEssencePerkCandidates / applyOptimizerResult.
   const setEssencePerkLevel = useCallback((key, level) => {
     setEssencePerksState((prev) => {
@@ -713,7 +713,7 @@ export function BuildProvider({ children }) {
     [updateBlessing],
   );
 
-  // Derived from the equipped Master Skull on import, but typeable too — a manually built loadout
+  // Derived from the equipped Master Skull on import, but typeable too - a manually built loadout
   // has no accessory bag to read it off.
   const setMasterSkullTier = useCallback(
     (tier) => updateBlessing({ masterSkullTier: Math.max(0, Math.min(MASTER_SKULL_MAX_TIER, Math.floor(Number(tier) || 0))) }),
@@ -981,7 +981,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Blazetekk™ Ham Radio: manual — real ownership (it's a placed/inventory item, not equipped
+  // Blazetekk™ Ham Radio: manual - real ownership (it's a placed/inventory item, not equipped
   // gear or an Accessory Bag member) has no signal this app's Hypixel import currently reads. See
   // lib/damageSources.js for the Bluetooth/Bluertooth Ring damage bonus this toggle gates.
   const toggleBlazetekkHamRadio = useCallback(() => {
@@ -994,7 +994,7 @@ export function BuildProvider({ children }) {
 
   // Shared by every modifier setter below: no-ops on an empty slot, otherwise runs `updater` over the
   // slot's modifiers and persists.
-  // `respectEditAll` (default true) lets a caller opt out of the Edit All broadcast while it is on —
+  // `respectEditAll` (default true) lets a caller opt out of the Edit All broadcast while it is on -
   // used by applyOptimizerResult, since Edit All is scoped to the Hex screen rather than a swap-in.
   // `updater` receives (modifiers, item); the second argument lets a setter that only fits certain
   // items (applyGemstone's slot count, applyReforge's category and rarity, setRarityOverride's
@@ -1005,7 +1005,7 @@ export function BuildProvider({ children }) {
       setLoadout((prev) => {
         if (!prev[slot]) return prev;
         const next = { ...prev, [slot]: { ...prev[slot], modifiers: updater(prev[slot].modifiers, prev[slot].item) } };
-        // Edit All (Armor/Equipment Options popups, above the Helmet/Necklace slots) — the same
+        // Edit All (Armor/Equipment Options popups, above the Helmet/Necklace slots) - the same
         // modifier change also applies to every other equipped piece in the group, each running
         // `updater` over ITS OWN current modifiers independently rather than copying the target
         // slot's result, so a piece already in a different state (e.g. a different reforge) merges
@@ -1030,9 +1030,9 @@ export function BuildProvider({ children }) {
     [editAllArmor, editAllEquipment],
   );
 
-  // Equips `item` into `slot`. Every rule about what survives the swap — which modifiers carry,
+  // Equips `item` into `slot`. Every rule about what survives the swap - which modifiers carry,
   // the gemstone clip, the reforge-applicability check, star carry-over and the Kuudra reset, and
-  // the weapon-family boundary that drops the lot — lives in lib/slotSelection.js, shared with the
+  // the weapon-family boundary that drops the lot - lives in lib/slotSelection.js, shared with the
   // Optimizer's own pure apply (lib/applyResult.js) so a planned swap and a clicked one can't
   // diverge. The stash below is this screen's own affordance: remove-then-repick is the only way
   // to reach here with the slot already empty, so `prev[slot]` is gone by then and the last-seen
@@ -1056,7 +1056,7 @@ export function BuildProvider({ children }) {
     [itemData],
   );
 
-  // Merges a Hypixel-import gear patch (see lib/hypixelImport.js) into the current loadout —
+  // Merges a Hypixel-import gear patch (see lib/hypixelImport.js) into the current loadout -
   // only the slots present in `patch` are touched (already-full {item, modifiers} entries, not
   // reset to defaults like selectItem does), everything else about the build (attributes, player
   // levels, target mobs, misc toggles, the Accessory slot) is left exactly as it was.
@@ -1084,9 +1084,9 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Merges a Hypixel-import player-stats patch (wolfSlayerLevel/alchemyLevel/enchantingLevel) —
+  // Merges a Hypixel-import player-stats patch (wolfSlayerLevel/alchemyLevel/enchantingLevel) -
   // only the keys present in `patch` are touched.
-  // One named level, by its playerStats key — the Optimizer's free Skill-level suggestions apply
+  // One named level, by its playerStats key - the Optimizer's free Skill-level suggestions apply
   // through this rather than through nine slot-specific setters (see optimizer.js's
   // evaluateSkillLevelCandidates).
   const setPlayerLevel = useCallback((key, value) => {
@@ -1133,7 +1133,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Same full-replacement treatment as importHypixelBestiaryMaxedMobs above — a fresh import is a
+  // Same full-replacement treatment as importHypixelBestiaryMaxedMobs above - a fresh import is a
   // complete, authoritative recomputation from real kill data, not a patch.
   const importHypixelCombinedMythologicalBestiaryTiers = useCallback((value) => {
     const next = Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -1152,7 +1152,7 @@ export function BuildProvider({ children }) {
   const removeSlot = useCallback((slot) => {
     setLoadout((prev) => {
       if (!prev[slot]) return prev;
-      // Stash this slot's modifiers before they're gone — selectItem restores them onto whatever
+      // Stash this slot's modifiers before they're gone - selectItem restores them onto whatever
       // item gets picked next for this slot, so recomb/enchants/gemstones/etc. survive a
       // remove-then-repick instead of resetting. Pet/Accessory aren't stashed here: pet's
       // modifiers (level, held item) don't carry meaning across different species, and Accessory
@@ -1160,7 +1160,7 @@ export function BuildProvider({ children }) {
       // going through remove first).
       if (slot !== 'pet' && slot !== 'accessory') {
         // `category` rides along so selectItem can tell a same-family repick (Sword -> another
-        // Sword) apart from a cross-family one (Sword -> Bow) — see slotSelection.js's
+        // Sword) apart from a cross-family one (Sword -> Bow) - see slotSelection.js's
         // weaponTypeGroup, which buildSlotEntry consults.
         lastGearModifiersRef.current = {
           ...lastGearModifiersRef.current,
@@ -1203,7 +1203,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Sets (or replaces) the gemstone in one slot index — gemstones is a sparse array indexed by slot position.
+  // Sets (or replaces) the gemstone in one slot index - gemstones is a sparse array indexed by slot position.
   const applyGemstone = useCallback(
     (slot, slotIndex, gemId, tier, respectEditAll = true) => {
       updateSlotModifiers(
@@ -1215,7 +1215,7 @@ export function BuildProvider({ children }) {
           if (item && slotIndex >= countGemstoneSlots(item.lore)) return modifiers;
           // Also skip when this OTHER piece's real slot type at this index doesn't accept this gem
           // (e.g. broadcasting a Sapphire from Storm Helmet's slot 0 onto a piece whose own slot 0
-          // is Jasper-only) — see lib/gemstones.js's getAllowedGemsForSlotType.
+          // is Jasper-only) - see lib/gemstones.js's getAllowedGemsForSlotType.
           if (item && !getAllowedGemsForSlotType(item.gemstone_slots?.[slotIndex]?.slot_type).includes(gemId)) return modifiers;
           const gemstones = (modifiers.gemstones || []).slice();
           gemstones[slotIndex] = { gem: gemId, tier };
@@ -1270,7 +1270,7 @@ export function BuildProvider({ children }) {
   // Not routed through updateSlotModifiers: this is a toggle, and broadcasting a flip to each piece
   // in an Edit All group could leave them in opposite states. The target slot's new value is computed
   // once and every other piece is set to it.
-  // `forceValue` sets an exact value instead of flipping — used by the Optimizer's "carry the current
+  // `forceValue` sets an exact value instead of flipping - used by the Optimizer's "carry the current
   // recomb status onto a swap-in candidate" step, where the freshly-selected item's state isn't known
   // in advance and a blind flip could land on the wrong value.
   const toggleRecombobulated = useCallback(
@@ -1299,7 +1299,7 @@ export function BuildProvider({ children }) {
     [editAllArmor, editAllEquipment],
   );
 
-  // Hex.jsx's "Clean" button — resets every modifier on the slot's equipped item (enchants,
+  // Hex.jsx's "Clean" button - resets every modifier on the slot's equipped item (enchants,
   // gemstones, books, recomb, reforge, stars, special, etc.) back to default, without unequipping
   // the item itself. Independent of removeSlot's lastGearModifiers stash, same as every other
   // modifier-editing action here.
@@ -1313,7 +1313,7 @@ export function BuildProvider({ children }) {
   // name === null clears the reforge.
   // `reforgeMeta` (the selected reforge's own {itemTypes, requiredRarities, ...} entry, passed by
   // ReforgesPicker.jsx) lets Edit All check real applicability per OTHER piece before copying a
-  // reforge onto it — clearing (name === null) or an origin-only call (no meta) always applies.
+  // reforge onto it - clearing (name === null) or an origin-only call (no meta) always applies.
   const applyReforge = useCallback(
     (slot, name, respectEditAll = true, reforgeMeta = null) => {
       updateSlotModifiers(
@@ -1328,8 +1328,8 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Clamped against the equipped item's own real cap (5 normally, 10/15 for whitelisted gear —
-  // see lib/starring.js's getMaxStarsForItem) — not a flat 15 for everything. Not routed through
+  // Clamped against the equipped item's own real cap (5 normally, 10/15 for whitelisted gear -
+  // see lib/starring.js's getMaxStarsForItem) - not a flat 15 for everything. Not routed through
   // updateSlotModifiers since it needs the slot's `item`, not just its `modifiers`. Dropping
   // below the Master Star eligibility threshold also clears masterStars, same as setDungeonized.
   // Edit All broadcasts the same real "set to `count`" operation to every other equipped piece in
@@ -1366,15 +1366,15 @@ export function BuildProvider({ children }) {
     [editAllArmor, editAllEquipment],
   );
 
-  // tier === null resets to the item's own real tier — for milestone-upgrading items (e.g. David's Cloak) whose real rarity isn't in the bundled data.
+  // tier === null resets to the item's own real tier - for milestone-upgrading items (e.g. David's Cloak) whose real rarity isn't in the bundled data.
   const setRarityOverride = useCallback(
     (slot, tier, respectEditAll = true) => {
       updateSlotModifiers(
         slot,
         (modifiers, item) => {
           // Edit All: rarityOverride only means anything for the specific milestone-upgrading
-          // items that carry a `rarities` config (see lib/specialWeapons.js — currently only
-          // David's Cloak) — it isn't a generic "set every piece's tier to X" knob. Every other
+          // items that carry a `rarities` config (see lib/specialWeapons.js - currently only
+          // David's Cloak) - it isn't a generic "set every piece's tier to X" knob. Every other
           // item's real tier/rarity feeds its reforge/gemstone/recomb stat scaling directly (see
           // lib/itemTooltip.js, lib/recombobulator.js), so broadcasting it blind would silently
           // change those pieces' computed stats to a tier they were never actually recombobulated to.
@@ -1387,7 +1387,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Turning Dungeonize off also clears Master Stars — an item can't hold them without being dungeonized.
+  // Turning Dungeonize off also clears Master Stars - an item can't hold them without being dungeonized.
   const setDungeonized = useCallback(
     (slot, value) => {
       updateSlotModifiers(slot, (modifiers) => ({
@@ -1455,7 +1455,7 @@ export function BuildProvider({ children }) {
   );
 
   // Unlike other slots, Magical Power can be entered before a Power Stone is picked (it just
-  // won't contribute any stats yet — same as in-game) — so this lazily creates the accessory
+  // won't contribute any stats yet - same as in-game) - so this lazily creates the accessory
   // slot (item: null) rather than no-op'ing like updateSlotModifiers does for an empty slot.
   const setAccessoryMagicalPower = useCallback((value) => {
     setLoadout((prev) => {
@@ -1466,7 +1466,7 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  // Enrichment count/type — same lazy-create-the-accessory-slot behavior as Magical Power above,
+  // Enrichment count/type - same lazy-create-the-accessory-slot behavior as Magical Power above,
   // since Enrichments apply per Accessory Bag item regardless of which Power is currently active.
   const setAccessoryEnrichmentCount = useCallback((value) => {
     setLoadout((prev) => {
@@ -1506,7 +1506,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers, attributes.tuning_box, attributes.echo_of_boxes, attributes.echo_of_echoes],
   );
 
-  // Bulk replace — the "Auto-Spend" action (see lib/tuningOptimizer.js) computes a whole
+  // Bulk replace - the "Auto-Spend" action (see lib/tuningOptimizer.js) computes a whole
   // allocation via the real damage pipeline and applies it in one shot, instead of 8 sequential
   // setAccessoryTuningPoint calls each re-clamping against a stale snapshot of the others.
   const setAccessoryTuning = useCallback(
@@ -1518,7 +1518,7 @@ export function BuildProvider({ children }) {
 
   // Optimizer-only: "equipping" a New Accessory/Recombobulate/Perfect Gemstones candidate
   // (lib/accessoryOptimizer.js) pretends the player now owns/upgraded that real accessory, by
-  // writing it into ownedAccessories the same shape a real Hypixel import would — otherwise
+  // writing it into ownedAccessories the same shape a real Hypixel import would - otherwise
   // buildAccessoryCandidates keeps re-offering the exact same accessory next run (it only reads
   // ownedAccessories, which setAccessoryMagicalPower/setAccessoryTuning never touch), silently
   // double-counting its Magical Power. Always run after setAccessoryMagicalPower in the same
@@ -1539,7 +1539,7 @@ export function BuildProvider({ children }) {
 
   // Optimizer-only companion to setOwnedAccessory: an "Accessory Upgrade" candidate
   // (lib/accessoryOptimizer.js) replaces an owned lower-tier item with a different real item id
-  // for the higher tier — this drops the now-gone lower tier's stale ownership record.
+  // for the higher tier - this drops the now-gone lower tier's stale ownership record.
   const removeOwnedAccessory = useCallback(
     (id) => {
       updateSlotModifiers('accessory', (modifiers) => ({
@@ -1550,7 +1550,7 @@ export function BuildProvider({ children }) {
     [updateSlotModifiers],
   );
 
-  // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) — powers Import and the /loadout/:code share-link route.
+  // Overwrites the entire build state at once (loadout, attributes, player levels, God Potion, misc stats, mob HP%) - powers Import and the /loadout/:code share-link route.
   // Target mob(s) are intentionally left untouched: loadouts describe the player, not the encounter, so swapping loadouts keeps whatever mob(s) are currently targeted.
   const loadFullState = useCallback((state) => {
     const nextLoadout = state.loadout || {};
@@ -1621,7 +1621,7 @@ export function BuildProvider({ children }) {
     setMiscStatsState(nextMiscStats);
     localStorage.setItem(MISC_STATS_KEY, JSON.stringify(nextMiscStats));
 
-    // Ignores whatever a shared/saved loadout carried — see PINNED_MOB_HP_PERCENT.
+    // Ignores whatever a shared/saved loadout carried - see PINNED_MOB_HP_PERCENT.
     setMobHpPercentState(PINNED_MOB_HP_PERCENT);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(PINNED_MOB_HP_PERCENT));
 

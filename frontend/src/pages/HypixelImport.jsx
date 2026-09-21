@@ -20,8 +20,8 @@ import PageHeader from '../components/PageHeader';
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Raised-bevel button treatment for every selectable row on the Review screen — weapon candidates,
-// Wardrobe source sets, per-slot include toggles — mirroring this page's Import button
+// Raised-bevel button treatment for every selectable row on the Review screen - weapon candidates,
+// Wardrobe source sets, per-slot include toggles - mirroring this page's Import button
 // (grey unselected, green selected) rather than native radio and checkbox inputs, so a group of
 // options reads as a stack of buttons.
 const optionButtonBase =
@@ -33,7 +33,7 @@ const optionButtonOn =
 const optionButtonDisabled =
   'bg-black/10 border-t-black/10 border-l-black/10 border-b-black/10 border-r-black/10 text-black/40 cursor-default';
 
-// "Don't import a weapon" — a real, explicit choice alongside the real candidates, not just
+// "Don't import a weapon" - a real, explicit choice alongside the real candidates, not just
 // "nothing picked" (see the Review step's weapon section below for why that distinction matters).
 const SKIP_WEAPON = 'skip';
 
@@ -89,7 +89,7 @@ function WardrobeSetPreview({ set, slots, itemData }) {
   );
 }
 
-// "Currently worn" + one row per non-empty Wardrobe set, with a 4-icon preview — shared by both
+// "Currently worn" + one row per non-empty Wardrobe set, with a 4-icon preview - shared by both
 // the Armor Source and Equipment Source pickers on the Review screen. Renders nothing when the
 // account has no saved sets for this slot group (nothing to choose between).
 function WardrobeSourcePicker({ label, sets, slots, itemData, choice, onChange }) {
@@ -126,7 +126,7 @@ function WardrobeSourcePicker({ label, sets, slots, itemData, choice, onChange }
 }
 
 // Resolves a chosen Wardrobe set index (the set's real in-game slot number) against a sets array,
-// falling back to currently-worn when nothing's picked — matched by `.index`, not array position,
+// falling back to currently-worn when nothing's picked - matched by `.index`, not array position,
 // since empty sets are already filtered out worker-side and can leave gaps.
 function pickSource(sets, choice, fallback) {
   return choice == null ? fallback : sets?.find((s) => s.index === choice);
@@ -134,7 +134,7 @@ function pickSource(sets, choice, fallback) {
 
 // Imports worn armor, equipment and Accessory Power, plus computed pet level, attribute levels and
 // the skill levels, from a Hypixel account. Accessory Power and levels import unconditionally;
-// weapon, pet and each armor or equipment slot go through a Review step first — weapon because
+// weapon, pet and each armor or equipment slot go through a Review step first - weapon because
 // Skyblock has no dedicated weapon slot and the Worker returns every carried candidate, pet because
 // an account may own many (the equipped one is pre-selected), and the gear slots because the user
 // may want to keep what a slot already holds. Armor and equipment can also be sourced from any
@@ -183,18 +183,18 @@ export default function HypixelImport() {
       setRawImport(raw);
       setWeaponChoice(null);
       // Pre-select whichever pet Hypixel reports as currently equipped, same "start from what's
-      // real" default as the armor/equipment slots below — falls back to SKIP_PET if the account
+      // real" default as the armor/equipment slots below - falls back to SKIP_PET if the account
       // has no pets or none is flagged active.
       const activePetIndex = (raw.pets || []).findIndex((p) => p.active);
       setPetChoice(activePetIndex !== -1 ? activePetIndex : SKIP_PET);
       setWardrobeChoice(null);
       setWardrobeEquipmentChoice(null);
-      // Pre-checked for every slot Hypixel actually reports something worn in — an empty slot has nothing to import either way.
+      // Pre-checked for every slot Hypixel actually reports something worn in - an empty slot has nothing to import either way.
       const bySlot = { ...raw.armor, ...raw.equipment };
       setIncludedSlots(new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].filter((slot) => bySlot[slot])));
       setStatus('reviewing');
     } catch (err) {
-      setError(err instanceof HypixelImportError ? err.message : 'Import failed — see console for details.');
+      setError(err instanceof HypixelImportError ? err.message : 'Import failed - see console for details.');
       if (!(err instanceof HypixelImportError)) console.error('Hypixel import failed:', err);
       setStatus('idle');
     }
@@ -210,7 +210,7 @@ export default function HypixelImport() {
   }
 
   // Switching Armor/Equipment Source re-checks/unchecks that group's 4 slots to match what the
-  // newly chosen source actually has (same "pre-checked when present" rule as the initial load) —
+  // newly chosen source actually has (same "pre-checked when present" rule as the initial load) -
   // the other group's slots are untouched.
   function updateIncludedFromSource(slots, source) {
     setIncludedSlots((prev) => {
@@ -268,7 +268,7 @@ export default function HypixelImport() {
     importHypixelBlessingInputs(blessingInputs);
     importHypixelEssencePerks(essencePerks);
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
-    // The class the account last picked in-game, and its level — see lib/dungeonClass.js.
+    // The class the account last picked in-game, and its level - see lib/dungeonClass.js.
     if (dungeonClass) {
       // Levels first: setDungeonClassLevel writes whichever class is currently picked, so the map
       // has to land before the picker moves.
@@ -279,7 +279,7 @@ export default function HypixelImport() {
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
     importHypixelMaxedCollectionsCount(maxedCollectionsCount);
     setHasJellyfishPet(hasJellyfishPet);
-    // A fresh import turns God Potion on. Picking a Catacombs target mob still turns it back off —
+    // A fresh import turns God Potion on. Picking a Catacombs target mob still turns it back off -
     // see BuildContext's toggleTargetMob.
     setGodPotionActive(true);
     importHypixelWeaponList(await buildWeaponInventoryList(rawImport, itemData));
@@ -297,13 +297,13 @@ export default function HypixelImport() {
   }
 
   // Re-runs the whole import against another of the account's profiles, discarding the current
-  // profile's picks — a different profile has different gear, so none of them carry over.
+  // profile's picks - a different profile has different gear, so none of them carry over.
   function handleSwitchProfile(profileId) {
     if (profileId === rawImport?.profile?.profile_id) return;
     runImport(rawImport.uuid, true, profileId);
   }
 
-  // EntryScreen sends the typed username via router state — kick the import off immediately
+  // EntryScreen sends the typed username via router state - kick the import off immediately
   // instead of making the player retype it and press Import again.
   useEffect(() => {
     if (autoRanRef.current) return;
@@ -327,7 +327,7 @@ export default function HypixelImport() {
   );
   const weaponPending = weaponCandidates.length > 0 && weaponChoice === null;
   const petCandidates = rawImport?.pets || [];
-  // Pet items resolve against the same catalog David's Cloak/PetDetail already use — held item id
+  // Pet items resolve against the same catalog David's Cloak/PetDetail already use - held item id
   // (raw.pets[i].heldItem) matches an itemData.petItems entry 1:1, no id remapping needed.
   const petHeldItemName = (pet) => {
     const petItem = pet.heldItem ? (itemData.petItems || []).find((i) => i.id === pet.heldItem) : null;
@@ -337,7 +337,7 @@ export default function HypixelImport() {
   const equipmentSource = pickSource(rawImport?.wardrobeEquipmentSets, wardrobeEquipmentChoice, rawImport?.equipment);
 
   // 'loading' stays on this screen while a profile switch re-fetches, rather than dropping back to
-  // the username form — the only way to reach 'loading' from here is the profile picker below.
+  // the username form - the only way to reach 'loading' from here is the profile picker below.
   if ((status === 'reviewing' || status === 'loading') && rawImport) {
     return (
       <div className="min-h-screen flex flex-col items-center p-4">
@@ -364,7 +364,7 @@ export default function HypixelImport() {
                     <option key={p.profile_id} value={p.profile_id}>
                       {p.cute_name}
                       {p.game_mode ? ` (${p.game_mode})` : ''}
-                      {p.selected ? ' — currently active' : ''}
+                      {p.selected ? ' - currently active' : ''}
                     </option>
                   ))}
                 </select>
@@ -429,8 +429,8 @@ export default function HypixelImport() {
                 <div className="text-[11px] font-bold text-black uppercase tracking-wide">Pet</div>
                 <div className="text-[11px] text-black/70 truncate">
                   {typeof petChoice === 'number' && petCandidates[petChoice]
-                    ? `${derivePetDisplayName(petCandidates[petChoice].type)} — Lvl ${petCandidates[petChoice].level}` +
-                      (petHeldItemName(petCandidates[petChoice]) ? ` — ${petHeldItemName(petCandidates[petChoice])}` : '')
+                    ? `${derivePetDisplayName(petCandidates[petChoice].type)} - Lvl ${petCandidates[petChoice].level}` +
+                      (petHeldItemName(petCandidates[petChoice]) ? ` - ${petHeldItemName(petCandidates[petChoice])}` : '')
                     : 'None selected'}
                 </div>
               </div>
@@ -447,7 +447,7 @@ export default function HypixelImport() {
                         <button
                           key={i}
                           type="button"
-                          title={`${name} — Lvl ${pet.level}${petHeldItemName(pet) ? ` — ${petHeldItemName(pet)}` : ''}${pet.active ? ' (equipped)' : ''}`}
+                          title={`${name} - Lvl ${pet.level}${petHeldItemName(pet) ? ` - ${petHeldItemName(pet)}` : ''}${pet.active ? ' (equipped)' : ''}`}
                           onClick={() => setPetChoice(i)}
                           className={`${petTileBase} ${petChoice === i ? petTileOn : petTileOff}`}
                         >
@@ -583,7 +583,7 @@ export default function HypixelImport() {
           {status === 'picking-profile' && profileChoice && (
             <div className="flex flex-col gap-1.5">
               <div className="text-xs text-black font-bold">
-                {profileChoice.username} has multiple SkyBlock profiles — pick one:
+                {profileChoice.username} has multiple SkyBlock profiles - pick one:
               </div>
               {profileChoice.profiles.map((p) => (
                 <button
@@ -594,7 +594,7 @@ export default function HypixelImport() {
                 >
                   {p.cute_name}
                   {p.game_mode ? ` (${p.game_mode})` : ''}
-                  {p.selected ? ' — currently active' : ''}
+                  {p.selected ? ' - currently active' : ''}
                 </button>
               ))}
             </div>

@@ -12,10 +12,10 @@ const ALL_MOB_NAMES = Object.keys(MOB_TYPES).sort((a, b) => a.localeCompare(b));
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
-// Toggleable filter pill — same shape as ThemeSwitcher's theme buttons, shared by both the
+// Toggleable filter pill - same shape as ThemeSwitcher's theme buttons, shared by both the
 // location and type filter rows. `symbol` is the type's own Bestiary glyph (mob types have one,
 // locations don't), rendered in its real color so the chips read the same way the type does
-// everywhere else in the app — the tooltip, the Damage Sources breakdown, the tile badges.
+// everywhere else in the app - the tooltip, the Damage Sources breakdown, the tile badges.
 function FilterChip({ label, count, active, symbol, onClick }) {
   return (
     <button
@@ -59,7 +59,7 @@ function FilterSection({ title, expanded, onToggle, activeCount, children }) {
 
 // Picking the mob(s) Final Damage is computed against. A location filter panel (same source
 // data/grouping as docs/mob-types-reference.html's Bestiary-location chips) sits above the
-// search box so narrowing by zone happens before typing a name — clicking chips retroactively
+// search box so narrowing by zone happens before typing a name - clicking chips retroactively
 // filters the grid below, same click-to-toggle interaction as the reference page's filters, just
 // with mob icons instead of table rows. Each tile shows a spawn-egg icon for the mob's classified
 // vanilla entity when no real head/skin render exists. Click toggles a mob in/out of the
@@ -70,7 +70,7 @@ export default function TargetMobPicker() {
   const [query, setQuery] = useState('');
   const [activeLocations, setActiveLocations] = useState(() => new Set());
   const [activeTypes, setActiveTypes] = useState(() => new Set());
-  // Both collapsed by default — expanded, the 22 location and 24 type chips push the search box
+  // Both collapsed by default - expanded, the 22 location and 24 type chips push the search box
   // and mob grid well below the fold on mobile. Active filters still show as a count on the
   // collapsed header, so a narrowed grid is never unexplained.
   const [locationsExpanded, setLocationsExpanded] = useState(false);

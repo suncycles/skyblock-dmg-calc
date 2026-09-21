@@ -13,7 +13,7 @@ const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 
 // Dungeon-style Starring: a bounded number input (capped per-item, see lib/starring.js's
-// getMaxStarsForItem) plus a live preview of the item's real tooltip — same
+// getMaxStarsForItem) plus a live preview of the item's real tooltip - same
 // buildFullItemTooltipLines call Hex.jsx's hover tooltip uses, so the Overworld total and the
 // Catacombs Boost annotation(s) are both visible while tuning stars.
 export default function StarringPicker() {
@@ -84,7 +84,7 @@ export default function StarringPicker() {
 
       <div className={`${panel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
         {/* Preview. whiteSpace/width override .mc-tooltip's nowrap+max-content sizing (meant for
-            the floating hover tooltip) — without it, a single long lore line (e.g. a Floor
+            the floating hover tooltip) - without it, a single long lore line (e.g. a Floor
             requirement line) forces this static, in-flow box wider than the viewport on mobile. */}
         <div className="mc-tooltip" style={{ position: 'static', fontSize: '13px', whiteSpace: 'normal', width: '100%' }}>
           {tooltipLines ? (
@@ -119,7 +119,7 @@ export default function StarringPicker() {
           and Master Stars into a separate Catacombs Boost total.
         </div>
 
-        {/* Dungeonize toggle — same bright-on/dark-off skull-icon button style as Damage Sources' "Dungeon" toggle */}
+        {/* Dungeonize toggle - same bright-on/dark-off skull-icon button style as Damage Sources' "Dungeon" toggle */}
         <button
           type="button"
           onClick={() => setDungeonized(slot, !dungeonized)}
@@ -161,7 +161,7 @@ export default function StarringPicker() {
               </div>
               <div className="text-xs text-neutral-700">
                 Each Master Star adds +5% to the Catacombs Boost percentage (on top of Catacombs Level/Catacombs
-                Stars/General's Medallion) — only while Damage Sources' "Master" toggle is on. Shown as a separate
+                Stars/General's Medallion) - only while Damage Sources' "Master" toggle is on. Shown as a separate
                 dark-blue total alongside the without-Master one.
               </div>
             </>

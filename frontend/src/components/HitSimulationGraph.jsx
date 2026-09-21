@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
-// Matches DpsByHitGraph's own note — Recharts renders raw SVG with literal stroke/fill props, so
+// Matches DpsByHitGraph's own note - Recharts renders raw SVG with literal stroke/fill props, so
 // the site's Tailwind dark-glass theme never applies here and has to be hardcoded instead.
 const GRAPH_AXIS_COLOR = 'rgba(241, 245, 249, 0.7)';
 const GRAPH_GRID_COLOR = 'rgba(255, 255, 255, 0.15)';
@@ -15,7 +15,7 @@ const PROC_LABELS = {
   venomousDamage: 'Venomous (amortized)',
 };
 
-// One line per damage source rather than a single summed line — a
+// One line per damage source rather than a single summed line - a
 // stacked total hides which source is actually moving. Same key order as PROC_LABELS so the
 // legend and the tooltip read in the same order.
 const SOURCE_SERIES = [
@@ -28,7 +28,7 @@ const SOURCE_SERIES = [
 const TOTAL_COLOR = '#4ade80';
 
 // The damage axis deliberately does NOT start at zero. Anchored at 0, a real build's variance is
-// invisible — at ~5,000,000 per hit a 10,000 swing is 0.2% of the axis, a flat line. Fitting the
+// invisible - at ~5,000,000 per hit a 10,000 swing is 0.2% of the axis, a flat line. Fitting the
 // axis to the values actually plotted turns that same swing into real
 // vertical movement. Padded by 8% of the span so the extremes aren't welded to the frame, and only
 // clamped at 0 when the padding would otherwise push below it.
@@ -88,12 +88,12 @@ function HitTooltip({ active, payload, label }) {
   );
 }
 
-// Real hit-by-hit fight simulation (lib/finalDamage.js's simulateHitByHit) — replaces
+// Real hit-by-hit fight simulation (lib/finalDamage.js's simulateHitByHit) - replaces
 // DpsByHitGraph's flat steady-state extrapolation with an actual per-hit damage sequence against
 // the mob's real starting HP, so Execute/Prosecute's ramp and Fire Aspect/Thunderlord/Crimson
 // Swipe's individual procs show up as real bumps/growth instead of being smoothed into one
 // constant DPS number. `hasRealHp` false means no confirmed HP number
-// exists for this mob yet (docs/mob-hp-followups.md) — the sequence still simulates (holding Mob
+// exists for this mob yet (docs/mob-hp-followups.md) - the sequence still simulates (holding Mob
 // HP% constant at the slider's value instead of draining a real pool), so a small note explains why.
 export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps }) {
   // Split by default, aggregate on demand. Mob HP stays on by default (unchanged), but is now
@@ -103,7 +103,7 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
   const [showHp, setShowHp] = useState(true);
   const safeHits = hits && hits.length > 0 ? hits : [];
 
-  // Only sources that actually fire — a build with no Venomous/Thunderlord shouldn't get flat
+  // Only sources that actually fire - a build with no Venomous/Thunderlord shouldn't get flat
   // zero lines pinning the axis minimum to 0 and squashing everything else.
   const activeSeries = SOURCE_SERIES.filter(({ key }) => safeHits.some((h) => (h[key] || 0) > 0));
   const plottedKeys = aggregate || activeSeries.length === 0 ? ['totalDamage'] : activeSeries.map((sm) => sm.key);
@@ -123,9 +123,9 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
           {hasRealHp && <Toggle checked={showHp} onChange={setShowHp} label="Mob HP" />}
         </div>
       </div>
-      {/* Real per-hit DPS swings over the shown window — from Venomous stacking up, Execute/
+      {/* Real per-hit DPS swings over the shown window - from Venomous stacking up, Execute/
           Prosecute ramping as real HP drains, and First Strike/Triple Strike's opening-hit-only
-          boost — rather than the single fixed "Total DPS" snapshot above assumes. Shown whenever
+          boost - rather than the single fixed "Total DPS" snapshot above assumes. Shown whenever
           there's more than one point to spread across (a flat, unvarying fight makes max===min,
           not worth a redundant line). */}
       {maxDps != null && minDps != null && Math.round(maxDps) !== Math.round(minDps) && (
@@ -137,7 +137,7 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
       )}
       {!hasRealHp && (
         <span className="text-[10px] italic text-neutral-600">
-          No confirmed HP for {mobName} yet — held at full HP instead of a real draining pool.
+          No confirmed HP for {mobName} yet - held at full HP instead of a real draining pool.
         </span>
       )}
       {/* Taller than the original 200 and with real bottom padding: the legend added above the

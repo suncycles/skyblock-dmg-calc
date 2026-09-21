@@ -1,7 +1,7 @@
 // The five Catacombs classes and the damage stats each grants. Healer and Tank grant none, so they
 // share one entry that computes exactly as no class does.
 //
-// Every bonus here applies ONLY while the Dungeon toggle is on — the classes exist only inside
+// Every bonus here applies ONLY while the Dungeon toggle is on - the classes exist only inside
 // Catacombs, so `dungeonClassStats` returns the empty set when that toggle is off.
 //
 // Each class splits into a passive granted at class level 0 and a per-level bonus accruing to
@@ -13,7 +13,7 @@ export const MAX_DUNGEON_CLASS_LEVEL = 50;
 // same numbers it did before classes existed.
 export const DEFAULT_DUNGEON_CLASS = 'healer_tank';
 
-// The neutral cube, shown while no class is in effect — outside a dungeon, where every class grants
+// The neutral cube, shown while no class is in effect - outside a dungeon, where every class grants
 // nothing. Each class's own icon is the same cube in that class's colour.
 export const DUNGEON_CLASS_NEUTRAL_ICON = '/images/manual/select_class.webp';
 
@@ -57,7 +57,7 @@ const BERSERK_FIRST_HIT_PERCENT_PER_LEVEL = 0.75;
 
 // Lust for Blood: an ADDITIVE damage bonus that BUILDS over a fight, a stack at a time. A melee hit
 // gains 5x the per-stack scaling and a ranged hit 1x, both clamped at a cap that grows +70 every 5
-// class levels (250 at level 0, 950 at level 50) — so melee crosses the cap within a couple of hits
+// class levels (250 at level 0, 950 at level 50) - so melee crosses the cap within a couple of hits
 // while ranged climbs for most of a fight. A single-hit number shows one stack's worth.
 const LUST_FOR_BLOOD_PERCENT = 30;
 const LUST_FOR_BLOOD_PERCENT_PER_LEVEL = 3;

@@ -4,7 +4,7 @@
 // picking a family opens a tier sub-picker instead.
 export const ARMOR_VARIANT_FAMILIES = ['AURORA', 'CRIMSON', 'FERVOR', 'HOLLOW', 'TERROR'];
 
-// Ascending power order by stats, not by id naming — "Burning" reads like it outranks "Fiery" but doesn't.
+// Ascending power order by stats, not by id naming - "Burning" reads like it outranks "Fiery" but doesn't.
 export const VARIANT_TIERS = [
   { prefix: '', label: 'Basic' },
   { prefix: 'HOT_', label: 'Hot' },
@@ -60,7 +60,7 @@ export function groupArmorVariants(items, slot) {
   return result;
 }
 
-// Which VARIANT_TIERS index (if any) `id` is — the equipped tier of `family` in `slot`, or null
+// Which VARIANT_TIERS index (if any) `id` is - the equipped tier of `family` in `slot`, or null
 // if `id` isn't a member of that family at all (empty slot, different item, different family).
 export function getEquippedVariantTier(id, slot, family) {
   const pieceSuffix = PIECE_SUFFIX[slot];
@@ -69,7 +69,7 @@ export function getEquippedVariantTier(id, slot, family) {
   return idx === -1 ? null : idx;
 }
 
-// Same as getEquippedVariantTier, but without needing to know the family upfront — checks all 5
+// Same as getEquippedVariantTier, but without needing to know the family upfront - checks all 5
 // (Aurora/Crimson/Fervor/Hollow/Terror) and returns the first match, or null if `id` isn't any of
 // them. Used for the corner tier badge (T0-T4) shown on these families' icons wherever they render.
 export function getVariantTierIndexForId(id, slot) {
@@ -80,7 +80,7 @@ export function getVariantTierIndexForId(id, slot) {
   return null;
 }
 
-// The 5 real armor.json entries for a given family+slot, in ascending power order — null for any missing tier.
+// The 5 real armor.json entries for a given family+slot, in ascending power order - null for any missing tier.
 export function getVariantTierItems(armorList, family, slot) {
   const pieceSuffix = PIECE_SUFFIX[slot];
   if (!pieceSuffix) return [];

@@ -6,7 +6,7 @@
    cap and max bonus, Hypixel having never published the real curve. Daedalus Blade's and Emerald
    Blade's formulas are stated in their own lore. */
 
-const SPECIAL_COLOR = 'b'; // aqua — distinct from Books (e), Art of War (6), Reforges (9), Gemstones (d)
+const SPECIAL_COLOR = 'b'; // aqua - distinct from Books (e), Art of War (6), Reforges (9), Gemstones (d)
 
 // Daedalus Blade's Taming-level Damage bonus (its pet-stat-copy half isn't modeled).
 const DAEDALUS_TAMING_DAMAGE_PER_LEVEL = { DAEDALUS_AXE: 4, STARRED_DAEDALUS_AXE: 5 };
@@ -82,7 +82,7 @@ export const SPECIAL_WEAPON_CONFIG = {
     inputLabel: 'Coins Consumed',
   },
   // David's Cloak has no published Strength formula, so it is a directly entered value. Its rarity
-  // isn't fixed either — it upgrades through Hunting milestones rather than a recomb — so it also
+  // isn't fixed either - it upgrades through Hunting milestones rather than a recomb - so it also
   // gets a rarity picker, which corrects the tooltip tier and the gemstone and reforge scaling.
   DAVIDS_CLOAK: {
     kind: 'flatStrength',
@@ -113,7 +113,7 @@ export function computeSpecialBonus(config, value) {
     case 'emeraldBlade':
       return +(2.5 * Math.min(v, config.purseCap) ** 0.25).toFixed(1);
     case 'crownOfAvarice':
-      // Digit count of coins consumed — 0 has 0 digits.
+      // Digit count of coins consumed - 0 has 0 digits.
       return v === 0 ? 0 : Math.floor(Math.log10(v)) + 1;
     case 'flatStrength':
       return Math.min(v, config.max);
@@ -130,7 +130,7 @@ export function crownOfAvariceStats(config, digits) {
   };
 }
 
-// Midas Sword/Staff's lore has no live "Price Paid" counter — inserted as its own paragraph before the "This item can be reforged!" footer.
+// Midas Sword/Staff's lore has no live "Price Paid" counter - inserted as its own paragraph before the "This item can be reforged!" footer.
 function insertPriceCounterLine(lore, value) {
   const reforgeIdx = lore.findIndex((l) => l.includes('This item can be reforged'));
   const line = `§7Price Paid: §6${Math.max(0, value || 0).toLocaleString('en-US')}`;
@@ -141,7 +141,7 @@ function insertPriceCounterLine(lore, value) {
 
 // {statKey: delta} for the two `special` kinds that feed a real STAT_LABELS line: Midas Sword's
 // Greed Damage/Strength bonus and David's Cloak's Hunting-milestone Strength (`flatStrength`). The
-// other kinds — bestiary, emeraldBlade, midasStaff, crownOfAvarice — only rewrite non-stat ability
+// other kinds - bestiary, emeraldBlade, midasStaff, crownOfAvarice - only rewrite non-stat ability
 // text. Shared with lib/itemStatTotals.js, so the hidden-base computation and this file's text
 // rewrites agree on one value.
 export function computeSpecialStatBonus(weaponId, value) {
@@ -164,7 +164,7 @@ export function applySpecialToLore(lore, weaponId, value) {
     const magicFind = +(Math.max(0, value || 0) * config.perTierMagicFind).toFixed(1);
     return lore.map((line) => {
       if (line.includes('Bestiary Tiers:')) return line.replace(/§3\d+$/, `§3${Math.max(0, value || 0)}`);
-      // Real lore embeds a glyph right after the number — match on substring presence rather than adjacency.
+      // Real lore embeds a glyph right after the number - match on substring presence rather than adjacency.
       if (line.includes('+0%') && line.includes('Damage')) return line.replace('+0%', `+${bonus}%`);
       if (line.includes('+0') && line.includes('Magic Find')) return line.replace('+0', `+${magicFind}`);
       return line;
@@ -188,7 +188,7 @@ export function applySpecialToLore(lore, weaponId, value) {
     const withCounter = insertPriceCounterLine(lore, value);
     if (!bonus) return withCounter;
     const insertIdx = withCounter.indexOf('');
-    // No pre-existing "Ability Damage" line to merge into — inserted directly as the base value.
+    // No pre-existing "Ability Damage" line to merge into - inserted directly as the base value.
     const line = `§7Ability Damage Bonus: §${SPECIAL_COLOR}+${bonus}`;
     if (insertIdx === -1) return [...withCounter, line];
     return [...withCounter.slice(0, insertIdx), line, ...withCounter.slice(insertIdx)];

@@ -1,7 +1,7 @@
 import { STAT_LABELS } from './reforgeData';
 
 // Some enchants grant a flat/percent stat bonus per level (e.g. "Increases Crit Damage by
-// 10%.", "Grants +3 Health.") — parsed generically from the two real NEU-REPO phrasings
+// 10%.", "Grants +3 Health.") - parsed generically from the two real NEU-REPO phrasings
 // rather than a hardcoded per-enchant table, so any stat-granting enchant picks this up for
 // free. Returns null for anything that doesn't resolve to one fixed number on one known stat
 // (e.g. Cayenne's Magical-Power-scaled bonus, which this calculator has no input for).

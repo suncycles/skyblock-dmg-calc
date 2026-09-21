@@ -7,8 +7,8 @@ import { GOD_POTION_MIXINS } from './godPotion';
 
 /* Encodes the whole build into one URL-safe string and decodes it back, powering the Loadouts
    Export/Import buttons and the /loadout/:code share-link route. Only item.id, petId + tier and the
-   power id are stored per slot — never the item's `lore`, which is reconstructed from itemData on
-   decode — and everything else passes through as JSON. Modifiers are diffed against their type's
+   power id are stored per slot - never the item's `lore`, which is reconstructed from itemData on
+   decode - and everything else passes through as JSON. Modifiers are diffed against their type's
    defaults before encoding and re-filled on decode, since most slots sit at their defaults. The
    result is deflated with the browser's CompressionStream and base64url-encoded.
 
@@ -19,7 +19,7 @@ import { GOD_POTION_MIXINS } from './godPotion';
    needs no network round trip. */
 
 const FORMAT_VERSION = 2;
-// v1 links (gzip-wrapped, enchant/gemstone entries as keyed objects) are still decodable —
+// v1 links (gzip-wrapped, enchant/gemstone entries as keyed objects) are still decodable -
 // expandState() branches on compact.v. Only v2 (deflate-raw, tuple-packed) is ever encoded now.
 const SUPPORTED_VERSIONS = new Set([1, 2]);
 
@@ -50,7 +50,7 @@ function withDefaults(diff, defaults) {
 }
 
 // v2 packs {id, level, maxLevel} enchant entries and {gem, tier} gemstone entries as positional
-// tuples rather than keyed objects — the same values without the repeated field names, which are
+// tuples rather than keyed objects - the same values without the repeated field names, which are
 // the biggest remaining cost for a fully-enchanted item.
 function packEnchant(e) {
   return [e.id, e.level, e.maxLevel];
@@ -284,7 +284,7 @@ async function decompressGzip(bytes) {
 }
 
 // v1 links were gzip-wrapped, and gzip's 2-byte magic number (0x1f 0x8b) identifies them
-// unambiguously, since raw deflate has no header — so a byte check routes each format to the right
+// unambiguously, since raw deflate has no header - so a byte check routes each format to the right
 // decompressor without a separate URL shape.
 async function decompress(bytes) {
   if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return decompressGzip(bytes);
@@ -308,7 +308,7 @@ async function decodeEmbeddedBlob(code, itemData) {
 
 // Returns the expanded state, or throws when `code` doesn't decode to valid JSON, is an unsupported
 // version, or is the wrong shape; callers should catch and show a friendly error. `code` is either a
-// self-contained embedded blob or a short id from shortenLoadoutCode(), tried in that order — a
+// self-contained embedded blob or a short id from shortenLoadoutCode(), tried in that order - a
 // short id is the wrong shape to parse as a blob and fails fast, so no separate URL pattern is needed.
 export async function decodeLoadoutCode(code, itemData) {
   try {

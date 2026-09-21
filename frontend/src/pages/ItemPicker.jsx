@@ -9,26 +9,26 @@ function stripLeadingSymbol(name) {
   return name.replace(/^[^A-Za-z0-9]+/, '');
 }
 
-// NEU-REPO categories are SHOUTED ("DUNGEON SWORD") — title-cased for the filter chips only.
+// NEU-REPO categories are SHOUTED ("DUNGEON SWORD") - title-cased for the filter chips only.
 function formatCategory(category) {
   return category.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
-// Same bordered chest-GUI look used everywhere else (panels, back buttons) — reused here so
+// Same bordered chest-GUI look used everywhere else (panels, back buttons) - reused here so
 // these pickers pick up the same theme overrides instead of a plain generic grey palette.
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
 const slotBase =
   'flex flex-col items-center justify-center gap-1 bg-[#8b8b8b]/80 shadow-[inset_2px_2px_0_0_#373737,inset_-2px_-2px_0_0_#ffffff]';
-// Fewer columns on narrow screens — at a fixed 8 columns, cells (and their name labels) shrink
+// Fewer columns on narrow screens - at a fixed 8 columns, cells (and their name labels) shrink
 // to illegible slivers on phone-width viewports. Widens back to 8 once there's room for it.
 const gridPanel =
   'grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5 bg-[#c6c6c6]/60 backdrop-blur-[1px] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black p-1.5';
 // Loading skeleton: same slot grid as the real results, just pulsing and empty, so the layout
-// doesn't jump once items arrive — a placeholder shape instead of a plain "Loading..." line.
+// doesn't jump once items arrive - a placeholder shape instead of a plain "Loading..." line.
 const SKELETON_SLOT_COUNT = 32;
 // Above this many distinct categories the chip row is more noise than filter (and the catalog
-// almost certainly isn't category-shaped for that picker) — pets/pet items have none at all.
+// almost certainly isn't category-shaped for that picker) - pets/pet items have none at all.
 const MAX_CATEGORY_CHIPS = 10;
 
 // Same toggleable pill as TargetMobPicker's location chips, reused so both pickers filter the
@@ -51,7 +51,7 @@ function CategoryChip({ label, count, active, onClick }) {
 
 // Generic search-box-plus-full-grid item picker, shared by weapon/armor/equipment/pet pickers.
 // Knows nothing about BuildContext or routing. Search and the category chips both filter the grid
-// itself, and every tile shows the item's own pristine catalog tooltip on hover — four
+// itself, and every tile shows the item's own pristine catalog tooltip on hover - four
 // same-prefix items whose names all truncate to "Aspect of th…" are otherwise guesswork.
 export default function ItemPicker({ items, title, placeholder, loading, error, onSelect, onBack }) {
   const [query, setQuery] = useState('');
@@ -88,7 +88,7 @@ export default function ItemPicker({ items, title, placeholder, loading, error, 
     });
   }
 
-  // The item's own bundled catalog lore — the pristine, unmodified stats, which is exactly what
+  // The item's own bundled catalog lore - the pristine, unmodified stats, which is exactly what
   // you want while choosing. (An equipped item's full modifier-aware tooltip lives on Landing/Hex.)
   function handleHover(item, e) {
     showTooltip([`§${rarityColorCode(item.tier)}§l${formatItemName(item.name)}`, ...(item.lore || [])], e.currentTarget);

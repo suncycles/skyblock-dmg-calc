@@ -40,7 +40,7 @@ import { decodeLoadoutCode } from '../lib/loadoutCode';
 import { loadSavedLoadoutsFromStorage } from '../lib/savedLoadouts';
 import { useConfirmDialog } from '../context/ConfirmDialogContext';
 
-// recharts (+ its d3 submodules) is a genuinely heavy dependency used only by this one chart —
+// recharts (+ its d3 submodules) is a genuinely heavy dependency used only by this one chart -
 // dynamically imported so it's fetched/parsed only when DPS mode is actually toggled on, not on
 // every visit to this page (the far more common case is the plain Final Damage view).
 const HitSimulationGraph = lazy(() => import('../components/HitSimulationGraph'));
@@ -51,7 +51,7 @@ const panel =
 // consistent sections rather than bolded labels at varying sizes.
 const sectionTitle = 'text-[13px] font-bold text-black uppercase tracking-wide pb-1 mb-0.5 border-b border-neutral-500/40';
 
-// Final Destination's Ender-only Strength/Attack Speed (see finalDamage.js's selectBaseStats) —
+// Final Destination's Ender-only Strength/Attack Speed (see finalDamage.js's selectBaseStats) -
 // mirrored here so the (Base) Stats panel's displayed total/breakdown matches what Final Damage
 // actually used, same reason as isEnderTarget above.
 const FINAL_DESTINATION_BONUS_BY_KEY = { strength: FINAL_DESTINATION_STRENGTH, bonus_attack_speed: FINAL_DESTINATION_ATTACK_SPEED };
@@ -66,7 +66,7 @@ const STICKY_STAT_KEYS = [
   { key: 'bonus_attack_speed', symbolName: 'Attack Speed' },
 ];
 
-// Which stat the Enrichments count currently applies to — see damageSources.js's Enrichments source line.
+// Which stat the Enrichments count currently applies to - see damageSources.js's Enrichments source line.
 const ENRICHMENT_TYPES = [
   { key: 'strength', label: 'Strength', ...STAT_SYMBOLS.Strength },
   { key: 'crit_damage', label: 'Crit Damage', ...STAT_SYMBOLS['Crit Damage'] },
@@ -77,7 +77,7 @@ const ENRICHMENT_TYPES = [
 ];
 
 // The mob's Defense stat and the multiplier it applies (lib/mobDefenses.js), shown only when
-// non-zero — the handful of Catacombs mobs with a published number, mostly in Master Mode.
+// non-zero - the handful of Catacombs mobs with a published number, mostly in Master Mode.
 function MobDefenseNote({ name, types, masterMode, debuffs }) {
   const mob = { name, types };
   const defense = computeMobDefense(mob, masterMode);
@@ -97,7 +97,7 @@ function MobDefenseNote({ name, types, masterMode, debuffs }) {
   );
 }
 
-// Every figure on this page is computed at full HP — see BuildContext's PINNED_MOB_HP_PERCENT,
+// Every figure on this page is computed at full HP - see BuildContext's PINNED_MOB_HP_PERCENT,
 // which keeps the Optimizer in agreement. First Strike and Triple Strike therefore always apply,
 // which the Final Damage headline says out loud (meleeDamageQualifiers).
 const MOB_HP_PERCENT = 100;
@@ -110,7 +110,7 @@ const MOB_HP_PERCENT = 100;
 // waits. The Blaze checkbox stays outside this, being a discrete toggle.
 function useConfirmedValues(live) {
   const [applied, setApplied] = useState(live);
-  // Compared by serialising — this is five small numbers plus one flat object, and `live` is a
+  // Compared by serialising - this is five small numbers plus one flat object, and `live` is a
   // fresh object every render, so an identity check would always read dirty.
   const dirty = JSON.stringify(live) !== JSON.stringify(applied);
   return [applied, () => setApplied(live), dirty];
@@ -118,7 +118,7 @@ function useConfirmedValues(live) {
 
 // Qualifiers that belong in the Final Damage headline. Fabled means the figure is a range (its
 // crit bonus is randomized per hit); First Strike/Triple Strike mean the number is an OPENING hit
-// and won't repeat — worth naming, since with the Mob HP% slider gone every result is computed at
+// and won't repeat - worth naming, since with the Mob HP% slider gone every result is computed at
 // full HP, which is exactly when those two apply (see damageSources.js's firstHitOnly gate).
 const FIRST_HIT_LABELS = [
   { suffix: '-first_strike', label: 'First Strike' },
@@ -214,7 +214,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const tokenRef = useRef(0);
 
-  // Applied-on-confirm copies of every MISC-panel value that feeds collectDamageSources — see
+  // Applied-on-confirm copies of every MISC-panel value that feeds collectDamageSources - see
   // useConfirmedValues. Bundled into one snapshot so a single Apply press commits the whole panel.
   const [appliedMisc, applyMisc, miscDirty] = useConfirmedValues({
     miscStats,
@@ -229,12 +229,12 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const settledComboKills = appliedMisc.comboKills;
   const settledLegionPlayers = appliedMisc.legionPlayers;
   // Blessings and Debuffs are edited on their own pages, so nothing here edits them and there is
-  // nothing to confirm — they are read live. The `settled` names stay so every call site keeps one
+  // nothing to confirm - they are read live. The `settled` names stay so every call site keeps one
   // name for the value the calculation uses.
   const settledBlessing = blessing;
   const settledDebuffs = debuffs;
 
-  // Swaps in a saved loadout without leaving this page — loadFullState updates BuildContext's
+  // Swaps in a saved loadout without leaving this page - loadFullState updates BuildContext's
   // `loadout` (and everything else this page reads), which the recalculation effect below is
   // already keyed off of, so Final Damage/(Base) Stats recompute automatically.
   async function handleSwapLoadout(e) {
@@ -262,17 +262,17 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     (slot) => loadout[slot]?.modifiers?.ultimateEnchantment?.id?.toLowerCase() === 'ultimate_legion',
   );
   const hasBlazePet = loadout.pet?.item?.petId === 'BLAZE';
-  // Whether any currently-selected target is Mythological-typed — same "applies to at least one
+  // Whether any currently-selected target is Mythological-typed - same "applies to at least one
   // selected mob" treatment as appliedToAnyMob below. Drives the (Base) Stats panel's Challenger's/
   // Mythos doubled-stat display, since that panel is one shared block, not per-mob.
   const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
   // Same "applies to at least one selected mob" treatment, for Final Destination's Ender-only
-  // Strength/Attack Speed (see finalDamage.js's selectBaseStats — the real Final Damage number
+  // Strength/Attack Speed (see finalDamage.js's selectBaseStats - the real Final Damage number
   // already reflects this per-mob; this just keeps the (Base) Stats panel's displayed total and
   // source breakdown consistent with it rather than silently disagreeing).
   const isEnderTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Ender'));
   // The Blaze pet's Crimson Isle bonus is gated on the player's location, which this app doesn't
-  // model — but Infernal and Magmatic mobs are only fought there, so targeting one turns it on.
+  // model - but Infernal and Magmatic mobs are only fought there, so targeting one turns it on.
   // OR'd with the manual toggle rather than replacing it, since a manual "on" still counts for other
   // targets fought on Crimson Isle. Same target-derived shape as isCrimsonIsleTarget below, computed
   // here because collectDamageSources never sees the mob itself.
@@ -348,7 +348,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   ]);
 
   // A second sources object, fixed at mobHpPercent=100 regardless of the (Base) Stats panel's own
-  // slider — only fetched in DPS mode, where the hit-by-hit graph needs First Strike/Triple
+  // slider - only fetched in DPS mode, where the hit-by-hit graph needs First Strike/Triple
   // Strike's opening-hit-only entry to actually be present (collectEnchantEntries only includes
   // it when mobHpPercent===100) so simulateHitByHit can gate it per-hit itself, independent of
   // whatever % the slider happens to be showing right now.
@@ -418,7 +418,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than
   // silently folded in. hasVanquishedBonus here just means "the set is worn" (cheap short-circuit
-  // for whether to bother computing the comparison at all) — the bonus itself only actually procs
+  // for whether to bother computing the comparison at all) - the bonus itself only actually procs
   // against Inferno Demonlord (see armorSetBonuses.js), checked per-mob below via appliedIds.
   const hasVanquishedBonus = result?.multiplicative.some((e) => e.id === VANQUISHED_SET_ID) ?? false;
   const withoutVanquishedResult =
@@ -426,7 +426,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
       ? { ...result, multiplicative: result.multiplicative.filter((e) => e.id !== VANQUISHED_SET_ID) }
       : null;
 
-  // Fabled's crit-hit-chance bonus is randomized per hit — main figure stays at the "no bonus" baseline, second figure shows the real max.
+  // Fabled's crit-hit-chance bonus is randomized per hit - main figure stays at the "no bonus" baseline, second figure shows the real max.
   const hasFabledBonus = result?.multiplicative.some((e) => e.id === FABLED_REFORGE_ID) ?? false;
   const withFabledMaxResult = hasFabledBonus
     ? {
@@ -452,7 +452,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         const mob = { name, types };
         const finalDamage = computeFinalDamage(result, mob, useDungeonizedStats, useMasterMode);
         // Vanquished's hidden bonus only actually procs against Inferno Demonlord (see
-        // armorSetBonuses.js) — hasVanquishedBonus alone just means the set is worn; check
+        // armorSetBonuses.js) - hasVanquishedBonus alone just means the set is worn; check
         // appliedIds too so the comparison row doesn't show two identical numbers for every
         // other target.
         return {
@@ -481,9 +481,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   // Mage Mode: same per-mob loop, but via the Ability Damage formula instead of melee Final
   // Damage. hasAbilityWeapon distinguishes "no ability data for this weapon" from "no target
-  // selected" — computeAbilityDamage itself returns null in that case.
+  // selected" - computeAbilityDamage itself returns null in that case.
   const hasAbilityWeapon = !!ABILITY_DAMAGE_TABLE[loadout.weapon?.item?.id];
-  // Mage Staff "Beam" isn't gated on hasAbilityWeapon — it's a cut of melee Final Damage, not the
+  // Mage Staff "Beam" isn't gated on hasAbilityWeapon - it's a cut of melee Final Damage, not the
   // weapon's own ability, so it applies even when the equipped weapon has no ABILITY_DAMAGE_TABLE
   // entry. mobResults[idx] lines up 1:1 with targetMobs[idx] (mobResults is computed unconditionally
   // above over the same array/order), so it's safe to zip by index instead of a name lookup.
@@ -504,7 +504,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 ? computeMageStaffBeamDamage(result, mob, meleeFinalDamage, useDungeonizedStats, useMasterMode)
                 : null,
             // Beam is a cut of melee Final Damage, so Fabled's randomized crit bonus (see
-            // finalDamageWithFabledMax above) carries through the same way — a second "up to"
+            // finalDamageWithFabledMax above) carries through the same way - a second "up to"
             // figure, not folded into the baseline Beam number.
             beamDamageWithFabledMax:
               meleeFinalDamageWithFabledMax != null
@@ -514,7 +514,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         })
       : [];
 
-  // Mage Mode's own applied-ids set — needed because ability-only multiplicative sources (e.g.
+  // Mage Mode's own applied-ids set - needed because ability-only multiplicative sources (e.g.
   // Implosion Belt, Loving reforge) never appear in the melee `multiplicative` list that
   // `appliedToAnyMob` above is built from, so they'd always read as "not applied" there even
   // when genuinely active. Mirrors appliedToAnyMob's shape, sourced from computeAbilityDamage.
@@ -528,7 +528,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   // (Base) Stats shows Intelligence/Ability Damage (the Ability Damage formula's own inputs) plus
   // Damage/Strength/Crit Damage (relevant to the Mage Staff Beam's underlying melee Final Damage)
-  // in Mage Mode, and hides Intelligence/Ability Damage otherwise — the two modes describe
+  // in Mage Mode, and hides Intelligence/Ability Damage otherwise - the two modes describe
   // different damage pipelines, so showing every stat from both at once would just be noise.
   const MAGE_MODE_STAT_KEYS = new Set(['damage', 'intelligence', 'ability_damage', 'strength', 'crit_damage']);
   const visibleStatKeys = mageMode
@@ -537,7 +537,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
   // Which of the six precomputed base-stat tables the current Dungeonized/Master/Mythological
   // toggles select. Extracted so the sticky readout's stat strip and the (Base) Stats panel can't
-  // drift apart — both read the same number for a given stat key.
+  // drift apart - both read the same number for a given stat key.
   function selectDisplayedStat(key) {
     if (!result) return 0;
     if (!useDungeonizedStats) return isMythologicalTarget ? result.mythologicalBaseStats[key] : result.baseStats[key];
@@ -642,7 +642,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
           >
             DPS
           </button>
-          {/* The three outputs are alternatives, not layers — see BuildContext's DPS_KINDS. Only
+          {/* The three outputs are alternatives, not layers - see BuildContext's DPS_KINDS. Only
               shown while the DPS view is on, since it says nothing about Final Damage. */}
           {dpsMode && (
             <div className={`${panel} flex items-center`} role="group" aria-label="DPS output">
@@ -715,7 +715,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
             <div className={`${panel} p-4 flex flex-col gap-2`}>
               <div className={sectionTitle}>Final Damage</div>
               <div className="text-xs text-neutral-600 italic">
-                No target selected —{' '}
+                No target selected -{' '}
                 <button className="underline cursor-pointer" onClick={() => navigate('/target-mob')}>
                   pick a mob
                 </button>{' '}
@@ -729,7 +729,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
               // A mob with more than one possible starting HP (a Catacombs trash mob spawning on
               // several floors, or a Slayer/Mythological boss with several tiers) can't resolve a
-              // real number without knowing which — this picker supplies that choice (persisted
+              // real number without knowing which - this picker supplies that choice (persisted
               // per-mob in BuildContext, so Optimizer's own resolveStartingHp call for the same mob
               // sees it too). A mob with only one floor/tier (or a flat HP) never shows one;
               // there's nothing to pick. Computed here (not just inside the graph below) so the
@@ -747,14 +747,14 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   : tierOptions && tierOptions.length > 1
                     ? tierOptions.map((t) => ({ value: t.label, label: t.label }))
                     : null;
-                // A Slayer boss with no explicit pick shows (and uses) its highest tier — see
+                // A Slayer boss with no explicit pick shows (and uses) its highest tier - see
                 // lib/mobHp.js's defaultTierSelection, which resolveStartingHp applies too.
                 selection = mobHpSelections[name] || defaultTierSelection(name) || '';
                 const startingHp = resolveStartingHp(name, useMasterMode, selection);
                 const simSources = startingHp ? resultAt100 : result;
                 if (simSources) {
                   // The graph plots the whole fight, 100% HP to 0, so the window is the mob's
-                  // health rather than a fixed hit count — the simulation stops on death.
+                  // health rather than a fixed hit count - the simulation stops on death.
                   sim = simulateHitByHit(
                     simSources,
                     { name, types },
@@ -768,9 +768,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 }
               }
 
-              // With a known starting HP, Total DPS is the average across the simulated fight —
+              // With a known starting HP, Total DPS is the average across the simulated fight -
               // Venomous stacking, Execute/Prosecute ramping with draining HP%, the opening-hit
-              // bonus — rather than a snapshot, which prices Venomous at a single permanent stack.
+              // bonus - rather than a snapshot, which prices Venomous at a single permanent stack.
               // Beam REPLACES the melee hit rather than stacking on it; the procs
               // (Venomous/Thunderlord/Fire Aspect/Crimson Swipe) stay either way, since they fire
               // per hit whichever kind it is.
@@ -781,7 +781,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               const showProcs = dpsKind !== 'bow';
               let totalDps;
               if (dpsKind === 'bow') {
-                // Bow DPS is the volley at a bow's own fire rate and nothing else — no procs, no
+                // Bow DPS is the volley at a bow's own fire rate and nothing else - no procs, no
                 // simulation (it has no Venomous/Execute ramp to average over).
                 totalDps = dps.bow;
               } else if (dpsKind === 'beam') {
@@ -846,7 +846,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             </span>
                           </>
                         )}
-                        {/* Procs belong to Melee and Beam only, never Bow — `showProcs` gates all
+                        {/* Procs belong to Melee and Beam only, never Bow - `showProcs` gates all
                             four, and the same rule holds when Bow DPS itself gets modelled. Within
                             Melee and Beam they show only while contributing, since most loadouts
                             have none active. */}
@@ -888,7 +888,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       </div>
                       {dpsKind === 'beam' && (
                         <div className="text-[10px] italic text-neutral-600">
-                          Total DPS counts Mage Beam in place of the {dps.isBowWeapon ? 'Arrow' : 'Melee'} hit, not on top of it — and
+                          Total DPS counts Mage Beam in place of the {dps.isBowWeapon ? 'Arrow' : 'Melee'} hit, not on top of it - and
                           reports the steady state rather than the fight average.
                         </div>
                       )}
@@ -896,13 +896,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                         <div className="text-[10px] italic text-neutral-600">
                           Total DPS averages the simulated opening ({sim.hits.length} hit
                           {sim.hits.length === 1 ? '' : 's'}), so Venomous stacking and Execute/Prosecute's ramp
-                          are counted — the per-source lines above are a first-hit snapshot, so they won't sum to
+                          are counted - the per-source lines above are a first-hit snapshot, so they won't sum to
                           this exactly.
                         </div>
                       )}
                       <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
                         {/* The per-hit melee number the non-DPS view headlines, repeated here so DPS
-                            mode isn't rates alone. Melee only — the procs have their own rows. */}
+                            mode isn't rates alone. Melee only - the procs have their own rows. */}
                         {finalDamage && (
                           <div className="flex items-baseline justify-between">
                             <span className="text-sm font-bold text-black">
@@ -920,7 +920,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             Total DPS
                             {dpsKind !== 'melee' && <span className="ml-1 font-normal capitalize text-neutral-600">({dpsKind})</span>}
                           </span>
-                          {/* Bow DPS is real now (its own Attack Speed breakpoints, no procs — see
+                          {/* Bow DPS is real now (its own Attack Speed breakpoints, no procs - see
                               finalDamage.js), but only means anything with a bow actually equipped:
                               the same volley fired at bow rates off a sword build is a number for a
                               loadout nobody has. */}
@@ -942,7 +942,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             onChange={(e) => setMobHpSelection(name, e.target.value)}
                             className="px-1.5 py-0.5 bg-black text-white text-[11px] cursor-pointer border-2 border-neutral-700"
                           >
-                            {/* Only when nothing is resolved yet — a Slayer boss always has its
+                            {/* Only when nothing is resolved yet - a Slayer boss always has its
                                 highest tier selected by default, so it never shows this. */}
                             {!selection && <option value="">Pick to use real HP</option>}
                             {pickerOptions.map((o) => (
@@ -1001,7 +1001,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   <>
                     {!hasAbilityWeapon ? (
                       <div className="text-xs text-neutral-600 italic">
-                        <Keyworded text="No known Ability Damage data for the equipped weapon — Mage Mode only covers a hand-curated list of staffs/wands/dungeon swords for now." />
+                        <Keyworded text="No known Ability Damage data for the equipped weapon - Mage Mode only covers a hand-curated list of staffs/wands/dungeon swords for now." />
                       </div>
                     ) : (
                       <>
@@ -1136,7 +1136,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
             ))
           )}
 
-          {/* Stacks to one column below sm — side by side, MISC's stat labels wrapped onto 3
+          {/* Stacks to one column below sm - side by side, MISC's stat labels wrapped onto 3
               lines each and became hard to scan on phone-width viewports. */}
           <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
             <div className="flex-1">
@@ -1312,7 +1312,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 <label
                   className="flex items-start gap-1.5 text-[12px] leading-tight text-black"
                   htmlFor="blaze-crimson-isle"
-                  title={isCrimsonIsleTarget ? 'Turned on automatically — target is Infernal/Magmatic' : undefined}
+                  title={isCrimsonIsleTarget ? 'Turned on automatically - target is Infernal/Magmatic' : undefined}
                 >
                   <input
                     id="blaze-crimson-isle"
@@ -1328,7 +1328,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   </span>
                 </label>
               )}
-              {/* Always rendered, not only while dirty — a button that appears out of nowhere the
+              {/* Always rendered, not only while dirty - a button that appears out of nowhere the
                   first time you type is worse than one that's visibly waiting, and a stable slot
                   keeps the panel from reflowing mid-edit. */}
               <button
@@ -1471,7 +1471,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               className="text-xs font-bold text-black cursor-pointer underline"
               onClick={() => setShowSituational((v) => !v)}
             >
-              {showSituational ? 'Hide' : 'Show'} situational sources ({result.situational.length}) — not counted above
+              {showSituational ? 'Hide' : 'Show'} situational sources ({result.situational.length}) - not counted above
             </button>
             {showSituational && (
               <div className="flex flex-col gap-1.5 mt-2">
@@ -1481,7 +1481,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   result.situational.map((e) => (
                     <div key={e.id} className="text-[12px] text-neutral-800 border-t border-neutral-400 pt-1.5">
                       <div className="font-bold">
-                        {e.label} <span className="font-normal text-neutral-600">— {e.source}</span>
+                        {e.label} <span className="font-normal text-neutral-600">- {e.source}</span>
                       </div>
                       <div className="text-neutral-600">
                         <Keyworded text={e.note} />
@@ -1496,7 +1496,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
       )}
 
       {/* Bottom-LEFT, not a full-width bar: keeps clear of GlobalFooter's bottom-right cluster. Only
-          on Landing (`embedded`) — the standalone
+          on Landing (`embedded`) - the standalone
           /damage-sources page already has these numbers at the top of the viewport. */}
       {embedded && stickyHeadline && !hideSticky && (
         <button
@@ -1528,12 +1528,12 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   );
 }
 
-// `applied` is only meaningful once a target mob is selected — undefined renders normally, false dims the row.
+// `applied` is only meaningful once a target mob is selected - undefined renders normally, false dims the row.
 function Row({ left, right, source, applied }) {
   return (
     <div className={`flex justify-between items-baseline text-[13px] text-black gap-2 ${applied === false ? 'opacity-40' : ''}`}>
       <span>
-        {left} <span className="text-[11px] text-neutral-600">— {source}</span>
+        {left} <span className="text-[11px] text-neutral-600">- {source}</span>
       </span>
       <span className="font-mono whitespace-nowrap">{right}</span>
     </div>

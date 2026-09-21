@@ -34,7 +34,7 @@ export default function Resources() {
             >
               Spreadsheet
             </a>{' '}
-            — also check out the{' '}
+            - also check out the{' '}
             <a
               className="underline text-blue-300 hover:text-blue-200"
               href="https://hypixel.net/threads/warden-or-coa-need-damage-clarification-insane-manifesto.6133326/#post-41844436"

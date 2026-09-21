@@ -1,8 +1,8 @@
 // One-off offline generator for the site's pixel-art icon set (favicon, TopBar brand mark, and
-// the drawer menu icons) — same "bake a static asset once" approach as
+// the drawer menu icons) - same "bake a static asset once" approach as
 // worker/scripts/apply-skull-head-icons.mjs. Each icon is authored as a 16x16 grid (matching real
 // Minecraft item-texture resolution) of palette-key characters, rendered as crisp-edged SVG <rect>
-// elements (one per filled cell — 256 max, plenty small) so it stays perfectly sharp at any
+// elements (one per filled cell - 256 max, plenty small) so it stays perfectly sharp at any
 // display size instead of blurring like a scaled-up raster image would.
 //
 // Re-run with `node scripts/generate-pixel-icons.mjs` from frontend/ any time an icon's grid
@@ -29,7 +29,7 @@ function gridToSvg(rows, palette) {
 }
 
 // Diagonal 2-tone blade (tip top-right) + a wide crossguard + brown grip + dark pommel
-// (bottom-left) — same silhouette/orientation as Minecraft's own sword items. Used for both the
+// (bottom-left) - same silhouette/orientation as Minecraft's own sword items. Used for both the
 // browser-tab favicon and the small brand mark next to "SkyDmg" in TopBar.jsx.
 const SWORD = {
   palette: { E: '#F5F5F5', B: '#B8B8B8', G: '#D4AF37', H: '#6B4423', P: '#3A3A3A' },
@@ -37,7 +37,7 @@ const SWORD = {
     '..............EB', // unused padding row, trimmed below
   ],
 };
-// Built precisely via explicit per-row strings (16 chars each) — easier to keep aligned than
+// Built precisely via explicit per-row strings (16 chars each) - easier to keep aligned than
 // computed diagonal math.
 SWORD.rows = [
   '.............EB.',

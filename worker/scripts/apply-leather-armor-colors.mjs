@@ -2,7 +2,7 @@
 /**
  * Build-time ingest, run after build-item-data.mjs: backfills a `color`
  * field (6-digit lowercase hex, e.g. "0e666d") onto every LEATHER-material
- * armor.json entry, read from that item's real NEU-REPO nbttag — Skyblock
+ * armor.json entry, read from that item's real NEU-REPO nbttag - Skyblock
  * leather armor is dyed via the vanilla `display.color` NBT int (a packed
  * 0xRRGGBB value), the same mechanism vanilla leather armor/dye uses.
  *
@@ -38,7 +38,7 @@ async function fetchLeatherColor(itemId) {
   }
 }
 
-// Concurrency-capped batch runner — hundreds of sequential fetches would be
+// Concurrency-capped batch runner - hundreds of sequential fetches would be
 // slow, hundreds fully-parallel is impolite to raw.githubusercontent.com.
 async function runBatched(items, worker, concurrency = 8) {
   let done = 0;

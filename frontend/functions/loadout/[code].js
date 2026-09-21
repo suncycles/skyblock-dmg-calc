@@ -1,11 +1,11 @@
-// Cloudflare Pages Function — intercepts /loadout/:code so link-unfurling bots (Discord, Slack,
+// Cloudflare Pages Function - intercepts /loadout/:code so link-unfurling bots (Discord, Slack,
 // Twitter) see the real gear list, since they never execute the SPA's client-side JS and would
 // otherwise only see index.html's generic static <meta> tags. Real browser visits get the same
 // rewritten HTML; React Router still owns the route once hydration kicks in, unaffected by the
 // extra meta content.
 //
 // Reuses decodeLoadoutCode() as-is (same embedded-blob-or-KV-short-id resolution, v1/v2 format
-// support) rather than re-implementing the decompression here — it's plain Web Standard APIs
+// support) rather than re-implementing the decompression here - it's plain Web Standard APIs
 // (CompressionStream/atob/fetch), no DOM/React dependency, so it runs unmodified in this runtime.
 import { decodeLoadoutCode } from '../../src/lib/loadoutCode.js';
 import { WORKER_BASE_URL } from '../../src/lib/apiConfig.js';
@@ -43,7 +43,7 @@ export async function onRequestGet(context) {
   const shell = await env.ASSETS.fetch(request);
 
   let title = 'SkyDmg Loadout';
-  let description = 'A Hypixel Skyblock loadout built with SkyDmg — tap to view.';
+  let description = 'A Hypixel Skyblock loadout built with SkyDmg - tap to view.';
 
   try {
     const itemData = await fetch(`${WORKER_BASE_URL}/api/items`).then((r) => r.json());
@@ -51,7 +51,7 @@ export async function onRequestGet(context) {
     const lines = buildGearLines(state.loadout);
     if (lines.length > 0) description = lines.join('\n');
   } catch {
-    // Invalid/expired code, or the item-data fetch failed — fall back to the generic copy above
+    // Invalid/expired code, or the item-data fetch failed - fall back to the generic copy above
     // rather than breaking the page for a preview-only feature.
   }
 

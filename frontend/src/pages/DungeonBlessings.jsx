@@ -26,7 +26,7 @@ const sectionLabel = 'text-[11px] font-bold text-black uppercase tracking-wide b
 const round1 = (n) => Math.round(n * 10) / 10;
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// Buff/Blessing — reached from the board tile of the same name, which shows in every mode.
+// Buff/Blessing - reached from the board tile of the same name, which shows in every mode.
 // Item buffs (lib/buffs.js) apply everywhere; the Dungeon Blessing
 // controls only appear while the Dungeon toggle is on, because blessings only exist inside a
 // Catacombs run. Edits apply as you make them, like every other edit page.
@@ -47,7 +47,7 @@ export default function DungeonBlessings() {
   } = useBuild();
   const { itemData } = useItemData();
 
-  // The Ragnarock's own Strength decides the buff, so it's worked out from the real axe — the same
+  // The Ragnarock's own Strength decides the buff, so it's worked out from the real axe - the same
   // helper lib/damageSources.js uses, so the figure here is the one the damage number gets.
   const ragnarock = findRagnarock(importedWeapons, loadout);
   const [ragnarockStrength, setRagnarockStrength] = useState(null);
@@ -129,7 +129,7 @@ export default function DungeonBlessings() {
             </label>
 
             {/* Read-only: both come from the account on import (Mimic Shard level, Forbidden Blessing
-                perk), editable on the Player Levels page — not typed here. */}
+                perk), editable on the Player Levels page - not typed here. */}
             <div className="flex flex-col gap-1 text-[12px] text-neutral-700 leading-snug">
               <div>
                 Effectiveness x{round2(computeBlessingMultiplier(blessing, attributes))}
@@ -141,7 +141,7 @@ export default function DungeonBlessings() {
               </div>
               <div>
                 Master Skull x{masterSkullStrengthMultiplier(blessing.masterSkullTier)}
-                <span className="italic"> (Tier {blessing.masterSkullTier || '—'}, Strength only)</span>
+                <span className="italic"> (Tier {blessing.masterSkullTier || '-'}, Strength only)</span>
               </div>
             </div>
 

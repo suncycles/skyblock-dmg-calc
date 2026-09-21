@@ -1,11 +1,11 @@
 /* Per-level enchant effect text from NEU-REPO's enchanted-book item files (items/{ID};{level}.json).
    The primary source is the Worker's cache (enchantsMeta.levelData, merged into the `enchants`
    object /api/items returns), so a page load never blocks on raw.githubusercontent.com. Falls back
-   to fetching directly only when the server cache is missing an id — a new enchant, or a degraded
+   to fetching directly only when the server cache is missing an id - a new enchant, or a degraded
    refresh. */
 
 const NEU_ITEMS_BASE = 'https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items';
-// A safety ceiling, never the primary probe target — see probeLevels below. NEU-REPO's
+// A safety ceiling, never the primary probe target - see probeLevels below. NEU-REPO's
 // enchants.json ships max_xp_table_levels, but that is the enchant TABLE's cap rather than the
 // achievable max: Power and Sharpness both have real level 7 files despite a table cap of 5, since
 // anvil-combining pushes some enchants past it. Used as a head start, always extended when the top
@@ -33,7 +33,7 @@ function savePersistedLevels(id, levels) {
   try {
     localStorage.setItem(PERSIST_PREFIX + id, JSON.stringify(levels));
   } catch {
-    // localStorage full or unavailable (private browsing) — in-memory cache still covers this session
+    // localStorage full or unavailable (private browsing) - in-memory cache still covers this session
   }
 }
 
@@ -58,7 +58,7 @@ async function fetchLevel(fileId, level) {
   }
 }
 
-// Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then
+// Case varies in NEU's own data (every key lowercase except "PROSECUTE") - check as given, then
 // both cases, rather than assuming one.
 function lookupMaxTableLevel(enchantsMeta, fileId) {
   const table = enchantsMeta?.max_xp_table_levels;
@@ -94,7 +94,7 @@ async function probeLevels(fileId, enchantsMeta) {
   };
 }
 
-// Mirrors the worker's ENCHANT_FILE_ID_ALIASES — aliases NEU's own mapping tables miss. Duplex is
+// Mirrors the worker's ENCHANT_FILE_ID_ALIASES - aliases NEU's own mapping tables miss. Duplex is
 // filed under its pre-rename id ULTIMATE_REITERATE.
 const ENCHANT_FILE_ID_ALIASES = { ultimate_duplex: 'ULTIMATE_REITERATE' };
 
@@ -125,7 +125,7 @@ const VENOMOUS_LEVELS = [
   { walkSpeed: 20, damage: 2 },
 ];
 
-// The real "deals +X% of your damage per second per hit" number for a Venomous level — used by
+// The real "deals +X% of your damage per second per hit" number for a Venomous level - used by
 // damageSources.js's proc-damage calculation, same source of truth as the tooltip lore above.
 export function getVenomousDamagePercent(level) {
   return VENOMOUS_LEVELS[level - 1]?.damage ?? null;
@@ -153,7 +153,7 @@ function buildVenomousLevels() {
 export function fetchEnchantLevels(id, enchantsMeta) {
   if (id.toLowerCase() === 'venomous') return Promise.resolve(buildVenomousLevels());
 
-  // A server entry is only trustworthy when the worker finished probing it — an id on the
+  // A server entry is only trustworthy when the worker finished probing it - an id on the
   // incomplete list is served short, so fall through to a live probe instead of capping the
   // enchant at whatever the throttled rebuild happened to reach.
   const key = id.toLowerCase();
@@ -306,7 +306,7 @@ const DISPLAY_NAME_OVERRIDES = {
   magmarizer: 'Pyroclasm',
 };
 
-// "ultimate_duplex" is a dead category-list entry with no real item data behind it — hidden rather than shown as a broken slot.
+// "ultimate_duplex" is a dead category-list entry with no real item data behind it - hidden rather than shown as a broken slot.
 const HIDDEN_ENCHANT_IDS = new Set(['ultimate_duplex']);
 
 export function isHiddenEnchant(id) {
@@ -328,7 +328,7 @@ export function isUltimateEnchant(id) {
   return id.toLowerCase().startsWith('ultimate_');
 }
 
-// Short 3-letter badge for an enchant slot on EnchantList.jsx — first 3 letters of its display name, lowercased.
+// Short 3-letter badge for an enchant slot on EnchantList.jsx - first 3 letters of its display name, lowercased.
 export function getEnchantCaption(id) {
   const key = id.toLowerCase();
   if (key === 'ultimate_one_for_all') return 'ofa';
@@ -353,7 +353,7 @@ function parseConflictNames(lore) {
 }
 
 // Returns the applied {id, level, maxLevel} entries that would be removed if `id` were applied
-// — used both for the "X will be removed" warning and to actually remove them on selection.
+// - used both for the "X will be removed" warning and to actually remove them on selection.
 // Handles lore "Conflicts:" lists, ultimate-enchant slot replacement, and One For All's
 // "removes every other enchant" rule (both directions).
 export function computeConflictingEntries(id, lore, modifiers) {

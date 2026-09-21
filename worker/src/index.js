@@ -37,7 +37,7 @@ const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/Not
 const NEU_REFORGES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforges.json";
 const NEU_REFORGESTONES_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/reforgestones.json";
 
-// Per-pet, per-rarity stat table (level 1/100 checkpoints — frontend interpolates in between).
+// Per-pet, per-rarity stat table (level 1/100 checkpoints - frontend interpolates in between).
 const NEU_PETNUMS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json";
 
 // Attribute shard rarity/threshold table and skill XP-per-level costs, fetched per request for the
@@ -60,7 +60,7 @@ const HYPIXEL_ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
 // Hypixel's upgrade_costs, which carries no coin entries at all. NEU-REPO's essencecosts.json has
 // them as "SKYBLOCK_COIN:<amount>" per star; only those coin lines are read, since its other
 // materials duplicate Hypixel's.
-// essenceshops.json is a separate file — perk key -> {name, costs: [essence per level]} — used to
+// essenceshops.json is a separate file - perk key -> {name, costs: [essence per level]} - used to
 // price the Optimizer's Essence-shop perk upgrades.
 const NEU_ESSENCE_SHOPS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/essenceshops.json";
 const NEU_ESSENCE_COSTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/essencecosts.json";
@@ -123,7 +123,7 @@ const GEM_TYPES = ["RUBY", "JASPER", "SAPPHIRE", "AMETHYST", "ONYX", "OPAL"];
 const GEM_TIERS = ["ROUGH", "FLAWED", "FINE", "FLAWLESS", "PERFECT"];
 
 // The raw price map has ~14K entries while the app reads a few hundred, so it is pruned to the ids
-// pricing.js and accessoryOptimizer.js can ask for before being cached — about 860KB off the
+// pricing.js and accessoryOptimizer.js can ask for before being cached - about 860KB off the
 // payload. Enchant book prices are kept wholesale, since valid id/level combos have no static list.
 function pruneItemPrices(itemPrices, catalog) {
   const keep = new Set(PRICED_EXTRA_IDS);
@@ -319,7 +319,7 @@ const ENCHANT_PROBE_CONCURRENCY = 3;
 const LEVEL_UNKNOWN = Symbol("enchant-level-unknown");
 
 // Cloudflare caps one invocation at 50 subrequests while a full sweep needs ~870, so a rebuild
-// spends its budget explicitly, skips ids already complete and merges into the previous cache —
+// spends its budget explicitly, skips ids already complete and merges into the previous cache -
 // steady progress across runs rather than re-probing the same first ids every time.
 const ENCHANT_SUBREQUEST_BUDGET = 40;
 
@@ -340,7 +340,7 @@ async function fetchEnchantLevel(fileId, level, budget) {
   }
 }
 
-// Case varies in NEU's own data (every key lowercase except "PROSECUTE") — check as given, then both cases.
+// Case varies in NEU's own data (every key lowercase except "PROSECUTE") - check as given, then both cases.
 function lookupMaxTableLevel(enchantsMeta, fileId) {
   const table = enchantsMeta?.max_xp_table_levels;
   if (!table) return 0;
@@ -373,7 +373,7 @@ async function probeEnchantLevels(fileId, enchantsMeta, budget) {
 }
 
 // Aliases NEU's enchant_mapping_id/_item tables miss. Duplex is filed under its pre-rename id
-// ULTIMATE_REITERATE — every ULTIMATE_DUPLEX;N is a 404. One confirmed alias, not a general rule.
+// ULTIMATE_REITERATE - every ULTIMATE_DUPLEX;N is a 404. One confirmed alias, not a general rule.
 const ENCHANT_FILE_ID_ALIASES = { ultimate_duplex: "ULTIMATE_REITERATE" };
 
 // Resolves a category-list enchant id to its real NEU item file id when they differ (e.g. "dragon_tracer" -> "AIMING").
@@ -406,8 +406,8 @@ async function mapWithConcurrency(items, limit, fn) {
 
 // Every weapon/armor/equipment enchant id across enchantsMeta's category lists, deduped, probed for
 // its per-level lore. Venomous is skipped entirely: its numbers are hardcoded client-side.
-// The budget below is roughly what one id costs — head-start batch, extension levels, terminating
-// 404 — so a worker never starts an id it cannot finish.
+// The budget below is roughly what one id costs - head-start batch, extension levels, terminating
+// 404 - so a worker never starts an id it cannot finish.
 const ENCHANT_ID_BUDGET_HEADROOM = 9;
 
 async function buildEnchantLevelData(enchantsMeta, previous) {
@@ -561,17 +561,17 @@ const ATTRIBUTE_SHARD_IDS = {
   dominance: "ATTRIBUTE_SHARD_DOMINANCE",
   attack_speed: "ATTRIBUTE_SHARD_ATTACK_SPEED",
   // "Mimic" is the shard's displayName; its internalName, and so its price-feed key, is its ability
-  // name Faker — the one entry here where the two differ.
+  // name Faker - the one entry here where the two differ.
   mimic: "ATTRIBUTE_SHARD_FAKER",
-  // "End Stone Protector", ability name "Unlimited Fortitude" — LEGENDARY, so 24 shards to level
+  // "End Stone Protector", ability name "Unlimited Fortitude" - LEGENDARY, so 24 shards to level
   // 10. Grants Defense, which only the Ankylosaurus pet reads (frontend/src/lib/playerDefense.js).
   fortitude: "ATTRIBUTE_SHARD_FORTITUDE",
-  // "Hideonring" — RARE, +1 Accessory Bag slot per level. Not a damage stat: it's priced so the
+  // "Hideonring" - RARE, +1 Accessory Bag slot per level. Not a damage stat: it's priced so the
   // Optimizer can charge a new accessory for the bag slot it needs (frontend/src/lib/accessorySlots.js).
   accessory_size: "ATTRIBUTE_SHARD_ACCESSORY_SIZE",
 };
 
-// Total shards to reach an attribute's max level (always 10 — rarity changes the per-level shard
+// Total shards to reach an attribute's max level (always 10 - rarity changes the per-level shard
 // cost, not the cap) times its shard price. `attributeShards` is attribute_shards.json's parsed
 // body; `itemPrices` is the unpruned map, since shard ids don't survive pruneItemPrices.
 //
@@ -695,7 +695,7 @@ function computeStarCosts(itemId, upgradeCosts, itemPrices, starCoinCosts, out) 
   });
 }
 
-// Coin cost to unlock one gemstone slot. Not cumulative — a slot is a single flat purchase (coins
+// Coin cost to unlock one gemstone slot. Not cumulative - a slot is a single flat purchase (coins
 // plus specific-tier gem items). It varies per item and per slot index (Hyperion's SAPPHIRE slot is
 // 250k + 4 Flawless Sapphire, Voidedge Katana's 100k + 40 Fine Sapphire), so it resolves per
 // (item, slotIndex) pair rather than per slot type.
@@ -797,7 +797,7 @@ async function fetchReforges() {
 
 // Re-keys reforgestones.json by reforgeName rather than stone item id, keeping stoneId for icons.
 // `nbtModifier` (about 1 entry in 10) is Hypixel's own ExtraAttributes.modifier id where it diverges
-// from a lowercase-underscore of the display name — Bloodshot is "blood_shot", Warped "aote_stone" —
+// from a lowercase-underscore of the display name - Bloodshot is "blood_shot", Warped "aote_stone" -
 // so the import can match an account's item back to the right reforge.
 async function fetchReforgeStones() {
   const res = await fetch(NEU_REFORGESTONES_URL);
@@ -859,7 +859,7 @@ function realAccessoryTier(item) {
 }
 
 // Cosmetic hat accessories (Party Hats, Cake Hats, ...) carry a real "HATCESSORY" tag on their
-// last lore line instead of "ACCESSORY" — Hypixel's own marker for "only one can be worn/counted
+// last lore line instead of "ACCESSORY" - Hypixel's own marker for "only one can be worn/counted
 // at a time", so this generically covers every past and future hat year with no id allowlist.
 function isHatAccessory(item) {
   const lore = item?.tag?.display?.Lore;
@@ -869,7 +869,7 @@ function isHatAccessory(item) {
 
 // Real Hypixel tooltip label text for the 3 stats individually-owned accessories are parsed for
 // (Strength/Crit Chance/Crit Damage only; no real accessory has Crit Chance as a base stat, so
-// that key is here for completeness but never actually matches anything today) — used to read the real "Stat: +X" lore line
+// that key is here for completeness but never actually matches anything today) - used to read the real "Stat: +X" lore line
 // directly, only for the fixed id list in PARSABLE_ACCESSORY_STAT_IDS below.
 const ACCESSORY_STAT_LABELS = {
   strength: "Strength",
@@ -877,13 +877,13 @@ const ACCESSORY_STAT_LABELS = {
   crit_damage: "Crit Damage",
 };
 
-// Real accessory stat NAME (as written in flavor-text phrasing, lowercased) -> our tracked key —
+// Real accessory stat NAME (as written in flavor-text phrasing, lowercased) -> our tracked key -
 // for the narrative "Grants +X <stat>[, and +Y <stat>]" / "Increases your <stat>[ and <stat>] by
 // +X" phrasings several real accessories use instead of a leading "Stat: +X" line (e.g. Day/Night
-// Crystal's "Increases your Strength and Defense by +5 during the Day/Night" — the "+5" is fixed
+// Crystal's "Increases your Strength and Defense by +5 during the Day/Night" - the "+5" is fixed
 // literal text in the item's own real lore, not account-variable, so it resolves the same way a
 // leading stat line would). Superset of ACCESSORY_STAT_LABELS since a couple of real items
-// narratively grant Defense too — filtered to tracked keys when summed below.
+// narratively grant Defense too - filtered to tracked keys when summed below.
 const ACCESSORY_STAT_NAME_TO_KEY = {
   strength: "strength",
   "crit chance": "crit_chance",
@@ -894,7 +894,7 @@ function stripLoreLine(line) {
   return line.replace(/§./g, "").replace(/[^\x00-\x7F]/g, "");
 }
 
-// Real leading "Stat: +X" lines only (first match per stat) — no reforge/gemstone/dungeonize
+// Real leading "Stat: +X" lines only (first match per stat) - no reforge/gemstone/dungeonize
 // annotation handling, since that's this app's own synthetic tooltip system for GEAR (see
 // lib/itemTooltip.js), not how raw Hypixel accessory lore is actually formatted.
 function parseLeadingStatLines(lore) {
@@ -912,7 +912,7 @@ function parseLeadingStatLines(lore) {
   return stats;
 }
 
-// "Grants +X Y[, and +Z W]." / "Increases your X[ and Y] by +Z ..." phrasing — see
+// "Grants +X Y[, and +Z W]." / "Increases your X[ and Y] by +Z ..." phrasing - see
 // ACCESSORY_STAT_NAME_TO_KEY above. Bonuses with no fixed number in lore (Gravity Talisman's
 // distance scaling, Blood God Crest's kill counter) resolve to 0 rather than a guess.
 function parseNarrativeStatGrants(lore) {
@@ -949,7 +949,7 @@ function parseNarrativeStatGrants(lore) {
 // Blood God Crest and Sigil scale with a lifetime kill counter that Hypixel bakes into the leading
 // line, so both are included and resolve to whatever the account's counter shows. Magic 8 Ball
 // rerolls its category each Season and contributes only while it lands on Combat. Artifact and Relic
-// of Power have no pristine stat line — an owned copy renders one from its socketed gems, which
+// of Power have no pristine stat line - an owned copy renders one from its socketed gems, which
 // parseLeadingStatLines picks up generically.
 const PARSABLE_ACCESSORY_STAT_IDS = new Set([
   "BLOOD_GOD_CREST", "BLOOD_GOD_SIGIL",
@@ -1215,7 +1215,7 @@ const WARDROBE_EQUIPMENT_SLOT_KEYS = { necklace: "EQUIPMENT_SLOT_1", cloak: "EQU
 
 // Decodes member.loadout.armor or .equipment into non-empty sets, each {index, <slot>: summary|null}.
 // slotKeys maps our slot names to the per-slot NBT key names. Every slot of every set decodes
-// concurrently — an account can hold ~19-27 sets, so an import is dozens of small decodes.
+// concurrently - an account can hold ~19-27 sets, so an import is dozens of small decodes.
 async function decodeWardrobeSets(sets, slotKeys) {
   const entries = Object.entries(sets || {}).filter(([key]) => key !== "equipped_set");
   const decoded = await Promise.all(
@@ -1307,7 +1307,7 @@ function buildAttributeRarityMap(attributeShards) {
   return map;
 }
 
-// attribute_levelling gives per-level stack costs (10 per rarity) — convert to cumulative
+// attribute_levelling gives per-level stack costs (10 per rarity) - convert to cumulative
 // thresholds once so stacks->level is a simple lookup.
 function buildAttributeThresholds(attributeLevelling) {
   const thresholds = {};
@@ -1405,10 +1405,10 @@ async function handleHypixelImport(url, env) {
   }
   if (!hypixel.success) {
     if (hypixelRes.status === 403 || /invalid api key/i.test(hypixel.cause || "")) {
-      return jsonResponse({ error: "Hypixel import is temporarily unavailable (API key expired) — try again later", code: "api_key_invalid" }, 502);
+      return jsonResponse({ error: "Hypixel import is temporarily unavailable (API key expired) - try again later", code: "api_key_invalid" }, 502);
     }
     if (hypixelRes.status === 429 || hypixel.throttle || /rate limit/i.test(hypixel.cause || "")) {
-      return jsonResponse({ error: "Hypixel API rate limit hit — wait a minute and try again", code: "rate_limited" }, 429);
+      return jsonResponse({ error: "Hypixel API rate limit hit - wait a minute and try again", code: "rate_limited" }, 429);
     }
     if (hypixelRes.status === 400 || /invalid uuid/i.test(hypixel.cause || "")) {
       return jsonResponse({ error: `No Minecraft account named "${resolvedUsername || uuid}"`, code: "invalid_username" }, 404);
@@ -1518,11 +1518,11 @@ async function handleHypixelImport(url, env) {
     const thresholds = buildAttributeThresholds(attributeShards.attribute_levelling);
     const attributeLevels = computeAttributeLevels(member.attributes?.stacks, rarityMap, thresholds);
     // member.player_data.perks is the flat {perkKey: level} map of Essence-shop perks;
-    // forbidden_blessing is the Wither one, max 10. The Mimic shard is not resolved here — it is a
+    // forbidden_blessing is the Wither one, max 10. The Mimic shard is not resolved here - it is a
     // normal attribute (`stacks.faker`) and comes out of computeAttributeLevels.
     const forbiddenBlessingLevel = Math.min(10, member.player_data?.perks?.forbidden_blessing || 0);
     // Every Essence-shop perk level this app models (frontend/src/lib/essencePerks.js), filtered to
-    // the tracked keys — the raw map is ~300 entries, mostly fishing/mining/farming perks.
+    // the tracked keys - the raw map is ~300 entries, mostly fishing/mining/farming perks.
     const perks = member.player_data?.perks || {};
     const essencePerks = {};
     for (const key of TRACKED_ESSENCE_PERK_KEYS) {
@@ -1530,11 +1530,11 @@ async function handleHypixelImport(url, env) {
       if (level > 0) essencePerks[key] = level;
     }
 
-    // Heart of the Mountain's Lonesome Miner perk — a flat Strength/Crit Damage boost while on a
+    // Heart of the Mountain's Lonesome Miner perk - a flat Strength/Crit Damage boost while on a
     // Mining Island (frontend/src/lib/miningIslands.js), capped at level 45.
     const lonesomeMinerLevel = Math.min(45, hotmNodeLevel(member.skill_tree, "lonesome_miner"));
 
-    // Hypixel's own skill ids are uppercase (e.g. "TAMING") — real maxLevel per skill, falling
+    // Hypixel's own skill ids are uppercase (e.g. "TAMING") - real maxLevel per skill, falling
     // back to NEU-REPO's static cap only if the live resource is ever missing that skill.
     const skillCap = (key, staticCap) => skillsResource?.skills?.[key.toUpperCase()]?.maxLevel || staticCap;
 
@@ -1544,7 +1544,7 @@ async function handleHypixelImport(url, env) {
       enchanting: computeSkillLevel(experience.SKILL_ENCHANTING || 0, leveling.leveling_xp, skillCap("enchanting", leveling.leveling_caps.enchanting)),
       combat: computeSkillLevel(experience.SKILL_COMBAT || 0, leveling.leveling_xp, skillCap("combat", leveling.leveling_caps.combat)),
       foraging: computeSkillLevel(experience.SKILL_FORAGING || 0, leveling.leveling_xp, skillCap("foraging", leveling.leveling_caps.foraging)),
-      // Mining feeds the player's Defense, which only the Ankylosaurus pet reads — see
+      // Mining feeds the player's Defense, which only the Ankylosaurus pet reads - see
       // frontend/src/lib/playerDefense.js.
       mining: computeSkillLevel(experience.SKILL_MINING || 0, leveling.leveling_xp, skillCap("mining", leveling.leveling_caps.mining)),
       taming: computeSkillLevel(experience.SKILL_TAMING || 0, leveling.leveling_xp, skillCap("taming", leveling.leveling_caps.taming)),
@@ -1554,7 +1554,7 @@ async function handleHypixelImport(url, env) {
         leveling.catacombs,
         leveling.leveling_caps.catacombs,
       ),
-      // SkyBlock Level: flat 100 XP/level, no cap — the one Hypixel level that isn't a
+      // SkyBlock Level: flat 100 XP/level, no cap - the one Hypixel level that isn't a
       // per-level-cost-table skill, just member.leveling.experience / 100 floored.
       skyblock: Math.floor((member.leveling?.experience || 0) / 100),
     };
@@ -1595,11 +1595,11 @@ async function handleHypixelImport(url, env) {
       selectedPower: member.accessory_bag_storage?.selected_power || null,
       // The two readable inputs to the Accessory Bag's size: Jacobus purchases (+2 slots each) and
       // the Redstone Dust collection (6 slots per collection tier). See
-      // frontend/src/lib/accessorySlots.js — the Optimizer prices a new accessory's bag slot from these.
+      // frontend/src/lib/accessorySlots.js - the Optimizer prices a new accessory's bag slot from these.
       bagUpgradesPurchased: member.accessory_bag_storage?.bag_upgrades_purchased || 0,
       redstoneCollection: member.collection?.REDSTONE || 0,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
-      // Every owned accessory's own stat line, summed generically — see computeLiveAccessoryStats.
+      // Every owned accessory's own stat line, summed generically - see computeLiveAccessoryStats.
       itemStats: liveAccessoryStats.itemStats,
       enrichmentCount: liveAccessoryStats.enrichmentCount,
       // Catacombs Stats Boost digit count off the account's General's Medallion, or 0 when it isn't
@@ -1644,12 +1644,12 @@ async function handleHypixelImport(url, env) {
     const bank = typeof profile.banking?.balance === "number" ? profile.banking.balance : null;
     const goldCollection = typeof member.collection?.GOLD_INGOT === "number" ? member.collection.GOLD_INGOT : null;
 
-    // Per-mob Bestiary Strength bonus — see computeBestiaryMaxedMobs and
+    // Per-mob Bestiary Strength bonus - see computeBestiaryMaxedMobs and
     // frontend/src/lib/bestiaryStrength.js.
     const bestiaryMaxedMobs = computeBestiaryMaxedMobs(bestiary, member.bestiary?.kills);
-    // Daedalus Blade's Bestiary-Tiers ability input — see computeCombinedMythologicalBestiaryTiers.
+    // Daedalus Blade's Bestiary-Tiers ability input - see computeCombinedMythologicalBestiaryTiers.
     const combinedMythologicalBestiaryTiers = computeCombinedMythologicalBestiaryTiers(bestiary, member.bestiary?.kills);
-    // "The One" enchant's per-collection scaling input — see computeMaxedCollectionsCount. null
+    // "The One" enchant's per-collection scaling input - see computeMaxedCollectionsCount. null
     // rather than 0 when the account has the Collections API off, as with goldCollection and bank.
     const maxedCollectionsCount = computeMaxedCollectionsCount(collectionsResource, member.collection);
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Build-time ingest, same head-render technique as apply-armor-reforge-stone-skulls.mjs but for
- * the Equipment-applicable reforge stones (Necklace/Cloak/Belt/Gloves — itemTypes 'EQUIPMENT' or
+ * the Equipment-applicable reforge stones (Necklace/Cloak/Belt/Gloves - itemTypes 'EQUIPMENT' or
  * one of the 4 slot-specific strings) instead of Armor's. Reforge stones aren't in this project's
  * bundled data files at all (they're fetched live), so lib/icons.js's getReforgeStoneIcon()
  * expects hand-added art at frontend/public/images/reforgestones/{id}.png with no automated
@@ -56,7 +56,7 @@ async function saveHeadRender(textureHash, outPath) {
   try {
     const res = await fetch(`https://mc-heads.net/head/${textureHash}/${HEAD_RENDER_SIZE}`);
     // mc-heads.net returns HTTP 200 with a silent default-Steve-skin render (not an error) for
-    // some real, resolvable texture hashes it doesn't otherwise recognize — see
+    // some real, resolvable texture hashes it doesn't otherwise recognize - see
     // apply-skull-head-icons.mjs's saveHeadRender for the full writeup. Its own
     // `x-account-valid` response header is the only reliable signal that happened.
     if (!res.ok || res.headers.get('x-account-valid') === 'false') return false;

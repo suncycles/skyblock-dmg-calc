@@ -1,4 +1,4 @@
-// Shared display helpers for damage-result pages (DamageSources.jsx, Compare.jsx) — kept in one
+// Shared display helpers for damage-result pages (DamageSources.jsx, Compare.jsx) - kept in one
 // place so both pages format numbers and stat keywords identically.
 
 import { splitKeywords, KEYWORD_SYMBOLS } from './damageSymbols';
@@ -31,7 +31,7 @@ export function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
-// 3 significant figures (not a fixed decimal count) — for "+X% DPS" optimizer text, where a
+// 3 significant figures (not a fixed decimal count) - for "+X% DPS" optimizer text, where a
 // small candidate's real increase (e.g. 0.512%) needs more decimal precision to stay meaningful
 // than a large one (373%) does.
 export function round3Sig(n) {
@@ -54,7 +54,7 @@ const COIN_SCALE_TIERS = [
 ];
 
 // Abbreviates a coin amount at the thousand/million/billion/trillion scale (3 significant figures
-// via round3Sig, e.g. 70,000 -> "70K", 1,599,994.7 -> "1.6M", 210,263,467 -> "210M") — below a
+// via round3Sig, e.g. 70,000 -> "70K", 1,599,994.7 -> "1.6M", 210,263,467 -> "210M") - below a
 // thousand it's just the plain comma-formatted number (there's nothing to abbreviate). Non-numeric
 // input (the '?' unpriced sentinel) passes through unchanged rather than throwing.
 export function formatCoinsShort(n) {
@@ -65,7 +65,7 @@ export function formatCoinsShort(n) {
     const { scale, suffix } = COIN_SCALE_TIERS[i];
     if (abs < scale) continue;
     const scaled = round3Sig(abs / scale);
-    // round3Sig can round a value just under a tier boundary (e.g. 999,998) up to 1000 — bump to
+    // round3Sig can round a value just under a tier boundary (e.g. 999,998) up to 1000 - bump to
     // the next tier up rather than ever displaying "1000K".
     if (scaled >= 1000 && i > 0) {
       const up = COIN_SCALE_TIERS[i - 1];
@@ -76,7 +76,7 @@ export function formatCoinsShort(n) {
   return n.toLocaleString();
 }
 
-// Coins spent per 1% real damage increase — the inverse of the Optimizer's internal sort ratio
+// Coins spent per 1% real damage increase - the inverse of the Optimizer's internal sort ratio
 // (percentIncrease/cost), which reads as an unreadable tiny decimal (4.48e-8) across a cost range
 // spanning single coins to billions. Display only; the sort itself uses the raw ratio. Returns
 // null when cost isn't a real number (the '?' unpriced sentinel) or percentIncrease isn't
@@ -86,7 +86,7 @@ export function formatCoinsPerPercent(cost, percentIncrease) {
   return formatCoinsShort(Math.round(cost / percentIncrease));
 }
 
-// Inverse of formatCoinsShort — parses what a user typed into a coins field, accepting a plain
+// Inverse of formatCoinsShort - parses what a user typed into a coins field, accepting a plain
 // number or one with a K/M/B/T suffix (case-insensitive, optional space, e.g. "2.5m" -> 2500000).
 // Returns null when the text isn't a valid number, so callers can tell "empty/invalid" apart from 0.
 export function parseCoinsShort(raw) {

@@ -44,7 +44,7 @@ function isJokeMob(mob) {
 
 // Inferno Demonlord (Blaze Slayer Tier 4) takes damage only from the two Blaze Slayer dagger lines
 // (Firedust->Burstfire->Heartfire and Twilight/Mawdust->Burstmaw->Heartmaw); every other weapon
-// deals zero. A hard override like isJokeMob above. One hardcoded mob — generalize to a per-mob
+// deals zero. A hard override like isJokeMob above. One hardcoded mob - generalize to a per-mob
 // weapon allowlist if another appears.
 const DAGGER_ONLY_MOBS = new Set(['Inferno Demonlord']);
 const DAGGER_LINE_WEAPON_IDS = new Set([
@@ -87,8 +87,8 @@ export function conditionMatchesMob(condition, mob) {
     });
 }
 
-// Picks which of damageSources.js's parallel baseStats totals applies — normal, dungeonized or
-// master-dungeonized — from the useDungeonizedStats and useMasterMode toggles, then swaps in the
+// Picks which of damageSources.js's parallel baseStats totals applies - normal, dungeonized or
+// master-dungeonized - from the useDungeonizedStats and useMasterMode toggles, then swaps in the
 // matching mythological* variant when the target is a Mythological mob (Challenger's/Mythos doubled
 // stats, see damageSources.js's MYTHOLOGICAL_STAT_DOUBLE_IDS). `mob` is optional. Exported for
 // scripts/verify-dungeon-and-enchant-behavior.mjs.
@@ -123,7 +123,7 @@ export function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob
           bonus_attack_speed: (withBestiary.bonus_attack_speed || 0) + FINAL_DESTINATION_ATTACK_SPEED,
         };
   // Mage's Intelligence and Ability Damage (lib/dungeonClass.js). Added here rather than into the
-  // stat blocks themselves so the Catacombs Boost never scales them — a class reward is not an item
+  // stat blocks themselves so the Catacombs Boost never scales them - a class reward is not an item
   // stat. Already gated on the Dungeon toggle at collect time, so it is 0 outside a dungeon.
   const classStats = sources.dungeonClassStats;
   if (!classStats?.intelligence && !classStats?.ability_damage) return withFinalDestination;
@@ -262,11 +262,11 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 // Blood. Every other additive source is excluded.
 // MultiplicativeMultiplier is sources.abilityMultiplicative: Skyblock Level, the Implosion Belt's
 // 1.25x (Hyperion/Spirit Sceptre/Yeti Sword only) and the Loving reforge's 1.05x (chestplate only,
-// stripped out of baseStats.ability_damage in lib/reforges.js) — its own bucket rather than a filter
+// stripped out of baseStats.ability_damage in lib/reforges.js) - its own bucket rather than a filter
 // over the melee list, most of which doesn't apply here.
 // `table.base` also picks up the weapon's GENERAL Catacombs Stats Boost
 // (sources.abilityBaseDamageBoost) as a (1 + percent/100) multiplier, distinct from the "Ability
-// Damage" stat's own curve-less formula — see CLAUDE.md. Applied only while useDungeonizedStats is
+// Damage" stat's own curve-less formula - see CLAUDE.md. Applied only while useDungeonizedStats is
 // on and the weapon itself is dungeonized; 0, a 1x no-op, otherwise.
 // No Crit Damage step: abilities don't crit. BonusModifiers stays 0.
 // Returns null when the equipped weapon has no table entry.
@@ -348,7 +348,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
     table.base * catacombsBoostMultiplier * (1 + (baseStats.intelligence / 100) * table.scaling) * (1 + abilityDamageStat / 100);
   const additiveMultiplier = 1 + additivePercent / 100;
   // Mob-side Damage Reduction and Defense apply to ANY damage (see computeFinalDamage); Magic
-  // Resistance is Ability-damage-only — all three lib/mobDefenses.js, all direct final multipliers.
+  // Resistance is Ability-damage-only - all three lib/mobDefenses.js, all direct final multipliers.
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
   const magicResistancePercent = computeMobMagicResistance(mob);
   const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode, mobDefenseDebuffMultiplier(sources.debuffs));
@@ -427,7 +427,7 @@ const VENOMOUS_EXCLUDED_MULTIPLICATIVE_ID = 'skyblock-level';
 export const MAX_VENOMOUS_STACKS = 40;
 
 // The graph runs a whole fight, 100% HP to 0, however many hits that takes. This is only a runaway
-// guard for a build that can barely scratch the mob — a real fight ends on the death break below,
+// guard for a build that can barely scratch the mob - a real fight ends on the death break below,
 // not here.
 export const MAX_SIMULATED_HITS = 5000;
 
@@ -505,7 +505,7 @@ export const MELEE_HIT_RATE_BREAKPOINTS = [
 ];
 
 // A bow's own breakpoints: the same seven rates at different Bonus Attack Speed, spaced further
-// apart, so the same stat fires slower from a bow — 82 is 0.25s melee but still 0.3s drawn. The
+// apart, so the same stat fires slower from a bow - 82 is 0.25s melee but still 0.3s drawn. The
 // 0.2s row is reachable only with a full Thermodynamic set, which raises the cap below to 150.
 const BOW_SHOT_RATE_BREAKPOINTS = [
   { threshold: 0, secondsPerHit: 0.5 },
@@ -544,7 +544,7 @@ export function computeMeleeHitsPerSecond(bonusAttackSpeed, loadout) {
   return ratePerSecond(MELEE_HIT_RATE_BREAKPOINTS, cappedAttackSpeed(bonusAttackSpeed, loadout));
 }
 
-// Bow shots/second — same cap, its own table.
+// Bow shots/second - same cap, its own table.
 export function computeBowShotsPerSecond(bonusAttackSpeed, loadout) {
   return ratePerSecond(BOW_SHOT_RATE_BREAKPOINTS, cappedAttackSpeed(bonusAttackSpeed, loadout));
 }
@@ -565,7 +565,7 @@ export const DPS_HITS_PER_SECOND = {
 export const CRIMSON_SWIPE_FIRST_HIT_MULTIPLIER = 2;
 
 // Duplex (Reiterate), bow only: a guaranteed extra arrow dealing +4% per level of the first arrow's
-// damage — 4/8/12/16/20% at levels I-V, so level 5 is a 1.2x DPS multiplier.
+// damage - 4/8/12/16/20% at levels I-V, so level 5 is a 1.2x DPS multiplier.
 const DUPLEX_DAMAGE_PERCENT_PER_LEVEL = 4;
 function getDuplexLevel(loadout) {
   const ultimate = loadout.weapon?.modifiers?.ultimateEnchantment;
@@ -573,7 +573,7 @@ function getDuplexLevel(loadout) {
 }
 
 // `sources`/`mob` mirror computeFinalDamage's parameters, as do useDungeonizedStats/useMasterMode.
-// Everything DPS mode needs — the steady-state melee hit plus every proc — is derived here rather
+// Everything DPS mode needs - the steady-state melee hit plus every proc - is derived here rather
 // than reused from a caller's melee-mode numbers, which bake in First Strike/Triple Strike's
 // opening-hit bonus and must not be multiplied into every hit per second.
 export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats = false, useMasterMode = false) {
@@ -588,7 +588,7 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
 
   // Crit-chance-weighted expected damage per hit: below 100% Crit Chance some hits don't crit
   // (finalDamageNonCrit rather than finalDamage), and with Overload on a bow any Crit Chance past
-  // 100 becomes a chance of a guaranteed Mega Crit — OverloadChance = FinalCritChance - 100,
+  // 100 becomes a chance of a guaranteed Mega Crit - OverloadChance = FinalCritChance - 100,
   // evaluated after every modifier including Terminator's divide-by-4 and the Dungeon boosts.
   const critChance = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob).crit_chance || 0;
   const hasOverload = (sources.overloadBonusPercent || 0) > 0;
@@ -674,7 +674,7 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     // Steady-state per-hit melee damage, excluding First Strike/Triple Strike, so the by-hit graph can
     // compare it against the boosted opening hits and plot the DPS dip.
     meleeFinalDamage,
-    // Crit-chance/Overload/Duplex breakdown behind `melee` above — exposed for display/debugging.
+    // Crit-chance/Overload/Duplex breakdown behind `melee` above - exposed for display/debugging.
     nonCritChance,
     megaCritChance,
     duplexLevel,
@@ -697,7 +697,7 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
 // via computeEnchantProcDamage/computeCrimsonSwipeDamage) rather than blended DPS: no per-hit
 // trigger chance is known, so each is spread across the fight by an accumulator that crosses 1
 // every meleeHitsPerSecond / rate hits, reproducing the same long-run average as
-// DPS_HITS_PER_SECOND. Venomous is the opposite case — a continuous DoT across every active stack —
+// DPS_HITS_PER_SECOND. Venomous is the opposite case - a continuous DoT across every active stack -
 // so its contribution is amortized instead: per-stack damage x active stacks x its per-second rate,
 // divided by hits per second, growing as stacks accumulate.
 //
@@ -712,14 +712,14 @@ export function simulateHitByHit(
   useMasterMode = false,
   hitCount = MAX_VENOMOUS_STACKS,
   // Optional sample budget. Null walks every hit, which is what the graph plots. A number instead
-  // spreads that many samples across the WHOLE fight, each standing in for a stride of hits — the
+  // spreads that many samples across the WHOLE fight, each standing in for a stride of hits - the
   // optimizer ranks on a fight average, and walking a thousand-hit fight per candidate costs 10-40x
   // what it can afford. Sampling the whole HP curve is what fixes Execute vs Prosecute: truncating
   // at hit 40 leaves a long fight barely scratched, so Execute (which climbs as HP drains) reads as
   // worthless and Prosecute (which falls) reads as maxed.
   maxSamples = null,
 ) {
-  // Same selection as computeDpsBreakdown's — see the comment there.
+  // Same selection as computeDpsBreakdown's - see the comment there.
   const simStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
   const bonusAttackSpeed = simStats.bonus_attack_speed || 0;
   const meleeHitsPerSecond = computeMeleeHitsPerSecond(bonusAttackSpeed, loadout);
@@ -764,7 +764,7 @@ export function simulateHitByHit(
   // Lust for Blood BUILDS across the fight rather than landing once: every hit adds another stack's
   // worth of additive damage, clamped at the class's cap. A melee hit gains 5x the per-stack
   // scaling and a ranged hit 1x, so melee reaches that cap within a couple of hits while ranged
-  // climbs for most of a fight — the whole reason the cap is what balances the two.
+  // climbs for most of a fight - the whole reason the cap is what balances the two.
   const lustPerHit = simIsBowWeapon
     ? sources.dungeonClassStats?.lustForBloodRangedPerHitPercent || 0
     : sources.dungeonClassStats?.lustForBloodMeleePerHitPercent || 0;
@@ -867,7 +867,7 @@ export function simulateHitByHit(
 
     const totalDamage = meleeDamage + fireAspectDamage + thunderlordDamage + crimsonSwipeDamage + venomousDamage;
     // totalDamage is damage dealt during one hit-interval, with procs amortized to their share of it,
-    // so multiplying back by meleeHitsPerSecond gives the instantaneous DPS this hit represents —
+    // so multiplying back by meleeHitsPerSecond gives the instantaneous DPS this hit represents -
     // which varies hit to hit as Venomous stacks build and Execute/Prosecute ramps with draining HP%.
     const dps = totalDamage * meleeHitsPerSecond;
 

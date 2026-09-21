@@ -1,5 +1,5 @@
 // Hyperion/Valkyrie/Astraea/Scylla each grant +1 Damage per Catacombs level, plus one more
-// stat unique to each weapon — verified against NEU-REPO's own item lore: Hyperion +2
+// stat unique to each weapon - verified against NEU-REPO's own item lore: Hyperion +2
 // Intelligence, Valkyrie +1 Strength, Astraea +2 Defense, Scylla +1 Crit Damage. Defense isn't
 // tracked as an aggregate anywhere in this app (see the project backlog), so Astraea's second
 // stat stays unmodeled; every other stat here merges directly into the item's own base stat line.

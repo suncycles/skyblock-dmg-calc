@@ -12,7 +12,7 @@
  * Hypixel's own UI renders, so this extracts the skin texture and renders a head icon through
  * mc-heads.net (crafatar.com, the other common service, returned HTTP 521 when checked).
  *
- * The render must be keyed off the texture hash — textures.SKIN.url's last path segment — and not
+ * The render must be keyed off the texture hash - textures.SKIN.url's last path segment - and not
  * off `profileId`. `profileId` is the Mojang account UUID the skin was captured from, and
  * mc-heads.net's /avatar/{uuid} route resolves it to that account's CURRENT skin, which may have
  * changed. The texture hash is a content-addressed id of the exact image and works as a drop-in
@@ -104,7 +104,7 @@ async function runBatched(items, worker, concurrency = 8) {
 }
 
 // This script writes PNG, but compress-icons.mjs converts every baked icon to WebP at the end of the
-// pipeline and deletes the PNG, so the "already have it?" check accepts either extension —
+// pipeline and deletes the PNG, so the "already have it?" check accepts either extension -
 // otherwise every run re-downloads several hundred head renders.
 function hasBakedIcon(id) {
   return existsSync(path.join(OUT_DIR, `${id}.png`)) || existsSync(path.join(OUT_DIR, `${id}.webp`));

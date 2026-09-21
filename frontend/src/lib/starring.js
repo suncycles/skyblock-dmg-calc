@@ -33,7 +33,7 @@ const HIGH_STAR_ITEM_IDS = new Set([
 ]);
 
 // Same source as HIGH_STAR_ITEM_IDS above (docs/Missing_Starrable_Items.csv) but capped at the
-// normal 5-star max — these just need to count as Starrable at all, since BASE_MAX_STARS already
+// normal 5-star max - these just need to count as Starrable at all, since BASE_MAX_STARS already
 // applies once isStarrableItem is true.
 const NON_DUNGEON_STARRABLE_ITEM_IDS = new Set([
   'ASPECT_OF_THE_DRAGON', 'AXE_OF_THE_SHREDDED', 'DRAGON_SHORTBOW', 'FLAMING_FLAY', 'FROZEN_SCYTHE', 'GLACIAL_SCYTHE',
@@ -63,15 +63,15 @@ const NON_DUNGEON_STARRABLE_ITEM_IDS = new Set([
   'THE_PRIMORDIAL',
 ]);
 
-// Blaze Slayer's 5 armor sets (Aurora/Crimson/Fervor/Hollow/Terror), split by power tier — base,
-// Hot, Burning and Fiery against the Infernal prefix — the same 100-id family lib/armorVariants.js
+// Blaze Slayer's 5 armor sets (Aurora/Crimson/Fervor/Hollow/Terror), split by power tier - base,
+// Hot, Burning and Fiery against the Infernal prefix - the same 100-id family lib/armorVariants.js
 // groups for the picker. Only the Infernal tier reaches 15 stars; the four below cap at 10.
 const INFERNAL_TIER_ARMOR_RE = /^INFERNAL_(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 const LOWER_TIER_VARIANT_ARMOR_RE = /^(?:HOT_|BURNING_|FIERY_)?(?:AURORA|CRIMSON|FERVOR|HOLLOW|TERROR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)$/;
 
 // Whether an item can be Starred at all in real Skyblock: the catalog's own `category` field
 // carries a real "DUNGEON " prefix for genuine Dungeon-tagged gear (ingested straight from
-// NotEnoughUpdates-REPO, e.g. "DUNGEON SWORD" vs plain "SWORD") — verified against
+// NotEnoughUpdates-REPO, e.g. "DUNGEON SWORD" vs plain "SWORD") - verified against
 // worker/src/data/{weapons,armor,equipment}.json. Kuudra's armor families and the
 // HIGH_STAR_ITEM_IDS/NON_DUNGEON_STARRABLE_ITEM_IDS sets above are real exceptions: also
 // Starrable in-game but their category is plain (not Dungeon-tagged). Everything else defaults
@@ -87,7 +87,7 @@ export function isStarrableItem(item) {
 }
 
 // The max star count a given item can hold, out of a dungeon (Catacombs Stars in-dungeon use the
-// same count, uncapped by this per real-game data — see lib/dungeonize.js). 0 for anything not
+// same count, uncapped by this per real-game data - see lib/dungeonize.js). 0 for anything not
 // Starrable at all (see isStarrableItem above).
 export function getMaxStarsForItem(item) {
   if (!isStarrableItem(item)) return 0;
@@ -98,21 +98,21 @@ export function getMaxStarsForItem(item) {
 }
 
 // Master Stars: usable on any item once it has this many base stars (not restricted to Dungeon-
-// tagged gear), worth 5%/star instead of 2%, capped at 5 — see lib/dungeonize.js.
+// tagged gear), worth 5%/star instead of 2%, capped at 5 - see lib/dungeonize.js.
 export const MASTER_STAR_MIN_BASE_STARS = 5;
 export const MAX_MASTER_STARS = 5;
 export const MASTER_STAR_PERCENT_PER_STAR = 5;
 
 // Ability Damage (Wither/Shadow/Dark Goggles, Aurora Helmet, Gilded Midas Staff) uses the same
 // 10%/star rate as CATACOMBS_STAR_PERCENT_PER_STAR, but unlike every other stat it's untouched by
-// the Catacombs Level curve — only stars and General's Medallion digits move it (Master Stars
+// the Catacombs Level curve - only stars and General's Medallion digits move it (Master Stars
 // still stack normally). See lib/dungeonize.js's computeAbilityDamageCatacombsBoostPercent.
 export const ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR = 10;
 
-// Circled-digit glyph for a given Master Star count (1-5), for UI display — not part of any real item lore.
+// Circled-digit glyph for a given Master Star count (1-5), for UI display - not part of any real item lore.
 export const MASTER_STAR_DIGIT_GLYPHS = ['', '➊', '➋', '➌', '➍', '➎'];
 
-// Green — distinct from Books' yellow (e), Art of War/Peace's gold (6), Reforges' blue (9), Special weapons' aqua (b).
+// Green - distinct from Books' yellow (e), Art of War/Peace's gold (6), Reforges' blue (9), Special weapons' aqua (b).
 export const STAR_COLOR = 'a';
 
 function stripColor(line) {
@@ -163,7 +163,7 @@ export function buildStarSuffix(starCount) {
   return suffix;
 }
 
-// Purely cosmetic circled-digit glyph appended after the ✪ star suffix — colored the same red
+// Purely cosmetic circled-digit glyph appended after the ✪ star suffix - colored the same red
 // (§c) as the rest of the item's own tooltip text, not part of any real item lore.
 export function buildMasterStarSuffix(masterStars) {
   if (!masterStars) return '';

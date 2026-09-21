@@ -1,5 +1,5 @@
 // Minimal big-endian NBT reader for Hypixel's gzip+base64 item data (the same format Minecraft
-// uses for ItemStack NBT). Only decodes what SkyDmg needs from ExtraAttributes — ports the same
+// uses for ItemStack NBT). Only decodes what SkyDmg needs from ExtraAttributes - ports the same
 // tag-type switch Mojang's format has used since forever. Not a general-purpose NBT library.
 
 const TAG_END = 0;
@@ -41,7 +41,7 @@ class Reader {
     this.pos += 4;
     return v;
   }
-  // Long as a JS number — item NBT longs (timestamps, UUID halves) never need bit-exact 64-bit precision here.
+  // Long as a JS number - item NBT longs (timestamps, UUID halves) never need bit-exact 64-bit precision here.
   long() {
     const hi = this.view.getInt32(this.pos, false);
     const lo = this.view.getUint32(this.pos + 4, false);
@@ -137,7 +137,7 @@ async function gunzip(bytes) {
   return buf;
 }
 
-// Decodes one Hypixel inventory blob (base64 gzip NBT) into its root compound's "i" list —
+// Decodes one Hypixel inventory blob (base64 gzip NBT) into its root compound's "i" list -
 // one entry per inventory slot, `null`/`{}` for empty slots (id === undefined).
 export async function decodeInventoryB64(b64) {
   const gz = base64ToBytes(b64);
@@ -160,11 +160,11 @@ export function extractItemSummary(slotItem) {
     modifier: ea.modifier || null,
     recombobulated: !!ea.rarity_upgrades,
     stars: ea.upgrade_level || ea.dungeon_item_level || 0,
-    // Real on WEAPONS — `ExtraAttributes.dungeon_item === 1` on a dungeonized Terminator/Flaming
+    // Real on WEAPONS - `ExtraAttributes.dungeon_item === 1` on a dungeonized Terminator/Flaming
     // Flay, which carry no "DUNGEON " category prefix and so have no other signal. It is NOT on
     // dungeon armor or equipment at all: sammui's Necron's Leggings, Starred Spirit Mask, Starred
     // Bone Necklace etc. have no such key (nor dungeon_item_level), only `upgrade_level`. Its
-    // absence therefore means nothing on its own — lib/hypixelImport.js's resolveDungeonizedFlag
+    // absence therefore means nothing on its own - lib/hypixelImport.js's resolveDungeonizedFlag
     // is where the full rule lives, and is the only thing that should be read as the answer.
     dungeonized: !!ea.dungeon_item,
     hotPotatoBooks: ea.hot_potato_count || 0,
@@ -175,7 +175,7 @@ export function extractItemSummary(slotItem) {
     // art_of_war_count above, just a differently-cased/named key. See lib/hypixelImport.js's
     // consumer.
     artOfPeace: !!ea.artOfPeaceApplied,
-    // Real per-copy Gear-Score data — which Floor this specific drop came from (1-10) and its real
+    // Real per-copy Gear-Score data - which Floor this specific drop came from (1-10) and its real
     // stat boost % (e.g. item_tier: 10, baseStatBoostPercentage: 50). Only meaningful for the
     // handful of tiered-stat items lib/tieredArmorStats.js models; harmless/unused otherwise. See
     // lib/hypixelImport.js's consumer.
@@ -183,7 +183,7 @@ export function extractItemSummary(slotItem) {
     baseStatBoostPercentage: ea.baseStatBoostPercentage || 0,
     enchantments: ea.enchantments || {},
     gems: ea.gems || null,
-    // Real per-instance lore (with §-codes) — most items don't need this (their real stats come
+    // Real per-instance lore (with §-codes) - most items don't need this (their real stats come
     // from the bundled NEU-REPO catalog), but a few (David's Cloak's Strength/rarity, neither of
     // which has a published formula and both of which live only in the account's own copy of the
     // item) can only be recovered by reading it directly. See lib/hypixelImport.js's consumer.

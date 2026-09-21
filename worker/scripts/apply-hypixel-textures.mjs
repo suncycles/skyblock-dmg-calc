@@ -14,11 +14,11 @@
  * generic vanilla-material icon (frontend/src/lib/icons.js).
  *
  * Matching is tiered, most precise first:
- *  1. Item-definition resolution: look up items/item/**\/{slug}.json — the pack's own item-identity
- *     keying, matched by slugified display name first and internal id second — then walk its
+ *  1. Item-definition resolution: look up items/item/**\/{slug}.json - the pack's own item-identity
+ *     keying, matched by slugified display name first and internal id second - then walk its
  *     item-model predicate tree (condition/select/range_dispatch/composite) to a leaf model and read
  *     that model's texture. Only this tier resolves skin-variant items: "BURSTFIRE_DAGGER" (displayed
- *     as Kindlebane Dagger) has neither burstfire_dagger.png nor kindlebane_dagger.png — the real
+ *     as Kindlebane Dagger) has neither burstfire_dagger.png nor kindlebane_dagger.png - the real
  *     files are kindlebane_dagger_ashen.png and _auric.png, and only the item-def names the default.
  *     For a "STARRED_"-prefixed id this tier first tries "{slug}_fragged", Hypixel's internal name
  *     for starred, which is a separate top-level item-def with its own texture rather than a
@@ -28,7 +28,7 @@
  *  3. Exact: slugified display name == texture basename. The pack is keyed by display name, so a
  *     renamed item (id DAEDALUS_AXE, texture daedalus_blade.png) resolves only this way. Starred
  *     items carry a leading Hypixel-font glyph, stripped before slugifying.
- *  4. Fuzzy: slugified display name within edit distance 1 of a basename — "hunter_knife" ->
+ *  4. Fuzzy: slugified display name within edit distance 1 of a basename - "hunter_knife" ->
  *     "hunters_knife", or "bouquet_of_lies" -> "bouqet_of_lies", a typo in Hypixel's own filename.
  *     Gated to names of 6+ characters with a unique closest match, since short names collide by
  *     coincidence ("bow" is distance 2 from the unrelated "wob").
@@ -51,7 +51,7 @@ const OUT_DIR = path.join(__dirname, '..', '..', 'frontend', 'public', 'images',
 const GEMSTONE_OUT_DIR = path.join(__dirname, '..', '..', 'frontend', 'public', 'images', 'gemstones');
 const DATA_DIR = path.join(__dirname, '..', 'src', 'data');
 
-// The 6 gemstone types the calculator's Gemstone slots feature supports —
+// The 6 gemstone types the calculator's Gemstone slots feature supports -
 // see frontend/src/lib/gemstoneData.js.
 const GEMSTONE_IDS = ['RUBY', 'JASPER', 'SAPPHIRE', 'AMETHYST', 'ONYX', 'OPAL'];
 const GEMSTONE_TIERS = ['rough', 'flawed', 'fine', 'flawless', 'perfect'];
@@ -77,7 +77,7 @@ function levenshtein(a, b) {
 }
 
 // Closest basename to `key` at edit distance exactly 1, only if it's the
-// unique closest one (no ties) — see module doc for why this is gated.
+// unique closest one (no ties) - see module doc for why this is gated.
 function findFuzzyMatch(key, basenames) {
   if (key.length < 6) return null;
   let best = null;
@@ -126,8 +126,8 @@ function stripNamespace(ref) {
   return idx === -1 ? ref : ref.slice(idx + 1);
 }
 
-// Walks an item-model predicate node — the "model" field of an items/item/**.json file, or any
-// nested model within it — down to a single leaf model reference. Handles the predicate types the
+// Walks an item-model predicate node - the "model" field of an items/item/**.json file, or any
+// nested model within it - down to a single leaf model reference. Handles the predicate types the
 // pack uses: minecraft:model (leaf), condition (take on_false, the default state), minecraft:select
 // on minecraft:display_context (take "gui", what an inventory slot shows), range_dispatch (take the
 // fallback) and composite (take the first layer, such as a drill's head). Falls back to a deep
@@ -211,7 +211,7 @@ async function main() {
     if (byBasename.has(base)) dupes.add(base);
     else byBasename.set(base, p);
   }
-  dupes.forEach((base) => byBasename.delete(base)); // ambiguous — don't guess
+  dupes.forEach((base) => byBasename.delete(base)); // ambiguous - don't guess
 
   const itemDefsDir = path.join(extractDir, 'assets', 'hypixel_skyblock', 'items', 'item');
   const itemDefPaths = walkFiles(itemDefsDir, '.json');
@@ -222,7 +222,7 @@ async function main() {
     if (itemDefByBasename.has(base)) itemDefDupes.add(base);
     else itemDefByBasename.set(base, p);
   }
-  itemDefDupes.forEach((base) => itemDefByBasename.delete(base)); // ambiguous — don't guess
+  itemDefDupes.forEach((base) => itemDefByBasename.delete(base)); // ambiguous - don't guess
 
   const weapons = JSON.parse(readFileSync(path.join(DATA_DIR, 'weapons.json'), 'utf8'));
   const armor = JSON.parse(readFileSync(path.join(DATA_DIR, 'armor.json'), 'utf8'));
@@ -239,7 +239,7 @@ async function main() {
     let tier = null;
 
     // Starred items have a different texture in the pack, keyed as a separate top-level item-def
-    // basename suffixed "_fragged" — daedalus_blade against daedalus_blade_fragged, two files rather
+    // basename suffixed "_fragged" - daedalus_blade against daedalus_blade_fragged, two files rather
     // than one conditional def. Only ~7 of 27 starred items here have one; the rest fall through to
     // the base texture. Name is checked before id, as in tier 1.
     const candidateKeys = starred ? [`${nameKey}_fragged`, `${idKey}_fragged`, nameKey, idKey] : [nameKey, idKey];

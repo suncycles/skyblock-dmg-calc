@@ -27,7 +27,7 @@ const inputClass = 'w-20 px-2 py-1 text-sm bg-black text-white border-2 border-n
 
 // Every permanent account upgrade bought with Essence, in the order the shops themselves read: the
 // always-on Forbidden line, then the Catacombs line, then the three that aren't a flat stat.
-// Normally filled by the Hypixel import, but typeable — a manually built loadout has no import, and
+// Normally filled by the Hypixel import, but typeable - a manually built loadout has no import, and
 // these move the damage number as much as a skill level does, which is why they live on this page.
 // `dungeonOnly` perks are marked rather than hidden: they're still real, just Catacombs-scoped.
 const ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK];
@@ -279,7 +279,7 @@ export default function PlayerLevels() {
         </div>
 
         {/* Not an Essence purchase, but the same shape of permanent account upgrade and the only
-            other one with nowhere else to live — the Mimic shard, its old neighbour here, is an
+            other one with nowhere else to live - the Mimic shard, its old neighbour here, is an
             attribute and sits on the Attributes page under Other. */}
         <div className="flex items-center justify-between gap-2">
           <label className="text-sm text-black" htmlFor="master-skull-tier">

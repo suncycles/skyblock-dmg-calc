@@ -1,14 +1,14 @@
-// Mob Types — Hypixel Skyblock's in-game mob classification system (visible per-mob in the
-// Bestiary). 322 mobs, merged from the wiki's Mob Types/List page and its Bestiary/List page —
+// Mob Types - Hypixel Skyblock's in-game mob classification system (visible per-mob in the
+// Bestiary). 322 mobs, merged from the wiki's Mob Types/List page and its Bestiary/List page -
 // a mob missing from MOB_TYPES means undocumented, not typeless. Location (which Bestiary tab a
-// mob lives in) is a separate dimension — see lib/mobLocations.js. A searchable reference table
+// mob lives in) is a separate dimension - see lib/mobLocations.js. A searchable reference table
 // (the source this and mobLocations.js were generated from) lives at docs/mob-types-reference.html.
 //
-// Only 9 of the 23 types have a matching enchantment — see MOB_TYPE_ENCHANTS; the rest are
+// Only 9 of the 23 types have a matching enchantment - see MOB_TYPE_ENCHANTS; the rest are
 // flavor/lore classification only.
 
 // Enchant id -> Mob Type(s) it grants bonus damage against. Keyed by the real NEU-REPO item
-// id (lowercase), not display name — Woodsplitter's real id is the legacy "arcane".
+// id (lowercase), not display name - Woodsplitter's real id is the legacy "arcane".
 export const ENCHANT_ID_MOB_TYPES = {
   smite: ['Undead', 'Skeletal', 'Wither'],
   ender_slayer: ['Ender'],
@@ -372,7 +372,7 @@ export const MOB_TYPES = {
 };
 
 // Fishing's own "Sea Creature" grouping (Flaming Flay/Soul Whip's real "Deals Nx damage to Sea
-// Creatures" condition) — not a Mob Type, so it isn't in MOB_TYPES above; resolved as a name list
+// Creatures" condition) - not a Mob Type, so it isn't in MOB_TYPES above; resolved as a name list
 // instead (see conditionMatchesMob in lib/finalDamage.js). Coverage: only the ones also present in
 // MOB_TYPES below can actually be picked as a target mob and match; the rest are real Sea
 // Creatures this app's mob roster doesn't cover yet.
@@ -392,7 +392,7 @@ export const SEA_CREATURE_MOBS = [
   'Lava Blaze', 'Lava Pigman', 'Abyssal Miner', 'Plhlegblast',
 ];
 
-// The Lava-fishing subset of the above — Taurus Helmet/Flaming Chestplate/Moogma Leggings'
+// The Lava-fishing subset of the above - Taurus Helmet/Flaming Chestplate/Moogma Leggings'
 // real "Damage dealt [to] Lava Sea Creatures is increased" condition is this narrower group,
 // not the full Sea Creature roster (verified against worker/src/data/armor.json's real lore).
 export const LAVA_SEA_CREATURE_MOBS = [
@@ -428,7 +428,7 @@ export function getEnchantForType(type) {
   return MOB_TYPE_ENCHANTS[type] || null;
 }
 
-// Every Bestiary type name, most-populous first — drives TargetMobPicker's type filter chips, the
+// Every Bestiary type name, most-populous first - drives TargetMobPicker's type filter chips, the
 // same shape (and ordering rule) mobLocations.js's ALL_LOCATIONS/LOCATION_COUNTS give the location
 // chips right beside them, so the two filter rows stay consistent.
 const typeCounts = {};

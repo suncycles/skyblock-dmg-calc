@@ -3,7 +3,7 @@ import { GEMSTONES, GEMSTONE_IDS, TIER_TO_RARITY, getGemstoneBoost, formatGemsto
 import { STAT_LABELS, statKeyForLabel } from './reforgeData';
 
 // Real per-slot type restrictions (item.gemstone_slots' own slot_type, see
-// worker/scripts/build-item-data.mjs — Hypixel's resources API, not in NEU-REPO):
+// worker/scripts/build-item-data.mjs - Hypixel's resources API, not in NEU-REPO):
 // - "COMBAT" and "UNIVERSAL" accept any of the 6 gems this app models.
 // - A slot type that IS one of the 6 gem ids (Hyperion's "SAPPHIRE" slot, Giant's Sword's two
 //   "JASPER" slots) accepts ONLY that type.
@@ -13,7 +13,7 @@ const UNRESTRICTED_SLOT_TYPES = new Set(['COMBAT', 'UNIVERSAL']);
 
 // `slotType` is one real gemstone_slots[i].slot_type value, or undefined/null when no catalog data
 // covers this slot (an item missing from Hypixel's resources response, or a slot count beyond what
-// the catalog covers) — those fall back to unrestricted rather than zeroing out every candidate.
+// the catalog covers) - those fall back to unrestricted rather than zeroing out every candidate.
 export function getAllowedGemsForSlotType(slotType) {
   if (!slotType || UNRESTRICTED_SLOT_TYPES.has(slotType)) return GEMSTONE_IDS;
   return GEMSTONE_IDS.includes(slotType) ? [slotType] : [];
@@ -57,7 +57,7 @@ function findGemIdByStatLabel(statLabel) {
 // gemstone's annotation stays pink without colliding with 'd', the code Enchant stat bonuses use.
 export const GEMSTONE_COLOR = 'p';
 
-// {statKey: delta} for every stat a socketed gemstone boosts — the calc-facing counterpart of
+// {statKey: delta} for every stat a socketed gemstone boosts - the calc-facing counterpart of
 // applyGemstonesToLore's own label-keyed annotation logic below, shared by lib/itemStatTotals.js
 // so the hidden-base computation and the tooltip annotation are always summing the same numbers.
 export function computeGemstoneStatBonuses(gemstones, itemRarity) {
@@ -76,7 +76,7 @@ export function computeGemstoneStatBonuses(gemstones, itemRarity) {
 
 // Rebuilds an item's lore with applied gemstones reflected: the "Gemstones:" line's brackets
 // recolor per-slot, and every boosted stat gets a pink "(+X)" annotation (a socketed gemstone is
-// a permanent part of the item's stats — the leading number itself is set once, elsewhere, from
+// a permanent part of the item's stats - the leading number itself is set once, elsewhere, from
 // lib/itemStatTotals.js's computed hidden base, not merged here). Also adds a brand-new stat line
 // for a stat the item doesn't already show (most weapons have no pristine Health/Defense/True
 // Defense line). `gemstones` is a sparse array indexed by slot position, entries are {gem, tier}

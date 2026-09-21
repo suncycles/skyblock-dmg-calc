@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
-/* Site-wide +15% scale — `zoom` (not `transform: scale`) so every dimension (text, padding,
+/* Site-wide +15% scale - `zoom` (not `transform: scale`) so every dimension (text, padding,
    gaps, icon sizes, arbitrary px values) grows together in lockstep, the same way a real browser
    zoom does, which is what actually guarantees every component's spacing stays proportionally
    correct without hand-editing the dozens of files that use fixed/arbitrary Tailwind sizes. The
    catch: vh/vw units resolve against the UNZOOMED viewport. Most uses here are harmless because
    they only set a floor or a cap (min-h-screen on page wrappers, a handful of max-width: ...vw
-   limits). Anything that must actually fit the visible screen divides by --page-zoom below — see
+   limits). Anything that must actually fit the visible screen divides by --page-zoom below - see
    Landing.jsx's sticky Recommended Upgrades column. */
 html {
   /* A variable, not a bare number, because CSS lengths don't see through zoom: 100vh still
@@ -16,7 +16,7 @@ html {
   zoom: var(--page-zoom);
   /* Reserves clearance for the fixed h-12 TopBar (components/TopBar.jsx) whenever the browser
      auto-scrolls to bring a focused/anchored element into view (e.g. EntryScreen's autoFocus
-     username input) — without this, a short viewport whose content doesn't fully fit (now more
+     username input) - without this, a short viewport whose content doesn't fully fit (now more
      common now that everything renders ~15% larger) scrolls that content flush to the very top,
      right underneath the fixed header instead of below it. Matches TopBar's own h-12 height. */
   scroll-padding-top: 48px;
@@ -36,7 +36,7 @@ body {
 }
 
 /* Tailwind's font-mono utility (numeric damage/stat tables in Compare.jsx/DamageSources.jsx) and
-   the item-lore tooltip below both used to run a dedicated monospace face (JetBrains Mono) —
+   the item-lore tooltip below both used to run a dedicated monospace face (JetBrains Mono) -
    switched to the same global font as the rest of the site for one consistent typeface
    everywhere, referencing the single --font-global definition above instead of duplicating it. */
 .font-mono {
@@ -47,7 +47,7 @@ body {
   image-rendering: pixelated;
 }
 
-/* Zone backdrop fade-in (see components/PageBackground.jsx) — a fresh <img> element is mounted
+/* Zone backdrop fade-in (see components/PageBackground.jsx) - a fresh <img> element is mounted
    on every zone change (key={image}), so a plain CSS animation (not a transition, which needs a
    state change to trigger) reliably replays on every switch. */
 @keyframes bg-video-fade-in {
@@ -62,7 +62,7 @@ body {
 /* ---------------------------------------------------------------------------------------
    Site-wide typography polish. Every page reuses the same literal "text-xl font-bold" h1
    pattern for its title and the same "text-[9px]" size for the tiniest chest-GUI slot labels
-   (Landing's equipment/armor/weapon/pet tiles) — targeting those exact classes here fixes
+   (Landing's equipment/armor/weapon/pet tiles) - targeting those exact classes here fixes
    sizing/weight/legibility everywhere at once instead of editing 20+ page files. */
 h1.text-xl.font-bold {
   font-size: 1.375rem;
@@ -80,26 +80,26 @@ h1.text-xl.font-bold {
 
    Every page's chest-GUI chrome reuses the same handful of literal Tailwind utility classes
    for its panel/slot/highlight/CTA/control colors (bg-[#c6c6c6], bg-[#8b8b8b], bg-neutral-800,
-   bg-black, border-t-white, bg-green-400, etc.) rather than a shared component — retargeting
+   bg-black, border-t-white, bg-green-400, etc.) rather than a shared component - retargeting
    those classes here reskins every page's GUI chrome at once, no per-page edits needed. Rules
    are unlayered so they beat Tailwind's own @layer utilities without !important.
 
    ONE frosted-glass recipe (translucent dark background + backdrop blur + soft border/shadow)
    applies everywhere, unscoped by theme, so PageBackground's fixed zone image always shows
    through underneath every panel. Each html[data-theme="..."] block below changes ONLY the
-   --glass-tint accent (a couple lines) to match its zone's mood — the glass shape, opacity,
+   --glass-tint accent (a couple lines) to match its zone's mood - the glass shape, opacity,
    and blur amount never change, so every theme reads as the same consistent system with just
    a hint of per-location color, not a different look per theme. */
 
 :root {
-  --glass-tint: 226, 232, 240; /* neutral slate-100 — classic / no zone matched yet */
+  --glass-tint: 226, 232, 240; /* neutral slate-100 - classic / no zone matched yet */
 }
 
 html {
   color-scheme: dark;
 }
 
-/* Main panels — Section wrappers, Final Damage/Misc/Magical Power cards, etc. */
+/* Main panels - Section wrappers, Final Damage/Misc/Magical Power cards, etc. */
 .bg-\[\#c6c6c6\],
 .bg-\[\#c6c6c6\]\/75,
 .bg-\[\#c6c6c6\]\/60 {
@@ -113,7 +113,7 @@ html {
 /* Anything that floats OVER other content opts out of the translucent glass above and paints a
    solid surface instead: modals (ConfirmDialogContext, ArmorOptions/EquipmentOptions), the
    Recommended Upgrades window, the sticky damage readout. Glass is right for panels that sit in
-   the page's own flow — it's wrong the moment a surface is stacked on top of one, because the
+   the page's own flow - it's wrong the moment a surface is stacked on top of one, because the
    text underneath shows straight through the text on top. Measured on Landing before this:
    3 strings behind the damage readout, 6 behind the footer, 6 behind the top bar while scrolled.
    Same unlayered-override trick as the glass rule above; wins by appearing after it. `text-black`
@@ -125,7 +125,7 @@ html {
   -webkit-backdrop-filter: none;
 }
 
-/* Inset/slot panels — item slots, the Misc sub-panel, etc. */
+/* Inset/slot panels - item slots, the Misc sub-panel, etc. */
 .bg-\[\#8b8b8b\],
 .bg-\[\#8b8b8b\]\/80 {
   background-color: rgba(var(--glass-tint), 0.08);
@@ -134,9 +134,9 @@ html {
   border-radius: 10px;
 }
 
-/* Flat, not beveled. The chest-GUI heritage put four edge treatments on every panel at once —
+/* Flat, not beveled. The chest-GUI heritage put four edge treatments on every panel at once -
    a 3px DIRECTIONAL border (light top/left, dark bottom/right), a 2px outline ring outside it, a
-   32px drop shadow, and a 1px inset top highlight — which together read as embossed plastic. The
+   32px drop shadow, and a 1px inset top highlight - which together read as embossed plastic. The
    directional pair is the actual 3D cue, so all four sides now take one even hairline and the
    outline/shadow are dropped below; the gear icons end up the loudest thing on the grid, which is
    the point. Drafted as four options and chosen live (user-specified 2026-09-08). Border WIDTH is
@@ -160,8 +160,8 @@ html {
   outline-width: 0;
 }
 
-/* CTA / equipped-highlight accent stays a solid, saturated color — it needs to read as
-   "selected"/"primary action", not just decorative glass — but tinted per theme via the same
+/* CTA / equipped-highlight accent stays a solid, saturated color - it needs to read as
+   "selected"/"primary action", not just decorative glass - but tinted per theme via the same
    --glass-tint so it never clashes with the panels around it. */
 .bg-green-400 {
   background-color: rgb(var(--glass-tint));
@@ -200,7 +200,7 @@ html {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Universal text relighting — every panel is dark glass now regardless of theme, so the
+/* Universal text relighting - every panel is dark glass now regardless of theme, so the
    pervasive hardcoded text-black/text-neutral-NNN needs to stay legible everywhere it's used. */
 .text-black:not(.bg-neutral-200) {
   color: #f1f5f9;
@@ -218,17 +218,17 @@ html {
   color: rgba(241, 245, 249, 0.4);
 }
 
-/* Per-theme tint — the ONLY thing that changes between themes/zones (see lib/background.js
+/* Per-theme tint - the ONLY thing that changes between themes/zones (see lib/background.js
    for which theme pairs with which Target Mob type/backdrop). Deliberately tiny diffs. */
-html[data-theme='slate'] { --glass-tint: 148, 163, 184; } /* cool blue-grey — Catacombs */
-html[data-theme='parchment'] { --glass-tint: 250, 204, 21; } /* warm gold — Hub by day */
-html[data-theme='forest'] { --glass-tint: 163, 230, 53; } /* green — Hub by night */
+html[data-theme='slate'] { --glass-tint: 148, 163, 184; } /* cool blue-grey - Catacombs */
+html[data-theme='parchment'] { --glass-tint: 250, 204, 21; } /* warm gold - Hub by day */
+html[data-theme='forest'] { --glass-tint: 163, 230, 53; } /* green - Hub by night */
 html[data-theme='frost'] { --glass-tint: 125, 211, 252; } /* icy blue */
-html[data-theme='aurora'] { --glass-tint: 196, 181, 253; } /* purple — the Void */
-html[data-theme='nova'] { --glass-tint: 103, 232, 249; } /* cyan — Ocean */
-html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange — Crimson Isle/Tomb */
+html[data-theme='aurora'] { --glass-tint: 196, 181, 253; } /* purple - the Void */
+html[data-theme='nova'] { --glass-tint: 103, 232, 249; } /* cyan - Ocean */
+html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange - Crimson Isle/Tomb */
 
-/* Every panel is rounded now — opt the little per-slot remove button back out to a plain
+/* Every panel is rounded now - opt the little per-slot remove button back out to a plain
    square X on every theme (it previously only opted out on Aurora/Nova/Inferno). */
 .remove-btn-square {
   border-radius: 0;
@@ -253,7 +253,7 @@ html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange — Crimso
   white-space: nowrap;
 }
 
-/* RGB "chroma" gradient text — the [T7] mass-apply button and any
+/* RGB "chroma" gradient text - the [T7] mass-apply button and any
    max-tier (non-ultimate) enchant label, see EnchantList.jsx/
    EnchantLevels.jsx. Diagonal per instruction (135deg, top-left to
    bottom-right) rather than the horizontal reference gradient. */
@@ -267,12 +267,12 @@ html[data-theme='inferno'] { --glass-tint: 253, 164, 116; } /* orange — Crimso
 
 /* Right-edge "there's more here" fade for the 9x6 chest-GUI grids (Hex.jsx, Landing.jsx,
    EnchantList.jsx, and every other page sharing this exact "w-full max-w-[700px]
-   overflow-x-auto" wrapper) — every one of these grids is wider (min-w-[380px], sometimes
+   overflow-x-auto" wrapper) - every one of these grids is wider (min-w-[380px], sometimes
    more) than a phone-width viewport, and without any cue a narrow-screen visitor has no reason
    to suspect the last column or two is reachable by swiping. Scoped to narrow viewports only
    (below the wrapper's own 700px cap) since above that width these grids already fit without
    scrolling and the fade would just be decorative noise. Static rather than scroll-position-
-   aware — simple and safe, at the cost of still showing once you've scrolled all the way right. */
+   aware - simple and safe, at the cost of still showing once you've scrolled all the way right. */
 @media (max-width: 700px) {
   .overflow-x-auto {
     position: relative;

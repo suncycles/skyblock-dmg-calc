@@ -22,7 +22,7 @@ export function getWeaponIcon(material) {
   return `/images/vanilla/${titleCased}.webp`;
 }
 
-// Bespoke SkyBlock art from Hypixel's resource pack, keyed by item id — falls back to getWeaponIcon(material) if none exists.
+// Bespoke SkyBlock art from Hypixel's resource pack, keyed by item id - falls back to getWeaponIcon(material) if none exists.
 export function getSkyblockIcon(id) {
   if (!id) return null;
   return `/images/skyblock/${id.toUpperCase()}.webp`;
@@ -30,7 +30,7 @@ export function getSkyblockIcon(id) {
 
 // Hand-provided override for ids the automated bake pipeline can't produce a real render for
 // (see worker/scripts/apply-skull-head-icons.mjs's saveHeadRender and
-// frontend/public/images/manual/README.md) — checked before the auto-baked skyblock icon.
+// frontend/public/images/manual/README.md) - checked before the auto-baked skyblock icon.
 export function getManualIcon(id) {
   if (!id) return null;
   return `/images/manual/${id.toUpperCase()}.webp`;
@@ -42,7 +42,7 @@ export function getGemstoneIcon(gemId, tier) {
   return `/images/gemstones/${gemId.toUpperCase()}_${tier.toUpperCase()}.webp`;
 }
 
-// Reforge stone icons, added manually (not in the bundled resource-pack subset) — falls back to CATEGORY_ICONS.Reforges if missing.
+// Reforge stone icons, added manually (not in the bundled resource-pack subset) - falls back to CATEGORY_ICONS.Reforges if missing.
 export function getReforgeStoneIcon(stoneId) {
   if (!stoneId) return null;
   return `/images/reforgestones/${stoneId.toLowerCase()}.webp`;

@@ -1,7 +1,7 @@
-// Mob Locations — which Hypixel SkyBlock zone/Bestiary tab each mob lives in, a separate
+// Mob Locations - which Hypixel SkyBlock zone/Bestiary tab each mob lives in, a separate
 // dimension from lib/mobTypes.js's combat-type classification. Sourced from the wiki's
 // Bestiary/List page (parsed from raw wikitext) plus a hand-mapped "Slayer" location for the
-// bosses/Dungeon-only mobs the in-game Bestiary itself doesn't track — see
+// bosses/Dungeon-only mobs the in-game Bestiary itself doesn't track - see
 // docs/mob-types-reference.html for the full generation notes. 298 of MOB_TYPES' 322 mobs have
 // a location; the remainder are Slayer-boss variants absent from both source wiki pages.
 //
@@ -335,7 +335,7 @@ export function getMobLocations(mobName) {
   return [];
 }
 
-// Every location name, most-populous first — drives the filter chip order in TargetMobPicker.
+// Every location name, most-populous first - drives the filter chip order in TargetMobPicker.
 const locationCounts = {};
 for (const locations of Object.values(MOB_LOCATIONS)) {
   for (const loc of locations) locationCounts[loc] = (locationCounts[loc] || 0) + 1;
