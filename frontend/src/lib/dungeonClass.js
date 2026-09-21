@@ -13,14 +13,22 @@ export const MAX_DUNGEON_CLASS_LEVEL = 50;
 // same numbers it did before classes existed.
 export const DEFAULT_DUNGEON_CLASS = 'healer_tank';
 
+// The neutral cube, shown while no class is in effect — outside a dungeon, where every class grants
+// nothing. Each class's own icon is the same cube in that class's colour.
+export const DUNGEON_CLASS_NEUTRAL_ICON = '/images/manual/select_class.webp';
+
 // `id` matches Hypixel's own `player_classes` keys where one exists (Berserker is "berserk"), so an
 // import maps straight across. Healer and Tank are merged into one id with no Hypixel counterpart.
 export const DUNGEON_CLASSES = [
-  { id: 'mage', label: 'Mage', hypixelKeys: ['mage'] },
-  { id: 'archer', label: 'Archer', hypixelKeys: ['archer'] },
-  { id: 'berserk', label: 'Berserker', hypixelKeys: ['berserk'] },
-  { id: 'healer_tank', label: 'Healer / Tank', hypixelKeys: ['healer', 'tank'] },
+  { id: 'mage', label: 'Mage', hypixelKeys: ['mage'], icon: '/images/manual/mage_mode.webp' },
+  { id: 'archer', label: 'Archer', hypixelKeys: ['archer'], icon: '/images/manual/arch_mode.webp' },
+  { id: 'berserk', label: 'Berserker', hypixelKeys: ['berserk'], icon: '/images/manual/bers_mode.webp' },
+  { id: 'healer_tank', label: 'Healer / Tank', hypixelKeys: ['healer', 'tank'], icon: '/images/manual/healtank_mode.webp' },
 ];
+
+export function dungeonClassIcon(classId) {
+  return DUNGEON_CLASSES.find((c) => c.id === classId)?.icon || DUNGEON_CLASS_NEUTRAL_ICON;
+}
 
 const CLASS_IDS = new Set(DUNGEON_CLASSES.map((c) => c.id));
 export function isDungeonClassId(id) {

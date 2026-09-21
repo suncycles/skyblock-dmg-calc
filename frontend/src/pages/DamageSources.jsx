@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DUNGEON_CLASSES } from '../lib/dungeonClass';
+import { DUNGEON_CLASSES, DUNGEON_CLASS_NEUTRAL_ICON, dungeonClassIcon } from '../lib/dungeonClass';
 import { useBuild , DPS_KINDS } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
@@ -584,7 +584,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
             }`}
             title={useDungeonizedStats ? 'Catacombs class' : 'Class bonuses apply only inside a dungeon'}
           >
-            <img src="/images/manual/mage_mode.webp" alt="" className="w-5 h-5 shrink-0" />
+            {/* The picked class's own colour while it is in effect, the neutral cube when the
+                Dungeon toggle is off and no class grants anything. */}
+            <img
+              src={useDungeonizedStats ? dungeonClassIcon(dungeonClass) : DUNGEON_CLASS_NEUTRAL_ICON}
+              alt=""
+              className="w-5 h-5 shrink-0"
+            />
             <select
               value={dungeonClass}
               onChange={(e) => setDungeonClass(e.target.value)}

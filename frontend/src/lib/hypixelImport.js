@@ -584,12 +584,21 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
 export function resolveDungeonClassFromImport(dungeonClasses) {
   if (!dungeonClasses) return null;
   const level = (key) => (typeof dungeonClasses[key] === 'number' ? dungeonClasses[key] : 0);
+  // Every class's own level, so switching the picker shows that class's real number rather than
+  // the selected one's.
+  const levels = {
+    mage: level('mage'),
+    archer: level('archer'),
+    berserk: level('berserk'),
+    healer_tank: Math.max(level('healer'), level('tank')),
+  };
   const selected = dungeonClasses.selected;
-  if (selected === 'mage' || selected === 'archer' || selected === 'berserk') {
-    return { id: selected, level: level(selected) };
-  }
-  if (selected === 'healer' || selected === 'tank') {
-    return { id: 'healer_tank', level: Math.max(level('healer'), level('tank')) };
-  }
-  return null;
+  const id =
+    selected === 'mage' || selected === 'archer' || selected === 'berserk'
+      ? selected
+      : selected === 'healer' || selected === 'tank'
+        ? 'healer_tank'
+        : null;
+  if (!id) return null;
+  return { id, level: levels[id], levels };
 }

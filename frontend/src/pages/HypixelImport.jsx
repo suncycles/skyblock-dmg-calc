@@ -155,7 +155,7 @@ export default function HypixelImport() {
     importHypixelWeaponList,
     setGodPotionActive,
     setDungeonClass,
-    setDungeonClassLevel,
+    importHypixelDungeonClassLevels,
   } = useBuild();
   const { itemData } = useItemData();
   const [username, setUsername] = useState(location.state?.username || '');
@@ -270,8 +270,10 @@ export default function HypixelImport() {
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
     // The class the account last picked in-game, and its level — see lib/dungeonClass.js.
     if (dungeonClass) {
+      // Levels first: setDungeonClassLevel writes whichever class is currently picked, so the map
+      // has to land before the picker moves.
+      importHypixelDungeonClassLevels(dungeonClass.levels);
       setDungeonClass(dungeonClass.id);
-      setDungeonClassLevel(dungeonClass.level);
     }
     importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);

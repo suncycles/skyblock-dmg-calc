@@ -143,9 +143,20 @@ function loadInitialDungeonClass() {
   return loadInitialMageMode() ? 'mage' : DEFAULT_DUNGEON_CLASS;
 }
 
-function loadInitialDungeonClassLevel() {
-  const stored = Number(localStorage.getItem(DUNGEON_CLASS_LEVEL_KEY));
-  return Number.isFinite(stored) ? Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, stored)) : 0;
+// One level per class, not one level overall: an account levels each class separately and an import
+// brings all of them, so switching the picker shows that class's real level.
+function loadInitialDungeonClassLevels() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DUNGEON_CLASS_LEVEL_KEY) || '{}');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  } catch {
+    // Unparseable or a pre-map single number — start empty rather than guessing which class it was.
+  }
+  return {};
+}
+
+function clampClassLevel(value) {
+  return Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, Number(value) || 0));
 }
 
 // Loads the "DPS Mode" on/off switch (see lib/finalDamage.js's computeDpsBreakdown) — reframes
@@ -533,7 +544,8 @@ export function BuildProvider({ children }) {
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
   const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
   const [dungeonClass, setDungeonClassState] = useState(loadInitialDungeonClass);
-  const [dungeonClassLevel, setDungeonClassLevelState] = useState(loadInitialDungeonClassLevel);
+  const [dungeonClassLevels, setDungeonClassLevelsState] = useState(loadInitialDungeonClassLevels);
+  const dungeonClassLevel = clampClassLevel(dungeonClassLevels[dungeonClass]);
   // Every existing Mage Mode consumer (the optimizer's resolveOptimizerMode, Compare, Accessory
   // Tuning, the share-link codec) reads this rather than the class id, so picking Mage keeps them
   // all working unchanged.
@@ -838,10 +850,28 @@ export function BuildProvider({ children }) {
     localStorage.setItem(MAGE_MODE_KEY, String(next === 'mage'));
   }, []);
 
-  const setDungeonClassLevel = useCallback((value) => {
-    const next = Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, Number(value) || 0));
-    setDungeonClassLevelState(next);
-    localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, String(next));
+  // Writes the level of whichever class is picked, leaving the other three alone.
+  const setDungeonClassLevel = useCallback(
+    (value) => {
+      setDungeonClassLevelsState((prev) => {
+        const next = { ...prev, [dungeonClass]: clampClassLevel(value) };
+        localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [dungeonClass],
+  );
+
+  // The whole per-class map at once, as a Hypixel import supplies it.
+  const importHypixelDungeonClassLevels = useCallback((levels) => {
+    setDungeonClassLevelsState((prev) => {
+      const next = { ...prev };
+      for (const [id, level] of Object.entries(levels || {})) {
+        if (isDungeonClassId(id)) next[id] = clampClassLevel(level);
+      }
+      localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const setHasJellyfishPet = useCallback((value) => {
@@ -1586,9 +1616,12 @@ export function BuildProvider({ children }) {
     setDungeonClassState(restoredClass);
     localStorage.setItem(DUNGEON_CLASS_KEY, restoredClass);
     localStorage.setItem(MAGE_MODE_KEY, String(restoredClass === 'mage'));
-    const restoredLevel = Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, Number(state.dungeonClassLevel) || 0));
-    setDungeonClassLevelState(restoredLevel);
-    localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, String(restoredLevel));
+    const restoredLevels =
+      state.dungeonClassLevels && typeof state.dungeonClassLevels === 'object'
+        ? state.dungeonClassLevels
+        : { [restoredClass]: clampClassLevel(state.dungeonClassLevel) };
+    setDungeonClassLevelsState(restoredLevels);
+    localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, JSON.stringify(restoredLevels));
 
     setDpsModeState(!!state.dpsMode);
     localStorage.setItem(DPS_MODE_KEY, String(!!state.dpsMode));
@@ -1691,8 +1724,10 @@ export function BuildProvider({ children }) {
         mageMode,
         dungeonClass,
         dungeonClassLevel,
+        dungeonClassLevels,
         setDungeonClass,
         setDungeonClassLevel,
+        importHypixelDungeonClassLevels,
         dpsMode,
         dpsKind,
         setDpsKind,
