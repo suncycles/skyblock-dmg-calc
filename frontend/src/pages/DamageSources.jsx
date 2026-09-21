@@ -11,6 +11,7 @@ import {
   computeMageStaffBeamDamage,
   computeDpsBreakdown,
   simulateHitByHit,
+  MAX_SIMULATED_HITS,
   DPS_HITS_PER_SECOND,
 } from '../lib/finalDamage';
 import { resolveStartingHp, getFloorOptions, getTierOptions, defaultTierSelection } from '../lib/mobHp';
@@ -752,7 +753,18 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 const startingHp = resolveStartingHp(name, useMasterMode, selection);
                 const simSources = startingHp ? resultAt100 : result;
                 if (simSources) {
-                  sim = simulateHitByHit(simSources, { name, types }, loadout, startingHp, MOB_HP_PERCENT, useDungeonizedStats, useMasterMode);
+                  // The graph plots the whole fight, 100% HP to 0, so the window is the mob's
+                  // health rather than a fixed hit count — the simulation stops on death.
+                  sim = simulateHitByHit(
+                    simSources,
+                    { name, types },
+                    loadout,
+                    startingHp,
+                    MOB_HP_PERCENT,
+                    useDungeonizedStats,
+                    useMasterMode,
+                    startingHp ? MAX_SIMULATED_HITS : undefined,
+                  );
                 }
               }
 

@@ -1488,8 +1488,9 @@ export async function collectDamageSources(
     out.multiplicative.push(firstHitEntry);
     out.abilityMultiplicative.push(firstHitEntry);
   }
-  // Lust for Blood is banked from a kill and spent once, so it lands on the opening hit like First
-  // Strike. Melee gains 5x the per-kill scaling and ranged 1x, both resolved and capped already.
+  // Lust for Blood builds a stack per hit over a fight; lib/finalDamage.js's simulateHitByHit ramps
+  // it and clamps at the class cap. A single-hit number carries one stack's worth: melee gains 5x
+  // the per-stack scaling, ranged 1x.
   const lustForBlood = classUsesArrows ? classStats.lustForBloodRangedPercent : classStats.lustForBloodMeleePercent;
   if (lustForBlood > 0) {
     out.additiveNonConditional.push({
@@ -1497,7 +1498,6 @@ export async function collectDamageSources(
       label: 'Lust for Blood',
       source: 'Class',
       value: lustForBlood,
-      firstHitOnly: true,
     });
   }
 

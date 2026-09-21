@@ -1403,6 +1403,68 @@ try {
     assert.equal(computeFinalDamage(plain, mob, true, false, false).multiplicativeMultiplier, 1.05);
     assert.equal(computeFinalDamage(plain, mob, true, false, true).multiplicativeMultiplier, 1.05);
   });
+
+  // 48. The DPS graph runs a whole fight, and Lust for Blood BUILDS across it. Melee gains 5x the
+  // per-stack scaling and ranged 1x against the same cap, which is the entire reason the two scale
+  // so differently: melee is capped by hit 2, ranged climbs for most of a fight.
+  await check('Lust for Blood ramps per hit and the fight runs to 0% HP', () => {
+    const { simulateHitByHit, MAX_SIMULATED_HITS } = finalDamage;
+    const { dungeonClassStats } = dungeonClass;
+    const mob = { name: 'Dummy', types: [] };
+    const baseStats = { damage: 100, strength: 100, crit_damage: 0, crit_chance: 0, intelligence: 0, ability_damage: 0, bonus_attack_speed: 0 };
+    const sourcesFor = (classStats) => ({
+      baseStats,
+      dungeonizedBaseStats: baseStats,
+      masterDungeonizedBaseStats: baseStats,
+      mythologicalBaseStats: baseStats,
+      mythologicalDungeonizedBaseStats: baseStats,
+      mythologicalMasterDungeonizedBaseStats: baseStats,
+      additiveNonConditional: [],
+      additiveConditional: [],
+      weaponBonusNonConditional: [],
+      weaponBonusConditional: [],
+      multiplicative: [],
+      abilityMultiplicative: [],
+      dungeonClassStats: classStats,
+    });
+    const run = (category, classId, hp) =>
+      simulateHitByHit(
+        sourcesFor(dungeonClassStats(classId, 0, true)),
+        mob,
+        { weapon: { item: { category }, modifiers: {} } },
+        hp,
+        100,
+        true,
+        false,
+        MAX_SIMULATED_HITS,
+      );
+
+    // Melee: 30 x 5 = 150% on hit 1, 300% on hit 2 clamped to the 250% cap, flat from there. The
+    // damage ratio between the two is the additive multiplier's, (1 + 250/100) / (1 + 150/100).
+    const melee = run('SWORD', 'berserk', 2_000_000).hits.map((h) => h.meleeDamage);
+    assert.ok(melee[1] > melee[0], 'hit 2 gains another stack');
+    assert.equal(Number((melee[1] / melee[0]).toFixed(3)), Number((3.5 / 2.5).toFixed(3)));
+    assert.equal(melee[2], melee[1], 'hit 3 is already capped');
+    assert.equal(melee[9], melee[1], 'and stays there');
+
+    // Ranged: 30% a hit against the same 250% cap, so it climbs until hit 9 instead of hit 2.
+    const ranged = run('BOW', 'berserk', 2_000_000).hits.map((h) => h.meleeDamage);
+    for (let i = 1; i < 8; i++) assert.ok(ranged[i] > ranged[i - 1], `ranged hit ${i + 1} is still climbing`);
+    assert.equal(ranged[9], ranged[8], 'and caps at hit 9');
+    assert.ok(ranged[1] / ranged[0] < melee[1] / melee[0], 'ranged climbs slower than melee per hit');
+
+    // Healer/Tank grants no Lust for Blood, so every hit is identical.
+    const flat = run('SWORD', 'healer_tank', 2_000_000).hits.map((h) => h.meleeDamage);
+    assert.equal(flat[0], flat[5], 'no class bonus means a flat line');
+
+    // The window is the mob's health, not a hit count: a fight that takes more than the old 40-hit
+    // cap runs all the way down, and the last recorded hit leaves the mob dead. HP is chosen to die
+    // inside MAX_SIMULATED_HITS, which is a runaway guard rather than a window.
+    const long = run('SWORD', 'healer_tank', 300_000);
+    assert.ok(long.hits.length > 40, `a real fight runs past the old 40-hit window, got ${long.hits.length}`);
+    assert.equal(long.hits[0].hpPercent, 100, 'and starts at full HP');
+    assert.ok(long.hits[long.hits.length - 1].hpPercent < 1, 'ending with the mob all but dead');
+  });
 } finally {
   await server.close();
 }

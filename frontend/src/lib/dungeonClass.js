@@ -55,10 +55,10 @@ const BERSERK_MELEE_PERCENT_PER_LEVEL = 0.75;
 const BERSERK_FIRST_HIT_PERCENT = 40;
 const BERSERK_FIRST_HIT_PERCENT_PER_LEVEL = 0.75;
 
-// Lust for Blood: an ADDITIVE damage bonus banked from killing a mob, applied once — so in this
-// calculator it lands on the opening hit, like First Strike. A melee hit gains 5x the per-kill
-// scaling, a ranged hit 1x, both clamped at a cap that grows +70 every 5 class levels (250 at
-// level 0, 950 at level 50).
+// Lust for Blood: an ADDITIVE damage bonus that BUILDS over a fight, a stack at a time. A melee hit
+// gains 5x the per-stack scaling and a ranged hit 1x, both clamped at a cap that grows +70 every 5
+// class levels (250 at level 0, 950 at level 50) — so melee crosses the cap within a couple of hits
+// while ranged climbs for most of a fight. A single-hit number shows one stack's worth.
 const LUST_FOR_BLOOD_PERCENT = 30;
 const LUST_FOR_BLOOD_PERCENT_PER_LEVEL = 3;
 const LUST_FOR_BLOOD_MELEE_SCALING = 5;
@@ -87,9 +87,14 @@ function emptyClassStats() {
     meleeMultiplier: 1,
     arrowMultiplier: 1,
     firstHitMultiplier: 1,
-    // Additive percent on the opening hit, already scaled and capped per weapon kind.
+    // Lust for Blood. The *Percent pair is one stack's worth, already capped, which is what a
+    // single-hit number shows; the *PerHitPercent pair is the same value uncapped, so the hit-by-hit
+    // simulation can multiply it by the hit number and clamp at the cap itself as stacks build.
     lustForBloodMeleePercent: 0,
     lustForBloodRangedPercent: 0,
+    lustForBloodMeleePerHitPercent: 0,
+    lustForBloodRangedPerHitPercent: 0,
+    lustForBloodCapPercent: 0,
     // Expected extra arrows per volley (0-1), on top of Duplex and Terminator's own 3.
     bonusArrowChance: 0,
   };
@@ -118,10 +123,13 @@ export function dungeonClassStats(classId, level, inDungeon) {
   if (classId === 'berserk') {
     stats.meleeMultiplier = 1 + (BERSERK_MELEE_PERCENT + BERSERK_MELEE_PERCENT_PER_LEVEL * lvl) / 100;
     stats.firstHitMultiplier = 1 + (BERSERK_FIRST_HIT_PERCENT + BERSERK_FIRST_HIT_PERCENT_PER_LEVEL * lvl) / 100;
-    const perKill = LUST_FOR_BLOOD_PERCENT + LUST_FOR_BLOOD_PERCENT_PER_LEVEL * lvl;
+    const perStack = LUST_FOR_BLOOD_PERCENT + LUST_FOR_BLOOD_PERCENT_PER_LEVEL * lvl;
     const cap = lustForBloodCap(lvl);
-    stats.lustForBloodMeleePercent = Math.min(cap, perKill * LUST_FOR_BLOOD_MELEE_SCALING);
-    stats.lustForBloodRangedPercent = Math.min(cap, perKill * LUST_FOR_BLOOD_RANGED_SCALING);
+    stats.lustForBloodMeleePerHitPercent = perStack * LUST_FOR_BLOOD_MELEE_SCALING;
+    stats.lustForBloodRangedPerHitPercent = perStack * LUST_FOR_BLOOD_RANGED_SCALING;
+    stats.lustForBloodCapPercent = cap;
+    stats.lustForBloodMeleePercent = Math.min(cap, stats.lustForBloodMeleePerHitPercent);
+    stats.lustForBloodRangedPercent = Math.min(cap, stats.lustForBloodRangedPerHitPercent);
     return stats;
   }
 

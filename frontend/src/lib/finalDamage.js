@@ -426,6 +426,11 @@ const VENOMOUS_EXCLUDED_MULTIPLICATIVE_ID = 'skyblock-level';
 // graph multiplies it out to the cap.
 export const MAX_VENOMOUS_STACKS = 40;
 
+// The graph runs a whole fight, 100% HP to 0, however many hits that takes. This is only a runaway
+// guard for a build that can barely scratch the mob — a real fight ends on the death break below,
+// not here.
+export const MAX_SIMULATED_HITS = 5000;
+
 // Bosses Venomous' poison doesn't apply to at all. Every other damage source works normally.
 const VENOMOUS_IMMUNE_MOBS = new Set(['Atoned Horror', 'Quazii', 'Typhoeus']);
 
@@ -736,25 +741,37 @@ export function simulateHitByHit(
   let crimsonSwipeAcc = swipeInfo ? 1 - crimsonSwipeRate : 0;
 
   const rate = sources.executeProsecuteRate;
-  // Berserker's opening-hit multiplier and Lust for Blood apply to the fight's FIRST hit alone. The
-  // shared firstHitOnly gate widens to three hits when Triple Strike is equipped, so past hit 1
-  // these two are dropped from the source lists outright rather than left to that gate.
-  const hasClassOpeningHit =
-    (sources.dungeonClassStats?.firstHitMultiplier || 1) !== 1 ||
-    (sources.dungeonClassStats?.lustForBloodMeleePercent || 0) > 0 ||
-    (sources.dungeonClassStats?.lustForBloodRangedPercent || 0) > 0;
-  function stripClassOpeningHit(hitSources) {
-    if (!hasClassOpeningHit) return hitSources;
+  // Berserker's opening-hit MULTIPLIER applies to the fight's first hit alone. The shared
+  // firstHitOnly gate widens to three hits when Triple Strike is equipped, so past hit 1 it is
+  // dropped from the source lists outright rather than left to that gate.
+  const hasClassFirstHitMultiplier = (sources.dungeonClassStats?.firstHitMultiplier || 1) !== 1;
+  function stripClassFirstHitMultiplier(hitSources) {
+    if (!hasClassFirstHitMultiplier) return hitSources;
     return {
       ...hitSources,
       multiplicative: hitSources.multiplicative.filter((e) => e.id !== DUNGEON_CLASS_FIRST_HIT_ID),
       abilityMultiplicative: hitSources.abilityMultiplicative.filter((e) => e.id !== DUNGEON_CLASS_FIRST_HIT_ID),
-      additiveNonConditional: hitSources.additiveNonConditional.filter((e) => e.id !== DUNGEON_CLASS_LUST_ID),
     };
   }
 
+  // Lust for Blood BUILDS across the fight rather than landing once: every hit adds another stack's
+  // worth of additive damage, clamped at the class's cap. A melee hit gains 5x the per-stack
+  // scaling and a ranged hit 1x, so melee reaches that cap within a couple of hits while ranged
+  // climbs for most of a fight — the whole reason the cap is what balances the two.
+  const lustPerHit = simIsBowWeapon
+    ? sources.dungeonClassStats?.lustForBloodRangedPerHitPercent || 0
+    : sources.dungeonClassStats?.lustForBloodMeleePerHitPercent || 0;
+  const lustCap = sources.dungeonClassStats?.lustForBloodCapPercent || 0;
+  function withLustForBlood(hitSources, hit) {
+    if (lustPerHit <= 0) return hitSources;
+    const value = Math.min(lustCap, lustPerHit * hit);
+    const additiveNonConditional = hitSources.additiveNonConditional.filter((e) => e.id !== DUNGEON_CLASS_LUST_ID);
+    additiveNonConditional.push({ id: DUNGEON_CLASS_LUST_ID, label: 'Lust for Blood', source: 'Class', value });
+    return { ...hitSources, additiveNonConditional };
+  }
+
   function buildHitSources(hpPercent, hit = 1) {
-    const scoped = hit > 1 ? stripClassOpeningHit(sources) : sources;
+    const scoped = withLustForBlood(hit > 1 ? stripClassFirstHitMultiplier(sources) : sources, hit);
     if (!rate) return { hitSources: scoped, executeProsecuteValue: 0 };
     const hpBasis = rate.type === 'execute' ? 100 - hpPercent : hpPercent;
     const value = Math.round(rate.ratePerLevel * hpBasis * 100) / 100;
@@ -776,7 +793,7 @@ export function simulateHitByHit(
   const hasFirstStrike = openingAppliedIds.some((id) => id.toLowerCase().endsWith('-first_strike'));
   // A Berserker without First Strike still has an opening hit worth one hit's window; stripClassOpeningHit
   // above keeps its bonuses to that single hit even when Triple Strike widens this to three.
-  const firstHitBoostCount = hasTripleStrike ? 3 : hasFirstStrike || hasClassOpeningHit ? 1 : 0;
+  const firstHitBoostCount = hasTripleStrike ? 3 : hasFirstStrike || hasClassFirstHitMultiplier ? 1 : 0;
 
   let remainingHp = hasRealHp ? startingHp : null;
   const hits = [];
@@ -829,7 +846,7 @@ export function simulateHitByHit(
 
     let venomousDamage = 0;
     if (sources.venomousProc) {
-      // Stacks cap at MAX_VENOMOUS_STACKS, which is also this window's length, so the cap binds only
+      // Stacks cap at MAX_VENOMOUS_STACKS; a full-fight window runs past that, so the cap really binds
       // on the final hit.
       const activeStacks = Math.min(hit, MAX_VENOMOUS_STACKS);
       const perStack = computeVenomousProcDamage(hitSources, mob, expectedArrowDamage)?.finalDamage || 0;
