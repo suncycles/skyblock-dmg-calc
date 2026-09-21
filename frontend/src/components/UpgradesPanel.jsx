@@ -75,9 +75,61 @@ const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slo
 // with a token guarding against a stale run landing after a newer one.
 const RUN_DEBOUNCE_MS = 200;
 
+// "smart" scales each result's % increase by what its category is worth long-term, ranking
+// MP >= Armor >= Pet > Weapon > enchantments. Magical Power, armor and pets carry the whole build
+// and keep paying out across every target; a weapon only pays out where its conditional bonus
+// applies, and an enchant is the narrowest of the three.
+//
+// Every category lib/optimizer.js and lib/accessoryOptimizer.js emit is listed. Anything
+// unlisted takes SMART_DEFAULT_WEIGHT, the lowest weight here, so a category added later can
+// never outrank a named one by default.
+const SMART_CATEGORY_WEIGHTS = {
+  // Magical Power — every accessory candidate raises the same account-wide stat pool, and the bag
+  // Power is the multiplier that pool feeds (see lib/accessoryPowers.js).
+  'New Accessory': 1,
+  'Accessory Upgrade': 1,
+  Recombobulate: 1,
+  'Perfect Gemstones': 1,
+  'Magical Power (generic)': 1,
+  'Power Stone': 1,
+
+  Armor: 0.95,
+  'Full Set': 0.95,
+
+  Pet: 0.9,
+  'Pet Item': 0.9,
+
+  Weapon: 0.6,
+  // Equipment is gear, but a necklace/cloak/belt/gloves swap moves far less than an armor one.
+  Equipment: 0.5,
+
+  Enchant: 0.35,
+  'Ultimate Enchant': 0.35,
+  'Enchant Set': 0.35,
+
+  // Unranked by the weighting above: per-item modifiers and account-wide progression, all scoped
+  // narrower than the five ranked buckets, so they sit at the enchantment weight.
+  Reforge: 0.35,
+  Stars: 0.35,
+  'Master Stars': 0.35,
+  Gemstone: 0.35,
+  Recombobulator: 0.35,
+  'Potato Books': 0.35,
+  Attribute: 0.35,
+  'Essence Perk': 0.35,
+  Skill: 0.35,
+  Potion: 0.35,
+};
+const SMART_DEFAULT_WEIGHT = 0.35;
+function smartScore(result) {
+  const weight = SMART_CATEGORY_WEIGHTS[result.category] ?? SMART_DEFAULT_WEIGHT;
+  return (result.percentIncrease || 0) * weight;
+}
+
 // "ratio" (real DPS-per-coin, see lib/pricing.js) sinks unpriceable ('?') results to the bottom
 // rather than treating them as worthless; "increase" ignores cost and ranks by raw % gained.
 function compareResults(a, b, sortBy) {
+  if (sortBy === 'smart') return smartScore(b) - smartScore(a);
   if (sortBy === 'ratio') {
     if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
     if (a.ratio == null) return 1;
@@ -317,6 +369,13 @@ export default function UpgradesPanel({ variant = 'column' }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div className="flex items-center gap-1.5">
           <span className={groupLabel}>Sort</span>
+          <Chip
+            active={sortBy === 'smart'}
+            onClick={() => setSortBy('smart')}
+            title="% increase weighted by how much each category carries the build: Magical Power, armor and pets first, then weapon, then enchants"
+          >
+            Smart
+          </Chip>
           <Chip active={sortBy === 'ratio'} onClick={() => setSortBy('ratio')} title="Damage gained per coin spent">
             Value
           </Chip>
