@@ -114,7 +114,7 @@ export default function DungeonBlessings() {
 
         <div className={`${sectionLabel} mt-2`}>Dungeon Blessings</div>
         {!useDungeonizedStats ? (
-          <div className="text-[12px] text-neutral-600 italic">Turn on the Dungeon toggle to set Dungeon Blessings.</div>
+          <div className="text-[12px] text-neutral-600 italic">Turn on Dungeon to set blessings.</div>
         ) : (
           <>
             <label className="flex items-center gap-2 text-sm text-black" htmlFor="paul-buff">

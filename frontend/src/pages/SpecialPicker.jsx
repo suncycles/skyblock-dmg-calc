@@ -103,9 +103,6 @@ export default function SpecialPicker() {
                 </option>
               ))}
             </select>
-            <div className="text-xs text-neutral-600 italic">
-              This item's real rarity upgrades over time (Hunting milestones) rather than from a Recombobulator - pick the tier it's actually at.
-            </div>
           </div>
         )}
 

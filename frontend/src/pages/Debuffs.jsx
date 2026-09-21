@@ -27,7 +27,7 @@ export default function Debuffs() {
       <PageHeader title="Debuffs" />
 
       <div className={`${translucentPanel} w-full max-w-[500px] p-6 flex flex-col gap-4`}>
-        <div className="text-[12px] text-neutral-700 leading-snug -mt-1">Applied to the target, not to you.</div>
+        <div className="text-[12px] text-neutral-700 leading-snug -mt-1">Applied to the target mob.</div>
 
         <label className="flex items-center gap-2 text-sm text-black" htmlFor="ice-spray">
           <input
@@ -96,8 +96,7 @@ export default function Debuffs() {
           {/* Only 7 mobs in the app have a published Defense at all (lib/mobDefenses.js) - without
               this the two sliders look broken against everything else. */}
           <div className="italic mt-1 text-neutral-600">
-            The two Defense sliders only change anything against a mob with a real Defense stat &mdash; the Catacombs
-            bosses, Angry Archaeologist and Lost Adventurer.
+            Only a few mobs have defense.
           </div>
         </div>
       </div>

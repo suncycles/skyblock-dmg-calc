@@ -362,7 +362,7 @@ export default function UpgradesPanel({ variant = 'column' }) {
       </div>
       <div className="text-[10px] text-white/55 -mt-1">
         {override === AUTO_OPTIMIZER_MODE
-          ? 'Follows the Mage / Dungeon / DPS toggles and your target.'
+          ? 'Follows your toggles and target.'
           : 'Pinned - choose Auto to follow the page toggles again.'}
       </div>
 
@@ -476,12 +476,12 @@ export default function UpgradesPanel({ variant = 'column' }) {
               )}
             </div>
           ) : (
-            <div className="text-[10px] text-white/55 italic">Category filters appear once there are results to filter.</div>
+            <div className="text-[10px] text-white/55 italic">Filters appear once there are results.</div>
           )}
         </div>
       </details>
 
-      {!hasCuratedData(mode) && <div className="text-[10px] text-white/55 italic">Armor/Pet progression isn't configured for this mode yet.</div>}
+      {!hasCuratedData(mode) && <div className="text-[10px] text-white/55 italic">No armor or pet picks for this mode yet.</div>}
 
       {mode === 'slayer' && state.status === 'ok' && (
         <div className="flex items-center justify-between text-[12px]">
@@ -495,7 +495,7 @@ export default function UpgradesPanel({ variant = 'column' }) {
       {variant === 'page' && mobName && mobTypes && (
         <div className="text-[11px] text-white/65 italic">
           {!ownedAccessories
-            ? 'No Hypixel import on file: Import from Hypixel to see actual missing/upgradeable accessories.'
+            ? 'Import from Hypixel to see your real accessories.'
             : mpResult
               ? `Magical Power: ${mpResult.currentMp} (${ownedAccessories.length} accessories on file)`
               : `Evaluating ${ownedAccessories.length} real accessories for Magical Power upgrades...`}

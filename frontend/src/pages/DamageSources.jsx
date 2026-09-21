@@ -894,10 +894,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       )}
                       {sim?.hasRealHp && dpsKind === 'melee' && (
                         <div className="text-[10px] italic text-neutral-600">
-                          Total DPS averages the simulated opening ({sim.hits.length} hit
-                          {sim.hits.length === 1 ? '' : 's'}), so Venomous stacking and Execute/Prosecute's ramp
-                          are counted - the per-source lines above are a first-hit snapshot, so they won't sum to
-                          this exactly.
+                          Averaged over the whole fight ({sim.hits.length} hit
+                          {sim.hits.length === 1 ? '' : 's'}), so stacking and ramps count. The lines above are the
+                          first hit, so they won't sum to this.
                         </div>
                       )}
                       <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">

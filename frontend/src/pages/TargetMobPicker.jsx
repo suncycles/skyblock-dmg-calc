@@ -127,7 +127,7 @@ export default function TargetMobPicker() {
 
       <div className="w-full max-w-[700px] flex flex-col gap-2.5">
         <div className="text-xs text-neutral-300">
-          Click a mob to add/remove it from your targets. Final Damage is computed against every selected mob.
+          Click to add or remove. Damage counts every mob you pick.
           {targetMobs.length > 0 && <span className="text-neutral-100"> ({targetMobs.length} selected)</span>}
         </div>
 

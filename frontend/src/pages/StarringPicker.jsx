@@ -131,7 +131,7 @@ export default function StarringPicker() {
           Dungeonize Item
         </button>
         <div className="text-xs text-neutral-700 -mt-2">
-          Shows the Catacombs Boost total (dark grey) and lets the Dungeon toggle use it instead.
+          Dungeonize the Item.
         </div>
 
         {/* Master Stars */}
@@ -160,9 +160,7 @@ export default function StarringPicker() {
                 ))}
               </div>
               <div className="text-xs text-neutral-700">
-                Each Master Star adds +5% to the Catacombs Boost percentage (on top of Catacombs Level/Catacombs
-                Stars/General's Medallion) - only while Damage Sources' "Master" toggle is on. Shown as a separate
-                dark-blue total alongside the without-Master one.
+                Each Master Star adds +5% to the Catacombs Boost, only while Master is on.
               </div>
             </>
           )}

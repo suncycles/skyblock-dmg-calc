@@ -1562,9 +1562,13 @@ try {
           continue;
         }
         if (!exts.has(extname(entry.name))) continue;
+        // This file is the one place the forbidden characters must appear, to look for them.
+        if (entry.name === 'verify-dungeon-and-enchant-behavior.mjs') continue;
         const lines = readFileSync(full, 'utf8').split('\n');
         lines.forEach((line, i) => {
-          if (line.includes('\u2014') || line.includes('\u2013')) offenders.push(`${full}:${i + 1}`);
+          // The character, and the HTML entities that render as it - &mdash; slipped past the
+          // first sweep because it is plain ASCII in source but an em-dash on screen.
+          if (/[\u2014\u2013]|&mdash;|&ndash;|&#8212;|&#8211;/.test(line)) offenders.push(`${full}:${i + 1}`);
         });
       }
     };

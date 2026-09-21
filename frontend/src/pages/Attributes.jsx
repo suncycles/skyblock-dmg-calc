@@ -98,7 +98,7 @@ export default function Attributes() {
       <div className="w-full max-w-[500px] flex flex-col gap-3">
         <Section
           title="Ruler Attributes"
-          subtitle="+3%-30% more Damage against the listed Mob Type."
+          subtitle="+3-30% damage against listed mob type."
           maxLabel="ruler"
           onMaxAll={() => maxAll(rulerIds)}
         >
@@ -117,7 +117,7 @@ export default function Attributes() {
 
         <Section
           title="Echo Attributes"
-          subtitle="Boost every attribute whose name contains the matching keyword."
+          subtitle="Boosts every attribute matching the keyword."
           maxLabel="echo"
           onMaxAll={() => maxAll(echoIds)}
         >
@@ -133,7 +133,7 @@ export default function Attributes() {
 
         <Section
           title="Strength Elemental"
-          subtitle="Grants Strength +1-10, added directly to base stats."
+          subtitle="+1-10 Strength"
           maxLabel="elemental"
           onMaxAll={() => maxAll(elementalIds)}
         >
@@ -149,7 +149,7 @@ export default function Attributes() {
 
         <Section
           title="Intelligence Elemental"
-          subtitle="Grants Intelligence +1-10, added directly to base stats."
+          subtitle="+1-10 Intelligence"
           maxLabel="elemental"
           onMaxAll={() => maxAll(intelligenceElementalIds)}
         >

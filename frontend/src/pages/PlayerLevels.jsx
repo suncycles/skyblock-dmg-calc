@@ -131,7 +131,7 @@ export default function PlayerLevels() {
 
         <div className="flex items-center justify-between gap-2">
           <label className="text-sm text-black" htmlFor="wolf-slayer-level">
-            Wolf Slayer Level (Only used by Pooch Sword)
+            Wolf Slayer Level (Pooch Sword only)
           </label>
           <NumberInput
             id="wolf-slayer-level"
@@ -243,10 +243,7 @@ export default function PlayerLevels() {
 
       <div className={`${translucentPanel} w-full max-w-[500px] p-6 mt-4 flex flex-col gap-4`}>
         <div>
-          <h2 className="text-base font-bold text-black">Essence Shop</h2>
-          <p className="text-xs text-neutral-700">
-            Permanent upgrades bought with Essence. Filled in by a Hypixel import; edit them here if you build by hand.
-          </p>
+          <h2 className="text-base font-bold text-black">Essence Shop (Auto-Imported)</h2>
         </div>
 
         {ESSENCE_PERKS.map((perk) => (

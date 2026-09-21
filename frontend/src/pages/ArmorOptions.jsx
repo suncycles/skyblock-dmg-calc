@@ -66,8 +66,7 @@ export default function ArmorOptions({ onClose }) {
           <span className="flex flex-col">
             <span>Edit All Mode {editAllArmor ? '(On)' : '(Off)'}</span>
             <span className="text-[11px] font-normal text-neutral-700">
-              While on, a Hex edit to one armor piece (enchant, gemstone, reforge, stars, special, recomb, Clean) applies to all equipped
-              armor pieces.
+              Edits on one piece apply to all four.
             </span>
           </span>
         </button>
