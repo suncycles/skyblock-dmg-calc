@@ -711,6 +711,13 @@ export function simulateHitByHit(
   useDungeonizedStats = false,
   useMasterMode = false,
   hitCount = MAX_VENOMOUS_STACKS,
+  // Optional sample budget. Null walks every hit, which is what the graph plots. A number instead
+  // spreads that many samples across the WHOLE fight, each standing in for a stride of hits — the
+  // optimizer ranks on a fight average, and walking a thousand-hit fight per candidate costs 10-40x
+  // what it can afford. Sampling the whole HP curve is what fixes Execute vs Prosecute: truncating
+  // at hit 40 leaves a long fight barely scratched, so Execute (which climbs as HP drains) reads as
+  // worthless and Prosecute (which falls) reads as maxed.
+  maxSamples = null,
 ) {
   // Same selection as computeDpsBreakdown's — see the comment there.
   const simStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
@@ -799,8 +806,13 @@ export function simulateHitByHit(
   const hits = [];
   // The simulation runs only as far as the window it records: no hits-to-kill search, since nothing
   // here models phases, invulnerability windows or adds.
-  const simCap = hitCount;
-  for (let hit = 1; hit <= simCap; hit++) {
+  // Sampling decouples cost from fight length, so a sampled run is bounded by its budget and walks
+  // the fight to the end however long it is. An unsampled run is bounded by the hit window.
+  const simCap = maxSamples ? Number.MAX_SAFE_INTEGER : hitCount;
+  // Samples left to spend, recomputed into a stride each iteration so the budget lands evenly across
+  // the remaining fight even as damage changes under it.
+  let samplesLeft = maxSamples;
+  for (let hit = 1; hit <= simCap; ) {
     const hpPercent = hasRealHp ? Math.max(0, Math.min(100, (remainingHp / startingHp) * 100)) : fallbackHpPercent;
     const { hitSources, executeProsecuteValue } = buildHitSources(hpPercent, hit);
     const excludeFirstHitOnly = hit > firstHitBoostCount;
@@ -859,8 +871,17 @@ export function simulateHitByHit(
     // which varies hit to hit as Venomous stacks build and Execute/Prosecute ramps with draining HP%.
     const dps = totalDamage * meleeHitsPerSecond;
 
-    if (hit <= hitCount) {
+    // How many hits this sample stands in for. Always 1 unless a sample budget is set and the fight
+    // is longer than it.
+    let weight = 1;
+    if (maxSamples && hasRealHp && samplesLeft > 1 && totalDamage > 0) {
+      const hitsLeft = Math.ceil(remainingHp / totalDamage);
+      weight = Math.max(1, Math.floor(hitsLeft / samplesLeft));
+    }
+
+    if (maxSamples ? samplesLeft > 0 : hit <= hitCount) {
       hits.push({
+        weight,
         // Recorded 0-based for display. Each row is "this hit is about to land": hpPercent is the
         // mob's HP BEFORE it, so numbering from 1 would draw the fight at 100% HP on x=1 and land the
         // opening hit's damage at x=2. At 0, x=0 is the full-HP opening hit and the HP line drops at
@@ -882,9 +903,15 @@ export function simulateHitByHit(
     // Stops on death, so a mob that dies inside the window isn't padded with hits that never happen;
     // the average below is then over the shorter fight.
     if (hasRealHp) {
-      remainingHp = Math.max(0, remainingHp - totalDamage);
+      remainingHp = Math.max(0, remainingHp - totalDamage * weight);
       if (remainingHp <= 0) break;
     }
+    if (samplesLeft !== null) {
+      samplesLeft -= 1;
+      // The budget is also the iteration bound, so a build that deals no damage cannot spin here.
+      if (samplesLeft <= 0) break;
+    }
+    hit += weight;
   }
 
   // Max and min across the same window the graph plots and the average covers.
@@ -893,6 +920,7 @@ export function simulateHitByHit(
 
   // How long the recorded hits span: the denominator for a fight-average DPS, exposed so callers
   // don't re-derive it against a whole-fight duration instead.
-  const elapsedSeconds = hits.length / meleeHitsPerSecond;
+  const simulatedHits = hits.reduce((sum, h) => sum + h.weight, 0);
+  const elapsedSeconds = simulatedHits / meleeHitsPerSecond;
   return { hits, hasRealHp, meleeHitsPerSecond, elapsedSeconds, maxDps, minDps };
 }

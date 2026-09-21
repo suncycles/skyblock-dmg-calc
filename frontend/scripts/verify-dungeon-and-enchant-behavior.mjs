@@ -1465,6 +1465,80 @@ try {
     assert.equal(long.hits[0].hpPercent, 100, 'and starts at full HP');
     assert.ok(long.hits[long.hits.length - 1].hpPercent < 1, 'ending with the mob all but dead');
   });
+
+  // 49. The Execute vs Prosecute dilemma. Execute's bonus climbs as the mob's HP drains and
+  // Prosecute's falls, so at equal rates they are worth the same over a whole kill — but a window
+  // truncated at the fight's first 40 hits sees only the top of the HP bar and hands Prosecute a
+  // ~25% edge it does not have. The optimizer ranks on a sampled WHOLE fight for exactly this
+  // reason: samples spread across the HP curve cost what 40 hits cost and land within ~1% of
+  // walking every hit.
+  await check('A sampled whole fight prices Execute and Prosecute evenly', () => {
+    const { simulateHitByHit } = finalDamage;
+    const mob = { name: 'Dummy', types: [] };
+    const baseStats = { damage: 100, strength: 100, crit_damage: 0, crit_chance: 0, intelligence: 0, ability_damage: 0, bonus_attack_speed: 0 };
+    const sourcesFor = (type) => ({
+      baseStats,
+      dungeonizedBaseStats: baseStats,
+      masterDungeonizedBaseStats: baseStats,
+      mythologicalBaseStats: baseStats,
+      mythologicalDungeonizedBaseStats: baseStats,
+      mythologicalMasterDungeonizedBaseStats: baseStats,
+      additiveNonConditional: [],
+      additiveConditional: [],
+      weaponBonusNonConditional: [],
+      weaponBonusConditional: [],
+      multiplicative: [],
+      abilityMultiplicative: [],
+      dungeonClassStats: null,
+      executeProsecuteRate: { id: type, label: type, source: 'Weapon', type, ratePerLevel: 0.25 },
+    });
+    const HP = 3_000_000;
+    const fightAverage = (type, hitCount, samples) => {
+      const sim = simulateHitByHit(
+        sourcesFor(type),
+        mob,
+        { weapon: { item: { category: 'SWORD' }, modifiers: {} } },
+        HP,
+        100,
+        true,
+        false,
+        hitCount,
+        samples,
+      );
+      const dealt = sim.hits.reduce((sum, h) => sum + h.totalDamage * h.weight, 0);
+      return dealt / sim.elapsedSeconds;
+    };
+
+    // Truncated: Prosecute wins by a wide margin purely because the window never leaves full HP.
+    const truncatedRatio = fightAverage('execute', 40, null) / fightAverage('prosecute', 40, null);
+    assert.ok(truncatedRatio < 0.85, `a 40-hit window should skew hard to Prosecute, got ${truncatedRatio}`);
+
+    // Whole fight, walked hit by hit: the two are worth the same.
+    const exactRatio = fightAverage('execute', 40_000, null) / fightAverage('prosecute', 40_000, null);
+    assert.ok(Math.abs(exactRatio - 1) < 0.01, `over a whole kill the two should tie, got ${exactRatio}`);
+
+    // Sampled, which is what the optimizer runs: the same answer for the cost of the truncated one.
+    const sampledRatio = fightAverage('execute', finalDamage.MAX_SIMULATED_HITS, 40) / fightAverage('prosecute', finalDamage.MAX_SIMULATED_HITS, 40);
+    assert.ok(Math.abs(sampledRatio - exactRatio) < 0.03, `sampling should track the exact fight, got ${sampledRatio} vs ${exactRatio}`);
+
+    // And a sampled run really does cover the whole fight, not just its budget in hits.
+    const sampled = simulateHitByHit(
+      sourcesFor('execute'),
+      mob,
+      { weapon: { item: { category: 'SWORD' }, modifiers: {} } },
+      HP,
+      100,
+      true,
+      false,
+      finalDamage.MAX_SIMULATED_HITS,
+      40,
+    );
+    assert.ok(sampled.hits.length <= 40, 'the budget bounds the work');
+    assert.ok(sampled.hits.reduce((sum, h) => sum + h.weight, 0) > 1000, 'while standing in for the whole fight');
+    // An unsampled run weights every hit at 1, so nothing above changes the graph's own numbers.
+    const plain = simulateHitByHit(sourcesFor('execute'), mob, { weapon: { item: { category: 'SWORD' }, modifiers: {} } }, HP, 100, true, false, 40);
+    assert.ok(plain.hits.every((h) => h.weight === 1), 'the graph walks real hits, one for one');
+  });
 } finally {
   await server.close();
 }

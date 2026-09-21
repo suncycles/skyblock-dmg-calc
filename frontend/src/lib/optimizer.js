@@ -12,7 +12,7 @@
 //   Pet Items, weapon/equipment Reforges, and Gemstones.
 
 import { collectDamageSources } from './damageSources';
-import { computeAbilityDamage, computeDpsBreakdown, simulateHitByHit, selectBaseStats, MAX_VENOMOUS_STACKS } from './finalDamage';
+import { computeAbilityDamage, computeDpsBreakdown, simulateHitByHit, selectBaseStats, MAX_SIMULATED_HITS } from './finalDamage';
 import { resolveStartingHp } from './mobHp';
 import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
 import { ARMOR_SLOTS } from './armorSlots';
@@ -149,6 +149,11 @@ const MODE_CONFIG = {
   dungeon_berserk: { useDungeonizedStats: true, metric: 'dps' },
   dungeon_healer_tank: { useDungeonizedStats: true, metric: 'dps' },
 };
+
+// Samples spent on one candidate's fight. The fight average only needs the shape of the HP curve,
+// not every hit on it, and this runs per candidate — walking a long fight in full costs 10-40x
+// more for a number that lands in the same place.
+const OPTIMIZER_FIGHT_SAMPLES = 40;
 
 // Ultimate Swarm mob count assumed while ranking: 5 for a Slayer fight, 1 for a Diana hunt.
 // accessoryOptimizer.js assumes the same; the player's own build.swarmMobs is left alone.
@@ -786,10 +791,16 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     return { value: dps.beamProc.finalDamage, sources };
   }
 
-  // The hit-by-hit simulation only matters when something varies hit to hit: Execute/Prosecute or
-  // Venomous. Without either, every iteration sees identical sources and the fight average equals
-  // computeDpsBreakdown's steady number, so the 40x per-candidate cost is skipped.
-  if (startingHp && (sources.executeProsecuteRate || sources.venomousProc)) {
+  // The hit-by-hit simulation only matters when something varies hit to hit: Execute/Prosecute,
+  // Venomous, or a class bonus that ramps (Lust for Blood). Without any of them every iteration
+  // sees identical sources and the fight average equals computeDpsBreakdown's steady number, so the
+  // per-candidate cost is skipped.
+  //
+  // The window is the whole fight rather than a fixed 40 hits: Execute climbs as HP drains while
+  // Prosecute falls, so cutting the fight short systematically favours whichever of the two happens
+  // to be ahead at hit 40 instead of over the kill the player actually makes.
+  const classRamps = (sources.dungeonClassStats?.lustForBloodMeleePerHitPercent || 0) > 0;
+  if (startingHp && (sources.executeProsecuteRate || sources.venomousProc || classRamps)) {
     const sim = simulateHitByHit(
       sources,
       mob,
@@ -798,10 +809,11 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
       100,
       modeConfig.useDungeonizedStats,
       modeConfig.useMasterMode,
-      MAX_VENOMOUS_STACKS,
-      MAX_VENOMOUS_STACKS,
+      MAX_SIMULATED_HITS,
+      OPTIMIZER_FIGHT_SAMPLES,
     );
-    const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
+    // Weighted, since each sample stands in for a stride of hits.
+    const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage * h.weight, 0);
     return { value: sim.elapsedSeconds > 0 ? totalDealt / sim.elapsedSeconds : 0, sources };
   }
 
