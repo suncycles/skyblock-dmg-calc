@@ -1420,6 +1420,15 @@ async function handleHypixelImport(url, env) {
     return jsonResponse({ error: `${resolvedUsername || uuid} has no SkyBlock profiles` }, 404);
   }
 
+  // Also returned on success, so the client can offer a switch to another profile without a
+  // second round trip.
+  const profileList = profiles.map((p) => ({
+    profile_id: p.profile_id,
+    cute_name: p.cute_name,
+    selected: !!p.selected,
+    game_mode: p.game_mode || null,
+  }));
+
   let profile = profileParam ? profiles.find((p) => p.profile_id === profileParam) : null;
   if (!profile && !profileParam) {
     profile = profiles.length === 1 ? profiles[0] : profiles.find((p) => p.selected) || null;
@@ -1429,12 +1438,7 @@ async function handleHypixelImport(url, env) {
       needsProfileSelection: true,
       uuid,
       username: resolvedUsername,
-      profiles: profiles.map((p) => ({
-        profile_id: p.profile_id,
-        cute_name: p.cute_name,
-        selected: !!p.selected,
-        game_mode: p.game_mode || null,
-      })),
+      profiles: profileList,
     });
   }
 
@@ -1632,6 +1636,7 @@ async function handleHypixelImport(url, env) {
 
     return jsonResponse({
       profile: { profile_id: profile.profile_id, cute_name: profile.cute_name },
+      profiles: profileList,
       username: resolvedUsername,
       uuid,
       armor: armorResult,

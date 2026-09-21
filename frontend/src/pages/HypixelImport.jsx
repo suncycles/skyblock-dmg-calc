@@ -286,6 +286,13 @@ export default function HypixelImport() {
     runImport(profileChoice.uuid, true, profileId);
   }
 
+  // Re-runs the whole import against another of the account's profiles, discarding the current
+  // profile's picks — a different profile has different gear, so none of them carry over.
+  function handleSwitchProfile(profileId) {
+    if (profileId === rawImport?.profile?.profile_id) return;
+    runImport(rawImport.uuid, true, profileId);
+  }
+
   // EntryScreen sends the typed username via router state — kick the import off immediately
   // instead of making the player retype it and press Import again.
   useEffect(() => {
@@ -319,7 +326,9 @@ export default function HypixelImport() {
   const armorSource = pickSource(rawImport?.wardrobeSets, wardrobeChoice, rawImport?.armor);
   const equipmentSource = pickSource(rawImport?.wardrobeEquipmentSets, wardrobeEquipmentChoice, rawImport?.equipment);
 
-  if (status === 'reviewing' && rawImport) {
+  // 'loading' stays on this screen while a profile switch re-fetches, rather than dropping back to
+  // the username form — the only way to reach 'loading' from here is the profile picker below.
+  if ((status === 'reviewing' || status === 'loading') && rawImport) {
     return (
       <div className="min-h-screen flex flex-col items-center p-4">
         <PageHeader title="Review Import" />
@@ -329,6 +338,29 @@ export default function HypixelImport() {
             <div className="text-xs text-neutral-700 leading-snug">
               Accessory Power, attributes, levels, bank, collection, and other permanent upgrades are auto-imported.
             </div>
+
+            {/* Defaults to whichever profile Hypixel reports as active; switching re-imports. Hidden
+                for a single-profile account, where there is nothing to choose between. */}
+            {(rawImport.profiles || []).length > 1 && (
+              <div className="flex flex-col gap-1">
+                <div className="text-[11px] font-bold text-black uppercase tracking-wide">Profile</div>
+                <select
+                  value={rawImport.profile?.profile_id || ''}
+                  onChange={(e) => handleSwitchProfile(e.target.value)}
+                  disabled={status === 'loading'}
+                  className={`${panel} min-w-0 text-sm px-2 py-1.5 text-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  {rawImport.profiles.map((p) => (
+                    <option key={p.profile_id} value={p.profile_id}>
+                      {p.cute_name}
+                      {p.game_mode ? ` (${p.game_mode})` : ''}
+                      {p.selected ? ' — currently active' : ''}
+                    </option>
+                  ))}
+                </select>
+                {status === 'loading' && <div className="text-[11px] text-neutral-700 italic">Loading profile...</div>}
+              </div>
+            )}
 
             <div className="flex flex-col gap-1">
               <div className="text-[11px] font-bold text-black uppercase tracking-wide">Weapon</div>
