@@ -1559,6 +1559,25 @@ async function handleHypixelImport(url, env) {
       skyblock: Math.floor((member.leveling?.experience || 0) / 100),
     };
 
+    // Catacombs class levels, off the same XP table as the Catacombs level itself. Hypixel's own
+    // key for Berserker is "berserk", and Healer and Tank are separate here even though the app
+    // merges them (neither grants damage). `selected` is the class the player last picked in-game,
+    // which the import uses to default the class dropdown.
+    const classLevel = (key) =>
+      computeSkillLevel(
+        member.dungeons?.player_classes?.[key]?.experience || 0,
+        leveling.catacombs,
+        leveling.leveling_caps.catacombs,
+      );
+    const dungeonClasses = {
+      selected: member.dungeons?.selected_dungeon_class || null,
+      mage: classLevel("mage"),
+      archer: classLevel("archer"),
+      berserk: classLevel("berserk"),
+      healer: classLevel("healer"),
+      tank: classLevel("tank"),
+    };
+
     const slayers = {
       wolf: highestClaimedSlayerLevel(member.slayer?.slayer_bosses?.wolf),
       // Tarantula Broodfather is Hypixel's real internal key "spider".
@@ -1650,6 +1669,7 @@ async function handleHypixelImport(url, env) {
       pets,
       attributeLevels,
       skills,
+      dungeonClasses,
       slayers,
       accessory,
       bank,

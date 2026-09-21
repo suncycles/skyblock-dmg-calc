@@ -17,6 +17,7 @@ import { FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK
 import { FORBIDDEN_BLESSING_MAX_LEVEL } from '../lib/dungeonBlessing';
 import { MASTER_SKULL_MAX_TIER } from '../lib/masterSkull';
 import NumberInput from '../components/NumberInput';
+import { MAX_DUNGEON_CLASS_LEVEL, dungeonClassLabel } from '../lib/dungeonClass';
 import PageHeader from '../components/PageHeader';
 
 const translucentPanel =
@@ -37,6 +38,9 @@ const ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_H
 export default function PlayerLevels() {
   const {
     playerStats,
+    dungeonClass,
+    dungeonClassLevel,
+    setDungeonClassLevel,
     essencePerks,
     setEssencePerkLevel,
     blessing,
@@ -99,6 +103,21 @@ export default function PlayerLevels() {
             max={MAX_CATACOMBS_LEVEL}
             value={playerStats.catacombsLevel}
             onChange={setCatacombsLevel}
+            className={inputClass}
+          />
+        </div>
+
+        {/* The picked Catacombs class's own level, beside the Catacombs level it shares an XP table
+            with. A Hypixel import fills both; only the picked class's level is read. */}
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="dungeon-class-level">
+            {dungeonClassLabel(dungeonClass) || 'Class'} Level
+          </label>
+          <NumberInput
+            id="dungeon-class-level"
+            max={MAX_DUNGEON_CLASS_LEVEL}
+            value={dungeonClassLevel}
+            onChange={setDungeonClassLevel}
             className={inputClass}
           />
         </div>

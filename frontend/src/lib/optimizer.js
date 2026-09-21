@@ -86,15 +86,25 @@ export const OPTIMIZER_MODES = [
   { id: 'dungeon_archer', label: 'Dungeon / Archer' },
   { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam' },
   { id: 'dungeon_mage_ability', label: 'Dungeon / Mage Ability' },
+  { id: 'dungeon_berserk', label: 'Dungeon / Berserker' },
+  { id: 'dungeon_healer_tank', label: 'Dungeon / Healer-Tank' },
 ];
 
 // Auto mode follows the page's own toggles and target: inside a dungeon Mage picks Beam while DPS
 // is shown and Ability otherwise; outside one a Mythological target is Diana, anything else Slayer.
 export const AUTO_OPTIMIZER_MODE = 'auto';
 
-export function resolveOptimizerMode({ useDungeonizedStats, mageMode, dpsMode, dpsKind }, mobTypes) {
+// Inside a dungeon the picked class chooses the mode. Mage is absent: it routes through the two
+// existing mage modes above, which the Mage/DPS toggles already pick between.
+const DUNGEON_MODE_BY_CLASS = {
+  archer: 'dungeon_archer',
+  berserk: 'dungeon_berserk',
+  healer_tank: 'dungeon_healer_tank',
+};
+
+export function resolveOptimizerMode({ useDungeonizedStats, mageMode, dpsMode, dpsKind, dungeonClass }, mobTypes) {
   if (useDungeonizedStats) {
-    if (!mageMode) return 'dungeon_archer';
+    if (!mageMode) return DUNGEON_MODE_BY_CLASS[dungeonClass] || 'dungeon_archer';
     return dpsMode && dpsKind === 'beam' ? 'dungeon_mage_beam' : 'dungeon_mage_ability';
   }
   if (mageMode) return 'mage';
@@ -133,6 +143,11 @@ const MODE_CONFIG = {
   dungeon_archer: { useDungeonizedStats: true, metric: 'dps' },
   dungeon_mage_beam: { useDungeonizedStats: true, metric: 'beam' },
   dungeon_mage_ability: { useDungeonizedStats: true, metric: 'ability' },
+  // One mode per Catacombs class, each a clone of dungeon_archer for now. Their weapon chains are
+  // still dungeon_archer's bow-only list, so a Berserker is offered bows until a melee chain
+  // replaces it — the class STATS are unaffected, this only shapes the upgrade candidates.
+  dungeon_berserk: { useDungeonizedStats: true, metric: 'dps' },
+  dungeon_healer_tank: { useDungeonizedStats: true, metric: 'dps' },
 };
 
 // Ultimate Swarm mob count assumed while ranking: 5 for a Slayer fight, 1 for a Diana hunt.
@@ -509,6 +524,8 @@ const ARMOR_PROGRESSION_BY_MODE = {
   dungeon_archer: DUNGEON_ARCHER_ARMOR_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_ARMOR_PROGRESSION,
   dungeon_mage_ability: MAGE_ABILITY_ARMOR_PROGRESSION,
+  dungeon_berserk: DUNGEON_ARCHER_ARMOR_PROGRESSION,
+  dungeon_healer_tank: DUNGEON_ARCHER_ARMOR_PROGRESSION,
 };
 const EQUIPMENT_PROGRESSION_BY_MODE = {
   slayer: SLAYER_EQUIPMENT_PROGRESSION,
@@ -517,6 +534,8 @@ const EQUIPMENT_PROGRESSION_BY_MODE = {
   dungeon_archer: DUNGEON_EQUIPMENT_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_EQUIPMENT_PROGRESSION,
   dungeon_mage_ability: MAGE_ABILITY_EQUIPMENT_PROGRESSION,
+  dungeon_berserk: DUNGEON_EQUIPMENT_PROGRESSION,
+  dungeon_healer_tank: DUNGEON_EQUIPMENT_PROGRESSION,
 };
 // Dungeon/Archer: while a Catacombs boss head is worn, the only helmet suggested is that boss's own
 // Diamond rank; already on Diamond leaves the slot empty. Applied by swapping the helmet chain
@@ -537,6 +556,8 @@ const PET_PROGRESSION_BY_MODE = {
   dungeon_archer: DUNGEON_ARCHER_PET_PROGRESSION,
   dungeon_mage_beam: MAGE_PET_PROGRESSION,
   dungeon_mage_ability: MAGE_PET_PROGRESSION,
+  dungeon_berserk: DUNGEON_ARCHER_PET_PROGRESSION,
+  dungeon_healer_tank: DUNGEON_ARCHER_PET_PROGRESSION,
 };
 const WEAPON_PROGRESSION_BY_MODE = {
   slayer: SLAYER_WEAPON_PROGRESSION,
@@ -545,6 +566,8 @@ const WEAPON_PROGRESSION_BY_MODE = {
   dungeon_archer: DUNGEON_ARCHER_WEAPON_PROGRESSION,
   dungeon_mage_beam: MAGE_BEAM_WEAPON_PROGRESSION,
   dungeon_mage_ability: MAGE_WEAPON_PROGRESSION,
+  dungeon_berserk: DUNGEON_ARCHER_WEAPON_PROGRESSION,
+  dungeon_healer_tank: DUNGEON_ARCHER_WEAPON_PROGRESSION,
 };
 
 export function hasCuratedData(mode) {

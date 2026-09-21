@@ -154,6 +154,8 @@ export default function HypixelImport() {
     setHasJellyfishPet,
     importHypixelWeaponList,
     setGodPotionActive,
+    setDungeonClass,
+    setDungeonClassLevel,
   } = useBuild();
   const { itemData } = useItemData();
   const [username, setUsername] = useState(location.state?.username || '');
@@ -245,6 +247,7 @@ export default function HypixelImport() {
       blessingInputs,
       essencePerks,
       hasJellyfishPet,
+      dungeonClass,
     } = await mapHypixelImportToLoadout(
       rawImport,
       itemData,
@@ -265,6 +268,11 @@ export default function HypixelImport() {
     importHypixelBlessingInputs(blessingInputs);
     importHypixelEssencePerks(essencePerks);
     if (Object.keys(playerStats).length > 0) importHypixelPlayerStats(playerStats);
+    // The class the account last picked in-game, and its level — see lib/dungeonClass.js.
+    if (dungeonClass) {
+      setDungeonClass(dungeonClass.id);
+      setDungeonClassLevel(dungeonClass.level);
+    }
     importHypixelBestiaryMaxedMobs(bestiaryMaxedMobs);
     importHypixelCombinedMythologicalBestiaryTiers(combinedMythologicalBestiaryTiers);
     importHypixelMaxedCollectionsCount(maxedCollectionsCount);

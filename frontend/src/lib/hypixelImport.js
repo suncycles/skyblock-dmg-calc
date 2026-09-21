@@ -523,6 +523,9 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // (worker/src/index.js's hotmNodeLevel) — see lib/miningIslands.js.
   if (typeof raw.lonesomeMinerLevel === 'number') playerStats.lonesomeMinerLevel = raw.lonesomeMinerLevel;
 
+  // The Catacombs class the account last picked in-game, and that class's own level.
+  const dungeonClass = resolveDungeonClassFromImport(raw.dungeonClasses);
+
   // Digit count off the account's own General's Medallion (worker/src/index.js's
   // parseGeneralsMedallionDigits), 0 when the Accessory Bag holds none.
   if (typeof raw.accessory?.generalsMedallionDigits === 'number') {
@@ -564,6 +567,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
     skipped,
     attributes,
     playerStats,
+    dungeonClass,
     bestiaryMaxedMobs,
     hasJellyfishPet,
     combinedMythologicalBestiaryTiers,
@@ -571,4 +575,21 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
     blessingInputs,
     essencePerks,
   };
+}
+
+// Maps the Worker's dungeonClasses block onto this app's four class ids. Hypixel keys Berserker as
+// "berserk" and lists Healer and Tank separately; this app merges those two into one entry that
+// grants nothing, so either resolves to it and carries the higher of the two levels. Null when the
+// import predates the field, which leaves the picked class alone.
+export function resolveDungeonClassFromImport(dungeonClasses) {
+  if (!dungeonClasses) return null;
+  const level = (key) => (typeof dungeonClasses[key] === 'number' ? dungeonClasses[key] : 0);
+  const selected = dungeonClasses.selected;
+  if (selected === 'mage' || selected === 'archer' || selected === 'berserk') {
+    return { id: selected, level: level(selected) };
+  }
+  if (selected === 'healer' || selected === 'tank') {
+    return { id: 'healer_tank', level: Math.max(level('healer'), level('tank')) };
+  }
+  return null;
 }
