@@ -66,6 +66,7 @@ try {
   const playerDefense = await server.ssrLoadModule('/src/lib/playerDefense.js');
   const armorSetBonuses = await server.ssrLoadModule('/src/lib/armorSetBonuses.js');
   const godPotion = await server.ssrLoadModule('/src/lib/godPotion.js');
+  const dungeonClass = await server.ssrLoadModule('/src/lib/dungeonClass.js');
   const mobDebuffs = await server.ssrLoadModule('/src/lib/mobDebuffs.js');
   const buffsModule = await server.ssrLoadModule('/src/lib/buffs.js');
   const mobDefenses = await server.ssrLoadModule('/src/lib/mobDefenses.js');
@@ -1278,6 +1279,76 @@ try {
     // Nothing applied, nothing carried.
     assert.deepEqual(carriedHexEnchantments({ hexEnchantments: [] }, sword, enchantData), []);
     assert.deepEqual(carriedHexEnchantments(undefined, sword, enchantData), []);
+  });
+
+  // 46. The five Catacombs classes (lib/dungeonClass.js). Stats are pinned at levels 0, 25 and 50,
+  // and every one of them is gated on the Dungeon toggle: the classes exist only inside Catacombs,
+  // so with it off a class grants nothing and every non-dungeon number is untouched.
+  await check('Dungeon classes grant their real stats, and only inside a dungeon', () => {
+    const { dungeonClassStats, lustForBloodCap, MAX_DUNGEON_CLASS_LEVEL, DEFAULT_DUNGEON_CLASS } = dungeonClass;
+    const at = (id, level) => dungeonClassStats(id, level, true);
+
+    // Mage: +500/+10 at level 0, +5 Intelligence per level and +1 Ability Damage per 5 levels.
+    assert.equal(at('mage', 0).intelligence, 500);
+    assert.equal(at('mage', 0).ability_damage, 10);
+    assert.equal(at('mage', 50).intelligence, 750);
+    assert.equal(at('mage', 50).ability_damage, 20);
+    assert.equal(at('mage', 25).intelligence, 625);
+    assert.equal(at('mage', 25).ability_damage, 15);
+    // Mage grants no multiplier at all — its whole contribution is two flat stats.
+    assert.equal(at('mage', 50).meleeMultiplier, 1);
+    assert.equal(at('mage', 50).arrowMultiplier, 1);
+
+    // Archer: arrows x3.0 -> x3.8, melee a flat x0.75 at every level, bonus arrow 50% -> 100%.
+    assert.equal(at('archer', 0).arrowMultiplier, 3);
+    assert.equal(Number(at('archer', 50).arrowMultiplier.toFixed(2)), 3.8);
+    assert.equal(at('archer', 0).meleeMultiplier, 0.75);
+    assert.equal(at('archer', 50).meleeMultiplier, 0.75, 'the melee penalty does not scale');
+    assert.equal(at('archer', 0).bonusArrowChance, 0.5);
+    assert.equal(Number(at('archer', 50).bonusArrowChance.toFixed(2)), 1);
+    assert.ok(at('archer', 50).bonusArrowChance <= 1, 'bonus arrow chance never exceeds one extra arrow');
+
+    // Berserker: melee x1.8 -> x2.175, opening hit x1.4 -> x1.775.
+    assert.equal(Number(at('berserk', 0).meleeMultiplier.toFixed(3)), 1.8);
+    assert.equal(Number(at('berserk', 50).meleeMultiplier.toFixed(3)), 2.175);
+    assert.equal(Number(at('berserk', 0).firstHitMultiplier.toFixed(3)), 1.4);
+    assert.equal(Number(at('berserk', 50).firstHitMultiplier.toFixed(3)), 1.775);
+
+    // Lust for Blood: 30% per kill at level 0, +3% per level, melee 5x and ranged 1x, both clamped
+    // at a cap that grows +70 every 5 levels. Melee is over the cap from level 0 on; ranged never
+    // reaches it, which is what makes the two scale so differently.
+    assert.equal(lustForBloodCap(0), 250);
+    assert.equal(lustForBloodCap(4), 250, 'the cap steps every 5 levels, not every level');
+    assert.equal(lustForBloodCap(5), 320);
+    assert.equal(lustForBloodCap(50), 950);
+    assert.equal(at('berserk', 0).lustForBloodMeleePercent, 150, '30 x 5, under the 250 cap');
+    assert.equal(at('berserk', 0).lustForBloodRangedPercent, 30, '30 x 1');
+    assert.equal(at('berserk', 50).lustForBloodMeleePercent, 900, '180 x 5, under the 950 cap');
+    assert.equal(at('berserk', 50).lustForBloodRangedPercent, 180, '180 x 1');
+    // A level whose melee value would exceed the cap is clamped to it rather than running past.
+    const capped = at('berserk', 30);
+    assert.equal(capped.lustForBloodMeleePercent, Math.min(lustForBloodCap(30), (30 + 3 * 30) * 5));
+
+    // Healer/Tank grants nothing, which is also why it is the safe default for a build that has
+    // never picked a class.
+    assert.deepEqual(at('healer_tank', 50), at('healer_tank', 0));
+    assert.equal(at('healer_tank', 50).meleeMultiplier, 1);
+    assert.equal(at('healer_tank', 50).intelligence, 0);
+    assert.equal(DEFAULT_DUNGEON_CLASS, 'healer_tank');
+
+    // The Dungeon gate: outside a dungeon every class is inert, whatever its level.
+    for (const id of ['mage', 'archer', 'berserk', 'healer_tank']) {
+      assert.deepEqual(
+        dungeonClassStats(id, MAX_DUNGEON_CLASS_LEVEL, false),
+        dungeonClassStats('healer_tank', 0, true),
+        `${id} grants nothing with the Dungeon toggle off`,
+      );
+    }
+    // An unrecognised id is inert too, so a stale stored value can never inflate a number.
+    assert.deepEqual(dungeonClassStats('paladin', 50, true), dungeonClassStats('healer_tank', 0, true));
+    // Levels clamp rather than extrapolating past the real ceiling.
+    assert.deepEqual(at('mage', 999), at('mage', MAX_DUNGEON_CLASS_LEVEL));
+    assert.deepEqual(at('mage', -5), at('mage', 0));
   });
 } finally {
   await server.close();
