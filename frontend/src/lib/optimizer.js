@@ -852,6 +852,30 @@ export function carriedUltimateEnchantment(currentModifiers, item, itemData) {
   return ids.some((id) => id.toLowerCase() === wanted) ? ultimate : null;
 }
 
+// The normal enchants that ride onto a swap candidate, same rule as the ultimate above: only the
+// ones the new item's category actually accepts. A swap within one weapon family keeps the lot,
+// so an upgrade is ranked against the piece it replaces rather than against a stripped copy.
+export function carriedHexEnchantments(currentModifiers, item, itemData) {
+  const applied = currentModifiers?.hexEnchantments;
+  if (!applied?.length) return [];
+  const ids = getCategoryEnchantIds(itemData.enchants, resolveEnchantCategory(item.category));
+  const allowed = new Set(ids.map((id) => id.toLowerCase()));
+  return applied.filter((entry) => entry?.id && allowed.has(entry.id.toLowerCase()));
+}
+
+// applyOptimizerResult replays these against BuildContext, whose selectItem resets the slot — so
+// every carried modifier needs its own step or it is lost on the swap-in.
+function applyEnchantSteps(slot, enchantments) {
+  return enchantments.map((entry) => ({
+    type: 'applyEnchant',
+    slot,
+    id: entry.id,
+    level: entry.level,
+    maxLevel: entry.maxLevel,
+    removeIds: [],
+  }));
+}
+
 async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slots, progressionBySlot, category, mode) {
   if (!progressionBySlot) return [];
   const baselineInfernalPieces = countSetPieces(loadout, ARMOR_SLOTS, INFERNAL_CRIMSON_SET);
@@ -894,6 +918,8 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
         if (carriedReforge) modifiers.reforge = carriedReforge;
         if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
+        const carriedHex = carriedHexEnchantments(currentModifiers, resolved, itemData);
+        if (carriedHex.length) modifiers.hexEnchantments = carriedHex;
         // Same carry-over as reforge/ultimate enchant above, just missed when this evaluator was
         // first written — a candidate with real gemstones stripped off looked artificially worse
         // than the currently-equipped (gemmed) item, the exact same "understates the swap's true
@@ -934,6 +960,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
             removeIds: [],
           });
         }
+        apply.push(...applyEnchantSteps(slot, carriedHex));
         // A Kuudra tier-up is a craft that consumes the worn piece, so it is priced from its recipe
         // (Essence + Kuudra Teeth + coin fee) rather than the new tier's auction price. Which piece is
         // consumed is stashed for lib/pricing.js to price. Same-family swaps only — leaving the family
@@ -1054,6 +1081,8 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       if (carriedReforge) modifiers.reforge = carriedReforge;
       const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
       if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
+      const carriedHex = carriedHexEnchantments(currentModifiers, resolved, itemData);
+      if (carriedHex.length) modifiers.hexEnchantments = carriedHex;
       // Clipped to the candidate's own slot count (clipGemstonesToSlots).
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
       if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
@@ -1078,6 +1107,7 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
           removeIds: [],
         });
       }
+      apply.push(...applyEnchantSteps(slot, carriedHex));
     }
     if (!allResolved) continue; // catalog lookup failed — skip rather than guess
     const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
@@ -1125,6 +1155,8 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       if (specialValue != null) modifiers.special = specialValue;
       const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
       if (carriedUltimate) modifiers.ultimateEnchantment = carriedUltimate;
+      const carriedHex = carriedHexEnchantments(currentModifiers, resolved, itemData);
+      if (carriedHex.length) modifiers.hexEnchantments = carriedHex;
       // Clipped to the candidate's own slot count (clipGemstonesToSlots).
       if (currentModifiers?.gemstones?.length) modifiers.gemstones = clipGemstonesToSlots(currentModifiers.gemstones, resolved);
       if (currentModifiers?.recombobulated) modifiers.recombobulated = true;
@@ -1156,6 +1188,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
           removeIds: [],
         });
       }
+      apply.push(...applyEnchantSteps('weapon', carriedHex));
       return {
         category: 'Weapon',
         slot: 'weapon',

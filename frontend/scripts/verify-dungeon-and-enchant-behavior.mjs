@@ -1232,6 +1232,53 @@ try {
     assert.equal(staleImport, null, 'missing bag fields keep slots out of the pricing');
     assert.deepEqual(slotCostForNewAccessory(null, ladder), { coins: 0, free: true, note: null });
   });
+
+  // 45. A gear swap carries the normal enchants the new item can take, not just the ultimate.
+  // BuildContext's selectItem resets the slot, so every carried modifier needs both a ranked
+  // value and an explicit apply step; a candidate evaluated stripped of the enchants the worn
+  // piece has is ranked against a weaker copy of itself, and the swap-in then really does drop
+  // them. Same category rule as the ultimate: melee enchants never ride onto a bow.
+  await check('A weapon swap carries normal enchants the candidate accepts', () => {
+    const { carriedHexEnchantments } = optimizerModule;
+    const sword = { category: 'SWORD' };
+    const bow = { category: 'BOW' };
+    // itemData.enchants is itself the meta object getCategoryEnchantIds reads, so the per-category
+    // lists sit one level further in: itemData.enchants.enchants[CATEGORY].
+    const enchantData = {
+      enchants: {
+        enchants: {
+          SWORD: ['sharpness', 'critical', 'ender_slayer'],
+          BOW: ['power', 'ender_slayer'],
+        },
+      },
+    };
+    const worn = {
+      hexEnchantments: [
+        { id: 'sharpness', level: 7, maxLevel: 7 },
+        { id: 'critical', level: 7, maxLevel: 7 },
+        { id: 'power', level: 7, maxLevel: 7 },
+        { id: 'ender_slayer', level: 7, maxLevel: 7 },
+      ],
+    };
+
+    const ontoSword = carriedHexEnchantments(worn, sword, enchantData).map((e) => e.id);
+    assert.ok(ontoSword.includes('sharpness'), 'a melee enchant rides onto another melee weapon');
+    assert.ok(ontoSword.includes('ender_slayer'), 'and so does one both families share');
+    assert.ok(!ontoSword.includes('power'), 'a Bow-only enchant does not');
+
+    const ontoBow = carriedHexEnchantments(worn, bow, enchantData).map((e) => e.id);
+    assert.ok(!ontoBow.includes('sharpness') && !ontoBow.includes('critical'), 'melee enchants never reach a bow');
+    assert.ok(ontoBow.includes('power'), 'the Bow enchant does');
+
+    // Levels ride along untouched — a carried enchant is the same enchant, not a re-rolled one.
+    assert.deepEqual(
+      carriedHexEnchantments(worn, sword, enchantData).find((e) => e.id === 'sharpness'),
+      { id: 'sharpness', level: 7, maxLevel: 7 },
+    );
+    // Nothing applied, nothing carried.
+    assert.deepEqual(carriedHexEnchantments({ hexEnchantments: [] }, sword, enchantData), []);
+    assert.deepEqual(carriedHexEnchantments(undefined, sword, enchantData), []);
+  });
 } finally {
   await server.close();
 }
