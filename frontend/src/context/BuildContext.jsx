@@ -26,6 +26,7 @@ import { useItemData } from './ItemDataContext';
 import { getSpecialConfig } from '../lib/specialWeapons';
 import { MOB_LOCATIONS } from '../lib/mobLocations';
 import { GOD_POTION_MIXINS } from '../lib/godPotion';
+import { DEFAULT_DUNGEON_CLASS, MAX_DUNGEON_CLASS_LEVEL, isDungeonClassId } from '../lib/dungeonClass';
 
 const CATACOMBS_LOCATION = 'The Catacombs';
 
@@ -38,6 +39,11 @@ const GOD_POTION_MIXIN_KEY = 'hexGodPotionMixin';
 const USE_DUNGEONIZED_STATS_KEY = 'hexUseDungeonizedStats';
 const USE_MASTER_MODE_KEY = 'hexUseMasterMode';
 const MAGE_MODE_KEY = 'hexMageMode';
+// The picked Catacombs class and its level (lib/dungeonClass.js). `hexMageMode` is kept as the
+// migration source: a build saved before classes existed reads back as Mage or Healer/Tank, the
+// two that compute what it did then.
+const DUNGEON_CLASS_KEY = 'hexDungeonClass';
+const DUNGEON_CLASS_LEVEL_KEY = 'hexDungeonClassLevel';
 const DPS_MODE_KEY = 'hexDpsMode';
 const DPS_KIND_KEY = 'hexDpsKind';
 const HAS_JELLYFISH_PET_KEY = 'hexHasJellyfishPet';
@@ -127,6 +133,19 @@ function loadInitialUseMasterMode() {
 // around the Ability Damage formula instead of melee/ranged Final Damage.
 function loadInitialMageMode() {
   return localStorage.getItem(MAGE_MODE_KEY) === 'true';
+}
+
+// A stored class wins; without one, an old `hexMageMode` decides. Healer/Tank grants nothing, so a
+// build that was never a Mage keeps the numbers it had.
+function loadInitialDungeonClass() {
+  const stored = localStorage.getItem(DUNGEON_CLASS_KEY);
+  if (isDungeonClassId(stored)) return stored;
+  return loadInitialMageMode() ? 'mage' : DEFAULT_DUNGEON_CLASS;
+}
+
+function loadInitialDungeonClassLevel() {
+  const stored = Number(localStorage.getItem(DUNGEON_CLASS_LEVEL_KEY));
+  return Number.isFinite(stored) ? Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, stored)) : 0;
 }
 
 // Loads the "DPS Mode" on/off switch (see lib/finalDamage.js's computeDpsBreakdown) — reframes
@@ -513,7 +532,12 @@ export function BuildProvider({ children }) {
   const [editAllEquipment, setEditAllEquipmentState] = useState(loadInitialEditAllEquipment);
   const [useDungeonizedStats, setUseDungeonizedStatsState] = useState(loadInitialUseDungeonizedStats);
   const [useMasterMode, setUseMasterModeState] = useState(loadInitialUseMasterMode);
-  const [mageMode, setMageModeState] = useState(loadInitialMageMode);
+  const [dungeonClass, setDungeonClassState] = useState(loadInitialDungeonClass);
+  const [dungeonClassLevel, setDungeonClassLevelState] = useState(loadInitialDungeonClassLevel);
+  // Every existing Mage Mode consumer (the optimizer's resolveOptimizerMode, Compare, Accessory
+  // Tuning, the share-link codec) reads this rather than the class id, so picking Mage keeps them
+  // all working unchanged.
+  const mageMode = dungeonClass === 'mage';
   const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
   const [dpsKind, setDpsKindState] = useState(loadInitialDpsKind);
   // Pet OWNERSHIP, not the equipped pet — it upgrades the Dungeon Potion's tier from the menu.
@@ -806,12 +830,18 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  const toggleMageMode = useCallback(() => {
-    setMageModeState((prev) => {
-      const next = !prev;
-      localStorage.setItem(MAGE_MODE_KEY, String(next));
-      return next;
-    });
+  const setDungeonClass = useCallback((id) => {
+    const next = isDungeonClassId(id) ? id : DEFAULT_DUNGEON_CLASS;
+    setDungeonClassState(next);
+    localStorage.setItem(DUNGEON_CLASS_KEY, next);
+    // Kept in step so an old-format share link generated from this build still reads correctly.
+    localStorage.setItem(MAGE_MODE_KEY, String(next === 'mage'));
+  }, []);
+
+  const setDungeonClassLevel = useCallback((value) => {
+    const next = Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, Number(value) || 0));
+    setDungeonClassLevelState(next);
+    localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, String(next));
   }, []);
 
   const setHasJellyfishPet = useCallback((value) => {
@@ -1552,8 +1582,13 @@ export function BuildProvider({ children }) {
     setUseMasterModeState(!!state.useMasterMode);
     localStorage.setItem(USE_MASTER_MODE_KEY, String(!!state.useMasterMode));
 
-    setMageModeState(!!state.mageMode);
-    localStorage.setItem(MAGE_MODE_KEY, String(!!state.mageMode));
+    const restoredClass = isDungeonClassId(state.dungeonClass) ? state.dungeonClass : state.mageMode ? 'mage' : DEFAULT_DUNGEON_CLASS;
+    setDungeonClassState(restoredClass);
+    localStorage.setItem(DUNGEON_CLASS_KEY, restoredClass);
+    localStorage.setItem(MAGE_MODE_KEY, String(restoredClass === 'mage'));
+    const restoredLevel = Math.max(0, Math.min(MAX_DUNGEON_CLASS_LEVEL, Number(state.dungeonClassLevel) || 0));
+    setDungeonClassLevelState(restoredLevel);
+    localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, String(restoredLevel));
 
     setDpsModeState(!!state.dpsMode);
     localStorage.setItem(DPS_MODE_KEY, String(!!state.dpsMode));
@@ -1654,7 +1689,10 @@ export function BuildProvider({ children }) {
         useMasterMode,
         toggleUseMasterMode,
         mageMode,
-        toggleMageMode,
+        dungeonClass,
+        dungeonClassLevel,
+        setDungeonClass,
+        setDungeonClassLevel,
         dpsMode,
         dpsKind,
         setDpsKind,

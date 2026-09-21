@@ -748,6 +748,7 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     build.debuffs,
     build.buffs,
     build.importedWeapons,
+    { id: build.dungeonClass, level: build.dungeonClassLevel },
   );
 
   if (modeConfig.metric === 'ability') {
@@ -2322,6 +2323,8 @@ export const OPTIMIZER_BUILD_KEYS = [
   'debuffs',
   'buffs',
   'importedWeapons',
+  'dungeonClass',
+  'dungeonClassLevel',
 ];
 
 export async function runOptimizer(loadout, itemData, build, mode, mob) {

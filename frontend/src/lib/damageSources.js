@@ -11,6 +11,7 @@ import {
   LOVING_ABILITY_DAMAGE_MULTIPLIER,
 } from './abilityDamage';
 import { fetchEnchantLevels, extractDescriptionLines, titleCaseEnchantId, toRoman, getVenomousDamagePercent } from './enchantEffects';
+import { dungeonClassStats, dungeonClassLabel } from './dungeonClass';
 import { getSpecialConfig, computeSpecialBonus, crownOfAvariceStats } from './specialWeapons';
 import { formatItemName } from './mcText';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from './armorSlots';
@@ -184,6 +185,13 @@ const SLAYER_WEAPON_IDS = new Set([
 
 // Habanero Tactics: +20%/25% damage with Slayer weapons at level IV/V (5%/level), stacks per armor piece.
 const HABANERO_TACTICS_PERCENT_PER_LEVEL = 5;
+
+// Dungeon class entry ids. Exported because lib/finalDamage.js's hit-by-hit simulation strips the
+// two opening-hit ones past hit 1: Berserker's bonus is the fight's FIRST hit, even when Triple
+// Strike widens the shared first-hit window to three.
+export const DUNGEON_CLASS_WEAPON_ID = 'dungeon-class-weapon';
+export const DUNGEON_CLASS_FIRST_HIT_ID = 'dungeon-class-first-hit';
+export const DUNGEON_CLASS_LUST_ID = 'dungeon-class-lust-for-blood';
 
 // Item lore is not scanned generically for ability text: every weapon/armor damage-%-vs-mob-type
 // bonus is hardcoded at its own definition site below (DAGGER_MOB_MULTIPLIERS,
@@ -1271,6 +1279,9 @@ export async function collectDamageSources(
   // The last import's weapon inventory ({item, modifiers} entries) — only read to find the
   // Ragnarock whose own Strength its buff copies.
   importedWeapons = null,
+  // The picked Catacombs class — { id, level }, see lib/dungeonClass.js. Only read while
+  // useDungeonizedStats is on, as blessing above is.
+  dungeonClass = null,
 ) {
   // A held Tier Boost raises the pet's rarity. Resolved once here, so every pet read below — its
   // stat curve, rarity-gated perks, lore, and the petEntriesCache key — sees the boosted rarity.
@@ -1445,6 +1456,49 @@ export async function collectDamageSources(
     out.multiplicative.push(skyblockLevelEntry);
     // Applies identically to Ability Damage.
     out.abilityMultiplicative.push(skyblockLevelEntry);
+  }
+
+  // Dungeon class bonuses (lib/dungeonClass.js), already gated on the Dungeon toggle by
+  // dungeonClassStats. A loadout holds one weapon, so melee and arrow are mutually exclusive by
+  // construction: the equipped weapon's category picks which multiplier applies and neither can
+  // reach the other's hit, which is why no separate arrow-scoped source list is needed.
+  const classStats = dungeonClassStats(dungeonClass?.id, dungeonClass?.level, useDungeonizedStats);
+  out.dungeonClassStats = classStats;
+  const className = dungeonClassLabel(dungeonClass?.id) || 'Class';
+  const classUsesArrows = (loadout.weapon?.item?.category || '').toUpperCase().includes('BOW');
+  const classWeaponMultiplier = classUsesArrows ? classStats.arrowMultiplier : classStats.meleeMultiplier;
+  if (classWeaponMultiplier !== 1) {
+    out.multiplicative.push({
+      id: DUNGEON_CLASS_WEAPON_ID,
+      label: `${className} (${classUsesArrows ? 'Arrow' : 'Melee'})`,
+      source: 'Class',
+      value: classWeaponMultiplier,
+    });
+  }
+  if (classStats.firstHitMultiplier !== 1) {
+    // Berserker's opening-hit bonus covers ability damage as well as melee and ranged, so it goes
+    // in both buckets — unlike its melee multiplier, which is weapon damage only.
+    const firstHitEntry = {
+      id: DUNGEON_CLASS_FIRST_HIT_ID,
+      label: `${className} (First Hit)`,
+      source: 'Class',
+      value: classStats.firstHitMultiplier,
+      firstHitOnly: true,
+    };
+    out.multiplicative.push(firstHitEntry);
+    out.abilityMultiplicative.push(firstHitEntry);
+  }
+  // Lust for Blood is banked from a kill and spent once, so it lands on the opening hit like First
+  // Strike. Melee gains 5x the per-kill scaling and ranged 1x, both resolved and capped already.
+  const lustForBlood = classUsesArrows ? classStats.lustForBloodRangedPercent : classStats.lustForBloodMeleePercent;
+  if (lustForBlood > 0) {
+    out.additiveNonConditional.push({
+      id: DUNGEON_CLASS_LUST_ID,
+      label: 'Lust for Blood',
+      source: 'Class',
+      value: lustForBlood,
+      firstHitOnly: true,
+    });
   }
 
   // Implosion Belt: a 1.25x multiplier on Hyperion/Spirit Sceptre/Yeti Sword's Ability Damage only,

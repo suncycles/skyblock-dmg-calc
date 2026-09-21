@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DUNGEON_CLASSES } from '../lib/dungeonClass';
 import { useBuild , DPS_KINDS } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
 import { collectDamageSources } from '../lib/damageSources';
@@ -162,7 +163,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     useMasterMode,
     toggleUseMasterMode,
     mageMode,
-    toggleMageMode,
+    dungeonClass,
+    dungeonClassLevel,
+    setDungeonClass,
     dpsMode,
     dpsKind,
     setDpsKind,
@@ -195,6 +198,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     setAccessoryEnrichmentType,
     loadFullState,
   } = useBuild();
+
+  // One stable object per class/level pair, so the collectDamageSources effect below doesn't
+  // re-run on every render.
+  const dungeonClassArg = useMemo(() => ({ id: dungeonClass, level: dungeonClassLevel }), [dungeonClass, dungeonClassLevel]);
   const { itemData } = useItemData();
   const { confirmDialog, alertDialog } = useConfirmDialog();
   const resultsRef = useRef(null); // scroll target for the sticky headline readout below
@@ -306,6 +313,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         settledDebuffs,
         buffs,
         importedWeapons,
+        dungeonClassArg,
       ).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
@@ -334,6 +342,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     effectiveBlazeCrimsonIsle,
     isMiningIslandTarget,
     maxedCollectionsCount,
+    dungeonClassArg,
   ]);
 
   // A second sources object, fixed at mobHpPercent=100 regardless of the (Base) Stats panel's own
@@ -372,6 +381,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         settledDebuffs,
         buffs,
         importedWeapons,
+        dungeonClassArg,
       ).then((r) => {
         if (tokenAt100Ref.current === token) setResultAt100(r);
       });
@@ -401,6 +411,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     blazeCrimsonIsle,
     isMiningIslandTarget,
     maxedCollectionsCount,
+    dungeonClassArg,
   ]);
 
   // Vanquished's 1.1x hidden bonus is shown alongside the real, unboosted number rather than
@@ -565,16 +576,28 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
 
       <div className="w-full max-w-[700px] mb-1 flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleMageMode}
-            className={`${panel} px-4 py-2 cursor-pointer flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
-              mageMode ? 'hover:brightness-110' : 'brightness-50'
+          {/* The Mage button's old slot, now a class picker: it both chooses the class and shows
+              the chosen one. Dimmed with the Dungeon toggle off, where no class grants anything. */}
+          <div
+            className={`${panel} pl-3 pr-1 py-1 flex items-center gap-2 text-sm font-bold text-black transition-[filter] ${
+              useDungeonizedStats ? '' : 'brightness-50'
             }`}
+            title={useDungeonizedStats ? 'Catacombs class' : 'Class bonuses apply only inside a dungeon'}
           >
-            <img src="/images/manual/mage_mode.webp" alt="" className="w-5 h-5" />
-            <Keyworded text="Mage" />
-          </button>
+            <img src="/images/manual/mage_mode.webp" alt="" className="w-5 h-5 shrink-0" />
+            <select
+              value={dungeonClass}
+              onChange={(e) => setDungeonClass(e.target.value)}
+              aria-label="Catacombs class"
+              className="bg-transparent text-black text-sm font-bold outline-none cursor-pointer pr-1"
+            >
+              {DUNGEON_CLASSES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             onClick={toggleUseDungeonizedStats}

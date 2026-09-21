@@ -23,6 +23,7 @@ import { getBestiaryStrengthBonus } from './bestiaryStrength';
 import { hasFullSet, computeCrimsonSwipeInfo, FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
 import { computeMobDamageReduction, computeMobMagicResistance, computeMobDefenseMultiplier } from './mobDefenses';
+import { DUNGEON_CLASS_FIRST_HIT_ID, DUNGEON_CLASS_LUST_ID } from './damageSources';
 import { mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier } from './mobDebuffs';
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
@@ -113,11 +114,23 @@ export function selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob
   // Final Destination's Vivacious Darkness Strength and Attack Speed activate only against Ender-type
   // mobs, unlike its +100% Ender damage line, which is an ordinary conditional entry.
   const isEnder = !!mob?.types?.includes('Ender');
-  if (!sources.hasFinalDestinationFullSet || !isEnder) return withBestiary;
+  const withFinalDestination =
+    !sources.hasFinalDestinationFullSet || !isEnder
+      ? withBestiary
+      : {
+          ...withBestiary,
+          strength: (withBestiary.strength || 0) + FINAL_DESTINATION_STRENGTH,
+          bonus_attack_speed: (withBestiary.bonus_attack_speed || 0) + FINAL_DESTINATION_ATTACK_SPEED,
+        };
+  // Mage's Intelligence and Ability Damage (lib/dungeonClass.js). Added here rather than into the
+  // stat blocks themselves so the Catacombs Boost never scales them — a class reward is not an item
+  // stat. Already gated on the Dungeon toggle at collect time, so it is 0 outside a dungeon.
+  const classStats = sources.dungeonClassStats;
+  if (!classStats?.intelligence && !classStats?.ability_damage) return withFinalDestination;
   return {
-    ...withBestiary,
-    strength: (withBestiary.strength || 0) + FINAL_DESTINATION_STRENGTH,
-    bonus_attack_speed: (withBestiary.bonus_attack_speed || 0) + FINAL_DESTINATION_ATTACK_SPEED,
+    ...withFinalDestination,
+    intelligence: (withFinalDestination.intelligence || 0) + (classStats.intelligence || 0),
+    ability_damage: (withFinalDestination.ability_damage || 0) + (classStats.ability_damage || 0),
   };
 }
 
@@ -191,6 +204,9 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
 
   let multiplicativeMultiplier = 1;
   for (const e of multiplicative) {
+    // Berserker's opening-hit multiplier is the one multiplicative source scoped to a fight's first
+    // hit, so this loop gates on firstHitOnly exactly as the additive loops above do.
+    if (excludeFirstHitOnly && e.firstHitOnly) continue;
     if (!e.condition || conditionMatchesMob(e.condition, mob)) {
       multiplicativeMultiplier *= e.value;
       appliedIds.add(e.id);
@@ -588,16 +604,23 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   // "Melee". A loadout holds one weapon, so the two labels are mutually exclusive by construction.
   const isBowWeapon = (loadout.weapon?.item?.category || '').toUpperCase().includes('BOW');
   const duplexMultiplier = 1 + (DUPLEX_DAMAGE_PERCENT_PER_LEVEL * duplexLevel) / 100;
-  const bowVolleyDamage = isTerminator
-    ? duplexLevel > 0
-      ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
-      : expectedArrowDamage * 3
-    : expectedArrowDamage * duplexMultiplier;
+  // Archer's bonus arrow (lib/dungeonClass.js): one plain extra arrow at the class's chance,
+  // independent of Duplex and never boosted by it. On Terminator that is ONE arrow's worth, not a
+  // fourth of the 3-arrow volley, exactly as Duplex boosts only one of the three. A melee weapon
+  // fires no arrows, so this is bow-only.
+  const classBonusArrowDamage = isBowWeapon ? expectedArrowDamage * (sources.dungeonClassStats?.bonusArrowChance || 0) : 0;
+  const bowVolleyDamage =
+    (isTerminator
+      ? duplexLevel > 0
+        ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
+        : expectedArrowDamage * 3
+      : expectedArrowDamage * duplexMultiplier) + classBonusArrowDamage;
   // Duplex is a multiplier on the existing volley rather than a separate hit, so decomposing it means
   // comparing against the same volley at duplexLevel 0. Exposed as its own DPS delta so
   // DamageSources.jsx can show the non-Duplex base and the Duplex bonus separately, summing back to
   // the same `melee` total.
-  const bowVolleyDamageWithoutDuplex = isTerminator ? expectedArrowDamage * 3 : expectedArrowDamage;
+  // Carries the bonus arrow too, so the Duplex delta below stays Duplex's own contribution.
+  const bowVolleyDamageWithoutDuplex = (isTerminator ? expectedArrowDamage * 3 : expectedArrowDamage) + classBonusArrowDamage;
   const duplexBonusDps = duplexLevel > 0 ? (bowVolleyDamage - bowVolleyDamageWithoutDuplex) * meleeHitsPerSecond : 0;
 
   const melee = bowVolleyDamage * meleeHitsPerSecond;
@@ -699,6 +722,9 @@ export function simulateHitByHit(
   const isTerminator = loadout.weapon?.item?.id === 'TERMINATOR';
   const duplexMultiplier = 1 + (DUPLEX_DAMAGE_PERCENT_PER_LEVEL * duplexLevel) / 100;
   const swipeInfo = computeCrimsonSwipeInfo(loadout, ARMOR_SLOTS);
+  // Same bow-only Archer bonus arrow the DPS breakdown applies, per simulated hit.
+  const simIsBowWeapon = (loadout.weapon?.item?.category || '').toUpperCase().includes('BOW');
+  const classBonusArrowChance = sources.dungeonClassStats?.bonusArrowChance || 0;
 
   const fireAspectRate = sources.fireAspectProc ? DPS_HITS_PER_SECOND.fireAspect / meleeHitsPerSecond : 0;
   const thunderlordRate = sources.thunderlordProc ? DPS_HITS_PER_SECOND.thunderlord / meleeHitsPerSecond : 0;
@@ -710,15 +736,33 @@ export function simulateHitByHit(
   let crimsonSwipeAcc = swipeInfo ? 1 - crimsonSwipeRate : 0;
 
   const rate = sources.executeProsecuteRate;
-  function buildHitSources(hpPercent) {
-    if (!rate) return { hitSources: sources, executeProsecuteValue: 0 };
+  // Berserker's opening-hit multiplier and Lust for Blood apply to the fight's FIRST hit alone. The
+  // shared firstHitOnly gate widens to three hits when Triple Strike is equipped, so past hit 1
+  // these two are dropped from the source lists outright rather than left to that gate.
+  const hasClassOpeningHit =
+    (sources.dungeonClassStats?.firstHitMultiplier || 1) !== 1 ||
+    (sources.dungeonClassStats?.lustForBloodMeleePercent || 0) > 0 ||
+    (sources.dungeonClassStats?.lustForBloodRangedPercent || 0) > 0;
+  function stripClassOpeningHit(hitSources) {
+    if (!hasClassOpeningHit) return hitSources;
+    return {
+      ...hitSources,
+      multiplicative: hitSources.multiplicative.filter((e) => e.id !== DUNGEON_CLASS_FIRST_HIT_ID),
+      abilityMultiplicative: hitSources.abilityMultiplicative.filter((e) => e.id !== DUNGEON_CLASS_FIRST_HIT_ID),
+      additiveNonConditional: hitSources.additiveNonConditional.filter((e) => e.id !== DUNGEON_CLASS_LUST_ID),
+    };
+  }
+
+  function buildHitSources(hpPercent, hit = 1) {
+    const scoped = hit > 1 ? stripClassOpeningHit(sources) : sources;
+    if (!rate) return { hitSources: scoped, executeProsecuteValue: 0 };
     const hpBasis = rate.type === 'execute' ? 100 - hpPercent : hpPercent;
     const value = Math.round(rate.ratePerLevel * hpBasis * 100) / 100;
-    const additiveNonConditional = sources.additiveNonConditional.filter((e) => e.id !== rate.id);
+    const additiveNonConditional = scoped.additiveNonConditional.filter((e) => e.id !== rate.id);
     if (value > 0) {
       additiveNonConditional.push({ id: rate.id, label: rate.label, source: rate.source, value, abilityEligible: true });
     }
-    return { hitSources: { ...sources, additiveNonConditional }, executeProsecuteValue: value };
+    return { hitSources: { ...scoped, additiveNonConditional }, executeProsecuteValue: value };
   }
 
   const hasRealHp = typeof startingHp === 'number' && startingHp > 0;
@@ -730,7 +774,9 @@ export function simulateHitByHit(
   const openingAppliedIds = [...computeFinalDamage(openingSources, mob, useDungeonizedStats, useMasterMode, false).appliedIds];
   const hasTripleStrike = openingAppliedIds.some((id) => id.toLowerCase().endsWith('-triple_strike'));
   const hasFirstStrike = openingAppliedIds.some((id) => id.toLowerCase().endsWith('-first_strike'));
-  const firstHitBoostCount = hasTripleStrike ? 3 : hasFirstStrike ? 1 : 0;
+  // A Berserker without First Strike still has an opening hit worth one hit's window; stripClassOpeningHit
+  // above keeps its bonuses to that single hit even when Triple Strike widens this to three.
+  const firstHitBoostCount = hasTripleStrike ? 3 : hasFirstStrike || hasClassOpeningHit ? 1 : 0;
 
   let remainingHp = hasRealHp ? startingHp : null;
   const hits = [];
@@ -739,7 +785,7 @@ export function simulateHitByHit(
   const simCap = hitCount;
   for (let hit = 1; hit <= simCap; hit++) {
     const hpPercent = hasRealHp ? Math.max(0, Math.min(100, (remainingHp / startingHp) * 100)) : fallbackHpPercent;
-    const { hitSources, executeProsecuteValue } = buildHitSources(hpPercent);
+    const { hitSources, executeProsecuteValue } = buildHitSources(hpPercent, hit);
     const excludeFirstHitOnly = hit > firstHitBoostCount;
 
     const steady = computeFinalDamage(hitSources, mob, useDungeonizedStats, useMasterMode, excludeFirstHitOnly);
@@ -747,11 +793,12 @@ export function simulateHitByHit(
       nonCritChance * steady.finalDamageNonCrit +
       normalCritChance * steady.finalDamage +
       megaCritChance * steady.finalDamage * (1 + (sources.overloadBonusPercent || 0) / 100);
-    const meleeDamage = isTerminator
-      ? duplexLevel > 0
-        ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
-        : expectedArrowDamage * 3
-      : expectedArrowDamage * duplexMultiplier;
+    const meleeDamage =
+      (isTerminator
+        ? duplexLevel > 0
+          ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
+          : expectedArrowDamage * 3
+        : expectedArrowDamage * duplexMultiplier) + (simIsBowWeapon ? expectedArrowDamage * classBonusArrowChance : 0);
 
     let fireAspectDamage = 0;
     if (sources.fireAspectProc) {

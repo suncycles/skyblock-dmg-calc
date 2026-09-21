@@ -1350,6 +1350,59 @@ try {
     assert.deepEqual(at('mage', 999), at('mage', MAX_DUNGEON_CLASS_LEVEL));
     assert.deepEqual(at('mage', -5), at('mage', 0));
   });
+
+  // 47. The class stats reach the damage pipeline. Two halves that have to hold together: a class
+  // flat stat rides on selectBaseStats' post-selection layer, where the Catacombs Boost can't scale
+  // it, and Berserker's opening-hit multiplier is gated by the same excludeFirstHitOnly flag the
+  // additive loop already honours — the multiplicative loop did not check it before classes existed.
+  await check('Class stats reach Final Damage, and the opening-hit one is gated', () => {
+    const { selectBaseStats, computeFinalDamage } = finalDamage;
+    const { dungeonClassStats } = dungeonClass;
+    const mob = { name: 'Test Dummy', types: [] };
+    const baseStats = { damage: 100, strength: 100, crit_damage: 0, intelligence: 50, ability_damage: 0 };
+    const sourcesWith = (classStats, multiplicative = []) => ({
+      baseStats,
+      dungeonizedBaseStats: baseStats,
+      masterDungeonizedBaseStats: baseStats,
+      mythologicalBaseStats: baseStats,
+      mythologicalDungeonizedBaseStats: baseStats,
+      mythologicalMasterDungeonizedBaseStats: baseStats,
+      additiveNonConditional: [],
+      additiveConditional: [],
+      weaponBonusNonConditional: [],
+      weaponBonusConditional: [],
+      multiplicative,
+      abilityMultiplicative: [],
+      dungeonClassStats: classStats,
+    });
+
+    // Mage's Intelligence lands on top of the selected block, whichever block that is.
+    const mageStats = dungeonClassStats('mage', 50, true);
+    const mageSources = sourcesWith(mageStats);
+    assert.equal(selectBaseStats(mageSources, true, false, mob).intelligence, 50 + 750);
+    assert.equal(selectBaseStats(mageSources, true, false, mob).ability_damage, 20);
+    // A class that grants no flat stat leaves the block exactly as it was.
+    const bareSources = sourcesWith(dungeonClassStats('healer_tank', 50, true));
+    assert.equal(selectBaseStats(bareSources, true, false, mob).intelligence, 50);
+
+    // Berserker's opening-hit multiplier applies to the headline hit and is dropped from a steady
+    // one, so a fight's later hits never carry it.
+    const berserk = dungeonClassStats('berserk', 0, true);
+    const firstHitEntry = { id: 'dungeon-class-first-hit', label: 'First Hit', value: berserk.firstHitMultiplier, firstHitOnly: true };
+    const meleeEntry = { id: 'dungeon-class-weapon', label: 'Melee', value: berserk.meleeMultiplier };
+    const withBoth = sourcesWith(berserk, [meleeEntry, firstHitEntry]);
+    const opening = computeFinalDamage(withBoth, mob, true, false, false);
+    const steady = computeFinalDamage(withBoth, mob, true, false, true);
+    assert.equal(Number(opening.multiplicativeMultiplier.toFixed(4)), Number((1.8 * 1.4).toFixed(4)));
+    assert.equal(Number(steady.multiplicativeMultiplier.toFixed(4)), 1.8, 'the steady hit keeps the melee multiplier and drops the opening one');
+    assert.ok(opening.finalDamage > steady.finalDamage, 'the opening hit really is the bigger number');
+
+    // An ordinary multiplicative entry carries no firstHitOnly flag, so the new gate leaves every
+    // pre-existing source untouched on both kinds of hit.
+    const plain = sourcesWith(dungeonClassStats('healer_tank', 0, true), [{ id: 'skyblock-level', label: 'Skyblock Level', value: 1.05 }]);
+    assert.equal(computeFinalDamage(plain, mob, true, false, false).multiplicativeMultiplier, 1.05);
+    assert.equal(computeFinalDamage(plain, mob, true, false, true).multiplicativeMultiplier, 1.05);
+  });
 } finally {
   await server.close();
 }

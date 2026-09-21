@@ -56,6 +56,8 @@ function useCurrentBuildState(build) {
       useDungeonizedStats: build.useDungeonizedStats,
       useMasterMode: build.useMasterMode,
       mageMode: build.mageMode,
+      dungeonClass: build.dungeonClass,
+      dungeonClassLevel: build.dungeonClassLevel,
       mobHpPercent: build.mobHpPercent,
       infernalCrimsonStacks: build.infernalCrimsonStacks,
       swarmMobs: build.swarmMobs,
@@ -181,6 +183,7 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           state.debuffs,
           state.buffs,
           state.importedWeapons,
+          { id: state.dungeonClass, level: state.dungeonClassLevel },
         );
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));
