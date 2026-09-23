@@ -329,8 +329,9 @@ export default function HypixelImport() {
   const petCandidates = rawImport?.pets || [];
   // Pet items resolve against the same catalog David's Cloak/PetDetail already use - held item id
   // (raw.pets[i].heldItem) matches an itemData.petItems entry 1:1, no id remapping needed.
+  const petHeldItem = (pet) => (pet.heldItem ? (itemData.petItems || []).find((i) => i.id === pet.heldItem) || null : null);
   const petHeldItemName = (pet) => {
-    const petItem = pet.heldItem ? (itemData.petItems || []).find((i) => i.id === pet.heldItem) : null;
+    const petItem = petHeldItem(pet);
     return petItem ? formatItemName(petItem.name) : null;
   };
   const armorSource = pickSource(rawImport?.wardrobeSets, wardrobeChoice, rawImport?.armor);
@@ -427,11 +428,18 @@ export default function HypixelImport() {
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-[11px] font-bold text-black uppercase tracking-wide">Pet</div>
-                <div className="text-[11px] text-black/70 truncate">
-                  {typeof petChoice === 'number' && petCandidates[petChoice]
-                    ? `${derivePetDisplayName(petCandidates[petChoice].type)} - Lvl ${petCandidates[petChoice].level}` +
-                      (petHeldItemName(petCandidates[petChoice]) ? ` - ${petHeldItemName(petCandidates[petChoice])}` : '')
-                    : 'None selected'}
+                <div className="text-xs text-black min-w-0 truncate">
+                  {typeof petChoice === 'number' && petCandidates[petChoice] ? (
+                    <>
+                      <span className="font-bold">{derivePetDisplayName(petCandidates[petChoice].type)}</span>
+                      <span className="text-black/80"> Lvl {petCandidates[petChoice].level}</span>
+                      {petHeldItemName(petCandidates[petChoice]) && (
+                        <span className="font-bold text-[#7a4fb5]"> + {petHeldItemName(petCandidates[petChoice])}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-black/70">None selected</span>
+                  )}
                 </div>
               </div>
               {petCandidates.length === 0 ? (
@@ -454,6 +462,17 @@ export default function HypixelImport() {
                           <WeaponIcon id={pet.type} material="BONE" alt={name} className="w-[70%] h-[70%] object-contain pixelated" />
                           {pet.active && (
                             <span className="absolute -top-1 -left-1 text-[10px] leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">★</span>
+                          )}
+                          {/* The held pet item, on the tile rather than only in the hover title:
+                              which pets carry a Textbook or a Relic is the thing you are scanning
+                              for, and a 40px icon grid gives no other clue. */}
+                          {petHeldItem(pet) && (
+                            <WeaponIcon
+                              id={petHeldItem(pet).id}
+                              material={petHeldItem(pet).material}
+                              alt=""
+                              className="absolute -bottom-1 -left-1 w-4 h-4 object-contain pixelated drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]"
+                            />
                           )}
                           {petChoice === i && (
                             <span className="absolute -bottom-1 -right-1 text-[10px] font-bold leading-none text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">

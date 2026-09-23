@@ -110,6 +110,30 @@ const MANUAL_CATEGORY_OVERRIDES = {
   VOODOO_DOLL_WILTED: 'SWORD',
 };
 
+// Stat lines NEU-REPO's lore is missing, inserted after the named line so the tooltip and the
+// computed stat agree. NEU-REPO lags Hypixel's own buffs, and lore is the single source both the
+// tooltip and lib/itemStatTotals.js parse - patching only one of them is how a number ends up
+// disagreeing with the text above it.
+const MANUAL_LORE_STAT_INSERTS = {
+  // Gained a base 10 Crit Damage in-game; NEU-REPO still lists only Strength, Attack Speed, Ferocity.
+  MANTICORE_CLAW: [{ after: 'Strength:', line: '\u00a77Crit Damage: \u00a79+10%' }],
+};
+
+// Applies the inserts above to one item's lore, skipping any whose stat is already there (so a
+// NEU-REPO update that adds it upstream does not produce a duplicate line).
+function applyManualLoreInserts(internalName, lore) {
+  const inserts = MANUAL_LORE_STAT_INSERTS[internalName];
+  if (!inserts) return lore;
+  const patched = [...lore];
+  for (const { after, line } of inserts) {
+    const statLabel = line.replace(/\u00a7./g, '').split(':')[0];
+    if (patched.some((l) => l.replace(/\u00a7./g, '').startsWith(`${statLabel}:`))) continue;
+    const at = patched.findIndex((l) => l.replace(/\u00a7./g, '').startsWith(after));
+    patched.splice(at === -1 ? patched.length : at + 1, 0, line);
+  }
+  return patched;
+}
+
 function stripColorCodes(str) {
   return str.replace(/§./g, '');
 }
@@ -208,6 +232,8 @@ for (const file of files) {
     raw.lore.some((line) => !RIFT_FOOTNOTE_RE.test(line) && /rift/i.test(line))
   )
     continue;
+
+  raw.lore = applyManualLoreInserts(raw.internalname, raw.lore);
 
   let { tier, category } = parseTierAndCategory(raw.lore);
   if (!category && MANUAL_CATEGORY_OVERRIDES[raw.internalname]) {

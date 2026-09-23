@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
@@ -167,7 +168,12 @@ export default function Landing() {
   // behaviour reimplemented below.
   const [potionMenuOpen, setPotionMenuOpen] = useState(false);
   const [potionMenuIndex, setPotionMenuIndex] = useState(0);
+  // Where the menu sits once open. It renders in a portal on document.body rather than beside the
+  // tile: the gear board's wrapper is `overflow-x-auto` for narrow screens, which forces overflow-y
+  // to auto as well, so a menu dropping out of the grid's bottom row was being clipped by it.
+  const [potionMenuPos, setPotionMenuPos] = useState(null);
   const potionMenuRef = useRef(null);
+  const potionListRef = useRef(null);
   const [showArmorOptions, setShowArmorOptions] = useState(false);
   const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
 
@@ -176,16 +182,24 @@ export default function Landing() {
   useEffect(() => {
     if (!potionMenuOpen) return undefined;
     const onPointerDown = (e) => {
-      if (!potionMenuRef.current?.contains(e.target)) setPotionMenuOpen(false);
+      if (potionMenuRef.current?.contains(e.target) || potionListRef.current?.contains(e.target)) return;
+      setPotionMenuOpen(false);
     };
     const onKeyDown = (e) => {
       if (e.key === 'Escape') setPotionMenuOpen(false);
     };
+    // The portal is placed from a one-off measurement, so anything that moves the tile closes it
+    // rather than leaving the menu stranded.
+    const onReflow = () => setPotionMenuOpen(false);
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('scroll', onReflow, true);
+    window.addEventListener('resize', onReflow);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', onReflow, true);
+      window.removeEventListener('resize', onReflow);
     };
   }, [potionMenuOpen]);
   const helmetPreviews = useSavedLoadoutHelmetPreviews(savedLoadouts, itemData, showLoadoutsPanel, itemDataLoading);
@@ -1023,6 +1037,8 @@ export default function Landing() {
         };
         const openPotionMenu = () => {
           setPotionMenuIndex(Math.max(0, potionOptions.findIndex((o) => o.value === potionValue)));
+          const rect = potionMenuRef.current?.getBoundingClientRect();
+          if (rect) setPotionMenuPos({ top: rect.bottom + 4, left: rect.left });
           setPotionMenuOpen(true);
         };
         const onPotionKeyDown = (e) => {
@@ -1057,13 +1073,18 @@ export default function Landing() {
             onMouseEnter={guardHover((e) => showTooltip(potionTooltip, e.currentTarget))}
             onMouseLeave={guardHover(hideTooltip)}
           >
-            {/* Drops DOWN from the tile. It is the grid's bottom row, so the menu overhangs the
-                panel - z-50 and an opaque background keep it readable over whatever it covers. */}
-            {potionMenuOpen && (
+            {/* Drops DOWN from the tile, through a portal on document.body. The tile sits in the
+                grid's bottom row inside an overflow-x-auto wrapper, and a non-visible overflow-x
+                forces overflow-y to match, so rendering the menu in place got it clipped. */}
+            {potionMenuOpen &&
+              potionMenuPos &&
+              createPortal(
               <ul
+                ref={potionListRef}
                 role="listbox"
                 aria-label={dungeonPotion ? 'Dungeon Potion' : 'God Potion'}
-                className={`${dropdownPanel} absolute top-full left-0 mt-1 z-50 min-w-max py-0.5 flex flex-col cursor-default`}
+                style={{ top: potionMenuPos.top, left: potionMenuPos.left }}
+                className={`${dropdownPanel} fixed z-50 min-w-max py-0.5 flex flex-col cursor-default`}
                 onMouseEnter={guardHover(hideTooltip)}
               >
                 {potionOptions.map((option, i) => {
@@ -1087,8 +1108,9 @@ export default function Landing() {
                     </li>
                   );
                 })}
-              </ul>
-            )}
+              </ul>,
+                document.body,
+              )}
             {/* The Dungeon Potion has its own art; the God Potion still resolves through the
                 catalog icon lookup like every other real item id. */}
             {dungeonPotion ? (
