@@ -4,19 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SkyDmg</title>
-    <link rel="icon" type="image/webp" href="/icons/favicon.webp" />
+    <!-- The source art is 7x7, so these are exact whole-number enlargements of it (see
+         scripts/upscale-favicon.mjs). Browsers pick by size, and the 7x7 original is left out of
+         this list so nothing picks it over a sharper copy. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/favicon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/favicon-180.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <!-- Baseline link-preview tags for Discord/Slack/Twitter unfurlers, which never execute the
          SPA's JS - functions/loadout/[code].js rewrites og:title/og:description/og:url's content
          in place (via HTMLRewriter) for /loadout/:code requests specifically; every other route
          just gets this generic copy as-is. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="SkyDmg" />
-    <meta property="og:title" content="SkyDmg - Hypixel Skyblock Damage Calculator" />
-    <meta property="og:description" content="Calculate your Hypixel Skyblock melee, mage, and slayer damage down to the exact source." />
+    <meta property="og:title" content="SkyDmg - Skyblock Damage Calculator and Optimizer" />
+    <meta property="og:description" content="Try a setup before you buy it, or see what you need to upgrade next." />
     <meta property="og:url" content="https://skydmg.pages.dev/" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="SkyDmg - Hypixel Skyblock Damage Calculator" />
-    <meta name="twitter:description" content="Calculate your Hypixel Skyblock melee, mage, and slayer damage down to the exact source." />
+    <meta name="twitter:description" content="Try a setup before you buy it, or see what you need to upgrade next." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
