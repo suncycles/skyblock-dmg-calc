@@ -40,6 +40,7 @@ export default function Debuffs() {
           <span>
             Ice Spray
             <span className="text-neutral-600 italic"> (x{ICE_SPRAY_MULTIPLIER} final damage)</span>
+            <span className="text-neutral-600 italic"> (Bugged ingame)</span>
           </span>
         </label>
         <label className="flex items-center gap-2 text-sm text-black" htmlFor="twilight-poison">

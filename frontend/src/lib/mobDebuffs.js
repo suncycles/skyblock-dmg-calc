@@ -18,7 +18,8 @@
 // there is no published Defense number to cut. The two flat multipliers are the only ones that do
 // anything against an ordinary mob.
 
-export const ICE_SPRAY_MULTIPLIER = 1.1;
+// Ice Spray is bugged in-game and lands as 1.21x final damage.
+export const ICE_SPRAY_MULTIPLIER = 1.21;
 // Modelled as a general final-damage multiplier, like Ice Spray - NOT scoped to bow damage
 // despite the name. Scope it to the bow metric in lib/finalDamage.js if the real item only buffs
 // arrows.

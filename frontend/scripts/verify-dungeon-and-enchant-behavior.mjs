@@ -940,10 +940,11 @@ try {
     assert.equal(computeMobDefenseMultiplier(zombie, true, mobDefenseDebuffMultiplier(maxed)), 1);
 
     // The two flat multipliers are the debuffs that apply to every target, Defense or not - and
-    // they are multiplicative with each other, so both on is 1.21 rather than 1.2.
+    // they are multiplicative with each other, so both on is 1.21 x 1.1 = 1.331 rather than 1.31.
     assert.equal(finalDamageDebuffMultiplier({ iceSpray: true }), ICE_SPRAY_MULTIPLIER);
     assert.equal(finalDamageDebuffMultiplier({ twilightPoison: true }), TWILIGHT_ARROW_POISON_MULTIPLIER);
-    assert.ok(Math.abs(finalDamageDebuffMultiplier({ iceSpray: true, twilightPoison: true }) - 1.21) < 1e-9, 'both flat debuffs compose to 1.21');
+    assert.equal(ICE_SPRAY_MULTIPLIER, 1.21, 'Ice Spray is bugged in-game and lands as 1.21x');
+    assert.ok(Math.abs(finalDamageDebuffMultiplier({ iceSpray: true, twilightPoison: true }) - 1.331) < 1e-9, 'both flat debuffs compose to 1.331');
     assert.equal(finalDamageDebuffMultiplier({ iceSpray: false, twilightPoison: false }), 1);
     assert.equal(finalDamageDebuffMultiplier(null), 1);
   });
