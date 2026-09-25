@@ -2562,6 +2562,9 @@ export function applyOptimizerResult(build, result) {
       case 'setForbiddenBlessingLevel':
         build.setForbiddenBlessingLevel(step.level);
         break;
+      case 'setMasterSkullTier':
+        build.setMasterSkullTier(step.tier);
+        break;
       case 'setAccessoryMagicalPower':
         build.setAccessoryMagicalPower(step.mp);
         break;

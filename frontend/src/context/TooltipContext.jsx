@@ -132,7 +132,7 @@ const EDGE_MARGIN = 4;
 // zoomed screen pixels, but a position: fixed element's left/top are CSS pixels the zoom scales
 // again, so an unconverted clientX places the tooltip proportionally further out the further right
 // or down the pointer is. Read live rather than hardcoded, so it can't drift from the stylesheet.
-function pageZoom() {
+export function pageZoom() {
   const z = parseFloat(getComputedStyle(document.documentElement).zoom);
   return z > 0 ? z : 1;
 }

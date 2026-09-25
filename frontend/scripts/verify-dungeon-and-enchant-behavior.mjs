@@ -1593,6 +1593,72 @@ try {
 
   // 52. Decoding untrusted links: a crafted blob stops at the size cap instead of inflating to
   // gigabytes, and a short id tried as a blob first fails without an unhandled promise rejection.
+  // 53. Blessing of Time caps at 5, in the math as well as the slider; the others keep the shared cap.
+  await check('Blessing of Time caps at level 5', () => {
+    assert.equal(dungeonBlessing.blessingMaxLevel('time'), 5);
+    assert.equal(dungeonBlessing.blessingMaxLevel('power'), dungeonBlessing.BLESSING_MAX_LEVEL);
+    const [time] = dungeonBlessing.computeBlessingEffects({ time: 30 }, 1);
+    assert.equal(time.label, 'Time Blessing 5');
+    assert.equal(time.flat.strength, 4 * 5);
+  });
+
+  // 54. A recommended Master Skull tier-up is valued with its Strength multiplier in Master Mode, not
+  // by its Magical Power alone, and applying it raises the tier the pipeline reads. Anywhere else the
+  // skull does nothing, so it is worth exactly its Magical Power.
+  await check('Master Skull recommendations include its Strength in Master Mode', async () => {
+    const accessoryOptimizer = await server.ssrLoadModule('/src/lib/accessoryOptimizer.js');
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const loadout = {
+      weapon: { item: { id: 'TEST_SWORD', name: 'Test Sword', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100', '§7Strength: §c+200'] }, modifiers: defaults.emptyModifiers() },
+      accessory: { item: { id: 'WARRIOR', name: 'Warrior' }, modifiers: { ...defaults.emptyAccessoryModifiers(), magicalPower: 500 } },
+    };
+    const itemData = { ...EMPTY_ITEM_DATA, costs: { itemPrices: {} }, accessoryInnateStats: {} };
+    const skull = { id: 'MASTER_SKULL_TIER_7', name: 'Master Skull - Tier 7', rarity: 'LEGENDARY', mpGain: 8, kind: 'upgrade', fromId: 'MASTER_SKULL_TIER_5', nextRecombobulated: false };
+    const generic = { id: 'generic-8', name: '+8 Magical Power', mpGain: 8, kind: 'generic' };
+    const mob = { name: 'Zombie', types: ['Undead'] };
+    const gainFor = async (inDungeon, master) => {
+      const build = {
+        loadout, useDungeonizedStats: inDungeon, useMasterMode: master, dungeonClass: 'healer_tank', dungeonClassLevel: 0, mageMode: false,
+        playerStats: {}, attributes: {}, miscStats: {}, essencePerks: {}, bestiaryMaxedMobs: [],
+        blessing: { levels: dungeonBlessing.emptyBlessingLevels(), forbiddenBlessingLevel: 0, masterSkullTier: 5, paulBuff: false },
+      };
+      const mode = inDungeon ? 'dungeon_healer_tank' : 'slayer';
+      const { results } = await accessoryOptimizer.evaluateAccessoryCandidates(loadout, itemData, build, mode, mob, [skull, generic]);
+      return { skull: results.find((r) => r.id === skull.id), generic: results.find((r) => r.id === generic.id) };
+    };
+    const master = await gainFor(true, true);
+    assert.ok(master.skull.percentIncrease > master.generic.percentIncrease + 1, `skull ${master.skull.percentIncrease}% vs plain MP ${master.generic.percentIncrease}%`);
+    assert.deepEqual(master.skull.apply.find((s) => s.type === 'setMasterSkullTier'), { type: 'setMasterSkullTier', tier: 7 });
+    for (const [inDungeon, label] of [[true, 'a normal dungeon'], [false, 'outside a dungeon']]) {
+      const { skull: sk, generic: gen } = await gainFor(inDungeon, false);
+      assert.ok(Math.abs(sk.percentIncrease - gen.percentIncrease) < 1e-9, `in ${label} the skull is worth its Magical Power only`);
+    }
+  });
+
+  // 55. The skull's Strength reaches the Master Mode totals and no others, and its breakdown line
+  // survives even though it is worth nothing outside Master Mode.
+  await check('Master Skull Strength applies only in Master Mode', async () => {
+    const damageSources = await server.ssrLoadModule('/src/lib/damageSources.js');
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const loadout = { weapon: { item: { id: 'TEST_SWORD', name: 'Test Sword', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100', '§7Strength: §c+200'] }, modifiers: defaults.emptyModifiers() } };
+    const strengthAt = async (tier) => {
+      const sources = await damageSources.collectDamageSources(loadout, EMPTY_ITEM_DATA, {
+        useDungeonizedStats: true,
+        attributes: {},
+        blessing: { levels: dungeonBlessing.emptyBlessingLevels(), forbiddenBlessingLevel: 0, masterSkullTier: tier, paulBuff: false },
+      });
+      const pick = (dungeon, master) => finalDamage.selectBaseStats(sources, dungeon, master, { name: 'Zombie', types: ['Undead'] }).strength;
+      return { sources, normal: pick(false, false), dungeon: pick(true, false), master: pick(true, true) };
+    };
+    const without = await strengthAt(0);
+    const withSkull = await strengthAt(7);
+    assert.equal(withSkull.normal, without.normal, 'no effect outside a dungeon');
+    assert.equal(withSkull.dungeon, without.dungeon, 'no effect in a normal dungeon');
+    assert.equal(Number((withSkull.master / without.master).toFixed(6)), 1.1, 'x1.10 in Master Mode');
+    const line = withSkull.sources.baseStatSources.strength.find((e) => e.label === 'Master Skull Tier 7');
+    assert.ok(line && line.value === 0 && line.dungeonizedValue === 0 && line.masterDungeonizedValue > 0, 'breakdown line carries the Master amount only');
+  });
+
   await check('Share link decoding is capped and leaves no unhandled rejections', async () => {
     const realFetch = globalThis.fetch;
     let unhandled = 0;

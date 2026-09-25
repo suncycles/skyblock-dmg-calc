@@ -1079,7 +1079,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   const finalDestinationBonus =
                     result.hasFinalDestinationFullSet && isEnderTarget ? FINAL_DESTINATION_BONUS_BY_KEY[key] || 0 : 0;
                   const displayed = baseDisplayed + finalDestinationBonus;
-                  const sources = finalDestinationBonus
+                  const activeValue = (s) => (!useDungeonizedStats ? s.value : useMasterMode ? s.masterDungeonizedValue : s.dungeonizedValue);
+                  // Hides sources worth nothing under the current toggles, like Master Skull outside Master Mode.
+                  const sources = (finalDestinationBonus
                     ? [
                         ...result.baseStatSources[key],
                         {
@@ -1089,7 +1091,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                           masterDungeonizedValue: finalDestinationBonus,
                         },
                       ]
-                    : result.baseStatSources[key];
+                    : result.baseStatSources[key]
+                  ).filter(activeValue);
                   return (
                     <div key={key}>
                       <div
@@ -1107,11 +1110,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             <div className="text-[11px] text-neutral-600 italic">No sources.</div>
                           ) : (
                             sources.map((s) => {
-                              const sourceValue = !useDungeonizedStats
-                                ? s.value
-                                : useMasterMode
-                                  ? s.masterDungeonizedValue
-                                  : s.dungeonizedValue;
+                              const sourceValue = activeValue(s);
                               return (
                                 <div key={s.label} className="flex justify-between text-[12px] text-neutral-700">
                                   <span>{s.label}</span>

@@ -9,15 +9,20 @@ export const BLESSING_MAX_LEVEL = 30;
 // The four real blessings this app models, in the order they're shown in the Misc panel. `flat` is
 // the per-level amount added straight to the named base stats; `percent` is the per-level %
 // increase applied AFTERWARDS to those same stats, so it compounds on the flat grant rather than
-// replacing it. Stone is flat-only - it has no percentage clause.
+// replacing it. Stone is flat-only - it has no percentage clause. `maxLevel` caps a blessing below
+// BLESSING_MAX_LEVEL.
 export const DUNGEON_BLESSINGS = [
   { id: 'power', label: 'Power', flatPerLevel: 4, flatStats: ['strength', 'crit_damage'], percentPerLevel: 2, percentStats: ['strength', 'crit_damage'] },
-  { id: 'time', label: 'Time', flatPerLevel: 4, flatStats: ['intelligence', 'strength'], percentPerLevel: 2, percentStats: ['intelligence', 'strength'] },
+  { id: 'time', label: 'Time', maxLevel: 5, flatPerLevel: 4, flatStats: ['intelligence', 'strength'], percentPerLevel: 2, percentStats: ['intelligence', 'strength'] },
   { id: 'stone', label: 'Stone', flatPerLevel: 6, flatStats: ['damage'], percentPerLevel: 0, percentStats: [] },
   { id: 'wisdom', label: 'Wisdom', flatPerLevel: 4, flatStats: ['intelligence'], percentPerLevel: 2, percentStats: ['intelligence'] },
 ];
 
 export const BLESSING_IDS = DUNGEON_BLESSINGS.map((b) => b.id);
+
+export function blessingMaxLevel(id) {
+  return DUNGEON_BLESSINGS.find((b) => b.id === id)?.maxLevel ?? BLESSING_MAX_LEVEL;
+}
 
 export function emptyBlessingLevels() {
   return Object.fromEntries(BLESSING_IDS.map((id) => [id, BLESSING_MIN_LEVEL]));
@@ -60,7 +65,7 @@ export function computeBlessingMultiplier(inputs, attributes) {
 export function computeBlessingEffects(levels, multiplier) {
   const effects = [];
   for (const blessing of DUNGEON_BLESSINGS) {
-    const level = Math.max(BLESSING_MIN_LEVEL, Math.min(BLESSING_MAX_LEVEL, Math.floor(levels?.[blessing.id] || 0)));
+    const level = Math.max(BLESSING_MIN_LEVEL, Math.min(blessingMaxLevel(blessing.id), Math.floor(levels?.[blessing.id] || 0)));
     if (level <= 0) continue;
     const flat = {};
     for (const statKey of blessing.flatStats) flat[statKey] = blessing.flatPerLevel * level * multiplier;

@@ -4,7 +4,7 @@ import { useItemData } from '../context/ItemDataContext';
 import {
   DUNGEON_BLESSINGS,
   BLESSING_MIN_LEVEL,
-  BLESSING_MAX_LEVEL,
+  blessingMaxLevel,
   computeBlessingMultiplier,
   MIMIC_SHARD_MAX_LEVEL,
   FORBIDDEN_BLESSING_MAX_LEVEL,
@@ -141,7 +141,7 @@ export default function DungeonBlessings() {
               </div>
               <div>
                 Master Skull x{masterSkullStrengthMultiplier(blessing.masterSkullTier)}
-                <span className="italic"> (Tier {blessing.masterSkullTier || '-'}, Strength only)</span>
+                <span className="italic"> (Tier {blessing.masterSkullTier || '-'}, Strength, Master Mode only)</span>
               </div>
             </div>
 
@@ -155,7 +155,7 @@ export default function DungeonBlessings() {
                   id={`blessing-${b.id}`}
                   type="range"
                   min={BLESSING_MIN_LEVEL}
-                  max={BLESSING_MAX_LEVEL}
+                  max={blessingMaxLevel(b.id)}
                   step="1"
                   value={blessing.levels[b.id]}
                   onChange={(e) => setBlessingLevel(b.id, e.target.value)}

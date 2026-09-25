@@ -22,6 +22,7 @@ import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
 import { cheapestPerfectGemstonePrice } from './pricing';
 import { readSlotState, slotCostForNewAccessory } from './accessorySlots';
+import { masterSkullTierFromItemId } from './masterSkull';
 
 export const MAGICAL_POWER_BY_RARITY = {
   COMMON: 3,
@@ -288,6 +289,13 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
 
   const results = [];
   for (const candidate of candidates) {
+    // A higher Master Skull tier is also a Strength multiplier (lib/masterSkull.js), which the
+    // pipeline reads from the blessing block rather than the accessory slot. A candidate that raises
+    // the tier is valued with it, not by its Magical Power alone. The pipeline still applies it only
+    // in Master Mode.
+    const skullTier = candidate.kind === 'missing' || candidate.kind === 'upgrade' ? masterSkullTierFromItemId(candidate.id) : 0;
+    const raisesSkull = skullTier > (build.blessing?.masterSkullTier || 0);
+    const candidateBuild = raisesSkull ? { ...build, blessing: { ...build.blessing, masterSkullTier: skullTier } } : build;
     const newPoints = computeTotalTuningPoints(
       currentMp + candidate.mpGain,
       build.attributes?.tuning_box,
@@ -295,7 +303,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
       build.attributes?.echo_of_echoes,
     );
     const extraPoints = newPoints - currentPoints;
-    const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, build, modeConfig, mob, baselineTuning, extraPoints, tunedCritChance, hasOverload, baselineNextStat) : baselineTuning;
+    const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, candidateBuild, modeConfig, mob, baselineTuning, extraPoints, tunedCritChance, hasOverload, baselineNextStat) : baselineTuning;
     // A new accessory carries its own innate stat line (Shark Tooth Necklace's Strength, Red Claw's
     // Crit Damage) on top of its Magical Power, added onto what the account's other accessories
     // already contribute - individualAccessoryStats is a running sum across the bag, not per item.
@@ -317,7 +325,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
         modifiers: { ...accessorySlot.modifiers, magicalPower: currentMp + candidate.mpGain, tuning: candidateTuning, individualAccessoryStats },
       },
     };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const value = await computeModeDamage(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
     if (percentIncrease <= 0.001) continue;
     // A brand-new accessory also has to fit in the bag: with no free slot, the cheapest slot on the
@@ -351,6 +359,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
           // unlike Recombobulate and Perfect-Gemstone, so the lower tier's ownership record is dropped
           // to stop stale suggestions for an item the player no longer has.
           ...(candidate.kind === 'upgrade' ? [{ type: 'removeOwnedAccessory', id: candidate.fromId }] : []),
+          ...(raisesSkull ? [{ type: 'setMasterSkullTier', tier: skullTier }] : []),
         ],
       }, cost),
     );

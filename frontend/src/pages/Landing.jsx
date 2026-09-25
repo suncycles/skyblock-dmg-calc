@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useBuild } from '../context/BuildContext';
 import { useItemData } from '../context/ItemDataContext';
-import { useTooltip } from '../context/TooltipContext';
+import { useTooltip, pageZoom } from '../context/TooltipContext';
 import { useConfirmDialog } from '../context/ConfirmDialogContext';
 import { ARMOR_SLOTS, ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOTS, EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
@@ -1029,8 +1029,11 @@ export default function Landing() {
         };
         const openPotionMenu = () => {
           setPotionMenuIndex(Math.max(0, potionOptions.findIndex((o) => o.value === potionValue)));
+          // The rect is in zoomed screen pixels, but the menu's top/left are CSS pixels the page zoom
+          // scales again (see pageZoom), so they are divided back first.
           const rect = potionMenuRef.current?.getBoundingClientRect();
-          if (rect) setPotionMenuPos({ top: rect.bottom + 4, left: rect.left });
+          const zoom = pageZoom();
+          if (rect) setPotionMenuPos({ top: rect.bottom / zoom + 4, left: rect.left / zoom });
           setPotionMenuOpen(true);
         };
         const onPotionKeyDown = (e) => {

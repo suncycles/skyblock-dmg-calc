@@ -10,7 +10,7 @@ import { getMaxPetLevel, SHINING_SCALES_MAX_GOLD_COLLECTION, MAX_GOLDEN_DRAGON_B
 import {
   BLESSING_IDS,
   BLESSING_MIN_LEVEL,
-  BLESSING_MAX_LEVEL,
+  blessingMaxLevel,
   FORBIDDEN_BLESSING_MAX_LEVEL,
   emptyBlessingLevels,
 } from '../lib/dungeonBlessing';
@@ -535,8 +535,9 @@ export function BuildProvider({ children }) {
   const dungeonClassLevel = clampClassLevel(dungeonClassLevels[dungeonClass]);
   // Every existing Mage Mode consumer (the optimizer's resolveOptimizerMode, Compare, Accessory
   // Tuning, the share-link codec) reads this rather than the class id, so picking Mage keeps them
-  // all working unchanged.
-  const mageMode = dungeonClass === 'mage';
+  // all working unchanged. Gated on the Dungeon toggle like every other class effect: with Dungeon
+  // off, the class picker changes nothing.
+  const mageMode = useDungeonizedStats && dungeonClass === 'mage';
   const [dpsMode, setDpsModeState] = useState(loadInitialDpsMode);
   const [dpsKind, setDpsKindState] = useState(loadInitialDpsKind);
   // Pet OWNERSHIP, not the equipped pet - it upgrades the Dungeon Potion's tier from the menu.
@@ -639,7 +640,7 @@ export function BuildProvider({ children }) {
 
   const setBlessingLevel = useCallback(
     (id, value) => {
-      const level = Math.max(BLESSING_MIN_LEVEL, Math.min(BLESSING_MAX_LEVEL, Math.floor(Number(value) || 0)));
+      const level = Math.max(BLESSING_MIN_LEVEL, Math.min(blessingMaxLevel(id), Math.floor(Number(value) || 0)));
       updateBlessing({ levels: { [id]: level } });
     },
     [updateBlessing],

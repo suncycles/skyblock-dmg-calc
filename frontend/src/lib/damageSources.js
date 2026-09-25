@@ -408,7 +408,7 @@ const RADIOACTIVE_MAX_STRENGTH = 1000;
 // to `value`, which is correct for every non-gear source; only the per-item gear loop and the
 // Chimera/Manticore pass supply real dungeonized amounts.
 function addBaseStat(out, statKey, value, label, dungeonizedValue = value, masterDungeonizedValue = dungeonizedValue) {
-  if (!value) return;
+  if (!value && !dungeonizedValue && !masterDungeonizedValue) return;
   out.baseStats[statKey] += value;
   const list = out.baseStatSources[statKey];
   const existing = list.find((e) => e.label === label);
@@ -1211,10 +1211,12 @@ function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, 
 
     // Master Skull's Strength multiplier, applied straight after the blessings and off the running
     // total so the two compound rather than summing: tier 7 with a Power 5 blessing is 1.10 * 1.15,
-    // not 1 + 0.10 + 0.15. Scoped to the Dungeon toggle alongside the blessings it multiplies with.
+    // not 1 + 0.10 + 0.15. Master Mode only, so it lands in the Master totals and nowhere else.
     const skullPercent = masterSkullStrengthPercent(blessing?.masterSkullTier);
     if (skullPercent > 0) {
-      addPercentStatBoost(out, 'strength', skullPercent, `Master Skull Tier ${blessing.masterSkullTier}`, currentStatTotals(out, 'strength'));
+      const strength = currentStatTotals(out, 'strength');
+      const share = skullPercent / 100;
+      addFinalStatValue(out, 'strength', 0, 0, strength.master * share, `Master Skull Tier ${blessing.masterSkullTier}`, 0, 0, strength.mythologicalMaster * share);
     }
   }
 
