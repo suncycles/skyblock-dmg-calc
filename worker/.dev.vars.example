@@ -1,6 +1,9 @@
 # Copy this file to worker/.dev.vars (gitignored) for local `wrangler dev` runs.
 #
-# Only needed for the /api/hypixel/import route (see handleHypixelImport in src/index.js) -
-# /api/items and /api/refresh don't touch the Hypixel API and work without this. Get a key at
-# https://developer.hypixel.net/.
+# HYPIXEL_API_KEY is only needed for /api/hypixel/import (see handleHypixelImport in src/index.js).
+# Get a key at https://developer.hypixel.net/.
 HYPIXEL_API_KEY=your-hypixel-api-key-here
+
+# REFRESH_TOKEN gates POST /api/refresh: send it as "Authorization: Bearer <token>". Any long random
+# string, e.g. from `openssl rand -hex 32`.
+REFRESH_TOKEN=your-refresh-token-here

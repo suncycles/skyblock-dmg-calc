@@ -291,32 +291,30 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     // dev-only double mount cancels the first timeout rather than running the pipeline twice.
     const handle = setTimeout(() => {
       const token = ++tokenRef.current;
-      collectDamageSources(
-        loadout,
-        itemData,
+      collectDamageSources(loadout, itemData, {
         playerStats,
         godPotionActive,
         attributes,
-        settledMiscStats,
-        MOB_HP_PERCENT,
-        settledInfernalCrimsonStacks,
+        miscStats: settledMiscStats,
+        mobHpPercent: MOB_HP_PERCENT,
+        infernalCrimsonStacks: settledInfernalCrimsonStacks,
         useDungeonizedStats,
-        settledSwarmMobs,
-        settledComboKills,
-        settledLegionPlayers,
-        effectiveBlazeCrimsonIsle,
+        swarmMobs: settledSwarmMobs,
+        comboKills: settledComboKills,
+        legionPlayers: settledLegionPlayers,
+        blazeCrimsonIsle: effectiveBlazeCrimsonIsle,
         bestiaryMaxedMobs,
         godPotionMixin,
         maxedCollectionsCount,
-        settledBlessing,
+        blessing: settledBlessing,
         essencePerks,
-        isMiningIslandTarget,
+        onMiningIsland: isMiningIslandTarget,
         hasJellyfishPet,
-        settledDebuffs,
+        debuffs: settledDebuffs,
         buffs,
         importedWeapons,
-        dungeonClassArg,
-      ).then((r) => {
+        dungeonClass: dungeonClassArg,
+      }).then((r) => {
         if (tokenRef.current === token) setResult(r);
       });
     }, 200);
@@ -342,75 +340,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     importedWeapons,
     essencePerks,
     effectiveBlazeCrimsonIsle,
-    isMiningIslandTarget,
-    maxedCollectionsCount,
-    dungeonClassArg,
-  ]);
-
-  // A second sources object, fixed at mobHpPercent=100 regardless of the (Base) Stats panel's own
-  // slider - only fetched in DPS mode, where the hit-by-hit graph needs First Strike/Triple
-  // Strike's opening-hit-only entry to actually be present (collectEnchantEntries only includes
-  // it when mobHpPercent===100) so simulateHitByHit can gate it per-hit itself, independent of
-  // whatever % the slider happens to be showing right now.
-  const [resultAt100, setResultAt100] = useState(null);
-  const tokenAt100Ref = useRef(0);
-  useEffect(() => {
-    if (!dpsMode) return;
-    // Same 200ms debounce as the main result effect above, same reason.
-    const handle = setTimeout(() => {
-      const token = ++tokenAt100Ref.current;
-      collectDamageSources(
-        loadout,
-        itemData,
-        playerStats,
-        godPotionActive,
-        attributes,
-        settledMiscStats,
-        100,
-        settledInfernalCrimsonStacks,
-        useDungeonizedStats,
-        settledSwarmMobs,
-        settledComboKills,
-        settledLegionPlayers,
-        blazeCrimsonIsle,
-        bestiaryMaxedMobs,
-        godPotionMixin,
-        maxedCollectionsCount,
-        settledBlessing,
-        essencePerks,
-        isMiningIslandTarget,
-        hasJellyfishPet,
-        settledDebuffs,
-        buffs,
-        importedWeapons,
-        dungeonClassArg,
-      ).then((r) => {
-        if (tokenAt100Ref.current === token) setResultAt100(r);
-      });
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [
-    dpsMode,
-    loadout,
-    itemData,
-    playerStats,
-    godPotionActive,
-    godPotionMixin,
-    attributes,
-    settledMiscStats,
-    settledInfernalCrimsonStacks,
-    useDungeonizedStats,
-    settledSwarmMobs,
-    bestiaryMaxedMobs,
-    settledComboKills,
-    settledLegionPlayers,
-    settledBlessing,
-    settledDebuffs,
-    hasJellyfishPet,
-    buffs,
-    importedWeapons,
-    essencePerks,
-    blazeCrimsonIsle,
     isMiningIslandTarget,
     maxedCollectionsCount,
     dungeonClassArg,
@@ -751,7 +680,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 // lib/mobHp.js's defaultTierSelection, which resolveStartingHp applies too.
                 selection = mobHpSelections[name] || defaultTierSelection(name) || '';
                 const startingHp = resolveStartingHp(name, useMasterMode, selection);
-                const simSources = startingHp ? resultAt100 : result;
+                const simSources = result;
                 if (simSources) {
                   // The graph plots the whole fight, 100% HP to 0, so the window is the mob's
                   // health rather than a fixed hit count - the simulation stops on death.

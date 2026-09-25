@@ -18,11 +18,6 @@ export const GOD_POTION_SPIRIT_CRIT_DAMAGE = 40; // Spirit Potion IV
 export const GOD_POTION_ARCHERY_DAMAGE = 75; // Archery Potion IV, bow weapons only
 
 export const JERRY_CANDY_STRENGTH = 20;
-// Not wired into baseStats - no aggregate total exists for these anywhere in this app.
-export const JERRY_CANDY_HEALTH = 100;
-export const JERRY_CANDY_FEROCITY = 2;
-export const JERRY_CANDY_INTELLIGENCE = 100;
-export const JERRY_CANDY_MAGIC_FIND = 3;
 
 // Mixins add a real, extra effect on top of the base God Potion (still one potion/one toggle).
 // Only the one this app tracks a stat for is modelled.

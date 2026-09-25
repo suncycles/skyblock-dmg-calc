@@ -23,10 +23,6 @@ export function emptyBuffs() {
   return Object.fromEntries(BUFF_ITEMS.map((b) => [b.id, false]));
 }
 
-export function hasAnyBuff(buffs) {
-  return BUFF_ITEMS.some((b) => !!buffs?.[b.id]);
-}
-
 // The Ragnarock whose Strength the buff copies: the one from the last Hypixel import, or - for a
 // manually built loadout with no import - an equipped one.
 // First match wins; an account holding two copies is not disambiguated by Strength.

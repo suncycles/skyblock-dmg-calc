@@ -38,7 +38,9 @@ export function ItemDataProvider({ children }) {
   const refresh = useCallback(async () => {
     setStatus('Refreshing...');
     try {
-      const res = await fetch(`${WORKER_BASE_URL}/api/refresh`, { method: 'POST' });
+      // Re-reads the catalog, skipping the browser's cached copy. POST /api/refresh is admin-only.
+      const res = await fetch(`${WORKER_BASE_URL}/api/items`, { cache: 'reload' });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       setItemData(data);
       setStatus(describeStatus(data));

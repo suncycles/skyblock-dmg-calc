@@ -109,6 +109,8 @@ export default function Landing() {
     hasJellyfishPet,
     useMasterMode,
     mageMode,
+    dungeonClass,
+    dungeonClassLevel,
     setGodPotionActive,
     setGodPotionMixin,
     editAllArmor,
@@ -243,30 +245,37 @@ export default function Landing() {
     localStorage.setItem(SAVED_LOADOUTS_KEY, JSON.stringify(next));
   }
 
+  // What Save and Export both encode.
+  function currentEncodableState() {
+    return {
+      loadout,
+      targetMobs,
+      attributes,
+      playerStats,
+      godPotionActive,
+      godPotionMixin,
+      useDungeonizedStats,
+      useMasterMode,
+      mageMode,
+      dungeonClass,
+      dungeonClassLevel,
+      miscStats,
+      mobHpPercent,
+      infernalCrimsonStacks,
+      swarmMobs,
+      comboKills,
+      legionPlayers,
+      blazeCrimsonIsle,
+    };
+  }
+
   // Encodes the current build (reusing the share-link codec) and stores it under the typed name.
   async function handleSaveLoadout() {
     const name = newLoadoutName.trim();
     if (!name) return;
     setSaveStatus('Saving...');
     try {
-      const code = await encodeLoadout({
-        loadout,
-        targetMobs,
-        attributes,
-        playerStats,
-        godPotionActive,
-        godPotionMixin,
-        useDungeonizedStats,
-        useMasterMode,
-        mageMode,
-        miscStats,
-        mobHpPercent,
-        infernalCrimsonStacks,
-        swarmMobs,
-        comboKills,
-        legionPlayers,
-        blazeCrimsonIsle,
-      });
+      const code = await encodeLoadout(currentEncodableState());
       const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, code, savedAt: Date.now() };
       persistSavedLoadouts([...savedLoadouts, entry]);
       setNewLoadoutName('');
@@ -314,24 +323,7 @@ export default function Landing() {
   async function handleExportLoadout() {
     setExportStatus('Copying...');
     try {
-      const code = await encodeLoadout({
-        loadout,
-        targetMobs,
-        attributes,
-        playerStats,
-        godPotionActive,
-        godPotionMixin,
-        useDungeonizedStats,
-        useMasterMode,
-        mageMode,
-        miscStats,
-        mobHpPercent,
-        infernalCrimsonStacks,
-        swarmMobs,
-        comboKills,
-        legionPlayers,
-        blazeCrimsonIsle,
-      });
+      const code = await encodeLoadout(currentEncodableState());
       const shortCode = await shortenLoadoutCode(code);
       await navigator.clipboard.writeText(`${window.location.origin}/loadout/${shortCode}`);
       setExportStatus('Copied!');

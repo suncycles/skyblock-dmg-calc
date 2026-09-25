@@ -112,9 +112,6 @@ export const ABILITY_DAMAGE_CATACOMBS_STAR_PERCENT_PER_STAR = 10;
 // Circled-digit glyph for a given Master Star count (1-5), for UI display - not part of any real item lore.
 export const MASTER_STAR_DIGIT_GLYPHS = ['', '➊', '➋', '➌', '➍', '➎'];
 
-// Green - distinct from Books' yellow (e), Art of War/Peace's gold (6), Reforges' blue (9), Special weapons' aqua (b).
-export const STAR_COLOR = 'a';
-
 function stripColor(line) {
   return line.replace(/§./g, '');
 }

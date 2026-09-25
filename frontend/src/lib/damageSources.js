@@ -1241,47 +1241,49 @@ function collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, 
 export async function collectDamageSources(
   loadout,
   itemData,
-  playerStats,
-  godPotionActive,
-  attributes,
-  miscStats,
-  mobHpPercent = 100,
-  infernalCrimsonStacks = INFERNAL_CRIMSON_MAX_STACKS,
-  useDungeonizedStats = false,
-  swarmMobs = 1,
-  comboKills = 1,
-  legionPlayers = 0,
-  blazeCrimsonIsle = false,
-  bestiaryMaxedMobs = null,
-  godPotionMixin = 'none',
-  maxedCollectionsCount = 0,
-  // One trailing object rather than four more positional slots on an already-long list -
-  // { levels: {power,time,stone,wisdom}, forbiddenBlessingLevel, masterSkullTier, paulBuff }.
-  // See lib/dungeonBlessing.js; only read while useDungeonizedStats is on.
-  blessing = null,
-  // The account's Essence-shop perk levels, {perkKey: level} - see lib/essencePerks.js. Imported
-  // only, never typed; null for a manually-built loadout.
-  essencePerks = null,
-  // Whether the selected target lives on a Mining Island (lib/miningIslands.js). Derived from the
-  // target mob at the call site and passed in, exactly as blazeCrimsonIsle above is - this
-  // function never receives the mob itself.
-  onMiningIsland = false,
-  // Account-wide pet OWNERSHIP, not the equipped pet - a Jellyfish in the pet menu upgrades the
-  // Dungeon Potion from Tier VII to Jellyfish VII (see lib/godPotion.js).
-  hasJellyfishPet = false,
-  // Player-applied debuffs on the TARGET - { iceSpray, lastBreath, lethality }, see
-  // lib/mobDebuffs.js. Nothing here touches the player's own stats, so this is stashed on the
-  // result untouched for finalDamage.js to apply alongside the mob's own Defense/Damage
-  // Reduction, exactly as isGriffinPet below is.
-  debuffs = null,
-  // Item buffs - { ragnarock, swordOfBadHealth, weirderTuba } toggles, see lib/buffs.js.
-  buffs = null,
-  // The last import's weapon inventory ({item, modifiers} entries) - only read to find the
-  // Ragnarock whose own Strength its buff copies.
-  importedWeapons = null,
-  // The picked Catacombs class - { id, level }, see lib/dungeonClass.js. Only read while
-  // useDungeonizedStats is on, as blessing above is.
-  dungeonClass = null,
+  // Named options; any left out takes its default.
+  {
+    playerStats,
+    godPotionActive,
+    attributes,
+    miscStats,
+    mobHpPercent = 100,
+    infernalCrimsonStacks = INFERNAL_CRIMSON_MAX_STACKS,
+    useDungeonizedStats = false,
+    swarmMobs = 1,
+    comboKills = 1,
+    legionPlayers = 0,
+    blazeCrimsonIsle = false,
+    bestiaryMaxedMobs = null,
+    godPotionMixin = 'none',
+    maxedCollectionsCount = 0,
+    // { levels: {power,time,stone,wisdom}, forbiddenBlessingLevel, masterSkullTier, paulBuff }.
+    // See lib/dungeonBlessing.js; only read while useDungeonizedStats is on.
+    blessing = null,
+    // The account's Essence-shop perk levels, {perkKey: level} - see lib/essencePerks.js. Imported
+    // only, never typed; null for a manually-built loadout.
+    essencePerks = null,
+    // Whether the selected target lives on a Mining Island (lib/miningIslands.js). Derived from the
+    // target mob at the call site and passed in, exactly as blazeCrimsonIsle above is - this
+    // function never receives the mob itself.
+    onMiningIsland = false,
+    // Account-wide pet OWNERSHIP, not the equipped pet - a Jellyfish in the pet menu upgrades the
+    // Dungeon Potion from Tier VII to Jellyfish VII (see lib/godPotion.js).
+    hasJellyfishPet = false,
+    // Player-applied debuffs on the TARGET - { iceSpray, lastBreath, lethality }, see
+    // lib/mobDebuffs.js. Nothing here touches the player's own stats, so this is stashed on the
+    // result untouched for finalDamage.js to apply alongside the mob's own Defense/Damage
+    // Reduction, exactly as isGriffinPet below is.
+    debuffs = null,
+    // Item buffs - { ragnarock, swordOfBadHealth, weirderTuba } toggles, see lib/buffs.js.
+    buffs = null,
+    // The last import's weapon inventory ({item, modifiers} entries) - only read to find the
+    // Ragnarock whose own Strength its buff copies.
+    importedWeapons = null,
+    // The picked Catacombs class - { id, level }, see lib/dungeonClass.js. Only read while
+    // useDungeonizedStats is on, as blessing above is.
+    dungeonClass = null,
+  } = {},
 ) {
   // A held Tier Boost raises the pet's rarity. Resolved once here, so every pet read below - its
   // stat curve, rarity-gated perks, lore, and the petEntriesCache key - sees the boosted rarity.

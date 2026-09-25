@@ -4,6 +4,7 @@ import { emptyModifiers, emptyPetModifiers, emptyAccessoryModifiers } from './de
 import { WORKER_BASE_URL } from './apiConfig';
 import { INFERNAL_CRIMSON_MAX_STACKS } from './armorSetBonuses';
 import { GOD_POTION_MIXINS } from './godPotion';
+import { isDungeonClassId } from './dungeonClass';
 
 /* Encodes the whole build into one URL-safe string and decodes it back, powering the Loadouts
    Export/Import buttons and the /loadout/:code share-link route. Only item.id, petId + tier and the
@@ -97,6 +98,8 @@ function buildEncodableState({
   useDungeonizedStats,
   useMasterMode,
   mageMode,
+  dungeonClass,
+  dungeonClassLevel,
   miscStats,
   mobHpPercent,
   infernalCrimsonStacks,
@@ -143,6 +146,9 @@ function buildEncodableState({
     useDungeonizedStats: !!useDungeonizedStats,
     useMasterMode: !!useMasterMode,
     mageMode: !!mageMode,
+    // Optional fields, so FORMAT_VERSION stays 2: a link without them falls back to mageMode.
+    dungeonClass: isDungeonClassId(dungeonClass) ? dungeonClass : undefined,
+    dungeonClassLevel: Number.isFinite(dungeonClassLevel) ? dungeonClassLevel : undefined,
     miscStats: trimZeros(miscStats),
     mobHpPercent: mobHpPercent ?? 100,
     infernalCrimsonStacks: infernalCrimsonStacks ?? INFERNAL_CRIMSON_MAX_STACKS,
@@ -215,6 +221,8 @@ function expandState(compact, itemData) {
     useDungeonizedStats: !!compact.useDungeonizedStats,
     useMasterMode: !!compact.useMasterMode,
     mageMode: !!compact.mageMode,
+    dungeonClass: isDungeonClassId(compact.dungeonClass) ? compact.dungeonClass : undefined,
+    dungeonClassLevel: Number.isFinite(compact.dungeonClassLevel) ? compact.dungeonClassLevel : undefined,
     miscStats: compact.miscStats || {},
     mobHpPercent: compact.mobHpPercent ?? 100,
     infernalCrimsonStacks: compact.infernalCrimsonStacks ?? INFERNAL_CRIMSON_MAX_STACKS,
@@ -240,55 +248,38 @@ function base64UrlToBytes(str) {
   return bytes;
 }
 
-async function readAllChunks(readable) {
+// A real build inflates to a few KB. The cap stops a crafted link from inflating to gigabytes and
+// taking the tab down with it.
+const MAX_DECODED_BYTES = 1_000_000;
+
+// Runs bytes through a (De)CompressionStream. pipeThrough owns the writer, so bad input rejects once,
+// at read, rather than also leaving an unhandled write()/close() rejection behind.
+async function transform(bytes, stream) {
+  const reader = new Blob([bytes]).stream().pipeThrough(stream).getReader();
   const chunks = [];
   let total = 0;
-  const reader = readable.getReader();
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    chunks.push(value);
     total += value.length;
+    if (total > MAX_DECODED_BYTES) {
+      await reader.cancel();
+      throw new Error('Loadout code is too large.');
+    }
+    chunks.push(value);
   }
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return result;
+  return new Uint8Array(await new Blob(chunks).arrayBuffer());
 }
 
-async function compress(bytes) {
-  const stream = new CompressionStream('deflate-raw');
-  const writer = stream.writable.getWriter();
-  writer.write(bytes);
-  writer.close();
-  return readAllChunks(stream.readable);
-}
-
-async function decompressDeflateRaw(bytes) {
-  const stream = new DecompressionStream('deflate-raw');
-  const writer = stream.writable.getWriter();
-  writer.write(bytes);
-  writer.close();
-  return readAllChunks(stream.readable);
-}
-
-async function decompressGzip(bytes) {
-  const stream = new DecompressionStream('gzip');
-  const writer = stream.writable.getWriter();
-  writer.write(bytes);
-  writer.close();
-  return readAllChunks(stream.readable);
+function compress(bytes) {
+  return transform(bytes, new CompressionStream('deflate-raw'));
 }
 
 // v1 links were gzip-wrapped, and gzip's 2-byte magic number (0x1f 0x8b) identifies them
-// unambiguously, since raw deflate has no header - so a byte check routes each format to the right
-// decompressor without a separate URL shape.
-async function decompress(bytes) {
-  if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return decompressGzip(bytes);
-  return decompressDeflateRaw(bytes);
+// unambiguously, since raw deflate has no header.
+function decompress(bytes) {
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+  return transform(bytes, new DecompressionStream(isGzip ? 'gzip' : 'deflate-raw'));
 }
 
 export async function encodeLoadout(state) {

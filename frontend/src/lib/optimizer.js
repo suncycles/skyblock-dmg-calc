@@ -752,32 +752,30 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   // targets (lib/miningIslands.js).
   const onMiningIsland = isMiningIslandMob(mob?.name);
 
-  const sources = await collectDamageSources(
-    loadout,
-    itemData,
-    build.playerStats,
-    build.godPotionActive,
-    build.attributes,
-    build.miscStats,
+  const sources = await collectDamageSources(loadout, itemData, {
+    playerStats: build.playerStats,
+    godPotionActive: build.godPotionActive,
+    attributes: build.attributes,
+    miscStats: build.miscStats,
     mobHpPercent,
-    build.infernalCrimsonStacks,
-    modeConfig.useDungeonizedStats,
-    build.swarmMobs,
-    build.comboKills,
-    build.legionPlayers,
+    infernalCrimsonStacks: build.infernalCrimsonStacks,
+    useDungeonizedStats: modeConfig.useDungeonizedStats,
+    swarmMobs: build.swarmMobs,
+    comboKills: build.comboKills,
+    legionPlayers: build.legionPlayers,
     blazeCrimsonIsle,
-    build.bestiaryMaxedMobs,
-    build.godPotionMixin,
-    build.maxedCollectionsCount,
-    build.blessing,
-    build.essencePerks,
+    bestiaryMaxedMobs: build.bestiaryMaxedMobs,
+    godPotionMixin: build.godPotionMixin,
+    maxedCollectionsCount: build.maxedCollectionsCount,
+    blessing: build.blessing,
+    essencePerks: build.essencePerks,
     onMiningIsland,
-    build.hasJellyfishPet,
-    build.debuffs,
-    build.buffs,
-    build.importedWeapons,
-    { id: build.dungeonClass, level: build.dungeonClassLevel },
-  );
+    hasJellyfishPet: build.hasJellyfishPet,
+    debuffs: build.debuffs,
+    buffs: build.buffs,
+    importedWeapons: build.importedWeapons,
+    dungeonClass: { id: build.dungeonClass, level: build.dungeonClassLevel },
+  });
 
   if (modeConfig.metric === 'ability') {
     const ability = computeAbilityDamage(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);

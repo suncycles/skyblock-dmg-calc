@@ -1576,6 +1576,45 @@ try {
     for (const root of roots) walk(root);
     assert.deepEqual(offenders, [], `use a plain hyphen instead:\n  ${offenders.slice(0, 10).join('\n  ')}`);
   });
+
+  const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
+
+  // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the
+  // old mageMode flag was encoded, so an Archer or Berserker build opened as Healer/Tank.
+  await check('Share links keep the Dungeon class and level', async () => {
+    const code = await loadoutCode.encodeLoadout({ loadout: {}, dungeonClass: 'archer', dungeonClassLevel: 37 });
+    const decoded = await loadoutCode.decodeLoadoutCode(code, EMPTY_ITEM_DATA);
+    assert.equal(decoded.dungeonClass, 'archer');
+    assert.equal(decoded.dungeonClassLevel, 37);
+    const legacy = await loadoutCode.decodeLoadoutCode(await loadoutCode.encodeLoadout({ loadout: {}, mageMode: true }), EMPTY_ITEM_DATA);
+    assert.equal(legacy.dungeonClass, undefined, 'a link without the class leaves it to the mageMode fallback');
+    assert.equal(legacy.mageMode, true);
+  });
+
+  // 52. Decoding untrusted links: a crafted blob stops at the size cap instead of inflating to
+  // gigabytes, and a short id tried as a blob first fails without an unhandled promise rejection.
+  await check('Share link decoding is capped and leaves no unhandled rejections', async () => {
+    const realFetch = globalThis.fetch;
+    let unhandled = 0;
+    const onUnhandled = () => unhandled++;
+    process.on('unhandledRejection', onUnhandled);
+    // The Worker fallback for short ids is stubbed out: this check never touches the network.
+    globalThis.fetch = async () => new Response('{}', { status: 404 });
+    try {
+      const zeros = new Blob([new Uint8Array(5_000_000)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      const bomb = new Uint8Array(await new Response(zeros).arrayBuffer());
+      let binary = '';
+      for (const b of bomb) binary += String.fromCharCode(b);
+      const bombCode = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      await assert.rejects(loadoutCode.decodeLoadoutCode(bombCode, EMPTY_ITEM_DATA), /too large/);
+      await assert.rejects(loadoutCode.decodeLoadoutCode('Ab3dE9xz', EMPTY_ITEM_DATA));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.equal(unhandled, 0, 'no unhandled rejections');
+    } finally {
+      globalThis.fetch = realFetch;
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
 } finally {
   await server.close();
 }

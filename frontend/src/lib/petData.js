@@ -23,7 +23,6 @@ export function getMaxPetLevel(petId) {
 // Golden Dragon's Shining Scales perk: +11.1 Strength/+2.2 Magic Find per digit of Gold
 // Collection, capped at 100M. Not pet-level-scaled. Only Strength is tracked (Magic Find has no aggregate total).
 export const SHINING_SCALES_STRENGTH_PER_DIGIT = 11.1;
-export const SHINING_SCALES_MAGIC_FIND_PER_DIGIT = 2.2; // not tracked - reference only
 export const SHINING_SCALES_MAX_GOLD_COLLECTION = 100_000_000;
 
 // Legendary Treasure's %damage-per-million-bank-coins bonus caps per the item's own lore (a

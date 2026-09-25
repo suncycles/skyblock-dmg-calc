@@ -11,6 +11,7 @@ import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
 import { BASE_STAT_KEYS, Keyworded, round1, round4 } from '../lib/damageFormat';
 import { decodeLoadoutCode } from '../lib/loadoutCode';
+import { DEFAULT_DUNGEON_CLASS } from '../lib/dungeonClass';
 import { loadSavedLoadoutsFromStorage, useSavedLoadoutHelmetPreviews } from '../lib/savedLoadouts';
 import { formatItemName } from '../lib/mcText';
 import PageHeader from '../components/PageHeader';
@@ -58,6 +59,7 @@ function useCurrentBuildState(build) {
       mageMode: build.mageMode,
       dungeonClass: build.dungeonClass,
       dungeonClassLevel: build.dungeonClassLevel,
+      dungeonClassLevels: build.dungeonClassLevels,
       mobHpPercent: build.mobHpPercent,
       infernalCrimsonStacks: build.infernalCrimsonStacks,
       swarmMobs: build.swarmMobs,
@@ -89,6 +91,9 @@ function useCurrentBuildState(build) {
       build.useDungeonizedStats,
       build.useMasterMode,
       build.mageMode,
+      build.dungeonClass,
+      build.dungeonClassLevel,
+      build.dungeonClassLevels,
       build.mobHpPercent,
       build.infernalCrimsonStacks,
       build.swarmMobs,
@@ -157,34 +162,36 @@ function useLoadoutResults(selections, itemData, currentState, savedLoadouts, is
           setResultsByKey((prev) => ({ ...prev, [selection]: { state: null, result: null, missing: false } }));
           return;
         }
-        const result = await collectDamageSources(
-          state.loadout,
-          itemData,
-          state.playerStats,
-          state.godPotionActive,
-          state.attributes,
-          state.miscStats,
-          state.mobHpPercent,
-          state.infernalCrimsonStacks,
-          state.useDungeonizedStats,
-          state.swarmMobs,
-          state.comboKills,
-          state.legionPlayers,
+        // A save from before the class field: same fallback as loadFullState, at the viewer's own
+        // level for that class.
+        state.dungeonClass ??= state.mageMode ? 'mage' : DEFAULT_DUNGEON_CLASS;
+        state.dungeonClassLevel ??= currentState.dungeonClassLevels?.[state.dungeonClass] ?? 0;
+        const result = await collectDamageSources(state.loadout, itemData, {
+          playerStats: state.playerStats,
+          godPotionActive: state.godPotionActive,
+          attributes: state.attributes,
+          miscStats: state.miscStats,
+          mobHpPercent: state.mobHpPercent,
+          infernalCrimsonStacks: state.infernalCrimsonStacks,
+          useDungeonizedStats: state.useDungeonizedStats,
+          swarmMobs: state.swarmMobs,
+          comboKills: state.comboKills,
+          legionPlayers: state.legionPlayers,
           // Same derivation as DamageSources.jsx and optimizer.js: an Infernal or Magmatic target
           // turns the Blaze pet's Crimson Isle bonus on for every compared side.
-          state.blazeCrimsonIsle || isCrimsonIsleTarget,
-          state.bestiaryMaxedMobs,
-          state.godPotionMixin,
-          state.maxedCollectionsCount,
-          state.blessing,
-          state.essencePerks,
-          isMiningIslandTarget,
-          state.hasJellyfishPet,
-          state.debuffs,
-          state.buffs,
-          state.importedWeapons,
-          { id: state.dungeonClass, level: state.dungeonClassLevel },
-        );
+          blazeCrimsonIsle: state.blazeCrimsonIsle || isCrimsonIsleTarget,
+          bestiaryMaxedMobs: state.bestiaryMaxedMobs,
+          godPotionMixin: state.godPotionMixin,
+          maxedCollectionsCount: state.maxedCollectionsCount,
+          blessing: state.blessing,
+          essencePerks: state.essencePerks,
+          onMiningIsland: isMiningIslandTarget,
+          hasJellyfishPet: state.hasJellyfishPet,
+          debuffs: state.debuffs,
+          buffs: state.buffs,
+          importedWeapons: state.importedWeapons,
+          dungeonClass: { id: state.dungeonClass, level: state.dungeonClassLevel },
+        });
         if (cancelled || tokensRef.current[selection] !== token) return;
         setResultsByKey((prev) => ({ ...prev, [selection]: { state, result, missing: false } }));
       })();

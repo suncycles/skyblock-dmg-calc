@@ -11,7 +11,8 @@
    Routes:
      GET  /api/items            -> cached catalog + coin costs, refreshed first if stale (the
                                     enchant level cache is served as-is)
-     POST /api/refresh          -> forces a refetch and advances the enchant rebuild by one budget
+     POST /api/refresh          -> forces a refetch and advances the enchant rebuild by one budget.
+                                    Needs "Authorization: Bearer <REFRESH_TOKEN>".
      GET  /api/hypixel/import   -> resolves ?username and returns worn armor/equipment/pet, weapon
                                     candidates from Inventory/Ender Chest/Backpacks, Wardrobe sets,
                                     pet level, attribute levels, skills and Accessory Power
@@ -19,7 +20,8 @@
      POST /api/loadout          -> stores an encoded loadout blob under a short id, returns { id }
      GET  /api/loadout/:id      -> resolves a short id back to { code }
 
-   Requires a KV namespace bound as CACHE (see wrangler.toml). */
+   Requires a KV namespace bound as CACHE, rate limiters bound as IMPORT_LIMITER and SHARE_LIMITER
+   (see wrangler.toml), and the HYPIXEL_API_KEY and REFRESH_TOKEN secrets. */
 
 import weapons from "./data/weapons.json";
 import armor from "./data/armor.json";
@@ -40,8 +42,8 @@ const NEU_REFORGESTONES_URL = "https://raw.githubusercontent.com/NotEnoughUpdate
 // Per-pet, per-rarity stat table (level 1/100 checkpoints - frontend interpolates in between).
 const NEU_PETNUMS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json";
 
-// Attribute shard rarity/threshold table and skill XP-per-level costs, fetched per request for the
-// import's stacks->level and xp->level conversions.
+// Attribute shard rarity/threshold table and skill XP-per-level costs, for the import's stacks->level
+// and xp->level conversions.
 const NEU_ATTRIBUTE_SHARDS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/attribute_shards.json";
 const NEU_LEVELING_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/leveling.json";
 // Hypixel's live skill resource, used only for each skill's max level. leveling.json still supplies
@@ -152,81 +154,128 @@ const LOADOUT_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy
 const LOADOUT_ID_LENGTH = 8;
 const MAX_LOADOUT_CODE_LENGTH = 20000; // generous headroom over any real encoded build, blocks abuse
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type"
-};
+// Browsers may only call this Worker from the site itself, its preview deploys, or a local dev
+// server. Scripts ignore CORS; the rate limiters cover those.
+const ALLOWED_ORIGIN = /^(https:\/\/([a-z0-9-]+\.)?skydmg\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;
+const DEFAULT_ORIGIN = "https://skydmg.pages.dev";
+
+// Input shapes accepted at the boundary. A loadout code is exactly what encodeLoadout emits
+// (base64url); Hypixel keys profile members by the undashed lowercase uuid.
+const USERNAME_RE = /^[A-Za-z0-9_]{1,16}$/;
+const UUID_RE = /^[0-9a-f]{32}$/;
+const LOADOUT_ID_RE = new RegExp(`^[A-Za-z0-9]{${LOADOUT_ID_LENGTH}}$`);
+const LOADOUT_CODE_RE = /^[A-Za-z0-9_-]+$/;
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: CORS_HEADERS });
+    let res;
+    try {
+      res = await route(request, env, ctx);
+    } catch (err) {
+      console.error("unhandled:", err);
+      res = jsonResponse({ error: "Internal error" }, 500);
     }
-
-    if (url.pathname === "/api/items" && request.method === "GET") {
-      return handleGetItems(env);
-    }
-
-    if (url.pathname === "/api/refresh" && request.method === "POST") {
-      return handleRefresh(env);
-    }
-
-    if (url.pathname === "/api/hypixel/import" && request.method === "GET") {
-      return handleHypixelImport(url, env);
-    }
-
-    if (url.pathname === "/api/loadout" && request.method === "POST") {
-      return handleCreateLoadoutLink(request, env);
-    }
-
-    if (url.pathname.startsWith("/api/loadout/") && request.method === "GET") {
-      return handleGetLoadoutLink(url, env);
-    }
-
-    return jsonResponse({ error: "Not found" }, 404);
+    // Set here, once, so errors and preflights carry CORS headers too.
+    const origin = request.headers.get("Origin") || "";
+    res.headers.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN.test(origin) ? origin : DEFAULT_ORIGIN);
+    res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.headers.set("Access-Control-Allow-Headers", "Content-Type");
+    res.headers.set("Vary", "Origin");
+    return res;
   }
 };
+
+async function route(request, env, ctx) {
+  const url = new URL(request.url);
+  const { pathname } = url;
+  const method = request.method;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+
+  if (method === "OPTIONS") return new Response(null, { status: 204 });
+
+  if (pathname === "/api/items" && method === "GET") return handleGetItems(env, ctx);
+
+  if (pathname === "/api/refresh" && method === "POST") {
+    // Admin only: one call spends ~50 subrequests and 3 KV writes.
+    if (!isAdmin(request, env)) return jsonResponse({ error: "Unauthorized" }, 401);
+    return handleRefresh(env);
+  }
+
+  if (pathname === "/api/hypixel/import" && method === "GET") {
+    // Every import spends the Hypixel key's own rate limit.
+    if (!(await env.IMPORT_LIMITER.limit({ key: ip })).success) {
+      return jsonResponse({ error: "Too many imports, wait a minute and try again", code: "rate_limited" }, 429);
+    }
+    return handleHypixelImport(url, env);
+  }
+
+  if (pathname === "/api/loadout" && method === "POST") {
+    // Every share link is a permanent KV write.
+    if (!(await env.SHARE_LIMITER.limit({ key: ip })).success) {
+      return jsonResponse({ error: "Too many share links, wait a minute and try again" }, 429);
+    }
+    return handleCreateLoadoutLink(request, env);
+  }
+
+  if (pathname.startsWith("/api/loadout/") && method === "GET") return handleGetLoadoutLink(url, env);
+
+  return jsonResponse({ error: "Not found" }, 404);
+}
+
+function isAdmin(request, env) {
+  if (!env.REFRESH_TOKEN) return false;
+  const encoder = new TextEncoder();
+  const given = encoder.encode(request.headers.get("Authorization") || "");
+  const expected = encoder.encode(`Bearer ${env.REFRESH_TOKEN}`);
+  // Constant-time compare, which needs equal lengths.
+  return given.byteLength === expected.byteLength && crypto.subtle.timingSafeEqual(given, expected);
+}
 
 // 30 minutes: long enough to skip re-downloading the ~728KB payload within a session, short enough
 // that a POST /api/refresh reaches new tabs well inside the KV's 6h TTL.
 const ITEMS_RESPONSE_CACHE_HEADERS = { "Cache-Control": "public, max-age=1800" };
 
-async function handleGetItems(env) {
+// A stale catalog is still served, and rebuilt in the background, so no request waits on GitHub.
+// Only a cold cache builds inline.
+async function handleGetItems(env, ctx) {
   const cached = await env.CACHE.get(CACHE_KEY, "json");
-
-  if (cached && Date.now() - cached.lastFetched < CACHE_TTL_MS) {
-    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants)]);
-    return jsonResponse(withExtras(cached, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
+  if (cached) {
+    if (Date.now() - cached.lastFetched >= CACHE_TTL_MS) {
+      ctx.waitUntil(rebuildCatalog(env).catch((err) => console.error("handleGetItems: background rebuild failed:", err)));
+    }
+    return respondWithCatalog(env, cached);
   }
-
   try {
-    const fresh = await buildFreshData();
-    await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, fresh), resolveEnchantLevelData(env, fresh.enchants)]);
-    return jsonResponse(withExtras(fresh, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
+    return await respondWithCatalog(env, await rebuildCatalog(env));
   } catch (err) {
     console.error("handleGetItems: buildFreshData failed:", err);
-    if (cached) {
-      const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, cached), resolveEnchantLevelData(env, cached.enchants)]);
-      return jsonResponse(withExtras(cached, costs, enchantLevelData), 200, ITEMS_RESPONSE_CACHE_HEADERS);
-    }
-    return jsonResponse({ error: "Failed to fetch item data", detail: String(err) }, 502);
+    return jsonResponse({ error: "Failed to fetch item data" }, 502);
   }
 }
 
 async function handleRefresh(env) {
   try {
-    const fresh = await buildFreshData();
-    await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
-    const [costs, enchantLevelData] = await Promise.all([resolveCosts(env, fresh, true), resolveEnchantLevelData(env, fresh.enchants, true)]);
-    return jsonResponse(withExtras(fresh, costs, enchantLevelData));
+    return await respondWithCatalog(env, await rebuildCatalog(env), true);
   } catch (err) {
     console.error("handleRefresh: buildFreshData failed:", err);
-    return jsonResponse({ error: "Failed to refresh item data", detail: String(err) }, 502);
+    return jsonResponse({ error: "Failed to refresh item data" }, 502);
   }
+}
+
+async function rebuildCatalog(env) {
+  const fresh = await buildFreshData();
+  await env.CACHE.put(CACHE_KEY, JSON.stringify(fresh));
+  return fresh;
+}
+
+// The catalog plus its two separately cached extras. `force` rebuilds both extras, as POST
+// /api/refresh does, and skips the browser cache header.
+async function respondWithCatalog(env, catalog, force = false) {
+  const [costs, enchantLevelData] = await Promise.all([
+    resolveCosts(env, catalog, force),
+    resolveEnchantLevelData(env, catalog.enchants, force),
+  ]);
+  return jsonResponse(withExtras(catalog, costs, enchantLevelData), 200, force ? {} : ITEMS_RESPONSE_CACHE_HEADERS);
 }
 
 // Mints an id and retries if it is taken. 8 characters from a 62-character alphabet makes a
@@ -241,6 +290,7 @@ async function handleCreateLoadoutLink(request, env) {
   const code = typeof body?.code === "string" ? body.code.trim() : "";
   if (!code) return jsonResponse({ error: "Missing code" }, 400);
   if (code.length > MAX_LOADOUT_CODE_LENGTH) return jsonResponse({ error: "Loadout too large" }, 413);
+  if (!LOADOUT_CODE_RE.test(code)) return jsonResponse({ error: "Invalid code" }, 400);
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = randomLoadoutId();
@@ -262,19 +312,34 @@ function randomLoadoutId() {
 
 async function handleGetLoadoutLink(url, env) {
   const id = url.pathname.slice("/api/loadout/".length);
-  if (!id) return jsonResponse({ error: "Missing id" }, 400);
+  // Rejected before KV sees it: KV throws on a key over 512 bytes.
+  if (!LOADOUT_ID_RE.test(id)) return jsonResponse({ error: "Loadout not found" }, 404);
   const code = await env.CACHE.get(LOADOUT_KEY_PREFIX + id);
   if (!code) return jsonResponse({ error: "Loadout not found" }, 404);
   return jsonResponse({ code });
 }
 
+// Fetches and parses JSON, throwing on a non-2xx status so an upstream error page reads as that
+// rather than as a parse error. With `maxAgeMs`, the parsed body is reused for that long by this
+// Worker instance only; a fresh instance fetches again. It holds the parsed value, never a pending
+// promise, since a request awaiting another request's promise can hang on Workers.
+const jsonMemo = new Map();
+async function fetchJson(url, maxAgeMs = 0) {
+  const hit = jsonMemo.get(url);
+  if (hit && Date.now() - hit.at < maxAgeMs) return hit.data;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  const data = await res.json();
+  if (maxAgeMs) jsonMemo.set(url, { at: Date.now(), data });
+  return data;
+}
+
 async function buildFreshData() {
-  const enchantsRes = await fetch(NEU_ENCHANTS_URL);
-  const enchants = await enchantsRes.json();
+  const enchants = await fetchJson(NEU_ENCHANTS_URL);
   const [reforges, reforgeStones, pets] = await Promise.all([
-    fetchReforges(),
+    fetchJson(NEU_REFORGES_URL),
     fetchReforgeStones(),
-    fetchPetNums(),
+    fetchJson(NEU_PETNUMS_URL),
   ]);
 
   return {
@@ -292,11 +357,6 @@ async function buildFreshData() {
     accessoryInnateStats: ACCESSORY_INNATE_STATS_BY_ID,
     lastFetched: Date.now(),
   };
-}
-
-async function fetchPetNums() {
-  const res = await fetch(NEU_PETNUMS_URL);
-  return res.json();
 }
 
 // The same NEU-REPO item-file source lib/enchantEffects.js's client-side probe uses, so a page
@@ -508,11 +568,6 @@ function withExtras(catalog, costs, enchantLevelData) {
   };
 }
 
-async function fetchAttributeShards() {
-  const res = await fetch(NEU_ATTRIBUTE_SHARDS_URL);
-  return res.json();
-}
-
 // Maps this app's Attribute ids (frontend/src/lib/attributes.js's ATTRIBUTE_IDS) to the bazaar
 // shard's internalName without the ";1" suffix, matched by abilityName. 6 of the 17 Ruler shards
 // carry legacy names from before the ability was renamed (Arthropod=ARACHNO, Ender=ENDER,
@@ -607,16 +662,6 @@ function computeAttributeCosts(itemPrices, attributeShards) {
   return { attributeCosts, attributeCostsByLevel };
 }
 
-async function fetchPrices() {
-  const res = await fetch(SKYHELPER_PRICES_URL);
-  return res.json(); // flat { ITEM_ID: coins }
-}
-
-async function fetchEssenceShops() {
-  const res = await fetch(NEU_ESSENCE_SHOPS_URL);
-  return res.json();
-}
-
 // Coin cost to reach each level of every Essence-shop perk: { <perkKey>: [cumulative coins per
 // level] }, index = level - 1. Cumulative, so any jump is cumulative[to-1] - cumulative[from-1].
 // A perk whose essence has no price is omitted rather than shipped as 0, so it reads as unpriced.
@@ -634,11 +679,6 @@ function computeEssencePerkCosts(essenceShops, itemPrices) {
   return out;
 }
 
-async function fetchEssenceCosts() {
-  const res = await fetch(NEU_ESSENCE_COSTS_URL);
-  return res.json();
-}
-
 // { "<star>": coins } for one item, from NEU's per-star material list. Stars 1-3 carry no coin line.
 function parseStarCoinCosts(entry) {
   const out = {};
@@ -652,8 +692,7 @@ function parseStarCoinCosts(entry) {
 }
 
 async function fetchHypixelItems() {
-  const res = await fetch(HYPIXEL_ITEMS_URL);
-  const body = await res.json();
+  const body = await fetchJson(HYPIXEL_ITEMS_URL);
   return body.items || [];
 }
 
@@ -720,11 +759,11 @@ async function resolveCosts(env, catalog, force = false) {
 
   try {
     const [itemPrices, attributeShards, hypixelItems, essenceCosts, essenceShops] = await Promise.all([
-      fetchPrices(),
-      fetchAttributeShards(),
+      fetchJson(SKYHELPER_PRICES_URL), // flat { ITEM_ID: coins }
+      fetchJson(NEU_ATTRIBUTE_SHARDS_URL),
       fetchHypixelItems(),
-      fetchEssenceCosts(),
-      fetchEssenceShops(),
+      fetchJson(NEU_ESSENCE_COSTS_URL),
+      fetchJson(NEU_ESSENCE_SHOPS_URL),
     ]);
     const { attributeCosts, attributeCostsByLevel } = computeAttributeCosts(itemPrices, attributeShards);
 
@@ -772,7 +811,7 @@ async function resolveCosts(env, catalog, force = false) {
     await env.CACHE.put(PRICES_CACHE_KEY, JSON.stringify({ costs, lastFetched: Date.now() }));
     return costs;
   } catch (err) {
-    console.error("resolveCosts: fetchPrices failed:", err);
+    console.error("resolveCosts: price fetch failed:", err);
     return cachedRaw
       ? cachedRaw.costs
       : {
@@ -790,18 +829,12 @@ async function resolveCosts(env, catalog, force = false) {
   }
 }
 
-async function fetchReforges() {
-  const res = await fetch(NEU_REFORGES_URL);
-  return res.json();
-}
-
 // Re-keys reforgestones.json by reforgeName rather than stone item id, keeping stoneId for icons.
 // `nbtModifier` (about 1 entry in 10) is Hypixel's own ExtraAttributes.modifier id where it diverges
 // from a lowercase-underscore of the display name - Bloodshot is "blood_shot", Warped "aote_stone" -
 // so the import can match an account's item back to the right reforge.
 async function fetchReforgeStones() {
-  const res = await fetch(NEU_REFORGESTONES_URL);
-  const stones = await res.json();
+  const stones = await fetchJson(NEU_REFORGESTONES_URL);
 
   const byName = {};
   for (const stone of Object.values(stones)) {
@@ -1050,11 +1083,6 @@ function stripBestiaryColor(s) {
   return (s || "").replace(/§./g, "").trim();
 }
 
-async function fetchBestiary() {
-  const res = await fetch(NEU_BESTIARY_URL);
-  return res.json();
-}
-
 // Mob names (matching this app's MOB_TYPES keys) the account has maxed the Bestiary on, derived from
 // member.bestiary.kills summed per family against that family's own `cap`. Only families whose max
 // tier is 15 or 20 are checked, since those are the ones with a confirmed Strength bonus.
@@ -1075,11 +1103,6 @@ function computeBestiaryMaxedMobs(bestiary, kills) {
     }
   }
   return maxed;
-}
-
-async function fetchCollections() {
-  const res = await fetch(HYPIXEL_COLLECTIONS_URL);
-  return res.json();
 }
 
 // Count of collections the account has taken to the final tier, which "The One" scales with.
@@ -1356,17 +1379,23 @@ function highestClaimedSlayerLevel(bossData) {
   return highest;
 }
 
+const STATIC_RESOURCE_MAX_AGE_MS = 60 * 60 * 1000;
+
 async function handleHypixelImport(url, env) {
   if (!env.HYPIXEL_API_KEY) {
     return jsonResponse({ error: "Hypixel import is not configured (missing API key)", code: "api_key_invalid" }, 500);
   }
 
   const username = url.searchParams.get("username");
-  const uuidParam = url.searchParams.get("uuid");
+  const uuidParam = url.searchParams.get("uuid")?.replace(/-/g, "").toLowerCase() || null;
   const profileParam = url.searchParams.get("profile");
   if (!username && !uuidParam) {
     return jsonResponse({ error: "Provide ?username= or ?uuid=" }, 400);
   }
+  if (username && !USERNAME_RE.test(username)) {
+    return jsonResponse({ error: `No Minecraft account named "${username}"`, code: "invalid_username" }, 404);
+  }
+  if (uuidParam && !UUID_RE.test(uuidParam)) return jsonResponse({ error: "Invalid uuid" }, 400);
 
   let uuid = uuidParam;
   let resolvedUsername = username;
@@ -1465,11 +1494,12 @@ async function handleHypixelImport(url, env) {
         // Magical Power rather than accessory_bag_storage.highest_magical_power, a high-water mark
         // that never drops when accessories leave the bag.
         member.inventory?.bag_contents?.talisman_bag?.data ? decodeInventoryB64(member.inventory.bag_contents.talisman_bag.data) : [],
-        fetch(NEU_ATTRIBUTE_SHARDS_URL).then((r) => r.json()),
-        fetch(NEU_LEVELING_URL).then((r) => r.json()),
-        fetch(HYPIXEL_SKILLS_URL).then((r) => r.json()),
-        fetchBestiary(),
-        fetchCollections(),
+        // Static reference data, reused for an hour rather than downloaded on every import.
+        fetchJson(NEU_ATTRIBUTE_SHARDS_URL, STATIC_RESOURCE_MAX_AGE_MS),
+        fetchJson(NEU_LEVELING_URL, STATIC_RESOURCE_MAX_AGE_MS),
+        fetchJson(HYPIXEL_SKILLS_URL, STATIC_RESOURCE_MAX_AGE_MS),
+        fetchJson(NEU_BESTIARY_URL, STATIC_RESOURCE_MAX_AGE_MS),
+        fetchJson(HYPIXEL_COLLECTIONS_URL, STATIC_RESOURCE_MAX_AGE_MS),
       ]);
 
     const armorResult = {};
@@ -1679,8 +1709,8 @@ async function handleHypixelImport(url, env) {
       maxedCollectionsCount,
     });
   } catch (err) {
-    console.error("handleHypixelImport: failed to decode inventory data:", err);
-    return jsonResponse({ error: "Failed to decode this player's item data", detail: String(err) }, 500);
+    console.error("handleHypixelImport: import failed:", err);
+    return jsonResponse({ error: "Import failed, try again in a minute", code: "import_failed" }, 502);
   }
 }
 
@@ -1689,7 +1719,6 @@ function jsonResponse(obj, status = 200, extraHeaders = {}) {
     status,
     headers: {
       "Content-Type": "application/json",
-      ...CORS_HEADERS,
       ...extraHeaders
     }
   });

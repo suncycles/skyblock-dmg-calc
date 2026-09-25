@@ -25,22 +25,6 @@ import { buildSlotEntry } from './slotSelection';
 // A planner state is the loadout plus the three build-level maps optimizer steps can write to.
 // Attributes/essence perks/the blessing block are not part of the loadout but ARE part of what a
 // candidate was valued against, so a planner that dropped them would mis-rank every later step.
-export function emptyApplyState(build) {
-  return {
-    loadout: build.loadout,
-    playerStats: build.playerStats || {},
-    godPotionActive: !!build.godPotionActive,
-    godPotionMixin: build.godPotionMixin || 'none',
-    hasJellyfishPet: !!build.hasJellyfishPet,
-    attributes: build.attributes || {},
-    essencePerks: build.essencePerks || {},
-    blessing: build.blessing || null,
-    debuffs: build.debuffs || null,
-    buffs: build.buffs || null,
-    importedWeapons: build.importedWeapons || [],
-  };
-}
-
 function withSlotModifiers(state, slot, fn) {
   const entry = state.loadout[slot];
   if (!entry) return state;

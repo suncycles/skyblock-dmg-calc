@@ -471,6 +471,11 @@ export function BuildProvider({ children }) {
   // validate a carried-over reforge against the catalog without every caller passing it in.
   const { itemData } = useItemData();
   const [loadout, setLoadoutRaw] = useState(loadInitial);
+  // The latest loadout, written synchronously by the three setters below. Updaters run against it
+  // once, at call time, rather than inside React's state queue: React may run a queued updater
+  // twice (StrictMode always does in dev), and these updaters push history and write refs and
+  // storage.
+  const loadoutRef = useRef(loadout);
   // Past and future loadout snapshots for Undo/Redo. Refs rather than state: every push and pop
   // happens in the same tick as a setLoadoutRaw call, so canUndo/canRedo read from them during a
   // render that is already happening.
@@ -481,36 +486,34 @@ export function BuildProvider({ children }) {
   // useState setter this replaces, so they all get Undo/Redo tracking without changes. A no-op
   // update - some updaters return `prev` unchanged - is caught by reference equality and not pushed.
   const setLoadout = useCallback((update) => {
-    setLoadoutRaw((prev) => {
-      const next = typeof update === 'function' ? update(prev) : update;
-      if (next === prev) return prev;
-      undoStackRef.current.push(prev);
-      if (undoStackRef.current.length > MAX_LOADOUT_HISTORY) undoStackRef.current.shift();
-      redoStackRef.current = [];
-      return next;
-    });
+    const prev = loadoutRef.current;
+    const next = typeof update === 'function' ? update(prev) : update;
+    if (next === prev) return;
+    undoStackRef.current.push(prev);
+    if (undoStackRef.current.length > MAX_LOADOUT_HISTORY) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    loadoutRef.current = next;
+    setLoadoutRaw(next);
   }, []);
 
   // Undo/redo bypass the tracked `setLoadout` above (that would just push the current state back
   // onto its own undo stack) and move snapshots directly between the two stacks instead.
   const undo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
-    setLoadoutRaw((prev) => {
-      const previous = undoStackRef.current.pop();
-      redoStackRef.current.push(prev);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(previous));
-      return previous;
-    });
+    const previous = undoStackRef.current.pop();
+    redoStackRef.current.push(loadoutRef.current);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(previous));
+    loadoutRef.current = previous;
+    setLoadoutRaw(previous);
   }, []);
 
   const redo = useCallback(() => {
     if (redoStackRef.current.length === 0) return;
-    setLoadoutRaw((prev) => {
-      const next = redoStackRef.current.pop();
-      undoStackRef.current.push(prev);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    const next = redoStackRef.current.pop();
+    undoStackRef.current.push(loadoutRef.current);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    loadoutRef.current = next;
+    setLoadoutRaw(next);
   }, []);
 
   const canUndo = undoStackRef.current.length > 0;
@@ -1600,18 +1603,29 @@ export function BuildProvider({ children }) {
     setDungeonClassState(restoredClass);
     localStorage.setItem(DUNGEON_CLASS_KEY, restoredClass);
     localStorage.setItem(MAGE_MODE_KEY, String(restoredClass === 'mage'));
-    const restoredLevels =
-      state.dungeonClassLevels && typeof state.dungeonClassLevels === 'object'
-        ? state.dungeonClassLevels
-        : { [restoredClass]: clampClassLevel(state.dungeonClassLevel) };
+    // Merged into the levels already saved: a saved or shared build carries one class level at most,
+    // and replacing the whole map would zero every other class.
+    const restoredLevels = loadInitialDungeonClassLevels();
+    if (state.dungeonClassLevels && typeof state.dungeonClassLevels === 'object') {
+      Object.assign(restoredLevels, state.dungeonClassLevels);
+    } else if (state.dungeonClassLevel != null) {
+      restoredLevels[restoredClass] = clampClassLevel(state.dungeonClassLevel);
+    }
     setDungeonClassLevelsState(restoredLevels);
     localStorage.setItem(DUNGEON_CLASS_LEVEL_KEY, JSON.stringify(restoredLevels));
 
-    setDpsModeState(!!state.dpsMode);
-    localStorage.setItem(DPS_MODE_KEY, String(!!state.dpsMode));
-    const nextDpsKind = DPS_KINDS.includes(state.dpsKind) ? state.dpsKind : 'melee';
-    setDpsKindState(nextDpsKind);
-    localStorage.setItem(DPS_KIND_KEY, nextDpsKind);
+    // From here, blocks guarded by `!== undefined` are fields no saved or shared build carries: view
+    // settings and account data from the last Hypixel import. They are kept as they are unless the
+    // incoming state has them.
+    if (state.dpsMode !== undefined) {
+      setDpsModeState(!!state.dpsMode);
+      localStorage.setItem(DPS_MODE_KEY, String(!!state.dpsMode));
+    }
+    if (state.dpsKind !== undefined) {
+      const nextDpsKind = DPS_KINDS.includes(state.dpsKind) ? state.dpsKind : 'melee';
+      setDpsKindState(nextDpsKind);
+      localStorage.setItem(DPS_KIND_KEY, nextDpsKind);
+    }
 
     const nextAttributes = { ...Object.fromEntries(ATTRIBUTE_IDS.map((id) => [id, 0])), ...(state.attributes || {}) };
     setAttributesState(nextAttributes);
@@ -1625,12 +1639,14 @@ export function BuildProvider({ children }) {
     setMobHpPercentState(PINNED_MOB_HP_PERCENT);
     localStorage.setItem(MOB_HP_PERCENT_KEY, String(PINNED_MOB_HP_PERCENT));
 
-    const nextMobHpSelections =
-      state.mobHpSelections && typeof state.mobHpSelections === 'object' && !Array.isArray(state.mobHpSelections)
-        ? state.mobHpSelections
-        : {};
-    setMobHpSelectionsState(nextMobHpSelections);
-    localStorage.setItem(MOB_HP_SELECTIONS_KEY, JSON.stringify(nextMobHpSelections));
+    if (state.mobHpSelections !== undefined) {
+      const nextMobHpSelections =
+        state.mobHpSelections && typeof state.mobHpSelections === 'object' && !Array.isArray(state.mobHpSelections)
+          ? state.mobHpSelections
+          : {};
+      setMobHpSelectionsState(nextMobHpSelections);
+      localStorage.setItem(MOB_HP_SELECTIONS_KEY, JSON.stringify(nextMobHpSelections));
+    }
 
     const clampedStacks = Math.max(
       1,
@@ -1654,17 +1670,23 @@ export function BuildProvider({ children }) {
     setBlazeCrimsonIsleState(!!state.blazeCrimsonIsle);
     localStorage.setItem(BLAZE_CRIMSON_ISLE_KEY, String(!!state.blazeCrimsonIsle));
 
-    const nextBestiaryMaxedMobs = Array.isArray(state.bestiaryMaxedMobs) ? state.bestiaryMaxedMobs : [];
-    setBestiaryMaxedMobsState(nextBestiaryMaxedMobs);
-    localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(nextBestiaryMaxedMobs));
+    if (state.bestiaryMaxedMobs !== undefined) {
+      const nextBestiaryMaxedMobs = Array.isArray(state.bestiaryMaxedMobs) ? state.bestiaryMaxedMobs : [];
+      setBestiaryMaxedMobsState(nextBestiaryMaxedMobs);
+      localStorage.setItem(BESTIARY_MAXED_MOBS_KEY, JSON.stringify(nextBestiaryMaxedMobs));
+    }
 
-    const nextCombinedMythologicalBestiaryTiers = Math.max(0, Number(state.combinedMythologicalBestiaryTiers) || 0);
-    setCombinedMythologicalBestiaryTiersState(nextCombinedMythologicalBestiaryTiers);
-    localStorage.setItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY, String(nextCombinedMythologicalBestiaryTiers));
+    if (state.combinedMythologicalBestiaryTiers !== undefined) {
+      const nextCombinedMythologicalBestiaryTiers = Math.max(0, Number(state.combinedMythologicalBestiaryTiers) || 0);
+      setCombinedMythologicalBestiaryTiersState(nextCombinedMythologicalBestiaryTiers);
+      localStorage.setItem(COMBINED_MYTHOLOGICAL_BESTIARY_TIERS_KEY, String(nextCombinedMythologicalBestiaryTiers));
+    }
 
-    const nextMaxedCollectionsCount = Math.max(0, Number(state.maxedCollectionsCount) || 0);
-    setMaxedCollectionsCountState(nextMaxedCollectionsCount);
-    localStorage.setItem(MAXED_COLLECTIONS_COUNT_KEY, String(nextMaxedCollectionsCount));
+    if (state.maxedCollectionsCount !== undefined) {
+      const nextMaxedCollectionsCount = Math.max(0, Number(state.maxedCollectionsCount) || 0);
+      setMaxedCollectionsCountState(nextMaxedCollectionsCount);
+      localStorage.setItem(MAXED_COLLECTIONS_COUNT_KEY, String(nextMaxedCollectionsCount));
+    }
   }, []);
 
   return (

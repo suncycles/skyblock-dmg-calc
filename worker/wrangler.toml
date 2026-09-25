@@ -5,3 +5,14 @@ compatibility_date = "2026-05-03"
 [[kv_namespaces]]
 binding = "CACHE"
 id = "59a793af70824bac985a6365138e5005"
+
+# Per-IP limits on the two endpoints that spend the Hypixel key or write to KV.
+[[ratelimits]]
+name = "IMPORT_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "SHARE_LIMITER"
+namespace_id = "1002"
+simple = { limit = 5, period = 60 }
