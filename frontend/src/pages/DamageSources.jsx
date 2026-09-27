@@ -28,7 +28,7 @@ import { FABLED_REFORGE_ID } from '../lib/damageSources';
 import { FABLED_CRIT_BONUS_MAX_PERCENT } from '../lib/reforges';
 import { MOB_TYPES } from '../lib/mobTypes';
 import { anyMiningIslandTarget } from '../lib/miningIslands';
-import { computeMobDefense, computeMobDefenseMultiplier } from '../lib/mobDefenses';
+import { computeMobDefense, computeMobDefenseMultiplier, computeMobInnateDamageReduction } from '../lib/mobDefenses';
 import { mobDefenseDebuffMultiplier } from '../lib/mobDebuffs';
 import { FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from '../lib/armorSetBonuses';
 import { STAT_LABELS, formatStatValue } from '../lib/reforgeData';
@@ -95,6 +95,23 @@ function MobDefenseNote({ name, types, masterMode, debuffs }) {
       <span className="font-mono">{round4(computeMobDefenseMultiplier(mob, masterMode, shred))}x</span>
     </div>
   );
+}
+
+// The mob's own fixed damage reduction (lib/mobDefenses.js), shown only when non-zero.
+function MobDamageReductionNote({ name, types }) {
+  const percent = computeMobInnateDamageReduction({ name, types });
+  if (!percent) return null;
+  return (
+    <div className="text-[11px] text-neutral-700 flex items-baseline justify-between border-t border-neutral-500/40 pt-1 mt-0.5">
+      <span>Damage Reduction ({percent}%)</span>
+      <span className="font-mono">{round4(1 - percent / 100)}x</span>
+    </div>
+  );
+}
+
+// Hits the simulated fight covers: each row stands in for `weight` hits once a long fight is sampled.
+function fightHits(sim) {
+  return sim.hits.reduce((sum, h) => sum + h.weight, 0);
 }
 
 // Every figure on this page is computed at full HP - see BuildContext's PINNED_MOB_HP_PERCENT,
@@ -683,17 +700,23 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 const simSources = result;
                 if (simSources) {
                   // The graph plots the whole fight, 100% HP to 0, so the window is the mob's
-                  // health rather than a fixed hit count - the simulation stops on death.
-                  sim = simulateHitByHit(
-                    simSources,
-                    { name, types },
-                    loadout,
-                    startingHp,
-                    MOB_HP_PERCENT,
-                    useDungeonizedStats,
-                    useMasterMode,
-                    startingHp ? MAX_SIMULATED_HITS : undefined,
-                  );
+                  // health rather than a fixed hit count - the simulation stops on death. A fight
+                  // longer than the per-hit cap is re-run sampled across its whole length, each row
+                  // then standing in for `weight` hits.
+                  const runSim = (maxSamples) =>
+                    simulateHitByHit(
+                      simSources,
+                      { name, types },
+                      loadout,
+                      startingHp,
+                      MOB_HP_PERCENT,
+                      useDungeonizedStats,
+                      useMasterMode,
+                      startingHp ? MAX_SIMULATED_HITS : undefined,
+                      maxSamples,
+                    );
+                  sim = runSim(null);
+                  if (startingHp && sim.hits.length >= MAX_SIMULATED_HITS) sim = runSim(MAX_SIMULATED_HITS);
                 }
               }
 
@@ -718,7 +741,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               } else {
                 totalDps = dps.total;
                 if (sim?.hasRealHp) {
-                  const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage, 0);
+                  const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage * h.weight, 0);
                   if (sim.elapsedSeconds > 0) totalDps = totalDealt / sim.elapsedSeconds;
                 }
               }
@@ -823,8 +846,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       )}
                       {sim?.hasRealHp && dpsKind === 'melee' && (
                         <div className="text-[10px] italic text-neutral-600">
-                          Averaged over the whole fight ({sim.hits.length} hit
-                          {sim.hits.length === 1 ? '' : 's'}), so stacking and ramps count. The lines above are the
+                          Averaged over the whole fight ({fightHits(sim).toLocaleString()} hit
+                          {fightHits(sim) === 1 ? '' : 's'}), so stacking and ramps count. The lines above are the
                           first hit, so they won't sum to this.
                         </div>
                       )}
@@ -976,6 +999,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       </div>
                     )}
                     <MobDefenseNote name={name} types={types} masterMode={useMasterMode} debuffs={settledDebuffs} />
+                    <MobDamageReductionNote name={name} types={types} />
                   </>
                 )}
               </div>
@@ -1058,6 +1082,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       )}
                     </div>
                     <MobDefenseNote name={name} types={types} masterMode={useMasterMode} debuffs={settledDebuffs} />
+                    <MobDamageReductionNote name={name} types={types} />
                   </>
                 )}
               </div>

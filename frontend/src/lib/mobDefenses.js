@@ -1,6 +1,7 @@
 // Mob-side damage reduction - three fields every mob has:
 //
 // - Damage Reduction: a direct final multiplier on ANY dealt damage (melee, ability, beam, procs).
+//   Each mob's own fixed value (computeMobInnateDamageReduction) plus Mythological immunity.
 // - Magic Resistance: a direct final multiplier on Ability damage only.
 // - Defense: the real Hypixel mob Defense stat, its own final multiplier on damage dealt,
 //   independent of the two above and not merged into either - mult = 1 - Defense/(100+Defense),
@@ -32,22 +33,45 @@ function isInCatacombs(mob) {
   return !!mob?.name && getMobLocations(mob.name).includes('The Catacombs');
 }
 
+// A mob's own fixed damage reduction, on every hit: a stat of the mob, which nothing the player
+// does changes. Every Catacombs mob takes 10% less; these bosses take a further 90% less on top,
+// multiplicatively, so 0.9 * 0.1 = 0.09x (91%). Phase 2 entries are the same fight.
+const CATACOMBS_DAMAGE_REDUCTION = 10;
+const CATACOMBS_BOSS_DAMAGE_REDUCTION = 90;
+const CATACOMBS_BOSSES = new Set([
+  'Necron',
+  'Storm',
+  'Goldor',
+  'Maxor',
+  'Wither Dragon',
+  'Livid',
+  'Sadan',
+  'Bonzo',
+  'Bonzo (Phase 2)',
+  'The Professor',
+  'The Professor (Phase 2)',
+  'Spirit Bear',
+]);
+
+// Percent of damage still taken, kept in whole percents so 91 comes out exact rather than 90.99...
+export function computeMobInnateDamageReduction(mob) {
+  let takenPercent = 100;
+  if (isInCatacombs(mob)) takenPercent = (takenPercent * (100 - CATACOMBS_DAMAGE_REDUCTION)) / 100;
+  if (CATACOMBS_BOSSES.has(mob?.name)) takenPercent = (takenPercent * (100 - CATACOMBS_BOSS_DAMAGE_REDUCTION)) / 100;
+  return 100 - takenPercent;
+}
+
 // Mythological mobs are immune to all damage (100% reduction) unless the
 // equipped pet is a Griffin - the real reason Griffin is the one BiS Diana pet (see
 // DIANA_PET_PROGRESSION in optimizer.js), not just Sacred Strength's Strength bonus.
 export function computeMobDamageReduction(mob, isGriffinPet) {
   if (isMythologicalMob(mob) && !isGriffinPet) return 100;
-  return 0;
+  return computeMobInnateDamageReduction(mob);
 }
 
-// Mythological mobs 50%, any Catacombs-located mob a further/separate 10%
-// (additive - no real mob is currently both Mythological-typed and Catacombs-located, so a real
-// stacking order between the two has never come up).
+// Mythological mobs 50%.
 export function computeMobMagicResistance(mob) {
-  let percent = 0;
-  if (isMythologicalMob(mob)) percent += 50;
-  if (isInCatacombs(mob)) percent += 10;
-  return percent;
+  return isMythologicalMob(mob) ? 50 : 0;
 }
 
 export function computeMobDefense(mob, masterMode) {

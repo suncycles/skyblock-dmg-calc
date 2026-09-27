@@ -89,7 +89,7 @@ export default function Debuffs() {
             onChange={(e) => setLethalityStacks(e.target.value)}
             className="w-full"
           />
-          <span className="text-[11px] text-neutral-600 italic">-{LETHALITY_PERCENT_PER_STACK}% Defense per stack</span>
+          <span className="text-[11px] text-neutral-600 italic">-{LETHALITY_PERCENT_PER_STACK}% of remaining Defense per stack, after Last Breath</span>
         </label>
 
         <div className="text-[12px] text-neutral-700 leading-snug border-t border-neutral-500/40 pt-2">

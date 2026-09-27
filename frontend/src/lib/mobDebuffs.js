@@ -47,13 +47,12 @@ export function lethalityStacks(debuffs) {
   return clampLevel(debuffs?.lethality, LETHALITY_MAX_STACKS);
 }
 
-// What the mob's Defense stat is multiplied BY. Last Breath and Lethality are multiplicative with
-// each other, not additive: at Last Breath 5 + Lethality 4 that's
-// 0.5 * 0.64 = 0.32, i.e. 68% off - NOT the 86% an additive reading would give.
+// What the mob's Defense stat is multiplied BY. Last Breath applies first; then each Lethality
+// stack removes 9% of the Defense left after the one before. At Last Breath 5 + Lethality 4 that's
+// 0.5 * 0.91^4 = 0.343.
 export function mobDefenseDebuffMultiplier(debuffs) {
   const lastBreath = lastBreathLevel(debuffs) * LAST_BREATH_PERCENT_PER_LEVEL;
-  const lethality = lethalityStacks(debuffs) * LETHALITY_PERCENT_PER_STACK;
-  return (1 - lastBreath / 100) * (1 - lethality / 100);
+  return (1 - lastBreath / 100) * (1 - LETHALITY_PERCENT_PER_STACK / 100) ** lethalityStacks(debuffs);
 }
 
 // Every flat external multiplier on final damage, combined. Applied at the same last step as the

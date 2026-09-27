@@ -909,30 +909,32 @@ try {
     // scaled copy - a dungeon run is not a God Potion run.
     assert.ok(DUNGEON_POTION_TIERS.jellyfish.strength < GOD_POTION_STRENGTH_POTION, 'even the top dungeon tier trails the God Potion on Strength');
   });
-  // 34. Last Breath and Lethality cut the mob's Defense STAT, and they are MULTIPLICATIVE with each
-  // other, not additive - the difference at max is 68% off vs 86% off,
-  // which on Master Necron is a 2.8x damage swing vs a 5.6x one. Both are pinned, along with the
-  // fact that a Defense cut feeds `1 - Def/(100+Def)` rather than scaling damage directly.
-  await check('Defense debuffs are multiplicative and feed the Defense curve', () => {
+  // 34. Last Breath and Lethality cut the mob's Defense STAT. Last Breath applies first, then each
+  // Lethality stack takes 9% of the Defense left after the one before (0.91^n), not a flat 9% per
+  // stack and not added to Last Breath. Also pins that a Defense cut feeds `1 - Def/(100+Def)`
+  // rather than scaling damage directly.
+  await check('Defense debuffs compound in order and feed the Defense curve', () => {
     const { mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier, ICE_SPRAY_MULTIPLIER, TWILIGHT_ARROW_POISON_MULTIPLIER } = mobDebuffs;
     const { computeMobDefenseMultiplier } = mobDefenses;
     const maxed = { iceSpray: false, lastBreath: 5, lethality: 4 };
-    // 0.5 * 0.64 - NOT 1 - (0.5 + 0.36).
-    assert.ok(Math.abs(mobDefenseDebuffMultiplier(maxed) - 0.32) < 1e-9, 'max debuffs leave 32% of Defense');
+    // 0.5 * 0.91^4 - NOT 0.5 * 0.64 (flat per stack) and NOT 1 - (0.5 + 0.36) (additive).
+    assert.ok(Math.abs(mobDefenseDebuffMultiplier(maxed) - 0.5 * 0.91 ** 4) < 1e-9, 'max debuffs leave ~34.3% of Defense');
     assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lastBreath: 5 }) - 0.5) < 1e-9);
-    assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lethality: 4 }) - 0.64) < 1e-9);
+    assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lethality: 1 }) - 0.91) < 1e-9);
+    assert.ok(Math.abs(mobDefenseDebuffMultiplier({ lethality: 4 }) - 0.91 ** 4) < 1e-9, 'each stack compounds');
     assert.equal(mobDefenseDebuffMultiplier(null), 1, 'no debuffs is an exact no-op');
     // Out-of-range input clamps rather than inverting the multiplier.
     assert.equal(mobDefenseDebuffMultiplier({ lastBreath: 99, lethality: 99 }), mobDefenseDebuffMultiplier(maxed));
 
-    // The curve, not the damage: Master Necron's 2100 Defense at 0.32 is 672, and
-    // 1 - 672/772 = 0.1295 - a 2.85x gain over the undebuffed 1 - 2100/2200 = 0.0455.
+    // The curve, not the damage: Master Necron's 2100 Defense at 0.3429 is 720, and
+    // 1 - 720/820 = 0.1219 - a 2.68x gain over the undebuffed 1 - 2100/2200 = 0.0455.
     const necron = { name: 'Necron', types: [] };
     const plain = computeMobDefenseMultiplier(necron, true);
     const shredded = computeMobDefenseMultiplier(necron, true, mobDefenseDebuffMultiplier(maxed));
     assert.ok(Math.abs(plain - (1 - 2100 / 2200)) < 1e-9);
-    assert.ok(Math.abs(shredded - (1 - 672 / 772)) < 1e-9);
-    assert.ok(shredded / plain > 2.8 && shredded / plain < 2.9, 'max Defense shred is worth ~2.85x, not ~5.6x');
+    const shreddedDefense = 2100 * 0.5 * 0.91 ** 4;
+    assert.ok(Math.abs(shredded - (1 - shreddedDefense / (100 + shreddedDefense))) < 1e-9);
+    assert.ok(shredded / plain > 2.6 && shredded / plain < 2.8, 'max Defense shred is worth ~2.68x');
 
     // A mob with no published Defense is untouched however far the sliders go - the honest result
     // for the 200-odd mobs with no real number, and the reason the panel says so.
@@ -948,6 +950,36 @@ try {
     assert.equal(finalDamageDebuffMultiplier({ iceSpray: false, twilightPoison: false }), 1);
     assert.equal(finalDamageDebuffMultiplier(null), 1);
   });
+  // 34b. Each mob's own fixed damage reduction: 10% for every Catacombs mob, and a further 90% for the
+  // Catacombs bosses on top (0.9 * 0.1 = 0.09x). It applies to every hit, melee and ability alike,
+  // and no debuff touches it. The old Catacombs 10% Magic Resistance is gone, replaced by this.
+  await check('Catacombs mobs and bosses carry their fixed damage reduction', () => {
+    const { computeMobInnateDamageReduction, computeMobDamageReduction, computeMobMagicResistance } = mobDefenses;
+    const mob = (name, types = []) => ({ name, types });
+    for (const boss of ['Necron', 'Storm', 'Goldor', 'Maxor', 'Wither Dragon', 'Livid', 'Sadan', 'Bonzo', 'The Professor', 'Spirit Bear']) {
+      assert.equal(computeMobInnateDamageReduction(mob(boss)), 91, boss);
+    }
+    assert.equal(computeMobInnateDamageReduction(mob('Zombie Grunt')), 10, 'an ordinary Catacombs mob');
+    assert.equal(computeMobInnateDamageReduction(mob('Zombie')), 0, 'outside the Catacombs');
+    assert.equal(computeMobDamageReduction(mob('Necron'), false), 91);
+    assert.equal(computeMobDamageReduction(mob('Minos Inquisitor', ['Mythological']), false), 100, 'Mythological immunity is unchanged');
+    assert.equal(computeMobMagicResistance(mob('Zombie Grunt')), 0, 'no extra Catacombs Magic Resistance');
+    assert.equal(computeMobMagicResistance(mob('Minos Inquisitor', ['Mythological'])), 50);
+
+    // Through the real pipeline: the same synthetic hit lands at 0.09x on Necron and 0.9x on a
+    // Catacombs mob, with every debuff maxed changing nothing about that share.
+    const sources = {
+      baseStats: { damage: 100, strength: 0, crit_damage: 0 }, dungeonizedBaseStats: { damage: 100, strength: 0, crit_damage: 0 },
+      masterDungeonizedBaseStats: { damage: 100, strength: 0, crit_damage: 0 },
+      additiveNonConditional: [], additiveConditional: [], multiplicative: [], abilityMultiplicative: [],
+      weaponBonusNonConditional: [], weaponBonusConditional: [],
+    };
+    const hit = (name) => finalDamage.computeFinalDamage(sources, mob(name), false, false).finalDamageNonCrit;
+    const open = hit('Zombie');
+    assert.equal(hit('Zombie Grunt'), Math.floor(open * 0.9));
+    assert.equal(hit('Livid'), Math.floor(open * 0.09));
+  });
+
   // 35. Potato Books on the weapon are priced as two different items: books 1-10 are Hot Potato
   // Books and 11-15 Fuming (lib/books.js), so where you START decides the cost. Also pins that an
   // unpriced half makes the row '?' instead of a total that quietly leaves those books out, and that
