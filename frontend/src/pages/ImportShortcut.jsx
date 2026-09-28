@@ -3,7 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { ENTRY_DISMISSED_KEY } from '../lib/entryScreen';
 
 // /import/:username - a shareable direct link straight into the Hypixel import flow (e.g.
-// skydmg.pages.dev/import/sammui), skipping EntryScreen's username-typing step entirely.
+// skydmg.dev/import/sammui), skipping EntryScreen's username-typing step entirely.
 // Redirects to the exact same place EntryScreen's own submit lands (HypixelImport.jsx already
 // auto-runs the import when it receives a username via router state, see its own comment) - this
 // is just a second, URL-addressable way to arrive there, not a separate import implementation.

@@ -8,7 +8,7 @@ const panel =
 function Shot({ route, src, alt }) {
   return (
     <div className="w-full rounded overflow-hidden border border-neutral-700 bg-[#1a1a1a]">
-      <div className="bg-neutral-900 text-neutral-400 text-[10px] font-mono px-2 py-1">skydmg.pages.dev{route}</div>
+      <div className="bg-neutral-900 text-neutral-400 text-[10px] font-mono px-2 py-1">skydmg.dev{route}</div>
       <img src={src} alt={alt} loading="lazy" className="w-full block" />
     </div>
   );

@@ -3,7 +3,7 @@
 A Hypixel Skyblock damage calculator. Build a loadout, pick a target, see exactly where every point
 of damage comes from.
 
-### **→ [skydmg.pages.dev](https://skydmg.pages.dev)**
+### **→ [skydmg.dev](https://skydmg.dev)**
 
 ## Features
 

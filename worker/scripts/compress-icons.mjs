@@ -25,9 +25,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IMAGES_ROOT = path.join(__dirname, '..', '..', 'frontend', 'public', 'images');
 
 // Every dir whose contents are addressed by lib/icons.js's path builders or its literal
-// SLOT_TEXTURES/CATEGORY_ICONS maps. mob_images is deliberately absent - those are hand-curated
-// animations, already converted, and not produced by this pipeline.
-const ICON_DIRS = ['skyblock', 'vanilla', 'reforgestones', 'gemstones', 'manual', 'ui'];
+// SLOT_TEXTURES/CATEGORY_ICONS maps, plus mob_images (lib/mobModelIcons.json). Its animated mobs
+// are already WebP and are left alone; only its PNGs convert.
+const ICON_DIRS = ['skyblock', 'vanilla', 'reforgestones', 'gemstones', 'manual', 'ui', 'mob_images'];
 
 try {
   execFileSync('cwebp', ['-version'], { stdio: 'ignore' });
@@ -53,7 +53,9 @@ for (const dir of ICON_DIRS) {
     const webpPath = pngPath.replace(/\.png$/i, '.webp');
     const before = statSync(pngPath).size;
     // -z 9 is the slowest/smallest lossless preset; these run once per ingest, not per request.
-    execFileSync('cwebp', ['-quiet', '-z', '9', pngPath, '-o', webpPath]);
+    // -metadata icc keeps an embedded colour profile: without it a PNG that carries one keeps its raw
+    // values but loses the profile, and its colours shift in the browser.
+    execFileSync('cwebp', ['-quiet', '-z', '9', '-metadata', 'icc', pngPath, '-o', webpPath]);
     unlinkSync(pngPath);
     beforeBytes += before;
     afterBytes += statSync(webpPath).size;

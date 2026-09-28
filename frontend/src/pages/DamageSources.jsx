@@ -226,6 +226,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const resultsRef = useRef(null); // scroll target for the sticky headline readout below
 
   const [result, setResult] = useState(null);
+  // The gear `result` was computed from. The hit graph resets its held scale on this, not on the live
+  // loadout, which runs ahead of `result` while a recompute is pending.
+  const [resultLoadout, setResultLoadout] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
   const [expandedStat, setExpandedStat] = useState(null);
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
@@ -332,7 +335,10 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
         importedWeapons,
         dungeonClass: dungeonClassArg,
       }).then((r) => {
-        if (tokenRef.current === token) setResult(r);
+        if (tokenRef.current === token) {
+          setResult(r);
+          setResultLoadout(loadout);
+        }
       });
     }, 200);
     return () => clearTimeout(handle);
@@ -912,6 +918,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             mobName={name}
                             maxDps={sim.maxDps}
                             minDps={sim.minDps}
+                            scaleKey={resultLoadout}
                           />
                         </Suspense>
                       )}
@@ -1373,21 +1380,35 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
             }
             empty="None equipped."
           >
-            {(mageMode ? result.additiveConditional.filter((e) => e.abilityEligible) : result.additiveConditional)
-              .filter((e) => !appliedToAnyMob || appliedToAnyMob.has(e.id))
-              .map((e) => (
-                <Row
-                  key={e.id}
-                  left={e.label}
-                  right={
-                    <>
-                      +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
-                    </>
-                  }
-                  source={e.source}
-                  applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
-                />
-              ))}
+            {[
+              ...(mageMode ? result.additiveConditional.filter((e) => e.abilityEligible) : result.additiveConditional)
+                .filter((e) => !appliedToAnyMob || appliedToAnyMob.has(e.id))
+                .map((e) => (
+                  <Row
+                    key={e.id}
+                    left={e.label}
+                    right={
+                      <>
+                        +{round1(e.value)}% to <Keyworded text={e.conditionLabel || e.condition} />
+                      </>
+                    }
+                    source={e.source}
+                    applied={appliedToAnyMob ? appliedToAnyMob.has(e.id) : undefined}
+                  />
+                )),
+              // Titan Killer's value depends on each target's Defense, so it shows its rate, not one number.
+              ...(result.titanKiller && (!appliedToAnyMob || appliedToAnyMob.has(result.titanKiller.id))
+                ? [
+                    <Row
+                      key={result.titanKiller.id}
+                      left={result.titanKiller.label}
+                      right={`+${result.titanKiller.ratePerLevel}% per 100 Defense, up to ${result.titanKiller.cap}%`}
+                      source={result.titanKiller.source}
+                      applied={appliedToAnyMob ? appliedToAnyMob.has(result.titanKiller.id) : undefined}
+                    />,
+                  ]
+                : []),
+            ]}
           </Section>
 
           <Section

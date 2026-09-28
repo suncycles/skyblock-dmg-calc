@@ -1609,6 +1609,35 @@ try {
     assert.deepEqual(offenders, [], `use a plain hyphen instead:\n  ${offenders.slice(0, 10).join('\n  ')}`);
   });
 
+  // 50b. Titan Killer: +rate% for every full 100 of the target's listed Defense (before Last Breath
+  // and Lethality), up to its cap, parsed from the real enchant text. It was parsed but never applied.
+  await check("Titan Killer scales with the target's Defense up to its cap", async () => {
+    const damageSources = await server.ssrLoadModule('/src/lib/damageSources.js');
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const lore = (level, rate, cap) => ['§8Combinable in Anvil', '', `§9Titan Killer ${level === 1 ? 'I' : 'VII'}`, `§7Increases damage dealt by §a${rate}%`, '§7for every 100 defense your', `§7target has up to §a${cap}%§7.`];
+    const itemData = { ...EMPTY_ITEM_DATA, enchants: { levelData: { titan_killer: [{ level: 1, lore: lore(1, 2, 6) }, { level: 7, lore: lore(7, 20, 80) }] } } };
+    const sourcesAt = async (level) => {
+      const loadout = { weapon: { item: { id: 'TEST_SWORD', name: 'Test Sword', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100'] }, modifiers: { ...defaults.emptyModifiers(), hexEnchantments: [{ id: 'titan_killer', level, maxLevel: 7 }] } } };
+      return damageSources.collectDamageSources(loadout, itemData, { attributes: {} });
+    };
+    const vii = await sourcesAt(7);
+    const i = await sourcesAt(1);
+    assert.deepEqual([vii.titanKiller.ratePerLevel, vii.titanKiller.cap], [20, 80]);
+    const mob = (name) => ({ name, types: [] });
+    assert.equal(finalDamage.titanKillerPercent(vii, mob('Lost Adventurer'), false), 20, '100 Defense is one full 100');
+    assert.equal(finalDamage.titanKillerPercent(vii, mob('Necron'), true), 80, 'Master Necron 2,100 caps at 80%');
+    assert.equal(finalDamage.titanKillerPercent(vii, mob('Necron'), false), 0, 'Normal Necron has no Defense');
+    assert.equal(finalDamage.titanKillerPercent(i, mob('Angry Archaeologist'), false), 6, 'level I caps at 6%');
+    assert.equal(finalDamage.titanKillerPercent(vii, mob('Zombie'), false), 0);
+    // Counted in the additive bucket of the real hit, and unaffected by Defense-shredding debuffs.
+    const withDebuffs = { ...vii, debuffs: { lastBreath: 5, lethality: 4 } };
+    const hit = finalDamage.computeFinalDamage(withDebuffs, mob('Lost Adventurer'), false, false);
+    assert.ok(hit.appliedIds.has(vii.titanKiller.id));
+    const without = finalDamage.computeFinalDamage({ ...withDebuffs, titanKiller: undefined }, mob('Lost Adventurer'), false, false);
+    assert.ok(Math.abs(hit.additivePercent - without.additivePercent - 20) < 1e-9, '+20% additive against Lost Adventurer');
+    assert.equal(vii.situational.some((e) => /titan/i.test(e.label)), false, 'no longer parked as situational');
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

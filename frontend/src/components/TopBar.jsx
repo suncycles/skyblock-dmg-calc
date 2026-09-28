@@ -29,6 +29,9 @@ const MENU_SECTIONS = [
 // "check the menu/Tutorial" nudge below only ever shows once, on a genuinely first visit.
 const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 
+// The skydmg.dev announcement bubble stays until dismissed, once per browser.
+const NEW_DOMAIN_SEEN_KEY = 'skydmgNewDomainSeen';
+
 // Stacking: the bar (z-[1100]), the drawer's scrim (z-[1100]) and the drawer itself (z-[1110]) sit
 // above everything on the page, the Armor/Equipment Options dialogs (z-[999]) included - the app
 // chrome has to win, since it's how you navigate away.
@@ -46,6 +49,12 @@ export default function TopBar() {
   const [showFirstLaunchHint, setShowFirstLaunchHint] = useState(
     () => localStorage.getItem(FIRST_LAUNCH_KEY) !== '1',
   );
+  const [showNewDomain, setShowNewDomain] = useState(() => localStorage.getItem(NEW_DOMAIN_SEEN_KEY) !== '1');
+
+  function dismissNewDomain() {
+    localStorage.setItem(NEW_DOMAIN_SEEN_KEY, '1');
+    setShowNewDomain(false);
+  }
 
   // Closes the drawer on any navigation (a menu link, the brand, or Back/browser nav) rather than
   // requiring every nav item to remember to close it itself.
@@ -96,6 +105,7 @@ export default function TopBar() {
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               )}
             </button>
+            {showNewDomain && !menuOpen && <NewDomainBubble onDismiss={dismissNewDomain} />}
           </div>
           <Link
             to="/"
@@ -232,6 +242,34 @@ function RedoIcon() {
       <path d="M15 5v4h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M14.5 9a6 6 0 1 0-1.8 4.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
     </svg>
+  );
+}
+
+// A thought bubble trailing off the menu button: two small circles lead from the button to the cloud.
+function NewDomainBubble({ onDismiss }) {
+  return (
+    <div className="absolute left-0 top-full pointer-events-none select-none" role="status">
+      <span className="absolute left-[15px] top-[3px] w-1.5 h-1.5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.5)]" />
+      <span className="absolute left-[21px] top-[10px] w-2.5 h-2.5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.5)]" />
+      <div className="pointer-events-auto absolute left-[18px] top-[21px] flex items-start gap-2 whitespace-nowrap rounded-[20px] bg-white px-3.5 py-2 text-neutral-900 shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+        <div className="flex flex-col leading-tight">
+          <span className="text-[12px] font-semibold">We have a new domain!</span>
+          <a href="https://skydmg.dev" className="text-[13px] font-extrabold tracking-tight hover:underline underline-offset-2">
+            skydmg.
+            <span className="line-through decoration-red-500 decoration-2 text-neutral-400">pages.</span>
+            dev
+          </a>
+        </div>
+        <button
+          type="button"
+          aria-label="Dismiss"
+          onClick={onDismiss}
+          className="-mr-1 -mt-0.5 w-5 h-5 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200 text-[14px] leading-none cursor-pointer"
+        >
+          ×
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -48,6 +48,29 @@ function damageDomain(hits, keys) {
   return [Math.max(0, min - pad), max + pad];
 }
 
+// The damage axis holds its scale while buffs, debuffs, potions, blessings and toggles change, so
+// turning one on visibly moves the line instead of re-fitting to an identical picture. It only
+// widens to fit new values, and starts over when the gear (`scaleKey`) or the plotted lines change.
+// Kept per target for the session rather than in component state, since buffs and debuffs are set
+// on other pages and leaving this one unmounts the graph.
+const heldDomains = new Map();
+// An axis starting at 0 scales in proportion with the data, so a buff that lifts every hit would
+// re-draw the same picture. A fresh 0-based scale leaves this much room above the line for it to rise.
+const HELD_HEADROOM = 0.3;
+
+function heldDamageDomain(mobName, scaleKey, keys, fitted) {
+  const linesKey = keys.join(',');
+  const held = heldDomains.get(mobName);
+  const domain =
+    held && held.scaleKey === scaleKey && held.linesKey === linesKey
+      ? [Math.min(held.domain[0], fitted[0]), Math.max(held.domain[1], fitted[1])]
+      : fitted[0] === 0
+        ? [0, fitted[1] * (1 + HELD_HEADROOM)]
+        : fitted;
+  heldDomains.set(mobName, { scaleKey, linesKey, domain });
+  return domain;
+}
+
 function Toggle({ checked, onChange, label }) {
   return (
     <label className="flex items-center gap-1 text-[10px] text-neutral-700 cursor-pointer select-none">
@@ -95,7 +118,7 @@ function HitTooltip({ active, payload, label }) {
 // constant DPS number. `hasRealHp` false means no confirmed HP number
 // exists for this mob yet (docs/mob-hp-followups.md) - the sequence still simulates (holding Mob
 // HP% constant at the slider's value instead of draining a real pool), so a small note explains why.
-export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps }) {
+export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps, scaleKey }) {
   // Split by default, aggregate on demand. Mob HP stays on by default (unchanged), but is now
   // switchable: it spans the full 0-100% height on its own axis, so against damage lines that
   // only vary by a fraction of a percent it was the only thing the eye could follow.
@@ -107,7 +130,7 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
   // zero lines pinning the axis minimum to 0 and squashing everything else.
   const activeSeries = SOURCE_SERIES.filter(({ key }) => safeHits.some((h) => (h[key] || 0) > 0));
   const plottedKeys = aggregate || activeSeries.length === 0 ? ['totalDamage'] : activeSeries.map((sm) => sm.key);
-  const domain = damageDomain(safeHits, plottedKeys);
+  const domain = heldDamageDomain(mobName, scaleKey, plottedKeys, damageDomain(safeHits, plottedKeys));
   const hpVisible = hasRealHp && showHp;
 
   if (safeHits.length === 0) return null;

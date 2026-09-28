@@ -22,9 +22,17 @@ import { getMobLocations } from './mobLocations';
 import { getBestiaryStrengthBonus } from './bestiaryStrength';
 import { hasFullSet, computeCrimsonSwipeInfo, FINAL_DESTINATION_STRENGTH, FINAL_DESTINATION_ATTACK_SPEED } from './armorSetBonuses';
 import { ARMOR_SLOTS } from './armorSlots';
-import { computeMobDamageReduction, computeMobMagicResistance, computeMobDefenseMultiplier } from './mobDefenses';
+import { computeMobDamageReduction, computeMobMagicResistance, computeMobDefense, computeMobDefenseMultiplier } from './mobDefenses';
 import { DUNGEON_CLASS_FIRST_HIT_ID, DUNGEON_CLASS_LUST_ID } from './damageSources';
 import { mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier } from './mobDebuffs';
+
+// Titan Killer: +rate% for every full 100 of the target's listed Defense (before Last Breath and
+// Lethality), up to its cap. Additive, and counts toward Ability Damage.
+export function titanKillerPercent(sources, mob, useMasterMode) {
+  const titanKiller = sources.titanKiller;
+  if (!titanKiller) return 0;
+  return Math.min(titanKiller.cap, titanKiller.ratePerLevel * Math.floor(computeMobDefense(mob, useMasterMode) / 100));
+}
 
 const KNOWN_TYPE_NAMES = new Set(Object.keys(MOB_TYPE_SYMBOLS).map((t) => t.toLowerCase()));
 const SEA_CREATURE_KEYS = new Set(SEA_CREATURE_MOBS.map((name) => resolveMobKey(name)).filter(Boolean));
@@ -189,6 +197,11 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
       appliedIds.add(e.id);
     }
   }
+  const titanKiller = titanKillerPercent(sources, mob, useMasterMode);
+  if (titanKiller > 0) {
+    additivePercent += titanKiller;
+    appliedIds.add(sources.titanKiller.id);
+  }
 
   let weaponBonusPercent = 0;
   for (const e of weaponBonusNonConditional || []) {
@@ -330,6 +343,11 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
       appliedIds.add(e.id);
     }
   }
+  const titanKiller = titanKillerPercent(sources, mob, useMasterMode);
+  if (titanKiller > 0) {
+    additivePercent += titanKiller;
+    appliedIds.add(sources.titanKiller.id);
+  }
 
   let multiplicativeMultiplier = 1;
   for (const e of abilityMultiplicative) {
@@ -441,7 +459,7 @@ const VENOMOUS_REDUCED_MOBS = {
   'Inferno Demonlord': { multiplier: 0.01, label: 'Hellion Shield' },
 };
 
-export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
+export function computeVenomousProcDamage(sources, mob, meleeFinalDamage, useMasterMode = false) {
   const proc = sources.venomousProc;
   if (!proc) return null;
   if (isJokeMob(mob) || VENOMOUS_IMMUNE_MOBS.has(mob?.name)) return { ...proc, finalDamage: 0 };
@@ -456,6 +474,7 @@ export function computeVenomousProcDamage(sources, mob, meleeFinalDamage) {
   for (const e of additiveConditional) {
     if (e.abilityEligible && conditionMatchesMob(e.condition, mob)) additivePercent += e.value;
   }
+  additivePercent += titanKillerPercent(sources, mob, useMasterMode);
 
   let multiplicativeMultiplier = 1;
   for (const e of abilityMultiplicative) {
@@ -632,7 +651,7 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   // Every proc below scales off a normal hit's damage rather than the bow's 3-arrow/Duplex volley,
   // using the crit-weighted expectedArrowDamage so each DPS number reflects real Crit Chance and
   // Overload.
-  const venomousProc = computeVenomousProcDamage(sources, mob, expectedArrowDamage);
+  const venomousProc = computeVenomousProcDamage(sources, mob, expectedArrowDamage, useMasterMode);
   const thunderlordProc = computeEnchantProcDamage(mob, expectedArrowDamage, sources.thunderlordProc);
   const fireAspectProc = computeEnchantProcDamage(mob, expectedArrowDamage, sources.fireAspectProc);
   const crimsonSwipeProc = computeCrimsonSwipeDamage(
@@ -861,7 +880,7 @@ export function simulateHitByHit(
       // Stacks cap at MAX_VENOMOUS_STACKS; a full-fight window runs past that, so the cap really binds
       // on the final hit.
       const activeStacks = Math.min(hit, MAX_VENOMOUS_STACKS);
-      const perStack = computeVenomousProcDamage(hitSources, mob, expectedArrowDamage)?.finalDamage || 0;
+      const perStack = computeVenomousProcDamage(hitSources, mob, expectedArrowDamage, useMasterMode)?.finalDamage || 0;
       venomousDamage = (perStack * activeStacks * DPS_HITS_PER_SECOND.venomous) / meleeHitsPerSecond;
     }
 

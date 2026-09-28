@@ -262,7 +262,7 @@ const NECRON_BLADE_WITHER_DAMAGE_PERCENT = 50;
 
 // Pooch Sword's "+200% Damage against Wolves" applies as a flat 2x rather than the 3x its text
 // implies, so it sits in the multiplicative bucket. "Wolves" covers the whole wolf family, the same
-// list as mobModelIcons.json's wolf.png mapping.
+// list as mobModelIcons.json's wolf.webp mapping.
 const POOCH_SWORD_WOLF_DAMAGE_MULTIPLIER = 2;
 const WOLF_FAMILY_MOBS = [
   'Glacite Mutt',
@@ -781,8 +781,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
 
 // ---------------------------------------------------------------------
 // Enchants: parses each applied enchant's per-level lore for a %-damage bonus, conditional
-// (Smite-style) or not. Giant Killer and Titan Killer's per-target-stat rate uses their capped
-// value; other rate-shaped enchants (Execute/Prosecute) have no fixed value and go to situational.
+// (Smite-style) or not. Giant Killer's per-target-stat rate uses its capped value; Titan Killer's
+// is stashed and resolved per target from its Defense (lib/finalDamage.js).
 // "dealt" is optional and "bow " an allowed prefix, since Power V reads "Increases bow damage by 40%".
 const PERCENT_TO_TARGET_RE = /Increases\s+(?:melee\s+|ranged\s+|bow\s+)?damage(?:\s+dealt)?(?:\s+to\s+(.+?))?\s+by\s+\+?([\d.]+)%/i;
 // Two phrasings for "rate scales with a target's stat": "for each percent of <stat>"
@@ -888,10 +888,10 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
         }
       } else if (key === 'giant_killer' && cap != null) {
         out.additiveNonConditional.push({ id, label: name, source, value: cap, abilityEligible: true });
+      } else if (key === 'titan_killer' && cap != null) {
+        // Its value depends on the target's Defense, so it is resolved per mob at the final step.
+        out.titanKiller = { id, label: name, source, ratePerLevel, cap };
       } else {
-        // Titan Killer lands here rather than in the giant_killer branch: its value depends on the
-        // target's defense, which no mob in this app models, so assuming its cap would invent a
-        // number. It contributes nothing until per-mob defense values exist.
         out.situational.push({ id, label: name, source, note: text, formula: { kind: 'per-target-stat', basis, ratePerLevel, cap } });
       }
       continue;
