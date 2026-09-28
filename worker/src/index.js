@@ -154,10 +154,11 @@ const LOADOUT_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy
 const LOADOUT_ID_LENGTH = 8;
 const MAX_LOADOUT_CODE_LENGTH = 20000; // generous headroom over any real encoded build, blocks abuse
 
-// Browsers may only call this Worker from the site itself, its preview deploys, or a local dev
-// server. Scripts ignore CORS; the rate limiters cover those.
-const ALLOWED_ORIGIN = /^(https:\/\/([a-z0-9-]+\.)?skydmg\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;
-const DEFAULT_ORIGIN = "https://skydmg.pages.dev";
+// Browsers may only call this Worker from the site itself (skydmg.dev, www, and the original
+// skydmg.pages.dev with its preview deploys) or a local dev server. Scripts ignore CORS; the rate
+// limiters cover those.
+const ALLOWED_ORIGIN = /^(https:\/\/(www\.)?skydmg\.dev|https:\/\/([a-z0-9-]+\.)?skydmg\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;
+const DEFAULT_ORIGIN = "https://skydmg.dev";
 
 // Input shapes accepted at the boundary. A loadout code is exactly what encodeLoadout emits
 // (base64url); Hypixel keys profile members by the undashed lowercase uuid.
