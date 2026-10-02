@@ -122,6 +122,16 @@ export default function App() {
                 </ErrorBoundary>
               </div>
               <GlobalFooter />
+              {/* Pinned bottom-left on every page, opposite GlobalFooter's info bubble. Solid like
+                  that bubble, so it stays readable over whatever scrolls beneath. */}
+              <a
+                href="https://ko-fi.com/sammui"
+                target="_blank"
+                rel="noreferrer"
+                className="fixed bottom-1.5 left-2 z-30 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[rgb(16,17,22)] border border-[#29abe0]/50 text-[#29abe0] text-[10px] font-semibold leading-4 select-none hover:bg-[#29abe0]/20 transition-colors"
+              >
+                ☕ support me
+              </a>
             </ConfirmDialogProvider>
           </TooltipProvider>
         </ThemeProvider>
