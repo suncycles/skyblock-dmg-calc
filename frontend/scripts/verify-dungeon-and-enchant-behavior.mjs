@@ -1638,6 +1638,23 @@ try {
     assert.equal(vii.situational.some((e) => /titan/i.test(e.label)), false, 'no longer parked as situational');
   });
 
+  // 50c. Reaper Armor's Enrage, ticked in MISC: +100 Damage and +100 Strength, only while the
+  // Reaper chestplate, leggings and boots are all worn.
+  await check('Reaper Armor Ability needs the 3-piece set and adds 100 Damage and Strength', async () => {
+    const damageSources = await server.ssrLoadModule('/src/lib/damageSources.js');
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const piece = (id, category) => ({ item: { id, name: id, tier: 'LEGENDARY', category, lore: [] }, modifiers: defaults.emptyModifiers() });
+    const reaper = { chestplate: piece('REAPER_CHESTPLATE', 'CHESTPLATE'), leggings: piece('REAPER_LEGGINGS', 'LEGGINGS'), boots: piece('REAPER_BOOTS', 'BOOTS') };
+    const stats = async (loadout, reaperEnrage) =>
+      (await damageSources.collectDamageSources(loadout, EMPTY_ITEM_DATA, { attributes: {}, buffs: { reaperEnrage } })).baseStats;
+    const off = await stats(reaper, false);
+    const on = await stats(reaper, true);
+    assert.equal(on.damage - off.damage, 100);
+    assert.equal(on.strength - off.strength, 100);
+    const twoPieces = { chestplate: reaper.chestplate, leggings: reaper.leggings };
+    assert.deepEqual(await stats(twoPieces, true), await stats(twoPieces, false), 'no effect without all three pieces');
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

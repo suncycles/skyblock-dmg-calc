@@ -12,6 +12,8 @@ export const RAGNAROCK_STRENGTH_MULTIPLIER = 1.5;
 // Bad Health's lore: "+5 Strength for every 5% of total HP ... Capped at +100". Taken at the cap.
 export const SWORD_OF_BAD_HEALTH_STRENGTH = 100;
 export const WEIRDER_TUBA_STATS = { strength: 40, crit_damage: 10, bonus_attack_speed: 5 };
+// Reaper Armor's Enrage (chestplate, leggings and boots). Its Speed does nothing to damage.
+export const REAPER_ENRAGE_STATS = { damage: 100, strength: 100 };
 
 export const BUFF_ITEMS = [
   { id: 'ragnarock', label: 'Ragnarock' },
@@ -53,7 +55,8 @@ export async function computeRagnarockStrength(entry, loadout, itemData, playerS
 
 // Flat {stat, value, label} grants for every active buff. `ragnarockStrength` is the axe's own
 // Strength (computeRagnarockStrength) - 0 when there's no Ragnarock to copy, which grants nothing.
-export function computeBuffGrants(buffs, ragnarockStrength = 0) {
+// Enrage only applies while the Reaper set is worn (`hasReaperSet`).
+export function computeBuffGrants(buffs, ragnarockStrength = 0, hasReaperSet = false) {
   const grants = [];
   if (buffs?.ragnarock && ragnarockStrength > 0) {
     grants.push({ stat: 'strength', value: ragnarockStrength * RAGNAROCK_STRENGTH_MULTIPLIER, label: 'Ragnarock (Buff)' });
@@ -63,6 +66,9 @@ export function computeBuffGrants(buffs, ragnarockStrength = 0) {
   }
   if (buffs?.weirderTuba) {
     for (const [stat, value] of Object.entries(WEIRDER_TUBA_STATS)) grants.push({ stat, value, label: 'Weirder Tuba (Buff)' });
+  }
+  if (buffs?.reaperEnrage && hasReaperSet) {
+    for (const [stat, value] of Object.entries(REAPER_ENRAGE_STATS)) grants.push({ stat, value, label: 'Reaper Armor Ability' });
   }
   return grants;
 }

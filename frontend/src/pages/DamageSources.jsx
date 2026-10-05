@@ -22,6 +22,9 @@ import {
   INFERNAL_CRIMSON_SET,
   INFERNAL_CRIMSON_MIN_PIECES,
   INFERNAL_CRIMSON_MAX_STACKS,
+  hasFullSet,
+  REAPER_ARMOR_SLOTS,
+  REAPER_ARMOR_SET,
 } from '../lib/armorSetBonuses';
 import { ARMOR_SLOTS } from '../lib/armorSlots';
 import { FABLED_REFORGE_ID } from '../lib/damageSources';
@@ -211,6 +214,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     essencePerks,
     debuffs,
     buffs,
+    setBuff,
     importedWeapons,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
@@ -282,6 +286,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     (slot) => loadout[slot]?.modifiers?.ultimateEnchantment?.id?.toLowerCase() === 'ultimate_legion',
   );
   const hasBlazePet = loadout.pet?.item?.petId === 'BLAZE';
+  const hasReaperSet = hasFullSet(loadout, REAPER_ARMOR_SLOTS, REAPER_ARMOR_SET);
   // Whether any currently-selected target is Mythological-typed - same "applies to at least one
   // selected mob" treatment as appliedToAnyMob below. Drives the (Base) Stats panel's Challenger's/
   // Mythos doubled-stat display, since that panel is one shared block, not per-mob.
@@ -1284,6 +1289,21 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   <span>
                     In Crimson Isle
                     {isCrimsonIsleTarget && <span className="text-neutral-600 italic"> (auto)</span>}
+                  </span>
+                </label>
+              )}
+              {hasReaperSet && (
+                <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="reaper-armor-ability">
+                  <input
+                    id="reaper-armor-ability"
+                    type="checkbox"
+                    checked={!!buffs.reaperEnrage}
+                    onChange={(e) => setBuff('reaperEnrage', e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    Reaper Armor Ability
+                    <span className="text-neutral-600 italic"> (+100 Damage, +100 Strength)</span>
                   </span>
                 </label>
               )}

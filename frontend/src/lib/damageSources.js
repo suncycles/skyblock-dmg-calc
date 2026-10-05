@@ -1881,7 +1881,15 @@ export async function collectDamageSources(
   const ragnarockStrength = buffs?.ragnarock
     ? await computeRagnarockStrength(findRagnarock(importedWeapons, loadout), loadout, itemData, playerStats, maxedCollectionsCount, essencePerks)
     : 0;
-  collectAttributeEntries(attributes, loadout, out, useDungeonizedStats, blessing, essencePerks, computeBuffGrants(buffs, ragnarockStrength));
+  collectAttributeEntries(
+    attributes,
+    loadout,
+    out,
+    useDungeonizedStats,
+    blessing,
+    essencePerks,
+    computeBuffGrants(buffs, ragnarockStrength, hasFullSet(loadout, REAPER_ARMOR_SLOTS, REAPER_ARMOR_SET)),
+  );
 
   // Final-multiplier stat-boost perks, applied last on the fully-summed combat-stat totals and never
   // on Damage - the same mechanism as Unlimited Power above. Covers Strength, Crit Chance, Crit
