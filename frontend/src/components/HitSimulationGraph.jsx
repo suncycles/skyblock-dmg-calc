@@ -80,7 +80,7 @@ function Toggle({ checked, onChange, label }) {
   );
 }
 
-function HitTooltip({ active, payload, label }) {
+function HitTooltip({ active, payload, label, hitLabel }) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0]?.payload;
   return (
@@ -96,7 +96,7 @@ function HitTooltip({ active, payload, label }) {
             ([key, name]) =>
               point[key] > 0 && (
                 <div key={key} className="flex justify-between gap-3">
-                  <span className="text-neutral-300">{name}</span>
+                  <span className="text-neutral-300">{key === 'meleeDamage' ? `${hitLabel} (+ Execute/Prosecute)` : name}</span>
                   <span className="font-mono">{Math.round(point[key]).toLocaleString()}</span>
                 </div>
               ),
@@ -118,7 +118,8 @@ function HitTooltip({ active, payload, label }) {
 // constant DPS number. `hasRealHp` false means no confirmed HP number
 // exists for this mob yet (docs/mob-hp-followups.md) - the sequence still simulates (holding Mob
 // HP% constant at the slider's value instead of draining a real pool), so a small note explains why.
-export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps, scaleKey }) {
+// `hitLabel` names the per-hit line: 'Melee', or 'Beam' when the Beam replaces the swing.
+export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, minDps, scaleKey, hitLabel = 'Melee' }) {
   // Split by default, aggregate on demand. Mob HP stays on by default (unchanged), but is now
   // switchable: it spans the full 0-100% height on its own axis, so against damage lines that
   // only vary by a fraction of a percent it was the only thing the eye could follow.
@@ -128,7 +129,9 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
 
   // Only sources that actually fire - a build with no Venomous/Thunderlord shouldn't get flat
   // zero lines pinning the axis minimum to 0 and squashing everything else.
-  const activeSeries = SOURCE_SERIES.filter(({ key }) => safeHits.some((h) => (h[key] || 0) > 0));
+  const activeSeries = SOURCE_SERIES.filter(({ key }) => safeHits.some((h) => (h[key] || 0) > 0)).map((s) =>
+    s.key === 'meleeDamage' ? { ...s, name: hitLabel } : s,
+  );
   const plottedKeys = aggregate || activeSeries.length === 0 ? ['totalDamage'] : activeSeries.map((sm) => sm.key);
   const domain = heldDamageDomain(mobName, scaleKey, plottedKeys, damageDomain(safeHits, plottedKeys));
   const hpVisible = hasRealHp && showHp;
@@ -202,7 +205,7 @@ export default function HitSimulationGraph({ hits, hasRealHp, mobName, maxDps, m
               tickFormatter={(v) => `${v}%`}
             />
           )}
-          <Tooltip content={<HitTooltip />} cursor={{ stroke: GRAPH_GRID_COLOR, strokeWidth: 1 }} />
+          <Tooltip content={<HitTooltip hitLabel={hitLabel} />} cursor={{ stroke: GRAPH_GRID_COLOR, strokeWidth: 1 }} />
           <Legend
             verticalAlign="top"
             height={22}

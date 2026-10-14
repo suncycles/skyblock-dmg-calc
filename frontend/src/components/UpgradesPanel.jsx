@@ -229,8 +229,32 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
   );
 }
 
+// The docked column folds down to its title, mostly so phones can scroll past it to the damage
+// breakdown. Remembered per browser; the /optimizer page is the panel itself, so it never folds.
+const COLLAPSED_KEY = 'hexUpgradesCollapsed';
+function loadCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+function saveCollapsed(collapsed) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+  } catch {
+    // Storage blocked - the choice still holds for this visit.
+  }
+}
+
 export default function UpgradesPanel({ variant = 'column' }) {
   const navigate = useNavigate();
+  const collapsible = variant === 'column';
+  const [collapsed, setCollapsed] = useState(() => collapsible && loadCollapsed());
+  const toggleCollapsed = () => {
+    setCollapsed(!collapsed);
+    saveCollapsed(!collapsed);
+  };
   const build = useBuild();
   const { itemData, loading: itemDataLoading } = useItemData();
 
@@ -340,211 +364,230 @@ export default function UpgradesPanel({ variant = 'column' }) {
 
   return (
     <div className={`${panel} p-3 flex flex-col gap-2`}>
-      <div className={sectionTitle}>Recommended Upgrades</div>
-
-      <div className="flex items-center gap-2">
-        <label htmlFor={`upgrades-mode-${idSuffix}`} className={groupLabel}>
-          For
-        </label>
-        <select
-          id={`upgrades-mode-${idSuffix}`}
-          value={override}
-          onChange={(e) => setOverride(e.target.value)}
-          className="flex-1 min-w-0 px-2 py-1 text-[12px] font-bold bg-black text-white border-2 border-neutral-700 cursor-pointer"
+      {collapsible ? (
+        <button
+          type="button"
+          aria-expanded={!collapsed}
+          onClick={toggleCollapsed}
+          className={`${sectionTitle} flex items-center gap-2 text-left cursor-pointer ${collapsed ? 'border-b-0 pb-0 mb-0' : ''}`}
         >
-          <option value={AUTO_OPTIMIZER_MODE}>Auto - {modeLabel(autoMode)}</option>
-          {OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="text-[10px] text-white/55 -mt-1">
-        {override === AUTO_OPTIMIZER_MODE
-          ? 'Follows your toggles and target.'
-          : 'Pinned - choose Auto to follow the page toggles again.'}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className={groupLabel}>Sort</span>
-          <Chip
-            active={sortBy === 'smart'}
-            onClick={() => setSortBy('smart')}
-            title="% increase weighted by how much each category carries the build: Magical Power, armor and pets first, then weapon, then enchants"
-          >
-            Smart
-          </Chip>
-          <Chip active={sortBy === 'ratio'} onClick={() => setSortBy('ratio')} title="Damage gained per coin spent">
-            Value
-          </Chip>
-          <Chip active={sortBy === 'increase'} onClick={() => setSortBy('increase')} title="Highest raw % increase, ignoring cost">
-            Increase
-          </Chip>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className={groupLabel}>Show</span>
-          <Chip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % increase on each row">
-            % increase
-          </Chip>
-          <Chip active={showFlat} onClick={() => setShowFlat((v) => !v)} title="Show the flat increase on each row">
-            Flat
-          </Chip>
-        </div>
-      </div>
-
-      {/* The one control people miss, so it's a full bordered row that lights up when on. */}
-      <label
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-sm border cursor-pointer transition-colors ${
-          showFree ? 'bg-[#8fbf3f]/25 border-[#8fbf3f]' : 'bg-white/5 border-white/20 hover:bg-white/10'
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={showFree}
-          onChange={(e) => setShowFree(e.target.checked)}
-          className="w-4 h-4 accent-[#8fbf3f] cursor-pointer shrink-0"
-        />
-        <span className="text-[12px] font-bold text-white">Show 0-cost upgrades</span>
-        {freeCount > 0 && (
-          <span className={`ml-auto ${badge}`} style={BADGE_TEXT}>
-            {freeCount}
-          </span>
-        )}
-      </label>
-
-      {/* Native <details>, a disclosure with no JS. Budget and category filters are set rarely, so
-          they fold away and the results start higher; the count shows when any are active. */}
-      <details className="group rounded-sm border border-white/20 bg-white/5">
-        <summary className="flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-          <span aria-hidden="true" className="text-[9px] text-white/70 transition-transform group-open:rotate-90">
+          <span aria-hidden="true" className={`text-[9px] text-white/70 transition-transform ${collapsed ? '' : 'rotate-90'}`}>
             ▶
           </span>
-          <span className="text-[12px] font-bold text-white">Filters</span>
-          {activeFilterCount > 0 && (
+          Recommended Upgrades
+        </button>
+      ) : (
+        <div className={sectionTitle}>Recommended Upgrades</div>
+      )}
+
+      {/* `contents` keeps the children in this column's own gap; hidden rather than unmounted, so the
+          sort, filters and skipped rows survive a fold. */}
+      <div className={collapsed ? 'hidden' : 'contents'}>
+        <div className="flex items-center gap-2">
+          <label htmlFor={`upgrades-mode-${idSuffix}`} className={groupLabel}>
+            For
+          </label>
+          <select
+            id={`upgrades-mode-${idSuffix}`}
+            value={override}
+            onChange={(e) => setOverride(e.target.value)}
+            className="flex-1 min-w-0 px-2 py-1 text-[12px] font-bold bg-black text-white border-2 border-neutral-700 cursor-pointer"
+          >
+            <option value={AUTO_OPTIMIZER_MODE}>Auto - {modeLabel(autoMode)}</option>
+            {OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="text-[10px] text-white/55 -mt-1">
+          {override === AUTO_OPTIMIZER_MODE ? 'Follows your toggles and target.' : 'Pinned - choose Auto to follow the page toggles again.'}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className={groupLabel}>Sort</span>
+            <Chip
+              active={sortBy === 'smart'}
+              onClick={() => setSortBy('smart')}
+              title="% increase weighted by how much each category carries the build: Magical Power, armor and pets first, then weapon, then enchants"
+            >
+              Smart
+            </Chip>
+            <Chip active={sortBy === 'ratio'} onClick={() => setSortBy('ratio')} title="Damage gained per coin spent">
+              Value
+            </Chip>
+            <Chip active={sortBy === 'increase'} onClick={() => setSortBy('increase')} title="Highest raw % increase, ignoring cost">
+              Increase
+            </Chip>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={groupLabel}>Show</span>
+            <Chip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % increase on each row">
+              % increase
+            </Chip>
+            <Chip active={showFlat} onClick={() => setShowFlat((v) => !v)} title="Show the flat increase on each row">
+              Flat
+            </Chip>
+          </div>
+        </div>
+
+        {/* The one control people miss, so it's a full bordered row that lights up when on. */}
+        <label
+          className={`flex items-center gap-2 px-2 py-1.5 rounded-sm border cursor-pointer transition-colors ${
+            showFree ? 'bg-[#8fbf3f]/25 border-[#8fbf3f]' : 'bg-white/5 border-white/20 hover:bg-white/10'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={showFree}
+            onChange={(e) => setShowFree(e.target.checked)}
+            className="w-4 h-4 accent-[#8fbf3f] cursor-pointer shrink-0"
+          />
+          <span className="text-[12px] font-bold text-white">Show 0-cost upgrades</span>
+          {freeCount > 0 && (
             <span className={`ml-auto ${badge}`} style={BADGE_TEXT}>
-              {activeFilterCount}
+              {freeCount}
             </span>
           )}
-        </summary>
-        <div className="flex flex-col gap-2 px-2 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <label htmlFor={`upgrades-budget-${idSuffix}`} className={groupLabel}>
-              Max budget
-            </label>
-            <NumberInput
-              id={`upgrades-budget-${idSuffix}`}
-              value={build.maxBudget}
-              onChange={build.setMaxBudget}
-              min={0}
-              step={1000000}
-              allowSuffix
-              placeholder="No limit"
-              className="w-28 px-1.5 py-0.5 text-[12px] bg-black text-white border-2 border-neutral-700 text-right"
-            />
-          </div>
-          {availableCategories.length > 1 ? (
-            <div className="flex flex-wrap items-center gap-1">
-              {availableCategories.map((category) => {
-                const picked = selectedCategories.has(category);
-                const color = CATEGORY_COLORS[category] || '#777777';
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    aria-pressed={picked}
-                    onClick={() => toggleCategory(category)}
-                    title={picked ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
-                    className={`pl-1 pr-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide cursor-pointer rounded-sm border-l-[3px] transition-colors ${
-                      picked ? 'text-white' : 'text-white/75 hover:text-white'
-                    }`}
-                    style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(255,255,255,0.10)' }}
-                  >
-                    {category}
-                  </button>
-                );
-              })}
-              {selectedCategories.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategories(new Set())}
-                  className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/70 hover:text-white cursor-pointer underline"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="text-[10px] text-white/55 italic">Filters appear once there are results.</div>
-          )}
-        </div>
-      </details>
+        </label>
 
-      {!hasCuratedData(mode) && <div className="text-[10px] text-white/55 italic">No armor or pet picks for this mode yet.</div>}
-
-      {mode === 'slayer' && state.status === 'ok' && (
-        <div className="flex items-center justify-between text-[12px]">
-          <span className="font-bold text-white uppercase tracking-wide">Atk Speed</span>
-          <span className={`font-mono font-bold ${state.bonusAttackSpeed >= SLAYER_ATTACK_SPEED_TARGET ? 'text-green-400' : 'text-red-400'}`}>
-            {round1(state.bonusAttackSpeed)}% {state.bonusAttackSpeed < SLAYER_ATTACK_SPEED_TARGET && `(target ${SLAYER_ATTACK_SPEED_TARGET}%)`}
-          </span>
-        </div>
-      )}
-
-      {variant === 'page' && mobName && mobTypes && (
-        <div className="text-[11px] text-white/65 italic">
-          {!ownedAccessories
-            ? 'Import from Hypixel to see your real accessories.'
-            : mpResult
-              ? `Magical Power: ${mpResult.currentMp} (${ownedAccessories.length} accessories on file)`
-              : `Evaluating ${ownedAccessories.length} real accessories for Magical Power upgrades...`}
-        </div>
-      )}
-
-      {state.status === 'no-target' && (
-        <div className="text-[12px] text-white/70 italic">
-          No target selected -{' '}
-          <button type="button" className="underline cursor-pointer text-white" onClick={() => navigate('/target-mob')}>
-            pick a mob
-          </button>{' '}
-          to see recommendations.
-        </div>
-      )}
-      {state.status === 'loading' && <div className="text-[12px] text-white/70 italic">Evaluating...</div>}
-      {state.status === 'ok' && (
-        <div className="flex flex-col gap-1">
-          {combinedResults.length > 0 ? (
-            combinedResults.map((r) => (
-              <UpgradeRow
-                key={resultKey(r)}
-                result={r}
-                baselineValue={state.baselineValue}
-                showPercent={showPercent}
-                showFlat={showFlat}
-                onSwapIn={(res) => applyOptimizerResult(build, res)}
-                onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
+        {/* Native <details>, a disclosure with no JS. Budget and category filters are set rarely, so
+          they fold away and the results start higher; the count shows when any are active. */}
+        <details className="group rounded-sm border border-white/20 bg-white/5">
+          <summary className="flex items-center gap-2 px-2 py-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+            <span aria-hidden="true" className="text-[9px] text-white/70 transition-transform group-open:rotate-90">
+              ▶
+            </span>
+            <span className="text-[12px] font-bold text-white">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className={`ml-auto ${badge}`} style={BADGE_TEXT}>
+                {activeFilterCount}
+              </span>
+            )}
+          </summary>
+          <div className="flex flex-col gap-2 px-2 pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor={`upgrades-budget-${idSuffix}`} className={groupLabel}>
+                Max budget
+              </label>
+              <NumberInput
+                id={`upgrades-budget-${idSuffix}`}
+                value={build.maxBudget}
+                onChange={build.setMaxBudget}
+                min={0}
+                step={1000000}
+                allowSuffix
+                placeholder="No limit"
+                className="w-28 px-1.5 py-0.5 text-[12px] bg-black text-white border-2 border-neutral-700 text-right"
               />
-            ))
-          ) : (
-            <div className="px-2 py-1.5 text-[12px] text-white/65 italic">
-              {selectedCategories.size > 0
-                ? 'No upgrades match the selected filter.'
-                : build.maxBudget
-                  ? 'No upgrades available within budget.'
-                  : 'No upgrades available.'}
             </div>
-          )}
-        </div>
-      )}
+            {availableCategories.length > 1 ? (
+              <div className="flex flex-wrap items-center gap-1">
+                {availableCategories.map((category) => {
+                  const picked = selectedCategories.has(category);
+                  const color = CATEGORY_COLORS[category] || '#777777';
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      aria-pressed={picked}
+                      onClick={() => toggleCategory(category)}
+                      title={picked ? `Click to remove ${category} from the filter` : `Click to filter to just ${category}`}
+                      className={`pl-1 pr-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide cursor-pointer rounded-sm border-l-[3px] transition-colors ${
+                        picked ? 'text-white' : 'text-white/75 hover:text-white'
+                      }`}
+                      style={{ borderLeftColor: color, backgroundColor: picked ? color : 'rgba(255,255,255,0.10)' }}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+                {selectedCategories.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategories(new Set())}
+                    className="px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/70 hover:text-white cursor-pointer underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-[10px] text-white/55 italic">Filters appear once there are results.</div>
+            )}
+          </div>
+        </details>
 
-      {/* A footnote rather than a banner: it still says this ranks single swaps against the current
+        {!hasCuratedData(mode) && <div className="text-[10px] text-white/55 italic">No armor or pet picks for this mode yet.</div>}
+
+        {mode === 'slayer' && state.status === 'ok' && (
+          <div className="flex items-center justify-between text-[12px]">
+            <span className="font-bold text-white uppercase tracking-wide">Atk Speed</span>
+            <span
+              className={`font-mono font-bold ${state.bonusAttackSpeed >= SLAYER_ATTACK_SPEED_TARGET ? 'text-green-400' : 'text-red-400'}`}
+            >
+              {round1(state.bonusAttackSpeed)}%{' '}
+              {state.bonusAttackSpeed < SLAYER_ATTACK_SPEED_TARGET && `(target ${SLAYER_ATTACK_SPEED_TARGET}%)`}
+            </span>
+          </div>
+        )}
+
+        {variant === 'page' && mobName && mobTypes && (
+          <div className="text-[11px] text-white/65 italic">
+            {!ownedAccessories
+              ? 'Import from Hypixel to see your real accessories.'
+              : mpResult
+                ? `Magical Power: ${mpResult.currentMp} (${ownedAccessories.length} accessories on file)`
+                : `Evaluating ${ownedAccessories.length} real accessories for Magical Power upgrades...`}
+          </div>
+        )}
+
+        {state.status === 'no-target' && (
+          <div className="text-[12px] text-white/70 italic">
+            No target selected -{' '}
+            <button type="button" className="underline cursor-pointer text-white" onClick={() => navigate('/target-mob')}>
+              pick a mob
+            </button>{' '}
+            to see recommendations.
+          </div>
+        )}
+        {state.status === 'loading' && <div className="text-[12px] text-white/70 italic">Evaluating...</div>}
+        {state.status === 'ok' && (
+          <div className="flex flex-col gap-1">
+            {combinedResults.length > 0 ? (
+              combinedResults.map((r) => (
+                <UpgradeRow
+                  key={resultKey(r)}
+                  result={r}
+                  baselineValue={state.baselineValue}
+                  showPercent={showPercent}
+                  showFlat={showFlat}
+                  onSwapIn={(res) => applyOptimizerResult(build, res)}
+                  onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
+                />
+              ))
+            ) : (
+              <div className="px-2 py-1.5 text-[12px] text-white/65 italic">
+                {selectedCategories.size > 0
+                  ? 'No upgrades match the selected filter.'
+                  : build.maxBudget
+                    ? 'No upgrades available within budget.'
+                    : 'No upgrades available.'}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* A footnote rather than a banner: it still says this ranks single swaps against the current
           build rather than a full plan, without pushing the results below the fold. */}
-      <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 pt-1.5 border-t border-white/10">
-        <span aria-hidden="true" className="shrink-0 leading-none pt-px">
-          ⚠
-        </span>
-        <span>Recommendations are not necessarily indicative of the most optimal option.</span>
+        <div className="flex items-start gap-1.5 text-[10px] leading-snug text-amber-300/90 pt-1.5 border-t border-white/10">
+          <span aria-hidden="true" className="shrink-0 leading-none pt-px">
+            ⚠
+          </span>
+          <span>Recommendations are not necessarily indicative of the most optimal option.</span>
+        </div>
       </div>
     </div>
   );

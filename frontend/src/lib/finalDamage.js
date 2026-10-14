@@ -375,6 +375,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
   const damageReductionPercent = computeMobDamageReduction(mob, sources.isGriffinPet);
   const magicResistancePercent = computeMobMagicResistance(mob);
   const mobDefenseMultiplier = computeMobDefenseMultiplier(mob, useMasterMode, mobDefenseDebuffMultiplier(sources.debuffs));
+  const debuffMultiplier = finalDamageDebuffMultiplier(sources.debuffs);
   const finalDamage = Math.floor(
     initialDamage *
       additiveMultiplier *
@@ -382,7 +383,7 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
       (1 - damageReductionPercent / 100) *
       (1 - magicResistancePercent / 100) *
       mobDefenseMultiplier *
-      finalDamageDebuffMultiplier(sources.debuffs),
+      debuffMultiplier,
   );
 
   return {
@@ -400,6 +401,9 @@ export function computeAbilityDamage(sources, mob, loadout, useDungeonizedStats 
     multiplicativeMultiplier,
     finalDamage,
     appliedIds,
+    // The remaining inputs, so the Damage page can show the whole calculation.
+    intelligence: baseStats.intelligence || 0,
+    debuffMultiplier,
   };
 }
 
@@ -416,10 +420,9 @@ const MAGE_STAFF_BEAM_INTELLIGENCE_RATE = 0.0009;
 export function computeMageStaffBeamDamage(sources, mob, meleeFinalDamage, useDungeonizedStats = false, useMasterMode = false) {
   const baseStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
   const intelligence = baseStats.intelligence || 0;
-  const finalDamage = isShieldedMob(mob)
-    ? 1
-    : Math.floor(meleeFinalDamage * (MAGE_STAFF_BEAM_BASE_MULTIPLIER + MAGE_STAFF_BEAM_INTELLIGENCE_RATE * intelligence));
-  return { meleeFinalDamage, intelligence, finalDamage };
+  const beamMultiplier = MAGE_STAFF_BEAM_BASE_MULTIPLIER + MAGE_STAFF_BEAM_INTELLIGENCE_RATE * intelligence;
+  const finalDamage = isShieldedMob(mob) ? 1 : Math.floor(meleeFinalDamage * beamMultiplier);
+  return { meleeFinalDamage, intelligence, beamMultiplier, finalDamage };
 }
 
 // Crimson Swipe: a melee-only proc on meleeFinalDamage. `swipeInfo` is computeCrimsonSwipeInfo()'s
@@ -704,6 +707,16 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     duplexLevel,
     duplexBonusDps,
     isBowWeapon,
+    // The remaining inputs, so the Damage page can show the Bow DPS calculation.
+    meleeFinalDamageNonCrit: steadyFinalDamage.finalDamageNonCrit,
+    normalCritChance,
+    expectedArrowDamage,
+    isTerminator,
+    duplexMultiplier,
+    // Arrows' worth of damage in one volley, before the Archer's bonus arrow.
+    volleyArrows: isTerminator ? (duplexLevel > 0 ? duplexMultiplier + 2 : 3) : duplexMultiplier,
+    bonusArrowChance: isBowWeapon ? sources.dungeonClassStats?.bonusArrowChance || 0 : 0,
+    bowVolleyDamage,
   };
 }
 
@@ -742,6 +755,9 @@ export function simulateHitByHit(
   // at hit 40 leaves a long fight barely scratched, so Execute (which climbs as HP drains) reads as
   // worthless and Prosecute (which falls) reads as maxed.
   maxSamples = null,
+  // Mage Beam replaces each swing with the Beam (computeMageStaffBeamDamage), as computeDpsBreakdown's
+  // `beam` does; the procs still scale off the swing.
+  beam = false,
 ) {
   // Same selection as computeDpsBreakdown's - see the comment there.
   const simStats = selectBaseStats(sources, useDungeonizedStats, useMasterMode, mob);
@@ -846,12 +862,13 @@ export function simulateHitByHit(
       nonCritChance * steady.finalDamageNonCrit +
       normalCritChance * steady.finalDamage +
       megaCritChance * steady.finalDamage * (1 + (sources.overloadBonusPercent || 0) / 100);
-    const meleeDamage =
-      (isTerminator
-        ? duplexLevel > 0
-          ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
-          : expectedArrowDamage * 3
-        : expectedArrowDamage * duplexMultiplier) + (simIsBowWeapon ? expectedArrowDamage * classBonusArrowChance : 0);
+    const meleeDamage = beam
+      ? computeMageStaffBeamDamage(hitSources, mob, expectedArrowDamage, useDungeonizedStats, useMasterMode).finalDamage
+      : (isTerminator
+          ? duplexLevel > 0
+            ? expectedArrowDamage * duplexMultiplier + 2 * expectedArrowDamage
+            : expectedArrowDamage * 3
+          : expectedArrowDamage * duplexMultiplier) + (simIsBowWeapon ? expectedArrowDamage * classBonusArrowChance : 0);
 
     let fireAspectDamage = 0;
     if (sources.fireAspectProc) {

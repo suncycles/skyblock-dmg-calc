@@ -1677,6 +1677,65 @@ try {
     }
   });
 
+  // 50e. The same for Ability, Beam and Bow DPS: the factors the page shows multiply back out to
+  // the number it headlines.
+  await check('Ability, Beam and Bow calculation steps reproduce their numbers', () => {
+    const stats = { damage: 335, strength: 2000, crit_damage: 1000, crit_chance: 130, intelligence: 2500, ability_damage: 45, bonus_attack_speed: 70 };
+    const sources = {
+      baseStats: stats, dungeonizedBaseStats: stats, masterDungeonizedBaseStats: stats,
+      mythologicalBaseStats: stats, mythologicalDungeonizedBaseStats: stats, mythologicalMasterDungeonizedBaseStats: stats,
+      additiveNonConditional: [{ id: 'a', value: 200, abilityEligible: true }], additiveConditional: [],
+      weaponBonusNonConditional: [], weaponBonusConditional: [],
+      multiplicative: [{ id: 'm', value: 1.2 }], abilityMultiplicative: [{ id: 'i', value: 1.25 }],
+      abilityBaseDamageBoost: { withoutMaster: 50, withMaster: 60 },
+      overloadBonusPercent: 10, dungeonClassStats: { bonusArrowChance: 0.2 }, isGriffinPet: true,
+      debuffs: { iceSpray: true, lastBreath: 5 },
+    };
+    for (const mob of [{ name: 'Necron', types: [] }, { name: 'Zombie', types: ['Undead'] }, { name: 'Minos Champion', types: ['Mythological'] }]) {
+      const ad = finalDamage.computeAbilityDamage(sources, mob, { weapon: { item: { id: 'HYPERION' } } }, true, true);
+      const adSteps =
+        ad.baseDamage * ad.catacombsBoostMultiplier * (1 + (ad.intelligence / 100) * ad.scaling) * (1 + ad.abilityDamageStat / 100) *
+        ad.additiveMultiplier * ad.multiplicativeMultiplier * (1 - ad.damageReductionPercent / 100) *
+        (1 - ad.magicResistancePercent / 100) * ad.mobDefenseMultiplier * ad.debuffMultiplier;
+      assert.equal(Math.floor(adSteps), ad.finalDamage, `ability vs ${mob.name}`);
+
+      const beam = finalDamage.computeMageStaffBeamDamage(sources, mob, 123456, true, true);
+      assert.equal(Math.floor(123456 * beam.beamMultiplier), beam.finalDamage, `beam vs ${mob.name}`);
+
+      for (const id of ['TERMINATOR', 'JUJU_SHORTBOW']) {
+        for (const level of [0, 5]) {
+          const ultimateEnchantment = level ? { id: 'ultimate_reiterate', level } : null;
+          const dps = finalDamage.computeDpsBreakdown(sources, mob, { weapon: { item: { id, category: 'BOW' }, modifiers: { ultimateEnchantment } } }, true, true);
+          const arrow =
+            dps.meleeFinalDamageNonCrit * dps.nonCritChance + dps.meleeFinalDamage * dps.normalCritChance +
+            dps.meleeFinalDamage * (1 + sources.overloadBonusPercent / 100) * dps.megaCritChance;
+          assert.ok(Math.abs(arrow - dps.expectedArrowDamage) < 1e-6, `arrow ${id} ${level}`);
+          const bow = (arrow * dps.volleyArrows + arrow * dps.bonusArrowChance) * dps.bowShotsPerSecond;
+          assert.ok(dps.bow > 0 && Math.abs(bow - dps.bow) < 1e-6 * dps.bow, `bow ${id} ${level} vs ${mob.name}: ${bow} ${dps.bow}`);
+        }
+      }
+    }
+  });
+
+  // 50f. In Beam mode the fight simulation (the graph) hits with the Beam, Intelligence scaling
+  // included, not the plain swing. Before this only the Beam DPS row did.
+  await check('Beam mode simulates Beam hits, Intelligence scaling included', () => {
+    const stats = { damage: 335, strength: 2000, crit_damage: 1000, crit_chance: 80, intelligence: 2500, bonus_attack_speed: 70 };
+    const sources = {
+      baseStats: stats, dungeonizedBaseStats: stats, masterDungeonizedBaseStats: stats,
+      additiveNonConditional: [{ id: 'a', value: 200 }], additiveConditional: [],
+      weaponBonusNonConditional: [], weaponBonusConditional: [],
+      multiplicative: [], abilityMultiplicative: [], debuffs: { iceSpray: true },
+    };
+    const mob = { name: 'Zombie', types: ['Undead'] };
+    const loadout = { weapon: { item: { id: 'HYPERION', category: 'SWORD' }, modifiers: {} } };
+    const dps = finalDamage.computeDpsBreakdown(sources, mob, loadout, true, false);
+    const [swing] = finalDamage.simulateHitByHit(sources, mob, loadout, null, 100, true, false, 1).hits;
+    const [beam] = finalDamage.simulateHitByHit(sources, mob, loadout, null, 100, true, false, 1, null, true).hits;
+    assert.equal(beam.meleeDamage, dps.beamProc.finalDamage);
+    assert.equal(beam.meleeDamage, Math.floor(swing.meleeDamage * (0.3 + 0.0009 * 2500)));
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

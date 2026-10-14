@@ -112,14 +112,16 @@ function MobDamageReductionNote({ name, types }) {
   );
 }
 
+const times = (v) => `×${round4(v)}`;
+const count = (v) => Math.floor(v).toLocaleString();
+const percent = (chance) => `${round1(chance * 100)}%`;
+const range = (a, b, format) => (b != null && b !== a ? `${format(a)} ~ ${format(b)}` : format(a));
+
 // Final Damage worked through step by step, in the order computeFinalDamage applies each factor.
 // Fabled's random crit bonus shows as its range, from no bonus to its max; Overload is the extra
 // step a mega crit (Crit Chance past 100%) takes.
-function FinalDamageCalc({ finalDamage: fd, fabledMax, overloadPercent }) {
-  const times = (v) => `×${round4(v)}`;
-  const count = (v) => Math.floor(v).toLocaleString();
-  const range = (a, b, format) => (b != null && b !== a ? `${format(a)} ~ ${format(b)}` : format(a));
-  const steps = [
+function finalDamageSteps(fd, fabledMax, overloadPercent, totalLabel = 'Final Damage') {
+  return [
     ['Initial Damage', `(5 + ${round1(fd.damageStat).toLocaleString()} Damage) × (1 + ${round1(fd.strength).toLocaleString()} Strength / 100)`, round1(fd.initialDamage).toLocaleString()],
     ['Additive', `1 + ${round1(fd.additivePercent).toLocaleString()}%`, times(fd.additiveMultiplier)],
     fd.weaponBonusPercent !== 0 && ['Weapon Bonus', `1 + ${round1(fd.weaponBonusPercent)}%`, times(fd.weaponBonusMultiplier)],
@@ -133,16 +135,67 @@ function FinalDamageCalc({ finalDamage: fd, fabledMax, overloadPercent }) {
     fd.damageReductionPercent > 0 && ['Damage Reduction', `1 - ${round1(fd.damageReductionPercent)}%`, times(1 - fd.damageReductionPercent / 100)],
     fd.mobDefenseMultiplier !== 1 && ['Mob Defense', 'from its Defense', times(fd.mobDefenseMultiplier)],
     fd.debuffMultiplier !== 1 && ['Debuffs', '', times(fd.debuffMultiplier)],
-    ['= Final Damage', 'rounded down', range(fd.finalDamage, fabledMax?.finalDamage, count)],
+    [`= ${totalLabel}`, 'rounded down', range(fd.finalDamage, fabledMax?.finalDamage, count)],
     overloadPercent > 0 && [
       '☆ Overload',
       `mega crit, × (1 + ${overloadPercent}%)`,
       range(fd.finalDamage * (1 + overloadPercent / 100), fabledMax && fabledMax.finalDamage * (1 + overloadPercent / 100), count),
     ],
-  ].filter(Boolean);
+  ];
+}
+
+// Ability Damage, in the order computeAbilityDamage applies each factor. Abilities don't crit.
+function abilityDamageSteps(ad) {
+  return [
+    ['Base Ability Damage', '', ad.baseDamage.toLocaleString()],
+    ad.catacombsBoostPercent !== 0 && ['Catacombs Stats Boost', `1 + ${round1(ad.catacombsBoostPercent)}%`, times(ad.catacombsBoostMultiplier)],
+    ['Intelligence', `1 + ${round1(ad.intelligence).toLocaleString()} / 100 × ${ad.scaling} scaling`, times(1 + (ad.intelligence / 100) * ad.scaling)],
+    ad.abilityDamageStat !== 0 && ['Ability Damage', `1 + ${round1(ad.abilityDamageStat)}%`, times(1 + ad.abilityDamageStat / 100)],
+    ['Additive', `1 + ${round1(ad.additivePercent).toLocaleString()}%`, times(ad.additiveMultiplier)],
+    ad.multiplicativeMultiplier !== 1 && ['Multiplicative', '', times(ad.multiplicativeMultiplier)],
+    ad.damageReductionPercent > 0 && ['Damage Reduction', `1 - ${round1(ad.damageReductionPercent)}%`, times(1 - ad.damageReductionPercent / 100)],
+    ad.magicResistancePercent > 0 && ['Magic Resistance', `1 - ${round1(ad.magicResistancePercent)}%`, times(1 - ad.magicResistancePercent / 100)],
+    ad.mobDefenseMultiplier !== 1 && ['Mob Defense', 'from its Defense', times(ad.mobDefenseMultiplier)],
+    ad.debuffMultiplier !== 1 && ['Debuffs', '', times(ad.debuffMultiplier)],
+    ['= Ability Damage', 'rounded down', count(ad.finalDamage)],
+  ];
+}
+
+// Beam is a cut of the melee hit, so it carries the whole melee calculation, Fabled range included.
+function beamDamageSteps(melee, meleeFabledMax, beam, beamFabledMax) {
+  return [
+    ...finalDamageSteps(melee, meleeFabledMax, 0, 'Melee Final Damage'),
+    ['Beam', `0.3 + 0.0009 × ${round1(beam.intelligence).toLocaleString()} Intelligence`, times(beam.beamMultiplier)],
+    ['= Beam Damage', 'rounded down', range(beam.finalDamage, beamFabledMax?.finalDamage, count)],
+  ];
+}
+
+// Bow DPS, as computeDpsBreakdown builds it: the crit-weighted average arrow, the arrows in a volley,
+// then shots per second. No procs ride an arrow.
+function bowDpsSteps(dps, overloadPercent) {
+  const arrows = dps.volleyArrows;
+  const duplex = dps.duplexLevel > 0 ? `Duplex +${round1((dps.duplexMultiplier - 1) * 100)}%` : '';
+  return [
+    dps.nonCritChance > 0 && ['Non-crit', `${count(dps.meleeFinalDamageNonCrit)} × ${percent(dps.nonCritChance)}`, `+${round1(dps.meleeFinalDamageNonCrit * dps.nonCritChance).toLocaleString()}`],
+    dps.normalCritChance > 0 && ['Crit', `${count(dps.meleeFinalDamage)} × ${percent(dps.normalCritChance)}`, `+${round1(dps.meleeFinalDamage * dps.normalCritChance).toLocaleString()}`],
+    dps.megaCritChance > 0 && [
+      '☆ Mega Crit',
+      `${count(dps.meleeFinalDamage)} × (1 + ${overloadPercent}%) × ${percent(dps.megaCritChance)}`,
+      `+${round1(dps.meleeFinalDamage * (1 + overloadPercent / 100) * dps.megaCritChance).toLocaleString()}`,
+    ],
+    ['= Average Arrow', '', round1(dps.expectedArrowDamage).toLocaleString()],
+    arrows !== 1 && ['Arrows', dps.isTerminator ? `3 arrows${duplex ? `, one with ${duplex}` : ''}` : duplex, times(arrows)],
+    dps.bonusArrowChance > 0 && ['Bonus Arrow', `Archer, ${percent(dps.bonusArrowChance)} chance`, `+${round1(dps.expectedArrowDamage * dps.bonusArrowChance).toLocaleString()}`],
+    (arrows !== 1 || dps.bonusArrowChance > 0) && ['= Volley', '', round1(dps.bowVolleyDamage).toLocaleString()],
+    ['Shots per Second', '', times(dps.bowShotsPerSecond)],
+    ['= Bow DPS', '', Math.round(dps.bow).toLocaleString()],
+  ];
+}
+
+function CalcSteps({ steps }) {
   return (
     <div className="flex flex-col gap-0.5 text-[12px] text-neutral-700 bg-black/5 border border-neutral-500/40 px-2 py-1.5">
-      {steps.map(([label, formula, value]) => (
+      {steps.filter(Boolean).map(([label, formula, value]) => (
         <div key={label} className={`flex items-baseline justify-between gap-3 ${label.startsWith('=') ? 'border-t border-neutral-500/40 pt-0.5 mt-0.5 font-bold text-black' : ''}`}>
           <span>
             {label}
@@ -152,6 +205,34 @@ function FinalDamageCalc({ finalDamage: fd, fabledMax, overloadPercent }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// `steps` null means the target takes a fixed amount (a shielded or joke mob), so no formula applies.
+function CalcPanel({ steps }) {
+  return steps ? (
+    <CalcSteps steps={steps} />
+  ) : (
+    <div className="text-[12px] text-neutral-600 italic">This target takes fixed damage, so there is no formula to show.</div>
+  );
+}
+
+// A damage headline that opens its calculation underneath.
+function CalcToggle({ open, onToggle, label, value, valueClass = 'text-2xl' }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      title="Show the calculation"
+      onClick={onToggle}
+      className="group flex items-baseline justify-between text-left cursor-pointer"
+    >
+      <span className="text-sm font-bold text-black group-hover:underline">
+        <span className="inline-block w-3 text-[10px] text-neutral-600">{open ? '▾' : '▸'}</span>
+        {label}
+      </span>
+      <span className={`${valueClass} font-mono font-bold text-black`}>{value}</span>
+    </button>
   );
 }
 
@@ -278,8 +359,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const [resultLoadout, setResultLoadout] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
   const [expandedStat, setExpandedStat] = useState(null);
-  // Mob names whose Final Damage calculation is open.
+  // Which calculations are open, keyed by mob name plus the damage kind (see CalcToggle).
   const [openCalcs, setOpenCalcs] = useState({});
+  const toggleCalc = (key) => setOpenCalcs((prev) => ({ ...prev, [key]: !prev[key] }));
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const tokenRef = useRef(0);
 
@@ -500,6 +582,9 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
           return {
             name,
             types,
+            // The melee hit behind the Beam, for its calculation.
+            melee: mobResults[idx]?.finalDamage,
+            meleeFabledMax: mobResults[idx]?.finalDamageWithFabledMax,
             abilityDamage: computeAbilityDamage(result, mob, loadout, useDungeonizedStats, useMasterMode),
             beamDamage:
               meleeFinalDamage != null
@@ -770,6 +855,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       useMasterMode,
                       startingHp ? MAX_SIMULATED_HITS : undefined,
                       maxSamples,
+                      dpsKind === 'beam',
                     );
                   sim = runSim(null);
                   if (startingHp && sim.hits.length >= MAX_SIMULATED_HITS) sim = runSim(MAX_SIMULATED_HITS);
@@ -787,6 +873,15 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               // different bases, so subtracting a steady-state melee figure out of a fight average
               // would mix them. Beam never ramps with HP% or stacks, so there is nothing to simulate.
               const showProcs = dpsKind !== 'bow';
+              // In Beam mode the per-hit line below is the Beam, which replaces the swing.
+              const beamHit =
+                dpsKind === 'beam' && finalDamage
+                  ? computeMageStaffBeamDamage(result, { name, types }, finalDamage.finalDamage, useDungeonizedStats, useMasterMode)
+                  : null;
+              const beamHitFabledMax =
+                beamHit && finalDamageWithFabledMax
+                  ? computeMageStaffBeamDamage(result, { name, types }, finalDamageWithFabledMax.finalDamage, useDungeonizedStats, useMasterMode)
+                  : null;
               let totalDps;
               if (dpsKind === 'bow') {
                 // Bow DPS is the volley at a bow's own fire rate and nothing else - no procs, no
@@ -908,35 +1003,75 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                         </div>
                       )}
                       <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                        {/* The per-hit melee number the non-DPS view headlines, repeated here so DPS
-                            mode isn't rates alone. Melee only - the procs have their own rows. */}
+                        {/* The per-hit number the non-DPS view headlines, repeated here so DPS mode
+                            isn't rates alone: the swing, or the Beam in Beam mode. The procs have
+                            their own rows. */}
                         {finalDamage && (
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-sm font-bold text-black">
-                              Damage{meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}
-                            </span>
-                            <span className="text-lg font-mono font-bold text-black">
-                              {finalDamageWithFabledMax
-                                ? `${finalDamage.finalDamage.toLocaleString()} ~ ${finalDamageWithFabledMax.finalDamage.toLocaleString()}`
-                                : finalDamage.finalDamage.toLocaleString()}
-                            </span>
-                          </div>
+                          <>
+                            <CalcToggle
+                              open={!!openCalcs[`${name}:dps`]}
+                              onToggle={() => toggleCalc(`${name}:dps`)}
+                              label={`${beamHit ? 'Beam Damage' : 'Damage'}${meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}`}
+                              value={
+                                beamHit
+                                  ? range(beamHit.finalDamage, beamHitFabledMax?.finalDamage, (v) => v.toLocaleString())
+                                  : range(finalDamage.finalDamage, finalDamageWithFabledMax?.finalDamage, (v) => v.toLocaleString())
+                              }
+                              valueClass="text-lg"
+                            />
+                            {openCalcs[`${name}:dps`] && (
+                              <CalcPanel
+                                steps={
+                                  finalDamage.critDamagePercent != null &&
+                                  (beamHit
+                                    ? beamDamageSteps(finalDamage, finalDamageWithFabledMax, beamHit, beamHitFabledMax)
+                                    : finalDamageSteps(finalDamage, finalDamageWithFabledMax, result.overloadBonusPercent))
+                                }
+                              />
+                            )}
+                          </>
                         )}
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-sm font-bold text-black">
-                            Total DPS
-                            {dpsKind !== 'melee' && <span className="ml-1 font-normal capitalize text-neutral-600">({dpsKind})</span>}
-                          </span>
-                          {/* Bow DPS is real now (its own Attack Speed breakpoints, no procs - see
-                              finalDamage.js), but only means anything with a bow actually equipped:
-                              the same volley fired at bow rates off a sword build is a number for a
-                              loadout nobody has. */}
-                          {dpsKind === 'bow' && !dps.isBowWeapon ? (
-                            <span className="text-sm font-bold text-neutral-600 italic">No bow equipped</span>
-                          ) : (
-                            <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
-                          )}
-                        </div>
+                        {(() => {
+                          const label = (
+                            <>
+                              Total DPS
+                              {dpsKind !== 'melee' && <span className="ml-1 font-normal capitalize text-neutral-600">({dpsKind})</span>}
+                            </>
+                          );
+                          // Bow DPS is real now (its own Attack Speed breakpoints, no procs - see
+                          // finalDamage.js), but only means anything with a bow actually equipped:
+                          // the same volley fired at bow rates off a sword build is a number for a
+                          // loadout nobody has.
+                          if (dpsKind === 'bow' && !dps.isBowWeapon) {
+                            return (
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-sm font-bold text-black">{label}</span>
+                                <span className="text-sm font-bold text-neutral-600 italic">No bow equipped</span>
+                              </div>
+                            );
+                          }
+                          if (dpsKind === 'bow') {
+                            return (
+                              <>
+                                <CalcToggle
+                                  open={!!openCalcs[`${name}:bow`]}
+                                  onToggle={() => toggleCalc(`${name}:bow`)}
+                                  label={label}
+                                  value={Math.round(totalDps).toLocaleString()}
+                                />
+                                {openCalcs[`${name}:bow`] && (
+                                  <CalcPanel steps={finalDamage?.critDamagePercent != null && bowDpsSteps(dps, result.overloadBonusPercent)} />
+                                )}
+                              </>
+                            );
+                          }
+                          return (
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-sm font-bold text-black">{label}</span>
+                              <span className="text-2xl font-mono font-bold text-black">{Math.round(totalDps).toLocaleString()}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                       {pickerOptions && (
                         <div className="flex items-center gap-2 text-[11px]">
@@ -969,6 +1104,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             maxDps={sim.maxDps}
                             minDps={sim.minDps}
                             scaleKey={resultLoadout}
+                            hitLabel={dpsKind === 'beam' ? 'Beam' : 'Melee'}
                           />
                         </Suspense>
                       )}
@@ -978,7 +1114,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               );
             })
           ) : mageMode ? (
-            abilityMobResults.map(({ name, types, abilityDamage, beamDamage, beamDamageWithFabledMax }) => (
+            abilityMobResults.map(({ name, types, abilityDamage, beamDamage, beamDamageWithFabledMax, melee, meleeFabledMax }) => (
               <div key={name} className={`${panel} p-4 flex flex-col gap-2`}>
                 <div className="flex items-center justify-between flex-wrap gap-1">
                   <span className="text-[13px] font-bold text-black tracking-wide">{name}</span>
@@ -1037,22 +1173,35 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                           <span>Multiplicative Multiplier</span>
                           <span className="text-right font-mono">{round4(abilityDamage.multiplicativeMultiplier)}x</span>
                         </div>
-                        <div className="flex items-baseline justify-between border-t-2 border-neutral-500 pt-2 mt-1">
-                          <span className="text-sm font-bold text-black">Final Damage (Ability)</span>
-                          <span className="text-2xl font-mono font-bold text-black">{abilityDamage.finalDamage.toLocaleString()}</span>
+                        <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
+                          <CalcToggle
+                            open={!!openCalcs[`${name}:ability`]}
+                            onToggle={() => toggleCalc(`${name}:ability`)}
+                            label="Final Damage (Ability)"
+                            value={abilityDamage.finalDamage.toLocaleString()}
+                          />
+                          {openCalcs[`${name}:ability`] && (
+                            <CalcPanel steps={abilityDamage.intelligence != null && abilityDamageSteps(abilityDamage)} />
+                          )}
                         </div>
                       </>
                     )}
                     {beamDamage && (
-                      <div
-                        className={`flex items-baseline justify-between ${hasAbilityWeapon ? '' : 'border-t-2 border-neutral-500 pt-2 mt-1'}`}
-                      >
-                        <span className="text-sm font-bold text-black">Final Damage (Beam{beamDamageWithFabledMax ? ', Fabled' : ''})</span>
-                        <span className="text-2xl font-mono font-bold text-black">
-                          {beamDamageWithFabledMax
-                            ? `${beamDamage.finalDamage.toLocaleString()} ~ ${beamDamageWithFabledMax.finalDamage.toLocaleString()}`
-                            : beamDamage.finalDamage.toLocaleString()}
-                        </span>
+                      <div className={`flex flex-col gap-1 ${hasAbilityWeapon ? '' : 'border-t-2 border-neutral-500 pt-2 mt-1'}`}>
+                        <CalcToggle
+                          open={!!openCalcs[`${name}:beam`]}
+                          onToggle={() => toggleCalc(`${name}:beam`)}
+                          label={`Final Damage (Beam${beamDamageWithFabledMax ? ', Fabled' : ''})`}
+                          value={range(beamDamage.finalDamage, beamDamageWithFabledMax?.finalDamage, (v) => v.toLocaleString())}
+                        />
+                        {openCalcs[`${name}:beam`] && (
+                          <CalcPanel
+                            steps={
+                              melee?.critDamagePercent != null &&
+                              beamDamageSteps(melee, meleeFabledMax, beamDamage, beamDamageWithFabledMax)
+                            }
+                          />
+                        )}
                       </div>
                     )}
                     <MobDefenseNote name={name} types={types} masterMode={useMasterMode} debuffs={settledDebuffs} />
@@ -1116,32 +1265,21 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       )}
                     </div>
                     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                      <button
-                        type="button"
-                        aria-expanded={!!openCalcs[name]}
-                        title="Show the calculation"
-                        onClick={() => setOpenCalcs((prev) => ({ ...prev, [name]: !prev[name] }))}
-                        className="group flex items-baseline justify-between text-left cursor-pointer"
-                      >
-                        <span className="text-sm font-bold text-black group-hover:underline">
-                          <span className="inline-block w-3 text-[10px] text-neutral-600">{openCalcs[name] ? '▾' : '▸'}</span>
-                          Final Damage{meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}
-                          {finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}
-                        </span>
-                        <span className="text-2xl font-mono font-bold text-black">
-                          {finalDamageWithFabledMax
-                            ? `${finalDamage.finalDamage.toLocaleString()} ~ ${finalDamageWithFabledMax.finalDamage.toLocaleString()}`
-                            : finalDamage.finalDamage.toLocaleString()}
-                          {result.overloadBonusPercent > 0 &&
-                            ` ☆ ${Math.floor(finalDamage.finalDamage * (1 + result.overloadBonusPercent / 100)).toLocaleString()}`}
-                        </span>
-                      </button>
-                      {openCalcs[name] &&
-                        (finalDamage.critDamagePercent != null ? (
-                          <FinalDamageCalc finalDamage={finalDamage} fabledMax={finalDamageWithFabledMax} overloadPercent={result.overloadBonusPercent} />
-                        ) : (
-                          <div className="text-[12px] text-neutral-600 italic">This target takes fixed damage, so there is no formula to show.</div>
-                        ))}
+                      <CalcToggle
+                        open={!!openCalcs[name]}
+                        onToggle={() => toggleCalc(name)}
+                        label={`Final Damage${meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}${finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}`}
+                        value={`${range(finalDamage.finalDamage, finalDamageWithFabledMax?.finalDamage, (v) => v.toLocaleString())}${
+                          result.overloadBonusPercent > 0
+                            ? ` ☆ ${Math.floor(finalDamage.finalDamage * (1 + result.overloadBonusPercent / 100)).toLocaleString()}`
+                            : ''
+                        }`}
+                      />
+                      {openCalcs[name] && (
+                        <CalcPanel
+                          steps={finalDamage.critDamagePercent != null && finalDamageSteps(finalDamage, finalDamageWithFabledMax, result.overloadBonusPercent)}
+                        />
+                      )}
                       {finalDamageWithoutVanquished && (
                         <div className="flex items-baseline justify-between">
                           <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>
