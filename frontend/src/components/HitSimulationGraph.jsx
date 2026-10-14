@@ -12,15 +12,15 @@ const PROC_LABELS = {
   fireAspectDamage: 'Fire Aspect',
   thunderlordDamage: 'Thunderlord',
   crimsonSwipeDamage: 'Crimson Swipe',
-  venomousDamage: 'Venomous (amortized)',
+  venomousDamage: 'Venomous',
 };
 
 // One line per damage source rather than a single summed line - a
 // stacked total hides which source is actually moving. Same key order as PROC_LABELS so the
 // legend and the tooltip read in the same order.
 const SOURCE_SERIES = [
-  { key: 'meleeDamage', name: 'Melee', color: '#4ade80' },
-  { key: 'venomousDamage', name: 'Venomous', color: '#a78bfa' },
+  { key: 'meleeDamage', name: 'Melee', color: '#ffffff' },
+  { key: 'venomousDamage', name: 'Venomous', color: '#4ade80' },
   { key: 'fireAspectDamage', name: 'Fire Aspect', color: '#fb923c' },
   { key: 'thunderlordDamage', name: 'Thunderlord', color: '#38bdf8' },
   { key: 'crimsonSwipeDamage', name: 'Crimson Swipe', color: '#f472b6' },
