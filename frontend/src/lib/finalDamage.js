@@ -678,6 +678,9 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
   // Mode is active and says so on screen.
   const beamProc = computeMageStaffBeamDamage(sources, mob, expectedArrowDamage, useDungeonizedStats, useMasterMode);
   const beam = beamProc.finalDamage * meleeHitsPerSecond;
+  // With the Beam replacing the swing, Venomous scales off the Beam's Final Damage instead.
+  const venomousBeamProc = computeVenomousProcDamage(sources, mob, beamProc.finalDamage, useMasterMode);
+  const venomousBeam = (venomousBeamProc?.finalDamage || 0) * DPS_HITS_PER_SECOND.venomous;
 
   // The same volley at a bow's own rate (BOW_SHOT_RATE_BREAKPOINTS), carrying no procs:
   // Venomous/Thunderlord/Fire Aspect/Crimson Swipe ride a melee swing or a beam, never an arrow. So
@@ -698,6 +701,8 @@ export function computeDpsBreakdown(sources, mob, loadout, useDungeonizedStats =
     total: melee + venomous + thunderlord + fireAspect + crimsonSwipe,
     venomousProc,
     beamProc,
+    venomousBeam,
+    venomousBeamProc,
     // Steady-state per-hit melee damage, excluding First Strike/Triple Strike, so the by-hit graph can
     // compare it against the boosted opening hits and plot the DPS dip.
     meleeFinalDamage,
@@ -756,7 +761,7 @@ export function simulateHitByHit(
   // worthless and Prosecute (which falls) reads as maxed.
   maxSamples = null,
   // Mage Beam replaces each swing with the Beam (computeMageStaffBeamDamage), as computeDpsBreakdown's
-  // `beam` does; the procs still scale off the swing.
+  // `beam` does. Venomous then scales off the Beam; the other procs still scale off the swing.
   beam = false,
 ) {
   // Same selection as computeDpsBreakdown's - see the comment there.
@@ -902,7 +907,7 @@ export function simulateHitByHit(
       // Stacks cap at MAX_VENOMOUS_STACKS; a full-fight window runs past that, so the cap really binds
       // on the final hit.
       const activeStacks = Math.min(hit, MAX_VENOMOUS_STACKS);
-      const perStack = computeVenomousProcDamage(hitSources, mob, expectedArrowDamage, useMasterMode)?.finalDamage || 0;
+      const perStack = computeVenomousProcDamage(hitSources, mob, beam ? meleeDamage : expectedArrowDamage, useMasterMode)?.finalDamage || 0;
       venomousDamage = (perStack * activeStacks * DPS_HITS_PER_SECOND.venomous) / meleeHitsPerSecond;
     }
 

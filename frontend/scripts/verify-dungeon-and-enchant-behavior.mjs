@@ -1718,14 +1718,15 @@ try {
   });
 
   // 50f. In Beam mode the fight simulation (the graph) hits with the Beam, Intelligence scaling
-  // included, not the plain swing. Before this only the Beam DPS row did.
-  await check('Beam mode simulates Beam hits, Intelligence scaling included', () => {
+  // included, not the plain swing, and Venomous scales off that Beam hit.
+  await check('Beam mode simulates Beam hits, and Venomous scales off them', () => {
     const stats = { damage: 335, strength: 2000, crit_damage: 1000, crit_chance: 80, intelligence: 2500, bonus_attack_speed: 70 };
     const sources = {
       baseStats: stats, dungeonizedBaseStats: stats, masterDungeonizedBaseStats: stats,
       additiveNonConditional: [{ id: 'a', value: 200 }], additiveConditional: [],
       weaponBonusNonConditional: [], weaponBonusConditional: [],
       multiplicative: [], abilityMultiplicative: [], debuffs: { iceSpray: true },
+      venomousProc: { id: 'v', label: 'Venomous', percent: 10 },
     };
     const mob = { name: 'Zombie', types: ['Undead'] };
     const loadout = { weapon: { item: { id: 'HYPERION', category: 'SWORD' }, modifiers: {} } };
@@ -1734,6 +1735,30 @@ try {
     const [beam] = finalDamage.simulateHitByHit(sources, mob, loadout, null, 100, true, false, 1, null, true).hits;
     assert.equal(beam.meleeDamage, dps.beamProc.finalDamage);
     assert.equal(beam.meleeDamage, Math.floor(swing.meleeDamage * (0.3 + 0.0009 * 2500)));
+    const venomousOnBeam = finalDamage.computeVenomousProcDamage(sources, mob, dps.beamProc.finalDamage).finalDamage;
+    assert.ok(venomousOnBeam > dps.venomousProc.finalDamage, 'the Beam hit is the bigger base');
+    assert.equal(dps.venomousBeam, venomousOnBeam);
+    // One stack on the opening hit, amortized over the swing interval.
+    assert.equal(beam.venomousDamage, venomousOnBeam / dps.meleeHitsPerSecond);
+    assert.equal(swing.venomousDamage, dps.venomousProc.finalDamage / dps.meleeHitsPerSecond);
+  });
+
+  // 50g. Suspicious adds Damage by rarity, 5 at Common to 17 at Divine, not the flat +15 its stone's
+  // lore claims: the calculation reads the rarity table, and the stone's tooltip says so.
+  await check('Suspicious adds 5 to 17 Damage by rarity, and its stone tooltip says so', async () => {
+    const reforges = await server.ssrLoadModule('/src/lib/reforges.js');
+    const rarities = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC', 'DIVINE'];
+    const damage = [5, 7, 9, 11, 13, 15, 17];
+    const reforge = {
+      requiredRarities: rarities,
+      reforgeStats: Object.fromEntries(rarities.map((r, i) => [r, { damage: damage[i], crit_chance: 1, crit_damage: 30 }])),
+    };
+    rarities.forEach((r, i) => assert.equal(reforges.computeReforgeStatBonus('Suspicious', reforge, r).damage, damage[i], r));
+    const lore = ['§7Grants the following stats', '', '§9Suspicious Bonus', '§7Adds §c+15 Damage §7to this item\'s', '§7base stats.', '', '§eRight-click'];
+    const fixed = reforges.fixReforgeStoneLore('Suspicious', reforge, lore).join('\n');
+    assert.ok(fixed.includes('+5/7/9/11/13/15/17 Damage') && fixed.includes('Common to Divine'), fixed);
+    assert.ok(!fixed.includes('+15 Damage') && fixed.includes('§eRight-click'), fixed);
+    assert.deepEqual(reforges.fixReforgeStoneLore('Fabled', reforge, lore), lore);
   });
 
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');

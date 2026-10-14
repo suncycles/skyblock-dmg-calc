@@ -867,12 +867,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               // bonus - rather than a snapshot, which prices Venomous at a single permanent stack.
               // Beam REPLACES the melee hit rather than stacking on it; the procs
               // (Venomous/Thunderlord/Fire Aspect/Crimson Swipe) stay either way, since they fire
-              // per hit whichever kind it is.
+              // per hit whichever kind it is. Venomous scales off the Beam then, the rest off the swing.
               //
               // Beam reports the steady state rather than the simulated average: the two are
               // different bases, so subtracting a steady-state melee figure out of a fight average
               // would mix them. Beam never ramps with HP% or stacks, so there is nothing to simulate.
               const showProcs = dpsKind !== 'bow';
+              const venomousDps = dpsKind === 'beam' ? dps.venomousBeam : dps.venomous;
               // In Beam mode the per-hit line below is the Beam, which replaces the swing.
               const beamHit =
                 dpsKind === 'beam' && finalDamage
@@ -888,7 +889,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 // simulation (it has no Venomous/Execute ramp to average over).
                 totalDps = dps.bow;
               } else if (dpsKind === 'beam') {
-                totalDps = dps.total - dps.melee + dps.beam;
+                totalDps = dps.total - dps.melee + dps.beam - dps.venomous + dps.venomousBeam;
               } else {
                 totalDps = dps.total;
                 if (sim?.hasRealHp) {
@@ -953,7 +954,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             four, and the same rule holds when Bow DPS itself gets modelled. Within
                             Melee and Beam they show only while contributing, since most loadouts
                             have none active. */}
-                        {showProcs && dps.venomous > 0 && (
+                        {showProcs && venomousDps > 0 && (
                           <>
                             <span>
                               Venomous DPS ({DPS_HITS_PER_SECOND.venomous}/s)
@@ -961,7 +962,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                                   Demonlord's Hellion Shield), so a tiny number doesn't read as a bug. */}
                               {dps.venomousProc?.reductionLabel && ` (${dps.venomousProc.reductionLabel})`}
                             </span>
-                            <span className="text-right font-mono">{Math.round(dps.venomous).toLocaleString()}</span>
+                            <span className="text-right font-mono">{Math.round(venomousDps).toLocaleString()}</span>
                           </>
                         )}
                         {showProcs && dps.thunderlord > 0 && (

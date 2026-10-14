@@ -6,6 +6,7 @@ import { useTooltip } from '../context/TooltipContext';
 import { rarityColorCode } from '../lib/mcText';
 import { getApplicableReforges, getReforgeStatBonus, formatStatValue, STAT_LABELS } from '../lib/reforgeData';
 import { fetchNeuItem } from '../lib/neuItems';
+import { fixReforgeStoneLore } from '../lib/reforges';
 import { SLOT_TEXTURES, CATEGORY_ICONS, ANVIL_ICON, getReforgeStoneIcon } from '../lib/icons';
 import PickerLoadingState from '../components/PickerLoadingState';
 
@@ -76,7 +77,7 @@ export default function ReforgesPicker({ blacksmith }) {
     fetchNeuItem(reforge.stoneId).then((data) => {
       if (hoveredNameRef.current !== reforge.name) return;
       if (data && data.lore && data.lore.length > 0) {
-        showTooltip([data.displayname || reforge.name, ...data.lore], anchor);
+        showTooltip([data.displayname || reforge.name, ...fixReforgeStoneLore(reforge.name, reforge, data.lore)], anchor);
       } else {
         showTooltip(synthesizedLines(reforge), anchor);
       }

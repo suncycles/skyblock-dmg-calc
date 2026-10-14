@@ -39,6 +39,26 @@ export function applyFabledToLore(lore, reforgeName) {
   return [...lore.slice(0, cut), ...explainer, ...lore.slice(cut)];
 }
 
+// The Suspicious Vial's own lore promises a flat +15 Damage, but the real bonus scales with rarity:
+// its reforgeStats table (5 at Common up to 17 at Divine), which the calculation already uses. Its
+// stone tooltip gets that scale in place of the flat number.
+const SUSPICIOUS_REFORGE_NAME = 'Suspicious';
+
+export function fixReforgeStoneLore(reforgeName, reforge, lore) {
+  if (reforgeName !== SUSPICIOUS_REFORGE_NAME) return lore;
+  const start = lore.findIndex((l) => l.includes('Suspicious Bonus'));
+  const end = lore.findIndex((l, i) => start !== -1 && i > start && l.includes('base stats'));
+  const rarities = (reforge?.requiredRarities || []).filter((r) => reforge.reforgeStats?.[r]?.damage != null);
+  if (end === -1 || rarities.length === 0) return lore;
+  const title = (r) => r.charAt(0) + r.slice(1).toLowerCase();
+  return [
+    ...lore.slice(0, start + 1),
+    `§7Adds §c+${rarities.map((r) => reforge.reforgeStats[r].damage).join('/')} Damage §7to this`,
+    `§7item's base stats, ${title(rarities[0])} to ${title(rarities[rarities.length - 1])}.`,
+    ...lore.slice(end + 1),
+  ];
+}
+
 // The real stat bonus a given reforge grants on a given item - every name-specific override
 // (Ancient/Withered/Loving) lives here so both applyReforgeToLore and lib/itemStatTotals.js's
 // hidden-base computation share one answer.
