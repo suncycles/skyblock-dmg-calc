@@ -112,6 +112,49 @@ function MobDamageReductionNote({ name, types }) {
   );
 }
 
+// Final Damage worked through step by step, in the order computeFinalDamage applies each factor.
+// Fabled's random crit bonus shows as its range, from no bonus to its max; Overload is the extra
+// step a mega crit (Crit Chance past 100%) takes.
+function FinalDamageCalc({ finalDamage: fd, fabledMax, overloadPercent }) {
+  const times = (v) => `×${round4(v)}`;
+  const count = (v) => Math.floor(v).toLocaleString();
+  const range = (a, b, format) => (b != null && b !== a ? `${format(a)} ~ ${format(b)}` : format(a));
+  const steps = [
+    ['Initial Damage', `(5 + ${round1(fd.damageStat).toLocaleString()} Damage) × (1 + ${round1(fd.strength).toLocaleString()} Strength / 100)`, round1(fd.initialDamage).toLocaleString()],
+    ['Additive', `1 + ${round1(fd.additivePercent).toLocaleString()}%`, times(fd.additiveMultiplier)],
+    fd.weaponBonusPercent !== 0 && ['Weapon Bonus', `1 + ${round1(fd.weaponBonusPercent)}%`, times(fd.weaponBonusMultiplier)],
+    [
+      'Multiplicative',
+      fabledMax ? `includes Fabled, 0% ~ +${FABLED_CRIT_BONUS_MAX_PERCENT}%` : '',
+      range(fd.multiplicativeMultiplier, fabledMax?.multiplicativeMultiplier, times),
+    ],
+    fd.bonusModifiers !== 0 && ['Bonus Modifiers', '', `+${round1(fd.bonusModifiers)}`],
+    ['Crit Damage', `1 + ${round1(fd.critDamagePercent).toLocaleString()}%`, times(1 + fd.critDamagePercent / 100)],
+    fd.damageReductionPercent > 0 && ['Damage Reduction', `1 - ${round1(fd.damageReductionPercent)}%`, times(1 - fd.damageReductionPercent / 100)],
+    fd.mobDefenseMultiplier !== 1 && ['Mob Defense', 'from its Defense', times(fd.mobDefenseMultiplier)],
+    fd.debuffMultiplier !== 1 && ['Debuffs', '', times(fd.debuffMultiplier)],
+    ['= Final Damage', 'rounded down', range(fd.finalDamage, fabledMax?.finalDamage, count)],
+    overloadPercent > 0 && [
+      '☆ Overload',
+      `mega crit, × (1 + ${overloadPercent}%)`,
+      range(fd.finalDamage * (1 + overloadPercent / 100), fabledMax && fabledMax.finalDamage * (1 + overloadPercent / 100), count),
+    ],
+  ].filter(Boolean);
+  return (
+    <div className="flex flex-col gap-0.5 text-[12px] text-neutral-700 bg-black/5 border border-neutral-500/40 px-2 py-1.5">
+      {steps.map(([label, formula, value]) => (
+        <div key={label} className={`flex items-baseline justify-between gap-3 ${label.startsWith('=') ? 'border-t border-neutral-500/40 pt-0.5 mt-0.5 font-bold text-black' : ''}`}>
+          <span>
+            {label}
+            {formula && <span className="text-neutral-600 italic"> {formula}</span>}
+          </span>
+          <span className="font-mono text-right shrink-0">{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Hits the simulated fight covers: each row stands in for `weight` hits once a long fight is sampled.
 function fightHits(sim) {
   return sim.hits.reduce((sum, h) => sum + h.weight, 0);
@@ -235,6 +278,8 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
   const [resultLoadout, setResultLoadout] = useState(null);
   const [showSituational, setShowSituational] = useState(false);
   const [expandedStat, setExpandedStat] = useState(null);
+  // Mob names whose Final Damage calculation is open.
+  const [openCalcs, setOpenCalcs] = useState({});
   const [savedLoadouts] = useState(loadSavedLoadoutsFromStorage);
   const tokenRef = useRef(0);
 
@@ -1071,8 +1116,15 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                       )}
                     </div>
                     <div className="flex flex-col gap-1 border-t-2 border-neutral-500 pt-2 mt-1">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-sm font-bold text-black">
+                      <button
+                        type="button"
+                        aria-expanded={!!openCalcs[name]}
+                        title="Show the calculation"
+                        onClick={() => setOpenCalcs((prev) => ({ ...prev, [name]: !prev[name] }))}
+                        className="group flex items-baseline justify-between text-left cursor-pointer"
+                      >
+                        <span className="text-sm font-bold text-black group-hover:underline">
+                          <span className="inline-block w-3 text-[10px] text-neutral-600">{openCalcs[name] ? '▾' : '▸'}</span>
                           Final Damage{meleeDamageQualifiers(finalDamage, !!finalDamageWithFabledMax)}
                           {finalDamageWithoutVanquished ? ' (with Vanquished)' : ''}
                         </span>
@@ -1083,7 +1135,13 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                           {result.overloadBonusPercent > 0 &&
                             ` ☆ ${Math.floor(finalDamage.finalDamage * (1 + result.overloadBonusPercent / 100)).toLocaleString()}`}
                         </span>
-                      </div>
+                      </button>
+                      {openCalcs[name] &&
+                        (finalDamage.critDamagePercent != null ? (
+                          <FinalDamageCalc finalDamage={finalDamage} fabledMax={finalDamageWithFabledMax} overloadPercent={result.overloadBonusPercent} />
+                        ) : (
+                          <div className="text-[12px] text-neutral-600 italic">This target takes fixed damage, so there is no formula to show.</div>
+                        ))}
                       {finalDamageWithoutVanquished && (
                         <div className="flex items-baseline justify-between">
                           <span className="text-xs text-neutral-700">Final Damage (without Vanquished)</span>

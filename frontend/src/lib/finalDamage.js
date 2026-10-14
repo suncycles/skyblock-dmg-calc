@@ -260,6 +260,11 @@ export function computeFinalDamage(sources, mob, useDungeonizedStats = false, us
     finalDamage,
     finalDamageNonCrit,
     appliedIds,
+    // The remaining inputs, so the Damage page can show the whole calculation.
+    damageStat: baseStats.damage,
+    strength: baseStats.strength,
+    critDamagePercent: baseStats.crit_damage,
+    debuffMultiplier,
   };
 }
 

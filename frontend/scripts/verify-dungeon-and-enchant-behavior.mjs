@@ -1655,6 +1655,28 @@ try {
     assert.deepEqual(await stats(twoPieces, true), await stats(twoPieces, false), 'no effect without all three pieces');
   });
 
+  // 50d. The Damage page's Final Damage calculation shows computeFinalDamage's own factors, so
+  // multiplying them back out must land on the displayed number exactly.
+  await check('Final Damage calculation steps reproduce the Final Damage', () => {
+    const stats = { damage: 335, strength: 2038.5, crit_damage: 1971.6 };
+    const base = {
+      baseStats: stats, dungeonizedBaseStats: stats, masterDungeonizedBaseStats: stats,
+      additiveNonConditional: [{ id: 'a', value: 1084 }], additiveConditional: [],
+      weaponBonusNonConditional: [{ id: 'w', value: 300 }], weaponBonusConditional: [],
+      multiplicative: [{ id: 'm', value: 1.2075 }], abilityMultiplicative: [],
+      debuffs: { iceSpray: true, lastBreath: 5, lethality: 4 },
+    };
+    for (const [name, master] of [['Zombie', false], ['Zombie Grunt', false], ['Necron', true]]) {
+      for (const sources of [base, { ...base, multiplicative: [...base.multiplicative, { id: 'fabled', value: 1.15 }] }]) {
+        const fd = finalDamage.computeFinalDamage(sources, { name, types: [] }, true, master);
+        const steps =
+          ((5 + fd.damageStat) * (1 + fd.strength / 100) * fd.additiveMultiplier * fd.weaponBonusMultiplier * fd.multiplicativeMultiplier + fd.bonusModifiers) *
+          (1 + fd.critDamagePercent / 100) * (1 - fd.damageReductionPercent / 100) * fd.mobDefenseMultiplier * fd.debuffMultiplier;
+        assert.equal(Math.floor(steps), fd.finalDamage, name);
+      }
+    }
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the
