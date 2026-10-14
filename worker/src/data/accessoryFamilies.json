@@ -1,5 +1,5 @@
 {
-  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file - 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed. Also grouped all 8 Abicase cosmetic skin variants (ABICASE_BLUE_*, ABICASE_REZAR, ABICASE_SUMSUNG_*) as talisman_duplicates of the base ABICASE - user-confirmed mutually exclusive, same rarity, cosmetic-only variants of one accessory slot. Also added the 3 real hat accessories confirmed via a live account (PARTY_HAT_CRAB/CAKE_HAT_2026/PARTY_HAT_SLOTH - none are in accessories.json, hats generally aren't ingested there) as talisman_duplicates of PARTY_HAT_CRAB, same mutual-exclusivity mechanic as Abicase - user-confirmed real names, part of the real 4-member Hat of Celebration family (the 4th, Anniversary Balloon Hat, has no confirmed real id yet so was not guessed/added). 2026-08-21: rebuilt talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans wholesale from docs/accessories_list.csv (user-authored, authoritative real-item reference table with per-block starting-rarity barriers and same-row='upgrade chain'/same-cell-'/'-separated='mutually exclusive alternate' semantics) - every id cross-matched by exact name against accessories.json for its real id/tier (Master Skull/Beastmaster Crest/Campfire/Soul Campfire resolved by real-name-prefix expansion since the CSV abbreviates their per-tier names; Book of Progression/Pandora's Box/Pulse Ring/Trapper Crest collapsed to their one real singleton id despite the CSV showing repeated columns, since accessories.json has only one real id/rarity for each). Per the CSV's 'only listed accessories are allowed' rule, every previously-tracked id with no real match anywhere in the CSV was dropped (Bingo Combat/Rift Talisman, Broken/Cracked Piggy Bank, Combo Mania, the whole CRUX_TALISMAN_1-7 line, Garlic-Flavored Gummy Bear, Party Hat Crab Animated, Satelite - 15 total). Not added: 'Harmonious Sugery Toolkit' (row 84) and 'Anniversary Balloon Hat' (row 156) - both listed on the CSV but absent from accessories.json, no real id available to add without guessing.",
+  "_source": "talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans transcribed from Altpapier/SkyHelperAPI's constants/talismans.js (MIT, credited there to SkyCrypt/SkyCryptWebsite), fetched 2026-08-20. POWER_RELIC entry and perfect_gemstone_rarity_upgrades/non_recombobulatable_ids added manually from Hypixel SkyBlock Wiki research - see lib/accessoryOptimizer.js for how this is used. 2026-08-21: audited every real id in accessories.json (410 total) against this file - 197 were missing entirely (never transcribed, and not present in the live upstream source either); added all of them, plus fixed 3 pre-existing items (FROZEN_CHICKEN, SCAVENGER_TALISMAN, COIN_TALISMAN, VACCINE_TALISMAN) that were wrongly listed as their own family top instead of chaining to their real higher tier. 36 real chains (TALISMAN/RING/ARTIFACT/RELIC/HEIRLOOM suffix families, the numbered CRUX/SOUL_CAMPFIRE lines, VOTER_BADGE, FISH_BOWL, CHOCOLATE, IQ_POINT, PIGGY_BANK) verified id-by-id against the real catalog (existence + non-decreasing rarity) before linking; every other newly-added id has no confirmed chain, so it was added as its own singleton family rather than guessed. Also grouped all 8 Abicase cosmetic skin variants (ABICASE_BLUE_*, ABICASE_REZAR, ABICASE_SUMSUNG_*) as talisman_duplicates of the base ABICASE - user-confirmed mutually exclusive, same rarity, cosmetic-only variants of one accessory slot. Also added the 3 real hat accessories confirmed via a live account (PARTY_HAT_CRAB/CAKE_HAT_2026/PARTY_HAT_SLOTH - none are in accessories.json, hats generally aren't ingested there) as talisman_duplicates of PARTY_HAT_CRAB, same mutual-exclusivity mechanic as Abicase - user-confirmed real names, part of the real 4-member Hat of Celebration family (the 4th, Anniversary Balloon Hat, has no confirmed real id yet so was not guessed/added). 2026-08-21: rebuilt talismans/talisman_upgrades/talisman_duplicates/max_upgrade_talismans wholesale from docs/accessories_list.csv (user-authored, authoritative real-item reference table with per-block starting-rarity barriers and same-row='upgrade chain'/same-cell-'/'-separated='mutually exclusive alternate' semantics) - every id cross-matched by exact name against accessories.json for its real id/tier (Master Skull/Beastmaster Crest/Campfire/Soul Campfire resolved by real-name-prefix expansion since the CSV abbreviates their per-tier names; Book of Progression/Pandora's Box/Pulse Ring/Trapper Crest collapsed to their one real singleton id despite the CSV showing repeated columns, since accessories.json has only one real id/rarity for each). Per the CSV's 'only listed accessories are allowed' rule, every previously-tracked id with no real match anywhere in the CSV was dropped (Bingo Combat/Rift Talisman, Broken/Cracked Piggy Bank, Combo Mania, the whole CRUX_TALISMAN_1-7 line, Garlic-Flavored Gummy Bear, Party Hat Crab Animated, Satelite - 15 total). Not added: 'Harmonious Sugery Toolkit' (row 84) and 'Anniversary Balloon Hat' (row 156) - both listed on the CSV but absent from accessories.json, no real id available to add without guessing. 2026-10-14: added the Powder of One/the Few/the Many/the People and Hotspot Talisman/Ring/Artifact families from NEU-REPO's item files (rarity from each item's own lore), absent from the earlier sources. dungeon_accessory_ids: user-confirmed 2026-10-14, the accessories whose Magical Power doubles while in a dungeon (Wither Artifact deliberately excluded, Wither Relic included).",
   "talisman_upgrades": {
     "ACCRETION_RING": [
       "ACCRETION_ARTIFACT"
@@ -728,6 +728,13 @@
       "HONEYCOMB_ARTIFACT",
       "HONEYCOMB_RING"
     ],
+    "HOTSPOT_RING": [
+      "HOTSPOT_ARTIFACT"
+    ],
+    "HOTSPOT_TALISMAN": [
+      "HOTSPOT_ARTIFACT",
+      "HOTSPOT_RING"
+    ],
     "HUNTER_TALISMAN": [
       "HUNTER_RING"
     ],
@@ -914,6 +921,18 @@
     "POTION_AFFINITY_TALISMAN": [
       "ARTIFACT_POTION_AFFINITY",
       "RING_POTION_AFFINITY"
+    ],
+    "POWDER_OF_ONE": [
+      "POWDER_OF_THE_FEW",
+      "POWDER_OF_THE_MANY",
+      "POWDER_OF_THE_PEOPLE"
+    ],
+    "POWDER_OF_THE_FEW": [
+      "POWDER_OF_THE_MANY",
+      "POWDER_OF_THE_PEOPLE"
+    ],
+    "POWDER_OF_THE_MANY": [
+      "POWDER_OF_THE_PEOPLE"
     ],
     "POWER_ARTIFACT": [
       "POWER_RELIC"
@@ -2329,6 +2348,18 @@
       "name": "Honeycomb Talisman",
       "rarity": "COMMON"
     },
+    "HOTSPOT_ARTIFACT": {
+      "name": "Hotspot Artifact",
+      "rarity": "RARE"
+    },
+    "HOTSPOT_RING": {
+      "name": "Hotspot Ring",
+      "rarity": "UNCOMMON"
+    },
+    "HOTSPOT_TALISMAN": {
+      "name": "Hotspot Talisman",
+      "rarity": "COMMON"
+    },
     "HUNTER_RING": {
       "name": "Hunter Ring",
       "rarity": "RARE"
@@ -2680,6 +2711,22 @@
     "POTION_AFFINITY_TALISMAN": {
       "name": "Potion Affinity Talisman",
       "rarity": "COMMON"
+    },
+    "POWDER_OF_ONE": {
+      "name": "Powder of One",
+      "rarity": "COMMON"
+    },
+    "POWDER_OF_THE_FEW": {
+      "name": "Powder of the Few",
+      "rarity": "UNCOMMON"
+    },
+    "POWDER_OF_THE_MANY": {
+      "name": "Powder of the Many",
+      "rarity": "RARE"
+    },
+    "POWDER_OF_THE_PEOPLE": {
+      "name": "Powder of the People",
+      "rarity": "EPIC"
     },
     "POWER_ARTIFACT": {
       "name": "Artifact of Power",
@@ -3491,6 +3538,10 @@
       "name": "Honeycomb Artifact",
       "rarity": "RARE"
     },
+    "HOTSPOT_ARTIFACT": {
+      "name": "Hotspot Artifact",
+      "rarity": "RARE"
+    },
     "HUNTER_RING": {
       "name": "Hunter Ring",
       "rarity": "RARE"
@@ -3646,6 +3697,10 @@
     "POTATO_RING": {
       "name": "Potato Ring",
       "rarity": "UNCOMMON"
+    },
+    "POWDER_OF_THE_PEOPLE": {
+      "name": "Powder of the People",
+      "rarity": "EPIC"
     },
     "POWER_RELIC": {
       "name": "Relic of Power",
@@ -3854,5 +3909,23 @@
     "VOTER_BADGE_ELITE",
     "VOTER_BADGE_SUPREME",
     "SAFETY_BADGE"
+  ],
+  "dungeon_accessory_ids": [
+    "SCARF_STUDIES",
+    "SCARF_THESIS",
+    "SCARF_GRIMOIRE",
+    "TREASURE_TALISMAN",
+    "TREASURE_RING",
+    "TREASURE_ARTIFACT",
+    "AUTO_RECOMBOBULATOR",
+    "CATACOMBS_EXPERT_RING",
+    "WITHER_RELIC",
+    "MASTER_SKULL_TIER_1",
+    "MASTER_SKULL_TIER_2",
+    "MASTER_SKULL_TIER_3",
+    "MASTER_SKULL_TIER_4",
+    "MASTER_SKULL_TIER_5",
+    "MASTER_SKULL_TIER_6",
+    "MASTER_SKULL_TIER_7"
   ]
 }

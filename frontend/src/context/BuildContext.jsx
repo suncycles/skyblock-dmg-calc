@@ -1461,14 +1461,16 @@ export function BuildProvider({ children }) {
   // Unlike other slots, Magical Power can be entered before a Power Stone is picked (it just
   // won't contribute any stats yet - same as in-game) - so this lazily creates the accessory
   // slot (item: null) rather than no-op'ing like updateSlotModifiers does for an empty slot.
-  const setAccessoryMagicalPower = useCallback((value) => {
+  const setAccessoryModifier = useCallback((key, value) => {
     setLoadout((prev) => {
       const prevSlot = prev.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
-      const next = { ...prev, accessory: { ...prevSlot, modifiers: { ...prevSlot.modifiers, magicalPower: Math.max(0, value) } } };
+      const next = { ...prev, accessory: { ...prevSlot, modifiers: { ...prevSlot.modifiers, [key]: Math.max(0, value) } } };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
+  const setAccessoryMagicalPower = useCallback((value) => setAccessoryModifier('magicalPower', value), [setAccessoryModifier]);
+  const setAccessoryDungeonMagicalPower = useCallback((value) => setAccessoryModifier('dungeonMagicalPower', value), [setAccessoryModifier]);
 
   // Enrichment count/type - same lazy-create-the-accessory-slot behavior as Magical Power above,
   // since Enrichments apply per Accessory Bag item regardless of which Power is currently active.
@@ -1813,6 +1815,7 @@ export function BuildProvider({ children }) {
         setPetBankCoins,
         setPetGoldCollection,
         setAccessoryMagicalPower,
+        setAccessoryDungeonMagicalPower,
         setAccessoryEnrichmentCount,
         setAccessoryEnrichmentType,
         setAccessoryTuningPoint,

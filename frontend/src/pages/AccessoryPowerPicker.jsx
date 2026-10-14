@@ -47,12 +47,13 @@ function buildUniqueBonusLines(power) {
 // (no physical item) only get a synthesized base-stats block.
 export default function AccessoryPowerPicker() {
   const navigate = useNavigate();
-  const { loadout, selectItem, setAccessoryMagicalPower } = useBuild();
+  const { loadout, selectItem, setAccessoryMagicalPower, setAccessoryDungeonMagicalPower } = useBuild();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const [page, setPage] = useState(0);
   const hoveredIdRef = useRef(null);
 
   const magicalPower = (loadout.accessory && loadout.accessory.modifiers && loadout.accessory.modifiers.magicalPower) || 0;
+  const dungeonMagicalPower = loadout.accessory?.modifiers?.dungeonMagicalPower || 0;
   const selectedPowerId = loadout.accessory && loadout.accessory.item && loadout.accessory.item.id;
 
   const totalPages = Math.max(1, Math.ceil(ALL_POWERS.length / PAGE_SIZE));
@@ -183,19 +184,38 @@ export default function AccessoryPowerPicker() {
         </div>
       </div>
 
-      <div className={`${panel} mt-3 p-3 flex items-center gap-2`}>
-        <label className="text-sm font-bold text-black" htmlFor="magical-power">
-          Magical Power:
-        </label>
-        <input
-          id="magical-power"
-          type="text"
-          inputMode="decimal"
-          value={magicalPower || ''}
-          onChange={(e) => setAccessoryMagicalPower(Math.max(0, parseShorthandNumber(e.target.value)))}
-          placeholder="e.g. 2000"
-          className="w-32 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700"
-        />
+      <div className={`${panel} mt-3 p-3 flex flex-wrap items-center gap-x-4 gap-y-2`}>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-bold text-black" htmlFor="magical-power">
+            Magical Power:
+          </label>
+          <input
+            id="magical-power"
+            type="text"
+            inputMode="decimal"
+            value={magicalPower || ''}
+            onChange={(e) => setAccessoryMagicalPower(Math.max(0, parseShorthandNumber(e.target.value)))}
+            placeholder="e.g. 2000"
+            className="w-32 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700"
+          />
+        </div>
+        {/* The dungeon accessories' share of the total above: Treasure, Scarf's, Master Skull and
+            the rest of accessoryFamilies.json's dungeon_accessory_ids. Counted twice in dungeons. */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-bold text-black" htmlFor="dungeon-magical-power" title="Treasure, Scarf's, Master Skull, Catacombs Expert Ring, Auto Recombobulator, Wither Relic">
+            From dungeon accessories:
+          </label>
+          <input
+            id="dungeon-magical-power"
+            type="text"
+            inputMode="decimal"
+            value={dungeonMagicalPower || ''}
+            onChange={(e) => setAccessoryDungeonMagicalPower(Math.max(0, parseShorthandNumber(e.target.value)))}
+            placeholder="0"
+            className="w-24 px-2 py-1 text-sm bg-black text-white border-2 border-neutral-700"
+          />
+          <span className="text-xs text-neutral-700">counts twice in dungeons</span>
+        </div>
       </div>
     </div>
   );

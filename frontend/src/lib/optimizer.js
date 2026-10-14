@@ -12,7 +12,15 @@
 //   Pet Items, weapon/equipment Reforges, and Gemstones.
 
 import { collectDamageSources } from './damageSources';
-import { computeAbilityDamage, computeDpsBreakdown, simulateHitByHit, selectBaseStats, MAX_SIMULATED_HITS } from './finalDamage';
+import {
+  computeAbilityDamage,
+  computeDpsBreakdown,
+  computeFinalDamage,
+  computeMageStaffBeamDamage,
+  simulateHitByHit,
+  selectBaseStats,
+  MAX_SIMULATED_HITS,
+} from './finalDamage';
 import { resolveStartingHp } from './mobHp';
 import { ENCHANT_ID_MOB_TYPES } from './mobTypes';
 import { ARMOR_SLOTS } from './armorSlots';
@@ -779,16 +787,22 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     dungeonClass: { id: build.dungeonClass, level: build.dungeonClassLevel },
   });
 
+  // The one hit the Damage page headlines for this mode, behind the panel's Per Hit view: the
+  // melee or arrow Final Damage, the Beam cut of it, or the Ability hit.
+  const hitFinalDamage = computeFinalDamage(sources, mob, modeConfig.useDungeonizedStats, modeConfig.useMasterMode).finalDamage;
+
   if (modeConfig.metric === 'ability') {
     const ability = computeAbilityDamage(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
-    return { value: ability ? ability.finalDamage : 0, sources };
+    const value = ability ? ability.finalDamage : 0;
+    return { value, perHit: value, sources };
   }
 
   if (modeConfig.metric === 'beam') {
     // dps.beamProc is computed off the crit-weighted expected hit, so this metric reflects real Crit
     // Chance and Overload.
     const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
-    return { value: dps.beamProc.finalDamage, sources };
+    const perHit = computeMageStaffBeamDamage(sources, mob, hitFinalDamage, modeConfig.useDungeonizedStats, modeConfig.useMasterMode).finalDamage;
+    return { value: dps.beamProc.finalDamage, perHit, sources };
   }
 
   // The hit-by-hit simulation only matters when something varies hit to hit: Execute/Prosecute,
@@ -814,11 +828,11 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
     );
     // Weighted, since each sample stands in for a stride of hits.
     const totalDealt = sim.hits.reduce((sum, h) => sum + h.totalDamage * h.weight, 0);
-    return { value: sim.elapsedSeconds > 0 ? totalDealt / sim.elapsedSeconds : 0, sources };
+    return { value: sim.elapsedSeconds > 0 ? totalDealt / sim.elapsedSeconds : 0, perHit: hitFinalDamage, sources };
   }
 
   const dps = computeDpsBreakdown(sources, mob, loadout, modeConfig.useDungeonizedStats, modeConfig.useMasterMode);
-  return { value: dps.total, sources };
+  return { value: dps.total, perHit: hitFinalDamage, sources };
 }
 
 // The brute-force evaluators below never await I/O, so their loops would run as one long
@@ -832,9 +846,15 @@ async function yieldToMainThread() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-export async function computeModeDamage(loadout, itemData, build, modeConfig, mob) {
+// The mode's number plus the one hit behind it (`perHit`, see computeModeDamageAndSources).
+export async function computeModeScore(loadout, itemData, build, modeConfig, mob) {
   await yieldToMainThread();
-  return (await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob)).value;
+  const { value, perHit } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
+  return { value, perHit };
+}
+
+export async function computeModeDamage(loadout, itemData, build, modeConfig, mob) {
+  return (await computeModeScore(loadout, itemData, build, modeConfig, mob)).value;
 }
 
 // Shared by armor and equipment slots: identical shape, differing only in slot list, progression
@@ -971,7 +991,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
         const candidateLoadout = { ...loadout, [slot]: { item: resolved, modifiers } };
         const candidateBuild = withRealisticInfernalStacks(build, baselineInfernalPieces, candidateLoadout);
-        const value = await computeModeDamage(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
+        const { value, perHit } = await computeModeScore(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
         // No star apply step: selectItem resets Kuudra armor to 0 stars and persists them otherwise.
         // Only the ranked value above needs the max-stars assumption.
         const apply = [{ type: 'selectItem', slot, item: resolved }];
@@ -1013,6 +1033,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           material: resolved.material,
           special: candidate.special,
           value,
+          perHit,
           replaces,
           apply,
         };
@@ -1146,8 +1167,8 @@ async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, m
       apply.push(...applyEnchantSteps(slot, carriedHex));
     }
     if (!allResolved) continue; // catalog lookup failed - skip rather than guess
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-    results.push({ category: set.category, slot: set.slots.join('/'), label: set.label, value, apply });
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
+    results.push({ category: set.category, slot: set.slots.join('/'), label: set.label, value, perHit, apply });
   }
   return results;
 }
@@ -1200,7 +1221,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       const candidateMaxStars = isStarrableItem(resolved) ? getMaxStarsForItem(resolved) : 0;
       if (candidateMaxStars > 0) modifiers.stars = candidateMaxStars;
       const candidateLoadout = { ...loadout, weapon: { item: resolved, modifiers } };
-      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
       // No star apply step: a weapon is never Kuudra armor, so selectItem persists the current stars,
       // clamped to the candidate's cap. Only the ranked value assumes max stars.
       const apply = [{ type: 'selectItem', slot: 'weapon', item: resolved }];
@@ -1233,6 +1254,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
         material: resolved.material,
         special: specialValue,
         value,
+        perHit,
         apply,
       };
     });
@@ -1270,7 +1292,7 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
         },
       },
     };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     // Golden Dragon draws its strength from account state, so it gets two rows: this one at the
     // player's real bank and gold, and evaluateMaxGoldenDragonCandidate's at the ceiling. The apply
     // steps pin those values, since selectItem hands a freshly picked Golden Dragon maxed ones.
@@ -1284,6 +1306,7 @@ async function evaluatePetCandidates(loadout, itemData, build, modeConfig, mob, 
       itemId: candidate.petId,
       material: 'BONE',
       value,
+      perHit,
       apply: [
         { type: 'selectItem', slot: 'pet', item: petItem },
         ...(isGoldenDragon
@@ -1318,7 +1341,7 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
     bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS,
     goldCollection: SHINING_SCALES_MAX_GOLD_COLLECTION,
   };
-  const value = await computeModeDamage({ ...loadout, pet: { item: petItem, modifiers } }, itemData, build, modeConfig, mob);
+  const { value, perHit } = await computeModeScore({ ...loadout, pet: { item: petItem, modifiers } }, itemData, build, modeConfig, mob);
   const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : value * 100;
   if (!(percentIncrease > 0.001)) return [];
   return [
@@ -1329,6 +1352,7 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
       itemId: 'GOLDEN_DRAGON',
       material: 'BONE',
       value,
+      perHit,
       percentIncrease,
       unpriced: true,
       apply: [
@@ -1356,12 +1380,13 @@ async function evaluateEnchantCandidates(loadout, itemData, build, modeConfig, m
       e.id === enchant.id ? { ...e, level: nextLevel, maxLevel } : e,
     );
     const candidateLoadout = { ...loadout, weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Enchant',
       slot: 'weapon',
       label: `${titleCaseEnchantId(enchant.id)} ${toRoman(nextLevel)}`,
       value,
+      perHit,
       apply: [{ type: 'applyEnchant', slot: 'weapon', id: enchant.id, level: nextLevel, maxLevel, removeIds: [] }],
     });
   }
@@ -1400,12 +1425,13 @@ async function evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build
       ...loadout,
       weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants, ultimateEnchantment } },
     };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Enchant',
       slot: 'weapon',
       label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
       value,
+      perHit,
       apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
     });
   }
@@ -1447,12 +1473,13 @@ async function evaluateMissingEnchantCandidates(loadout, itemData, build, modeCo
       ...loadout,
       weapon: { ...weapon, modifiers: { ...weapon.modifiers, hexEnchantments: newEnchants, ultimateEnchantment } },
     };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Enchant',
       slot: 'weapon',
       label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
       value,
+      perHit,
       apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
     });
   }
@@ -1527,7 +1554,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
         ultimateEnchantment: isUltimate ? { id, level, maxLevel } : null,
         hexEnchantments: isUltimate ? [] : [{ id, level, maxLevel }],
       };
-      const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
+      const { value, perHit } = await computeModeScore({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
       const marginal = value - bareValue;
       if (marginal <= 0) continue;
       results.push({ id, level, maxLevel, cost: levelData.cost, marginal, lore: levelData.lore, isUltimate });
@@ -1600,6 +1627,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
   }
 
   if (currentValue <= baselineValue) return []; // exhausted every real candidate - nothing beats it here
+  const { perHit } = await computeModeScore({ ...loadout, weapon: { ...weapon, modifiers: currentModifiers } }, itemData, build, modeConfig, mob);
 
   // Rebuilt from the final winning state rather than the walk's history, so a pick later removed by
   // a conflict leaves no stale entry. Only the first step clears One For All; the final picks are
@@ -1621,6 +1649,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
       slot: 'weapon',
       label: `Re-enchant instead of One For All (${labels.length}): ${labels.join(', ')}`,
       value: currentValue,
+      perHit,
       apply: applySteps,
     },
   ];
@@ -1659,12 +1688,13 @@ async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeC
         },
       },
     };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Ultimate Enchant',
       slot: 'weapon',
       label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
       value,
+      perHit,
       apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
     });
   }
@@ -1698,12 +1728,13 @@ async function evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, bui
           },
         },
       };
-      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
       results.push({
         category: 'Ultimate Enchant',
         slot,
         label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
         value,
+        perHit,
         apply: [{ type: 'applyEnchant', slot, id, level: maxLevel, maxLevel, removeIds }],
       });
     }
@@ -1733,7 +1764,7 @@ async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig
     // Same {id, name, iconId, material} shape AccessoryPowerPicker.jsx's own selectItem call uses.
     const powerItem = { id: power.id, name: power.name, iconId: power.sourceItemId || null, material: power.sourceItemId ? 'SKULL' : 'BOOK' };
     const candidateLoadout = { ...loadout, accessory: { ...loadout.accessory, item: { ...loadout.accessory.item, id: power.id, name: power.name } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Power Stone',
       slot: 'accessory',
@@ -1741,6 +1772,7 @@ async function evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig
       itemId: power.sourceItemId || null,
       material: power.sourceItemId ? 'SKULL' : 'BOOK',
       value,
+      perHit,
       apply: [{ type: 'selectItem', slot: 'accessory', item: powerItem }],
     });
   }
@@ -1766,7 +1798,7 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
     const starLevels = CRIMSON_ARMOR_RE.test(equipped.item.id) ? [currentStars + 1] : [maxStars];
     for (const stars of starLevels) {
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, stars } } };
-      const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+      const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
       results.push({
         category: 'Stars',
         slot,
@@ -1774,6 +1806,7 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
         // Per-item id, so lib/pricing.js can look up the cumulative star cost without the loadout.
         itemId: equipped.item.id,
         value,
+        perHit,
         apply: [{ type: 'setStarCount', slot, count: stars }],
       });
     }
@@ -1785,7 +1818,7 @@ async function evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob
 // capped at 5, offered one at a time.
 // They only pay out while Master Mode is on (lib/finalDamage.js's selectBaseStats), so candidates
 // are valued with Master Mode forced on and measured against runOptimizer's matching
-// `masterModeBaselineValue` - a non-Master baseline would credit one star with the whole mode's boost.
+// `masterModeBaseline` - a non-Master baseline would credit one star with the whole mode's boost.
 async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob) {
   if (!modeConfig.useDungeonizedStats) return [];
   const masterConfig = { ...modeConfig, useMasterMode: true };
@@ -1804,13 +1837,14 @@ async function evaluateMasterStarsCandidates(loadout, itemData, build, modeConfi
     if (currentMasterStars >= MAX_MASTER_STARS) continue;
     const masterStars = currentMasterStars + 1;
     const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, masterStars } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, masterConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, masterConfig, mob);
     results.push({
       category: 'Master Stars',
       slot,
       label: `${formatItemName(equipped.item.name)} - Master Star ${masterStars}`,
       itemId: equipped.item.id,
       value,
+      perHit,
       apply: [{ type: 'setMasterStarCount', slot, count: masterStars }],
     });
   }
@@ -1828,7 +1862,7 @@ async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, m
   for (const petItem of itemData.petItems || []) {
     if (petItem.id === currentPetItemId) continue;
     const candidateLoadout = { ...loadout, pet: { ...pet, modifiers: { ...pet.modifiers, petItem: petItem.id } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Pet Item',
       slot: 'pet',
@@ -1836,6 +1870,7 @@ async function evaluatePetItemCandidates(loadout, itemData, build, modeConfig, m
       itemId: petItem.id,
       material: petItem.material,
       value,
+      perHit,
       apply: [{ type: 'setPetItem', slot: 'pet', petItemId: petItem.id }],
     });
   }
@@ -1866,12 +1901,13 @@ async function evaluateArmorReforgeCandidates(loadout, itemData, build, modeConf
       baselineValue,
       async (candidate) => {
         const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: candidate.name } } };
-        const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+        const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
         return {
           category: 'Reforge',
           slot,
           label: `${formatItemName(equipped.item.name)} - ${candidate.name}`,
           value,
+          perHit,
           apply: [{ type: 'applyReforge', slot, name: candidate.name }],
         };
       },
@@ -1923,13 +1959,17 @@ async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, bu
     for (const reforge of applicable) {
       if (reforge.name === currentName) continue;
       const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, reforge: reforge.name } } };
-      let value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
-      if (reforge.name === FABLED_REFORGE_NAME) value *= fabledMultiplierFor(modeConfig);
+      let { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
+      if (reforge.name === FABLED_REFORGE_NAME) {
+        value *= fabledMultiplierFor(modeConfig);
+        perHit *= fabledMultiplierFor(modeConfig);
+      }
       results.push({
         category: 'Reforge',
         slot,
         label: `${formatItemName(equipped.item.name)} - ${reforge.name}`,
         value,
+        perHit,
         apply: [{ type: 'applyReforge', slot, name: reforge.name }],
       });
     }
@@ -1993,7 +2033,7 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
           const newGemstones = currentGemstones.slice();
           newGemstones[index] = { gem, tier };
           const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, gemstones: newGemstones } } };
-          const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+          const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
           results.push({
             category: 'Gemstone',
             slot,
@@ -2001,6 +2041,7 @@ async function evaluateGemstoneCandidates(loadout, itemData, build, modeConfig, 
             gem,
             tier,
             value,
+            perHit,
             gemstoneOpen,
             gemstoneUnlockCost,
             apply: [{ type: 'setGemstone', slot, index, gem, tier }],
@@ -2027,7 +2068,7 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
     const current = Math.max(0, Math.min(perk.maxLevel, Math.floor(Number(perks[perk.key]) || 0)));
     if (current >= perk.maxLevel) continue;
     const candidateBuild = { ...build, essencePerks: { ...perks, [perk.key]: perk.maxLevel } };
-    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(loadout, itemData, candidateBuild, modeConfig, mob);
     results.push({
       category: 'Essence Perk',
       slot: 'accessory',
@@ -2036,6 +2077,7 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
       fromLevel: current,
       toLevel: perk.maxLevel,
       value,
+      perHit,
       apply: [{ type: 'setEssencePerkLevel', key: perk.key, level: perk.maxLevel }],
     });
   }
@@ -2046,7 +2088,7 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
       ...build,
       blessing: { ...(build.blessing || {}), forbiddenBlessingLevel: FORBIDDEN_BLESSING_MAX_LEVEL },
     };
-    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(loadout, itemData, candidateBuild, modeConfig, mob);
     results.push({
       category: 'Essence Perk',
       slot: 'accessory',
@@ -2055,6 +2097,7 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
       fromLevel: forbidden,
       toLevel: FORBIDDEN_BLESSING_MAX_LEVEL,
       value,
+      perHit,
       apply: [{ type: 'setForbiddenBlessingLevel', level: FORBIDDEN_BLESSING_MAX_LEVEL }],
     });
   }
@@ -2069,24 +2112,26 @@ async function evaluateEssencePerkCandidates(loadout, itemData, build, modeConfi
 //
 // The two upgrade rows - the Jellyfish pet and the Spider Egg mixin - are measured potion-on in both
 // directions; against a potion-off baseline either would be credited with the whole potion.
-async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
+async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, baselinePerHit) {
   const results = [];
   const relativeToPotionOn = async (over) => {
     const withPot = { ...build, godPotionActive: true };
-    const before = await computeModeDamage(loadout, itemData, withPot, modeConfig, mob);
-    const after = await computeModeDamage(loadout, itemData, { ...withPot, ...over }, modeConfig, mob);
-    return { before, percentIncrease: before > 0 ? ((after - before) / before) * 100 : 0 };
+    const before = await computeModeScore(loadout, itemData, withPot, modeConfig, mob);
+    const after = await computeModeScore(loadout, itemData, { ...withPot, ...over }, modeConfig, mob);
+    const percent = (a, b) => (a > 0 ? ((b - a) / a) * 100 : 0);
+    return { percentIncrease: percent(before.value, after.value), hitPercentIncrease: percent(before.perHit, after.perHit) };
   };
 
   if (!modeConfig.useDungeonizedStats) {
     if (!build.godPotionActive) {
-      const value = await computeModeDamage(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
+      const { value, perHit } = await computeModeScore(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
       results.push({
         category: 'Potion',
         slot: 'accessory',
         label: 'Use God Potion',
         potionKind: 'drink',
         value,
+        perHit,
         freeUpgrade: true,
         apply: [{ type: 'setGodPotionActive', value: true }],
       });
@@ -2094,7 +2139,7 @@ async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mo
     // The mixin is a step up from a plain God Potion and applies the potion too, so clicking it from
     // a potion-off build lands both.
     if (build.godPotionMixin !== 'spider_egg') {
-      const { percentIncrease } = await relativeToPotionOn({ godPotionMixin: 'spider_egg' });
+      const { percentIncrease, hitPercentIncrease } = await relativeToPotionOn({ godPotionMixin: 'spider_egg' });
       if (percentIncrease > 0.001) {
         results.push({
           category: 'Potion',
@@ -2103,6 +2148,7 @@ async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mo
           potionKind: 'mixin',
           percentIncrease,
           value: baselineValue * (1 + percentIncrease / 100),
+          perHit: baselinePerHit * (1 + hitPercentIncrease / 100),
           apply: [
             { type: 'setGodPotionActive', value: true },
             { type: 'setGodPotionMixin', value: 'spider_egg' },
@@ -2114,20 +2160,21 @@ async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mo
   }
 
   if (!build.godPotionActive) {
-    const value = await computeModeDamage(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(loadout, itemData, { ...build, godPotionActive: true }, modeConfig, mob);
     results.push({
       category: 'Potion',
       slot: 'accessory',
       label: 'Drink Dungeon Pot',
       potionKind: 'drink',
       value,
+      perHit,
       freeUpgrade: true,
       apply: [{ type: 'setGodPotionActive', value: true }],
     });
   }
 
   if (!build.hasJellyfishPet) {
-    const { percentIncrease } = await relativeToPotionOn({ hasJellyfishPet: true });
+    const { percentIncrease, hitPercentIncrease } = await relativeToPotionOn({ hasJellyfishPet: true });
     if (percentIncrease > 0.001) {
       results.push({
         category: 'Potion',
@@ -2139,6 +2186,7 @@ async function evaluatePotionCandidates(loadout, itemData, build, modeConfig, mo
         // Already relative to the potion-on baseline, so runOptimizer must not recompute it.
         percentIncrease,
         value: baselineValue * (1 + percentIncrease / 100),
+        perHit: baselinePerHit * (1 + hitPercentIncrease / 100),
         apply: [{ type: 'setHasJellyfishPet', value: true }],
       });
     }
@@ -2173,13 +2221,14 @@ async function evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig
     if (skill.max != null && current >= skill.max) continue;
     const next = current + 1;
     const candidateBuild = { ...build, playerStats: { ...build.playerStats, [skill.key]: next } };
-    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(loadout, itemData, candidateBuild, modeConfig, mob);
     results.push({
       category: 'Skill',
       slot: 'accessory',
       label: `${skill.name} ${next}`,
       skillKey: skill.key,
       value,
+      perHit,
       freeUpgrade: true,
       apply: [{ type: 'setPlayerLevel', key: skill.key, value: next }],
     });
@@ -2213,12 +2262,13 @@ async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig,
     const maxLevel = getAttributeMaxLevel(attribute.id);
     if (currentLevel >= maxLevel) continue;
     const candidateBuild = { ...build, attributes: { ...build.attributes, [attribute.id]: maxLevel } };
-    const value = await computeModeDamage(loadout, itemData, candidateBuild, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(loadout, itemData, candidateBuild, modeConfig, mob);
     results.push({
       category: 'Attribute',
       slot: 'attribute',
       label: `${attribute.name} - ${maxLevel}`,
       value,
+      perHit,
       apply: [{ type: 'setAttributeLevel', id: attribute.id, level: maxLevel }],
     });
   }
@@ -2235,12 +2285,13 @@ async function evaluateRecombobulatorCandidates(loadout, itemData, build, modeCo
     const baseTier = equipped.modifiers.rarityOverride || reforgeRarityFor(equipped.item.id, equipped.item.tier);
     if (!canRecombobulate(baseTier)) continue;
     const candidateLoadout = { ...loadout, [slot]: { ...equipped, modifiers: { ...equipped.modifiers, recombobulated: true } } };
-    const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
     results.push({
       category: 'Recombobulator',
       slot,
       label: `${formatItemName(equipped.item.name)} - Recombobulator 3000`,
       value,
+      perHit,
       apply: [{ type: 'toggleRecombobulated', slot }],
     });
   }
@@ -2261,13 +2312,14 @@ async function evaluatePotatoBookCandidates(loadout, itemData, build, modeConfig
   const current = weapon?.modifiers?.books || 0;
   if (!weapon?.item || current >= MAX_POTATO_BOOKS) return [];
   const candidateLoadout = { ...loadout, weapon: { ...weapon, modifiers: { ...weapon.modifiers, books: MAX_POTATO_BOOKS } } };
-  const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+  const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
   return [
     {
       category: 'Potato Books',
       slot: 'weapon',
       label: `${formatItemName(weapon.item.name)} - Potato Books ${current} → ${MAX_POTATO_BOOKS}`,
       value,
+      perHit,
       fromBooks: current,
       apply: [{ type: 'setBookCount', slot: 'weapon', count: MAX_POTATO_BOOKS }],
     },
@@ -2304,12 +2356,13 @@ async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, 
             },
           },
         };
-        const value = await computeModeDamage(candidateLoadout, itemData, build, modeConfig, mob);
+        const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
         results.push({
           category: 'Ultimate Enchant',
           slot,
           label: `${formatItemName(equipped.item.name)} - ${titleCaseEnchantId(id)} ${toRoman(level)}`,
           value,
+          perHit,
           apply: [{ type: 'applyEnchant', slot, id, level, maxLevel, removeIds }],
         });
       }
@@ -2365,19 +2418,20 @@ export const OPTIMIZER_BUILD_KEYS = [
 export async function runOptimizer(loadout, itemData, build, mode, mob) {
   build = withOptimizerSwarmMobs(build, mode);
   const modeConfig = getModeConfig(mode, build.useMasterMode);
-  const { value: baselineValue, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
+  const { value: baselineValue, perHit: baselinePerHit, sources: baselineSources } = await computeModeDamageAndSources(loadout, itemData, build, modeConfig, mob);
   // Only the weapon/equipment Reforge comparison uses the Fabled-adjusted baseline: no other
   // category's candidates get a Fabled multiplier, so measuring them against an inflated baseline
   // would shrink or negate real upgrades.
-  const reforgeBaselineValue = hasFabledReforgeEquipped(loadout) ? baselineValue * fabledMultiplierFor(modeConfig) : baselineValue;
+  const reforgeFabledFactor = hasFabledReforgeEquipped(loadout) ? fabledMultiplierFor(modeConfig) : 1;
+  const reforgeBaselineValue = baselineValue * reforgeFabledFactor;
   // Master Star candidates are valued with Master Mode forced on (evaluateMasterStarsCandidates), so
   // they need a baseline measured the same way, or one star is credited with the whole mode's boost.
   // Only computed when it can differ: outside a dungeon there are no Master Star candidates, and
   // inside one with Master Mode already on the two baselines are identical.
-  const masterModeBaselineValue =
+  const masterModeBaseline =
     modeConfig.useDungeonizedStats && !modeConfig.useMasterMode
-      ? await computeModeDamage(loadout, itemData, build, { ...modeConfig, useMasterMode: true }, mob)
-      : baselineValue;
+      ? await computeModeScore(loadout, itemData, build, { ...modeConfig, useMasterMode: true }, mob)
+      : { value: baselineValue, perHit: baselinePerHit };
 
   const [
     weapons,
@@ -2441,22 +2495,30 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob),
-    evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
+    evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, baselinePerHit),
   ]);
 
   // Armor, equipment, pet and armor-reforge results already carry their own percentIncrease, since
   // evaluateTieredProgression needs it to decide whether to advance a tier. The non-tiered
   // categories below still need it computed here, with the same 0-baseline handling.
-  const withPercentUsing = (list, base) =>
+  // `perHitIncrease` is the same swap's flat change to one hit, measured against the same baseline
+  // as its percent.
+  const withHit = (r, baseHit) => ({ ...r, perHitIncrease: typeof r.perHit === 'number' ? r.perHit - baseHit : null });
+  const withPercentUsing = (list, base, baseHit) =>
     list
-      .map((r) => ({
-        ...r,
-        percentIncrease: base > 0 ? ((r.value - base) / base) * 100 : r.value * 100,
-      }))
+      .map((r) =>
+        withHit(
+          {
+            ...r,
+            percentIncrease: base > 0 ? ((r.value - base) / base) * 100 : r.value * 100,
+          },
+          baseHit,
+        ),
+      )
       .filter((r) => r.percentIncrease > 0.001);
-  const withPercent = (list) => withPercentUsing(list, baselineValue);
+  const withPercent = (list) => withPercentUsing(list, baselineValue, baselinePerHit);
 
-  const slotCandidates = [...weapons, ...armor, ...equipment, ...pets, ...maxGoldenDragon];
+  const slotCandidates = [...weapons, ...armor, ...equipment, ...pets, ...maxGoldenDragon].map((r) => withHit(r, baselinePerHit));
   const slots = {};
   for (const slot of OPTIMIZER_GEAR_SLOTS) {
     slots[slot] = slotCandidates.filter((r) => r.slot === slot);
@@ -2482,10 +2544,10 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...skillLevels,
       ...dungeonPotion.filter((r) => r.percentIncrease == null),
     ]),
-    ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue),
-    ...dungeonPotion.filter((r) => r.percentIncrease != null),
-    ...withPercentUsing(masterStars, masterModeBaselineValue),
-    ...armorReforges,
+    ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue, baselinePerHit * reforgeFabledFactor),
+    ...dungeonPotion.filter((r) => r.percentIncrease != null).map((r) => withHit(r, baselinePerHit)),
+    ...withPercentUsing(masterStars, masterModeBaseline.value, masterModeBaseline.perHit),
+    ...armorReforges.map((r) => withHit(r, baselinePerHit)),
   ].sort((a, b) => b.percentIncrease - a.percentIncrease);
 
   // Priced but never pruned: every gear alternative for a slot is shown, not only those no other
@@ -2494,6 +2556,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
 
   return {
     baselineValue,
+    baselinePerHit,
     // The panel's Attack Speed readout, selected rather than raw: a Final Destination full set is
     // +20 against an Ender target, and inside a dungeon this is the Catacombs-scaled total.
     bonusAttackSpeed: selectBaseStats(baselineSources, modeConfig.useDungeonizedStats, modeConfig.useMasterMode, mob).bonus_attack_speed || 0,
@@ -2569,6 +2632,9 @@ export function applyOptimizerResult(build, result) {
         break;
       case 'setAccessoryMagicalPower':
         build.setAccessoryMagicalPower(step.mp);
+        break;
+      case 'setAccessoryDungeonMagicalPower':
+        build.setAccessoryDungeonMagicalPower(step.mp);
         break;
       case 'setAccessoryTuning':
         build.setAccessoryTuning(step.tuning);

@@ -13,6 +13,7 @@ import {
   resolveOptimizerMode,
   loadOptimizerModeOverride,
   saveOptimizerModeOverride,
+  getModeConfig,
 } from '../lib/optimizer';
 import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCandidates } from '../lib/accessoryOptimizer';
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
@@ -126,10 +127,20 @@ function smartScore(result) {
   return (result.percentIncrease || 0) * weight;
 }
 
+// What each mode's number measures, named on every row so a % never reads as the wrong thing.
+const METRIC_UNITS = { dps: 'DPS', beam: 'Beam', ability: 'Ability' };
+
 // "ratio" (real DPS-per-coin, see lib/pricing.js) sinks unpriceable ('?') results to the bottom
-// rather than treating them as worthless; "increase" ignores cost and ranks by raw % gained.
+// rather than treating them as worthless; "increase" ignores cost and ranks by raw % gained; "hit"
+// ranks by the flat change to one hit, sinking rows with no per-hit figure.
 function compareResults(a, b, sortBy) {
   if (sortBy === 'smart') return smartScore(b) - smartScore(a);
+  if (sortBy === 'hit') {
+    if (a.perHitIncrease == null && b.perHitIncrease == null) return b.percentIncrease - a.percentIncrease;
+    if (a.perHitIncrease == null) return 1;
+    if (b.perHitIncrease == null) return -1;
+    return b.perHitIncrease - a.perHitIncrease;
+  }
   if (sortBy === 'ratio') {
     if (a.ratio == null && b.ratio == null) return b.percentIncrease - a.percentIncrease;
     if (a.ratio == null) return 1;
@@ -158,10 +169,11 @@ function Chip({ active, onClick, title, children }) {
   );
 }
 
-// One row per candidate, whatever produced it. Both figures are the same swap measured two ways: the
-// % against the current build, and the flat gain in the mode's own metric - without which a big %
-// on a small baseline and a small % on a large one look identical.
-function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat }) {
+// One row per candidate, whatever produced it. The figures are the same swap measured three ways: the
+// % against the current build and the flat gain, both in the mode's own metric (`unit`) - without
+// which a big % on a small baseline and a small % on a large one look identical - and the flat change
+// to one hit's Final Damage, which ignores attack speed and procs entirely.
+function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat, showPerHit, unit }) {
   const flatIncrease = typeof result.value === 'number' && typeof baselineValue === 'number' ? result.value - baselineValue : null;
   const cornerBadge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
@@ -210,9 +222,22 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
         <span className="flex flex-col items-end leading-tight whitespace-nowrap">
           {/* 3 significant figures: at 1 decimal every sub-0.05% candidate collapses to "+0.0%",
               exactly where the ranking is tightest. */}
-          {showPercent && <span className="text-[12px] font-mono font-bold text-green-400">+{round3Sig(result.percentIncrease)}%</span>}
+          {showPercent && (
+            <span className="text-[12px] font-mono font-bold text-green-400">
+              +{round3Sig(result.percentIncrease)}% {unit}
+            </span>
+          )}
           {showFlat && flatIncrease != null && (
-            <span className="text-[11px] font-mono text-green-400">+{Math.round(flatIncrease).toLocaleString()}</span>
+            <span className="text-[11px] font-mono text-green-400">
+              +{Math.round(flatIncrease).toLocaleString()} {unit}
+            </span>
+          )}
+          {/* Can fall while the mode's number rises: an Attack Speed swap trades hit size for rate. */}
+          {showPerHit && result.perHitIncrease != null && (
+            <span className={`text-[11px] font-mono ${result.perHitIncrease >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {result.perHitIncrease >= 0 ? '+' : '-'}
+              {Math.abs(Math.round(result.perHitIncrease)).toLocaleString()} per hit
+            </span>
           )}
         </span>
         <span className="hidden group-hover:inline text-[10px] font-bold uppercase text-white whitespace-nowrap">Equip</span>
@@ -327,6 +352,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
   const [sortBy, setSortBy] = useState('ratio');
   const [showPercent, setShowPercent] = useState(true);
   const [showFlat, setShowFlat] = useState(false);
+  const [showPerHit, setShowPerHit] = useState(false);
+  const unit = METRIC_UNITS[getModeConfig(mode).metric] || 'DPS';
   // Free upgrades cost time rather than coins, so an infinite ratio would pin them to the top of Best
   // Value. Off by default, the common question being what to buy next.
   const [showFree, setShowFree] = useState(false);
@@ -418,17 +445,23 @@ export default function UpgradesPanel({ variant = 'column' }) {
             <Chip active={sortBy === 'ratio'} onClick={() => setSortBy('ratio')} title="Damage gained per coin spent">
               Value
             </Chip>
-            <Chip active={sortBy === 'increase'} onClick={() => setSortBy('increase')} title="Highest raw % increase, ignoring cost">
+            <Chip active={sortBy === 'increase'} onClick={() => setSortBy('increase')} title={`Highest raw % ${unit} increase, ignoring cost`}>
               Increase
+            </Chip>
+            <Chip active={sortBy === 'hit'} onClick={() => setSortBy('hit')} title="Biggest flat increase to one hit's Final Damage, ignoring DPS and cost">
+              One Hit
             </Chip>
           </div>
           <div className="flex items-center gap-1.5">
             <span className={groupLabel}>Show</span>
-            <Chip active={showPercent} onClick={() => setShowPercent((v) => !v)} title="Show the % increase on each row">
-              % increase
+            <Chip active={showPercent} onClick={() => setShowPercent((v) => !v)} title={`Show the % ${unit} increase on each row`}>
+              % {unit}
             </Chip>
-            <Chip active={showFlat} onClick={() => setShowFlat((v) => !v)} title="Show the flat increase on each row">
-              Flat
+            <Chip active={showFlat} onClick={() => setShowFlat((v) => !v)} title={`Show the flat ${unit} increase on each row`}>
+              Flat {unit}
+            </Chip>
+            <Chip active={showPerHit} onClick={() => setShowPerHit((v) => !v)} title="Show the flat increase to one hit's Final Damage, with no relation to DPS">
+              Per Hit
             </Chip>
           </div>
         </div>
@@ -564,6 +597,8 @@ export default function UpgradesPanel({ variant = 'column' }) {
                   baselineValue={state.baselineValue}
                   showPercent={showPercent}
                   showFlat={showFlat}
+                  showPerHit={showPerHit}
+                  unit={unit}
                   onSwapIn={(res) => applyOptimizerResult(build, res)}
                   onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
                 />

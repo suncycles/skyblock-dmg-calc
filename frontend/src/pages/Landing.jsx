@@ -508,8 +508,15 @@ export default function Landing() {
     }
     const { item, modifiers } = loadout.accessory;
     const power = getPowerById(item.id);
-    const stats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
-    const lines = [`§d§l${formatItemName(item.name)}`, `§7${power ? power.type : ''}`, `§7Magical Power: §b${modifiers.magicalPower}`, ''];
+    // Dungeon accessories count twice in a dungeon, the same total the damage numbers use.
+    const dungeonMp = useDungeonizedStats ? modifiers.dungeonMagicalPower || 0 : 0;
+    const stats = computeAccessoryTotalStats(item.id, modifiers.magicalPower + dungeonMp, modifiers.tuning);
+    const lines = [
+      `§d§l${formatItemName(item.name)}`,
+      `§7${power ? power.type : ''}`,
+      `§7Magical Power: §b${modifiers.magicalPower + dungeonMp}${dungeonMp ? ` §8(+${dungeonMp} from dungeon accessories)` : ''}`,
+      '',
+    ];
     for (const [key, value] of Object.entries(stats)) {
       const meta = STAT_LABELS[key];
       if (!meta || !value) continue;

@@ -487,6 +487,7 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
       modifiers: {
         ...emptyAccessoryModifiers(),
         magicalPower: raw.accessory.magicalPower || 0,
+        dungeonMagicalPower: raw.accessory.dungeonMagicalPower || 0,
         tuning: mapHypixelTuning(raw.accessory.tuning),
         enrichmentCount: raw.accessory.enrichmentCount || 0,
         enrichmentType: raw.accessory.enrichmentType || 'none',

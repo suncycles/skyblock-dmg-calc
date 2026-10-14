@@ -39,6 +39,9 @@ export function emptyPetModifiers() {
 export function emptyAccessoryModifiers() {
   return {
     magicalPower: 0,
+    // The dungeon accessories' share of magicalPower (Treasure, Scarf's, Master Skull...), which
+    // counts twice while the Dungeon toggle is on. Filled by import, or typed on the Accessory page.
+    dungeonMagicalPower: 0,
     tuning: {
       health: 0,
       defense: 0,

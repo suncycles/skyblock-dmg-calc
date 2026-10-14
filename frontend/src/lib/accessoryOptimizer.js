@@ -17,7 +17,7 @@
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
 import { bumpRarity, canRecombobulate } from './recombobulator';
-import { computeModeDamage, computeModeDamageAndSources, getModeConfig, withOptimizerSwarmMobs } from './optimizer';
+import { computeModeDamage, computeModeDamageAndSources, computeModeScore, getModeConfig, withOptimizerSwarmMobs } from './optimizer';
 import { computeTotalTuningPoints } from './accessoryPowers';
 import { computeOptimalTuning } from './tuningOptimizer';
 import { cheapestPerfectGemstonePrice } from './pricing';
@@ -158,6 +158,7 @@ export function buildAccessoryCandidates(owned, families) {
     const members = familyMembers(maxId, groups);
     let currentTierMp = 0;
     let fromId = null;
+    let fromTier = null;
     let fromRecombobulated = false;
     for (const [ownedId, { tier, recombobulated }] of ownedByCanonical.entries()) {
       // A lower tier of a family the player already owns a higher tier of (Frozen Chicken under Fried
@@ -168,6 +169,7 @@ export function buildAccessoryCandidates(owned, families) {
       if (members.has(ownedId) && mp > currentTierMp) {
         currentTierMp = mp;
         fromId = ownedId;
+        fromTier = tier;
         fromRecombobulated = recombobulated;
       }
     }
@@ -177,7 +179,7 @@ export function buildAccessoryCandidates(owned, families) {
       const resultRarity = fromRecombobulated && canRecombobulate(meta.rarity) ? bumpRarity(meta.rarity) : meta.rarity;
       const mpGain = (MAGICAL_POWER_BY_RARITY[resultRarity] || 0) - currentTierMp;
       if (mpGain > 0) {
-        upgrade.push({ id: maxId, name: meta.name, rarity: resultRarity, mpGain, kind: 'upgrade', fromId, nextRecombobulated: fromRecombobulated });
+        upgrade.push({ id: maxId, name: meta.name, rarity: resultRarity, mpGain, kind: 'upgrade', fromId, fromTier, nextRecombobulated: fromRecombobulated });
       }
     } else {
       const mpGain = (MAGICAL_POWER_BY_RARITY[meta.rarity] || 0) - currentTierMp;
@@ -197,6 +199,7 @@ export function buildAccessoryCandidates(owned, families) {
           name: `${families.talismans[id]?.name || id} (${gem.gemstonesNeeded} Perfect Gemstones)`,
           rarity: gem.to,
           mpGain,
+          fromTier: tier,
           kind: 'gemstone-upgrade',
           gemstonesNeeded: gem.gemstonesNeeded,
           nextRecombobulated: recombobulated, // gemstones don't touch recomb status - preserve it
@@ -211,11 +214,18 @@ export function buildAccessoryCandidates(owned, families) {
     const nextTier = bumpRarity(tier);
     const mpGain = (MAGICAL_POWER_BY_RARITY[nextTier] || 0) - (MAGICAL_POWER_BY_RARITY[tier] || 0);
     if (mpGain > 0) {
-      recombobulate.push({ id, name: families.talismans[id]?.name || id, rarity: nextTier, mpGain, kind: 'recombobulate', nextRecombobulated: true });
+      recombobulate.push({ id, name: families.talismans[id]?.name || id, rarity: nextTier, mpGain, fromTier: tier, kind: 'recombobulate', nextRecombobulated: true });
     }
   }
 
-  return [...missing, ...upgrade, ...recombobulate, ...gemstoneUpgrade];
+  // Dungeon accessories count twice inside a dungeon, so each candidate also carries how far it moves
+  // their share. An upgrade can cross the line: Wither Artifact is not one, its Wither Relic is.
+  const dungeonIds = new Set(families.dungeon_accessory_ids || []);
+  const dungeonMp = (id, tier) => (dungeonIds.has(id) ? MAGICAL_POWER_BY_RARITY[tier] || 0 : 0);
+  return [...missing, ...upgrade, ...recombobulate, ...gemstoneUpgrade].map((c) => ({
+    ...c,
+    dungeonMpGain: dungeonMp(c.id, c.rarity) - (c.fromTier ? dungeonMp(c.fromId || c.id, c.fromTier) : 0),
+  }));
 }
 
 const CATEGORY_LABELS = {
@@ -271,6 +281,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   const modeConfig = getModeConfig(mode, build.useMasterMode);
   const accessorySlot = loadout.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
   const currentMp = accessorySlot.modifiers.magicalPower || 0;
+  const currentDungeonMp = accessorySlot.modifiers.dungeonMagicalPower || 0;
   // Includes the Tuning Box attribute's flat point grant (computeTotalTuningPoints) for an accurate
   // absolute total; that portion cancels out of `extraPoints`, being added to both sides.
   const currentPoints = computeTotalTuningPoints(currentMp, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
@@ -279,7 +290,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   const tunedLoadout = { ...loadout, accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, tuning: baselineTuning } } };
   // Reuses what topUpTuning needs below (Crit Chance, whether an Overload bow is equipped);
   // computeModeDamageAndSources costs nothing extra, since baselineValue is computed here anyway.
-  const { value: baselineValue, sources: tunedSources } = await computeModeDamageAndSources(tunedLoadout, itemData, build, modeConfig, mob);
+  const { value: baselineValue, perHit: baselinePerHit, sources: tunedSources } = await computeModeDamageAndSources(tunedLoadout, itemData, build, modeConfig, mob);
   const tunedCritChance = tunedSources.baseStats.crit_chance || 0;
   const hasOverload = (tunedSources.overloadBonusPercent || 0) > 0;
 
@@ -322,10 +333,16 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
       ...loadout,
       accessory: {
         ...accessorySlot,
-        modifiers: { ...accessorySlot.modifiers, magicalPower: currentMp + candidate.mpGain, tuning: candidateTuning, individualAccessoryStats },
+        modifiers: {
+          ...accessorySlot.modifiers,
+          magicalPower: currentMp + candidate.mpGain,
+          dungeonMagicalPower: currentDungeonMp + (candidate.dungeonMpGain || 0),
+          tuning: candidateTuning,
+          individualAccessoryStats,
+        },
       },
     };
-    const value = await computeModeDamage(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
+    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, candidateBuild, modeConfig, mob);
     const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : 0;
     if (percentIncrease <= 0.001) continue;
     // A brand-new accessory also has to fit in the bag: with no free slot, the cheapest slot on the
@@ -347,8 +364,10 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
         tuning: candidateTuning,
         value,
         percentIncrease,
+        perHitIncrease: perHit - baselinePerHit,
         apply: [
           { type: 'setAccessoryMagicalPower', mp: currentMp + candidate.mpGain },
+          ...(candidate.dungeonMpGain ? [{ type: 'setAccessoryDungeonMagicalPower', mp: currentDungeonMp + candidate.dungeonMpGain }] : []),
           { type: 'setAccessoryTuning', tuning: candidateTuning },
           // Real accessories only, not the generic +MP steps: marks it owned so
           // buildAccessoryCandidates treats it as such next run rather than re-offering the same gain.

@@ -752,9 +752,13 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // +15 Bonus Attack Speed) alongside its MP-scaled base stats and Tuning - see
     // lib/accessoryPowers.js's computeAccessoryTotalStats. Only the stats this file tracks are
     // forwarded; Powers can also grant health/defense/speed/true_defense.
+    // Dungeon accessories' Magical Power counts twice inside a dungeon, so the Dungeon and Master
+    // totals scale the Power off the larger figure.
     const accessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower, modifiers.tuning);
+    const dungeonAccessoryStats = computeAccessoryTotalStats(item.id, modifiers.magicalPower + (modifiers.dungeonMagicalPower || 0), modifiers.tuning);
     for (const statKey of ['strength', 'crit_chance', 'crit_damage', 'intelligence', 'ability_damage', 'bonus_attack_speed', 'ferocity']) {
-      addBaseStat(out, statKey, accessoryStats[statKey] || 0, 'Accessory');
+      const dungeonValue = dungeonAccessoryStats[statKey] || 0;
+      addFinalStatValue(out, statKey, accessoryStats[statKey] || 0, dungeonValue, dungeonValue, 'Accessory');
     }
   }
 

@@ -1771,6 +1771,69 @@ try {
     assert.deepEqual(reforges.fixReforgeStoneLore('Fabled', reforge, lore), lore);
   });
 
+  // 50h. Only one member of an accessory family is active, so Magical Power and accessory stats
+  // count its best member; dungeon accessories' share is reported apart and counts twice inside a
+  // dungeon, for the Accessory Power's stats too.
+  await check('Accessory families are exclusive and dungeon accessories count twice in dungeons', async () => {
+    const workerFamilies = await server.ssrLoadModule(new URL('../../worker/src/accessoryFamilies.js', import.meta.url).pathname);
+    assert.equal(workerFamilies.accessoryFamilyKey('TREASURE_TALISMAN'), 'TREASURE_ARTIFACT');
+    assert.equal(workerFamilies.accessoryFamilyKey('MASTER_SKULL_TIER_3'), 'MASTER_SKULL_TIER_7');
+    assert.equal(workerFamilies.accessoryFamilyKey('POWDER_OF_ONE'), 'POWDER_OF_THE_PEOPLE');
+    assert.equal(workerFamilies.accessoryFamilyKey('HOTSPOT_RING'), 'HOTSPOT_ARTIFACT');
+    assert.equal(workerFamilies.accessoryFamilyKey('ABICASE_REZAR'), 'ABICASE');
+    const totals = workerFamilies.sumActiveAccessories([
+      { id: 'TREASURE_TALISMAN', magicalPower: 8, stats: { strength: 1 }, enrichment: 'strength' },
+      { id: 'TREASURE_ARTIFACT', magicalPower: 16, stats: { strength: 3 }, enrichment: 'critical_damage' },
+      { id: 'MASTER_SKULL_TIER_6', magicalPower: 16, enrichment: 'strength' },
+      { id: 'MASTER_SKULL_TIER_7', magicalPower: 22 },
+      { id: 'WITHER_ARTIFACT', magicalPower: 12 },
+      { id: 'HOTSPOT_TALISMAN', magicalPower: 3 },
+      { id: 'HOTSPOT_RING', magicalPower: 5, enrichment: 'strength' },
+      { id: 'HOTSPOT_RING', magicalPower: 5, enrichment: 'strength' },
+      { id: 'PARTY_HAT_CRAB', family: 'HAT', magicalPower: 3, enrichment: 'strength' },
+      { id: 'SOME_OTHER_HAT', family: 'HAT', magicalPower: 5 },
+    ]);
+    assert.deepEqual(totals, {
+      magicalPower: 16 + 22 + 12 + 5 + 5,
+      dungeonMagicalPower: 16 + 22,
+      stats: { strength: 3 },
+      // The Talisman's and T6's enrichments sit on inactive members; the second Hotspot Ring is a copy.
+      enrichments: { critical_damage: 1, strength: 1 },
+    });
+
+    const damageSources = await server.ssrLoadModule('/src/lib/damageSources.js');
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const accessory = (dungeonMagicalPower) => ({
+      accessory: { item: { id: 'FORTUITOUS' }, modifiers: { ...defaults.emptyAccessoryModifiers(), magicalPower: 1000, dungeonMagicalPower } },
+    });
+    const powers = await server.ssrLoadModule('/src/lib/accessoryPowers.js');
+    const at = (mp) => powers.computeAccessoryTotalStats('FORTUITOUS', mp, defaults.emptyAccessoryModifiers().tuning);
+    const r = await damageSources.collectDamageSources(accessory(200), EMPTY_ITEM_DATA, { attributes: {} });
+    const plain = await damageSources.collectDamageSources(accessory(0), EMPTY_ITEM_DATA, { attributes: {} });
+    for (const key of ['strength', 'crit_damage']) {
+      if (!at(1000)[key]) continue;
+      assert.equal(r.baseStats[key], plain.baseStats[key], `${key}: no change outside a dungeon`);
+      assert.ok(Math.abs(r.dungeonizedBaseStats[key] - plain.dungeonizedBaseStats[key] - (at(1200)[key] - at(1000)[key])) < 1e-9, `${key} in a dungeon`);
+      assert.ok(Math.abs(r.masterDungeonizedBaseStats[key] - plain.masterDungeonizedBaseStats[key] - (at(1200)[key] - at(1000)[key])) < 1e-9, `${key} in Master Mode`);
+    }
+
+    const optimizer = await server.ssrLoadModule('/src/lib/accessoryOptimizer.js');
+    const families = JSON.parse(readFileSync(new URL('../../worker/src/data/accessoryFamilies.json', import.meta.url), 'utf8'));
+    const mp = optimizer.MAGICAL_POWER_BY_RARITY;
+    const candidates = optimizer.buildAccessoryCandidates(
+      [
+        { id: 'WITHER_ARTIFACT', tier: 'EPIC', recombobulated: false },
+        { id: 'TREASURE_TALISMAN', tier: 'UNCOMMON', recombobulated: false },
+      ],
+      families,
+    );
+    const relic = candidates.find((c) => c.id === 'WITHER_RELIC');
+    assert.equal(relic.dungeonMpGain, mp[relic.rarity], 'the whole Relic counts twice; the Artifact never did');
+    const treasure = candidates.find((c) => c.id === 'TREASURE_ARTIFACT');
+    assert.equal(treasure.dungeonMpGain, treasure.mpGain);
+    assert.ok(candidates.filter((c) => !families.dungeon_accessory_ids.includes(c.id)).every((c) => c.dungeonMpGain === 0));
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

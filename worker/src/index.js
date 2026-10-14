@@ -31,6 +31,7 @@ import powerStones from "./data/powerStones.json";
 import accessories from "./data/accessories.json";
 import accessoryFamilies from "./data/accessoryFamilies.json";
 import { decodeInventoryB64, extractItemSummary } from "./nbt.js";
+import { sumActiveAccessories } from "./accessoryFamilies.js";
 
 const NEU_ENCHANTS_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/enchants.json";
 
@@ -1147,12 +1148,9 @@ function computeCombinedMythologicalBestiaryTiers(bestiary, kills) {
 }
 
 function computeLiveAccessoryStats(items, abiphoneContactCount) {
-  const bestMagicalPowerById = new Map();
-  const bestStatById = {}; // statKey -> Map<id, value>
-  let hatMagicalPower = 0;
+  // One entry per accessory; sumActiveAccessories keeps each family's best member.
+  const entries = [];
   let hasAbicase = false;
-  let enrichmentCount = 0;
-  const enrichmentCountByStat = {}; // real Hypixel stat id -> count
   let generalsMedallionDigits = 0;
   let masterSkullTier = 0;
 
@@ -1165,15 +1163,6 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     let magicalPower = tier && RARITY_MAGICAL_POWER[tier] != null ? RARITY_MAGICAL_POWER[tier] : 0;
     // Hegemony Artifact doubles its own Magical Power contribution.
     if (id === "HEGEMONY_ARTIFACT") magicalPower *= 2;
-    if (isHatAccessory(raw)) {
-      hatMagicalPower = Math.max(hatMagicalPower, magicalPower);
-    } else {
-      bestMagicalPowerById.set(id, Math.max(bestMagicalPowerById.get(id) || 0, magicalPower));
-    }
-    if (ea.talisman_enrichment) {
-      enrichmentCount++;
-      enrichmentCountByStat[ea.talisman_enrichment] = (enrichmentCountByStat[ea.talisman_enrichment] || 0) + 1;
-    }
     if (id === "ABICASE") hasAbicase = true;
     // Master Skull tier; its Strength multiplier is applied client-side (lib/masterSkull.js). The
     // highest owned tier wins, same best-copy dedup as the rest of this loop.
@@ -1191,25 +1180,21 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
       const lore = raw?.tag?.display?.Lore;
       itemStats = { ...parseNarrativeStatGrants(lore), ...parseLeadingStatLines(lore) };
     }
-    if (itemStats) {
-      for (const [statKey, value] of Object.entries(itemStats)) {
-        if (!value) continue;
-        if (!bestStatById[statKey]) bestStatById[statKey] = new Map();
-        bestStatById[statKey].set(id, Math.max(bestStatById[statKey].get(id) || 0, value));
-      }
-    }
+    // Only the best hat counts, so every hat shares one family.
+    const family = isHatAccessory(raw) ? "HAT" : undefined;
+    entries.push({ id, family, magicalPower, stats: itemStats, enrichment: ea.talisman_enrichment || null });
   }
 
-  let magicalPower = hatMagicalPower;
-  for (const mp of bestMagicalPowerById.values()) magicalPower += mp;
+  const active = sumActiveAccessories(entries);
+  let magicalPower = active.magicalPower;
   if (hasAbicase) magicalPower += Math.floor((abiphoneContactCount || 0) / 2);
+  const dungeonMagicalPower = active.dungeonMagicalPower;
+  // Only an active family member's enrichment counts (sumActiveAccessories).
+  const enrichmentCountByStat = active.enrichments; // real Hypixel stat id -> count
+  let enrichmentCount = Object.values(enrichmentCountByStat).reduce((sum, n) => sum + n, 0);
 
   const itemStats = {};
-  for (const [statKey, map] of Object.entries(bestStatById)) {
-    let total = 0;
-    for (const value of map.values()) total += value;
-    if (total) itemStats[statKey] = Math.round(total * 10) / 10;
-  }
+  for (const [statKey, total] of Object.entries(active.stats)) itemStats[statKey] = Math.round(total * 10) / 10;
 
   // Pre-selects the tracked stat (ENRICHMENT_STAT_MAP) with the most enrichments, falling back to
   // 'none' with the flat total when no enrichment sits on a tracked stat.
@@ -1224,7 +1209,7 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   }
   if (enrichmentType !== "none") enrichmentCount = bestTrackedCount;
 
-  return { magicalPower, itemStats, enrichmentCount, enrichmentType, generalsMedallionDigits, masterSkullTier };
+  return { magicalPower, dungeonMagicalPower, itemStats, enrichmentCount, enrichmentType, generalsMedallionDigits, masterSkullTier };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -1630,6 +1615,9 @@ async function handleHypixelImport(url, env) {
       bagUpgradesPurchased: member.accessory_bag_storage?.bag_upgrades_purchased || 0,
       redstoneCollection: member.collection?.REDSTONE || 0,
       magicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.magicalPower : member.accessory_bag_storage?.highest_magical_power || 0,
+      // The dungeon accessories' share of that, doubled by the frontend inside a dungeon. Unknown
+      // without the bag itself, so 0 on the highest_magical_power fallback.
+      dungeonMagicalPower: talismanBagItems.length > 0 ? liveAccessoryStats.dungeonMagicalPower : 0,
       // Every owned accessory's own stat line, summed generically - see computeLiveAccessoryStats.
       itemStats: liveAccessoryStats.itemStats,
       enrichmentCount: liveAccessoryStats.enrichmentCount,

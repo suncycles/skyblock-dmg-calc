@@ -131,6 +131,17 @@ const STEPS = {
     },
   }),
 
+  setAccessoryDungeonMagicalPower: (state, step) => ({
+    ...state,
+    loadout: {
+      ...state.loadout,
+      accessory: {
+        item: state.loadout.accessory?.item ?? null,
+        modifiers: { ...(state.loadout.accessory?.modifiers || emptyAccessoryModifiers()), dungeonMagicalPower: step.mp },
+      },
+    },
+  }),
+
   setAccessoryTuning: (state, step) => ({
     ...state,
     loadout: {
