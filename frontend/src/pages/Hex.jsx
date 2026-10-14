@@ -76,7 +76,7 @@ export default function Hex() {
   const { slot } = useParams();
   const navigate = useNavigate();
   const { itemData } = useItemData();
-  const { loadout, toggleRecombobulated, cleanModifiers, playerStats, targetMobs } = useBuild();
+  const { loadout, toggleRecombobulated, cleanModifiers, playerStats, targetMobs, maxedCollectionsCount } = useBuild();
   const isMythologicalTarget = targetMobs.some((name) => (MOB_TYPES[name] || []).includes('Mythological'));
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
@@ -184,6 +184,7 @@ export default function Hex() {
       manticoreClawBonus,
       petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
+      maxedCollectionsCount,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

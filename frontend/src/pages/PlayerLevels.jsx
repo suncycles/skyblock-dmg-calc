@@ -60,6 +60,8 @@ export default function PlayerLevels() {
     setGeneralsMedallionDigits,
     setLonesomeMinerLevel,
     toggleBlazetekkHamRadio,
+    maxedCollectionsCount,
+    setMaxedCollectionsCount,
   } = useBuild();
 
   return (
@@ -199,6 +201,13 @@ export default function PlayerLevels() {
             Mining Level <span className="text-xs text-neutral-600">(Only used by Ankylosaurus)</span>
           </label>
           <NumberInput id="mining-level" max={MAX_MINING_LEVEL} value={playerStats.miningLevel} onChange={setMiningLevel} className={inputClass} />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="maxed-collections">
+            Maxed Collections <span className="text-xs text-neutral-600">(The One enchant only)</span>
+          </label>
+          <NumberInput id="maxed-collections" value={maxedCollectionsCount} onChange={setMaxedCollectionsCount} className={inputClass} />
         </div>
 
         <div className="flex items-center justify-between gap-2">

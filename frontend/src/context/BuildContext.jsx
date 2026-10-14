@@ -1788,6 +1788,8 @@ export function BuildProvider({ children }) {
         importHypixelBestiaryMaxedMobs,
         importHypixelCombinedMythologicalBestiaryTiers,
         importHypixelMaxedCollectionsCount,
+        // The same clamp-and-save, for the Player Levels page's manual field.
+        setMaxedCollectionsCount: importHypixelMaxedCollectionsCount,
         importHypixelWeaponList,
         equipImportedWeapon,
         removeSlot,

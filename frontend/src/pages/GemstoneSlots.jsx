@@ -26,7 +26,7 @@ const CENTER_COL = 5;
 export default function GemstoneSlots() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout, playerStats } = useBuild();
+  const { loadout, playerStats, maxedCollectionsCount } = useBuild();
   const { itemData } = useItemData();
   const { showTooltip, hideTooltip, handleTapOrActivate, guardHover } = useTooltip();
   const item = loadout[slot] && loadout[slot].item;
@@ -54,6 +54,8 @@ export default function GemstoneSlots() {
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
       petItemStatContext(loadout.pet, itemData),
+      false,
+      maxedCollectionsCount,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

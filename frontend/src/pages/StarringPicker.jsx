@@ -19,7 +19,7 @@ const panel =
 export default function StarringPicker() {
   const { slot } = useParams();
   const navigate = useNavigate();
-  const { loadout, playerStats, setStarCount, setDungeonized, setDungeonizeOldCurve, setMasterStars } = useBuild();
+  const { loadout, playerStats, maxedCollectionsCount, setStarCount, setDungeonized, setDungeonizeOldCurve, setMasterStars } = useBuild();
   const { itemData } = useItemData();
   const item = loadout[slot] && loadout[slot].item;
   const modifiers = loadout[slot] && loadout[slot].modifiers;
@@ -50,13 +50,15 @@ export default function StarringPicker() {
       playerStats.generalsMedallionDigits,
       manticoreClawBonus,
       petItemStatContext(loadout.pet, itemData),
+      false,
+      maxedCollectionsCount,
     ).then((lines) => {
       if (!cancelled) setTooltipLines(lines);
     });
     return () => {
       cancelled = true;
     };
-  }, [item, modifiers, itemData, loadout, slot, playerStats]);
+  }, [item, modifiers, itemData, loadout, slot, playerStats, maxedCollectionsCount]);
 
   if (!item) {
     return (

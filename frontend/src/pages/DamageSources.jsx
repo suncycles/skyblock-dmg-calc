@@ -867,13 +867,16 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
               // bonus - rather than a snapshot, which prices Venomous at a single permanent stack.
               // Beam REPLACES the melee hit rather than stacking on it; the procs
               // (Venomous/Thunderlord/Fire Aspect/Crimson Swipe) stay either way, since they fire
-              // per hit whichever kind it is. Venomous scales off the Beam then, the rest off the swing.
+              // per hit whichever kind it is. Venomous, Thunderlord and Fire Aspect scale off the Beam
+              // then, Crimson Swipe off the swing.
               //
               // Beam reports the steady state rather than the simulated average: the two are
               // different bases, so subtracting a steady-state melee figure out of a fight average
               // would mix them. Beam never ramps with HP% or stacks, so there is nothing to simulate.
               const showProcs = dpsKind !== 'bow';
               const venomousDps = dpsKind === 'beam' ? dps.venomousBeam : dps.venomous;
+              const thunderlordDps = dpsKind === 'beam' ? dps.thunderlordBeam : dps.thunderlord;
+              const fireAspectDps = dpsKind === 'beam' ? dps.fireAspectBeam : dps.fireAspect;
               // In Beam mode the per-hit line below is the Beam, which replaces the swing.
               const beamHit =
                 dpsKind === 'beam' && finalDamage
@@ -889,7 +892,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                 // simulation (it has no Venomous/Execute ramp to average over).
                 totalDps = dps.bow;
               } else if (dpsKind === 'beam') {
-                totalDps = dps.total - dps.melee + dps.beam - dps.venomous + dps.venomousBeam;
+                totalDps = dps.beamTotal;
               } else {
                 totalDps = dps.total;
                 if (sim?.hasRealHp) {
@@ -965,16 +968,16 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                             <span className="text-right font-mono">{Math.round(venomousDps).toLocaleString()}</span>
                           </>
                         )}
-                        {showProcs && dps.thunderlord > 0 && (
+                        {showProcs && thunderlordDps > 0 && (
                           <>
                             <span>Thunderlord DPS ({DPS_HITS_PER_SECOND.thunderlord}/s)</span>
-                            <span className="text-right font-mono">{Math.round(dps.thunderlord).toLocaleString()}</span>
+                            <span className="text-right font-mono">{Math.round(thunderlordDps).toLocaleString()}</span>
                           </>
                         )}
-                        {showProcs && dps.fireAspect > 0 && (
+                        {showProcs && fireAspectDps > 0 && (
                           <>
                             <span>Fire Aspect DPS ({DPS_HITS_PER_SECOND.fireAspect}/s)</span>
-                            <span className="text-right font-mono">{Math.round(dps.fireAspect).toLocaleString()}</span>
+                            <span className="text-right font-mono">{Math.round(fireAspectDps).toLocaleString()}</span>
                           </>
                         )}
                         {showProcs && dps.crimsonSwipe > 0 && (

@@ -102,6 +102,7 @@ export default function Landing() {
     removeSlot,
     playerStats,
     targetMobs,
+    maxedCollectionsCount,
     clearTargetMobs,
     godPotionActive,
     godPotionMixin,
@@ -392,6 +393,7 @@ export default function Landing() {
       manticoreClawBonus,
       petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
+      maxedCollectionsCount,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
@@ -416,6 +418,7 @@ export default function Landing() {
       manticoreClawBonus,
       petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
+      maxedCollectionsCount,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }
@@ -470,6 +473,7 @@ export default function Landing() {
       manticoreClawBonus,
       petItemStatContext(loadout.pet, itemData),
       isMythologicalTarget,
+      maxedCollectionsCount,
     );
     if (hoverTokenRef.current === token) showTooltip(lines, anchor);
   }

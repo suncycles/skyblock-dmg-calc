@@ -497,11 +497,13 @@ const DUNGEON_EQUIPMENT_PROGRESSION = {
   gloves: [[{ id: 'SOULWEAVER_GLOVES' }]],
 };
 
-// Balloon Snake is a mage-only sidegrade of the base necklace tier (RARE against Bone Necklace's
-// EPIC - already confirmed a real sidegrade despite the rarity gap).
+// Balloon Snake is a mage-only sidegrade (RARE against Bone Necklace's EPIC - already confirmed a
+// real sidegrade despite the rarity gap). It has no Starred form, so it sits in the top tier beside
+// Starred Bone Necklace: the walk only climbs from the equipped tier, and in the base tier a Starred
+// Bone Necklace wearer would never see it.
 const MAGE_BEAM_EQUIPMENT_PROGRESSION = {
   ...DUNGEON_EQUIPMENT_PROGRESSION,
-  necklace: [[{ id: 'BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }], [{ id: 'STARRED_BONE_NECKLACE' }]],
+  necklace: [[{ id: 'BONE_NECKLACE' }], [{ id: 'STARRED_BONE_NECKLACE' }, { id: 'BALLOON_SNAKE' }]],
 };
 
 // Mage Ability adds the Implosion Belt, whose 1.25x is Ability Damage only (see abilityDamage.js) -

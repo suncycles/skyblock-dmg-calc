@@ -1718,8 +1718,8 @@ try {
   });
 
   // 50f. In Beam mode the fight simulation (the graph) hits with the Beam, Intelligence scaling
-  // included, not the plain swing, and Venomous scales off that Beam hit.
-  await check('Beam mode simulates Beam hits, and Venomous scales off them', () => {
+  // included, not the plain swing, and Venomous, Thunderlord and Fire Aspect scale off that Beam hit.
+  await check('Beam mode simulates Beam hits, and Venomous, Thunderlord and Fire Aspect scale off them', () => {
     const stats = { damage: 335, strength: 2000, crit_damage: 1000, crit_chance: 80, intelligence: 2500, bonus_attack_speed: 70 };
     const sources = {
       baseStats: stats, dungeonizedBaseStats: stats, masterDungeonizedBaseStats: stats,
@@ -1727,6 +1727,8 @@ try {
       weaponBonusNonConditional: [], weaponBonusConditional: [],
       multiplicative: [], abilityMultiplicative: [], debuffs: { iceSpray: true },
       venomousProc: { id: 'v', label: 'Venomous', percent: 10 },
+      thunderlordProc: { id: 't', label: 'Thunderlord', percent: 60 },
+      fireAspectProc: { id: 'f', label: 'Fire Aspect', percent: 9 },
     };
     const mob = { name: 'Zombie', types: ['Undead'] };
     const loadout = { weapon: { item: { id: 'HYPERION', category: 'SWORD' }, modifiers: {} } };
@@ -1741,6 +1743,14 @@ try {
     // One stack on the opening hit, amortized over the swing interval.
     assert.equal(beam.venomousDamage, venomousOnBeam / dps.meleeHitsPerSecond);
     assert.equal(swing.venomousDamage, dps.venomousProc.finalDamage / dps.meleeHitsPerSecond);
+    const beamHit = dps.beamProc.finalDamage;
+    assert.equal(dps.thunderlordBeam, Math.floor(beamHit * 0.6) * 0.6);
+    assert.equal(dps.fireAspectBeam, Math.floor(beamHit * 0.09) * 1);
+    assert.equal(dps.beamTotal, dps.beam + dps.venomousBeam + dps.thunderlordBeam + dps.fireAspectBeam + dps.crimsonSwipe);
+    // Each proc fires on its own cadence across the fight; the first that lands carries the Beam's cut.
+    const hits = finalDamage.simulateHitByHit(sources, mob, loadout, null, 100, true, false, 20, null, true).hits;
+    assert.equal(hits.find((h) => h.thunderlordDamage > 0).thunderlordDamage, Math.floor(beamHit * 0.6));
+    assert.equal(hits.find((h) => h.fireAspectDamage > 0).fireAspectDamage, Math.floor(beamHit * 0.09));
   });
 
   // 50g. Suspicious adds Damage by rarity, 5 at Common to 17 at Divine, not the flat +15 its stone's
