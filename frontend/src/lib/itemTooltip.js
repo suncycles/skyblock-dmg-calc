@@ -14,26 +14,28 @@ import { computeItemStatTotals, normalizeAttackSpeedLabel } from './itemStatTota
 import { MAX_BASE_STAT_BOOST_PERCENTAGE } from './tieredArmorStats';
 import { parseBaseStatValue } from './starring';
 
-// Applied enchants, formatted for the tooltip: ultimate first (bold pink), then normal enchants
-// alphabetically, gold if maxed else grey. Exported (only for
+// Past this many normal enchants they pack three to a line, comma-separated, as the in-game
+// tooltip does for a heavily enchanted item; one per line ran long lists off the screen.
+const PACK_ENCHANTS_OVER = 6;
+const ENCHANTS_PER_PACKED_LINE = 3;
+
+// Applied enchants, formatted for the tooltip: ultimate first (bold pink, on its own line), then
+// normal enchants alphabetically, gold if maxed else grey. Exported (only for
 // scripts/verify-dungeon-and-enchant-behavior.mjs's own use) so "the imported enchant list is
 // always OUR OWN rendering, never Hypixel's raw imported text" can be regression-tested directly.
 export function buildAppliedEnchantLines(modifiers) {
   if (!modifiers) return [];
-  const entries = [];
-  if (modifiers.ultimateEnchantment) {
-    entries.push({ ...modifiers.ultimateEnchantment, isUltimate: true });
-  }
+  const name = (e) => `${titleCaseEnchantId(e.id)} ${toRoman(e.level)}`;
+  const lines = modifiers.ultimateEnchantment ? [`§d§l${name(modifiers.ultimateEnchantment)}`] : [];
   const normals = (modifiers.hexEnchantments || [])
     .slice()
-    .sort((a, b) => titleCaseEnchantId(a.id).localeCompare(titleCaseEnchantId(b.id)));
-  entries.push(...normals.map((e) => ({ ...e, isUltimate: false })));
-
-  return entries.map((e) => {
-    const name = `${titleCaseEnchantId(e.id)} ${toRoman(e.level)}`;
-    if (e.isUltimate) return `§d§l${name}`;
-    return e.level === e.maxLevel ? `§6${name}` : `§7${name}`;
-  });
+    .sort((a, b) => titleCaseEnchantId(a.id).localeCompare(titleCaseEnchantId(b.id)))
+    .map((e) => (e.level === e.maxLevel ? `§6${name(e)}` : `§7${name(e)}`));
+  if (normals.length <= PACK_ENCHANTS_OVER) return [...lines, ...normals];
+  for (let i = 0; i < normals.length; i += ENCHANTS_PER_PACKED_LINE) {
+    lines.push(normals.slice(i, i + ENCHANTS_PER_PACKED_LINE).join('§7, '));
+  }
+  return lines;
 }
 
 // Splices applied-enchant lines in at the first blank line, matching where real tooltips show

@@ -245,6 +245,13 @@ try {
     const finalLore = itemTooltip.insertEnchantLines(baseLore, lines);
     const criticalOccurrences = finalLore.filter((l) => l.includes('Critical VI')).length;
     assert.equal(criticalOccurrences, 1, 'each enchant must appear exactly once in the final tooltip');
+
+    // A long list packs three to a line, the ultimate still alone on the first.
+    const many = { ...modifiers, hexEnchantments: ['sharpness', 'critical', 'smite', 'looting', 'luck', 'scavenger', 'vampirism'].map((id) => ({ id, level: 5, maxLevel: 5 })) };
+    const packed = itemTooltip.buildAppliedEnchantLines(many);
+    assert.equal(packed.length, 1 + 3, '7 enchants pack into 3 lines under the ultimate');
+    assert.equal(packed[0], '§d§lUltimate Wise V');
+    assert.equal(packed[1].split('§7, ').length, 3);
   });
 
   // 10. Gear-Score tiered stats (Skeleton Master and Zombie Knight families): a per-copy item_tier
@@ -1001,29 +1008,6 @@ try {
     const after = applyResultToState(before, { apply: [step] }, {});
     assert.equal(after.loadout.weapon.modifiers.books, 15);
     assert.equal(before.loadout.weapon.modifiers.books, 3, 'apply stays pure');
-  });
-  // 36. The Recommended Upgrades panel's "auto" mode follows the page's own toggles and target,
-  // so the list can't be ranking for a different kind of content than
-  // the damage number beside it. Pins every branch, and that each answer is a real selectable mode.
-  await check('Auto recommendation mode follows the page toggles and target', () => {
-    const { resolveOptimizerMode, OPTIMIZER_MODES } = optimizerModule;
-    const page = (o) => ({ useDungeonizedStats: false, mageMode: false, dpsMode: false, dpsKind: 'melee', ...o });
-    const cases = [
-      [page({}), ['Ender'], 'slayer', 'an ordinary overworld target'],
-      [page({}), null, 'slayer', 'no target picked yet'],
-      [page({}), ['Mythological'], 'diana', 'a Mythological target is a Diana hunt'],
-      [page({ mageMode: true }), ['Mythological'], 'mage', 'Mage wins over the target outside a dungeon'],
-      [page({ useDungeonizedStats: true }), ['Undead'], 'dungeon_archer', 'the one non-mage dungeon mode'],
-      [page({ useDungeonizedStats: true, mageMode: true }), ['Undead'], 'dungeon_mage_ability', 'Final Damage view is Ability Damage'],
-      [page({ useDungeonizedStats: true, mageMode: true, dpsMode: true, dpsKind: 'beam' }), ['Undead'], 'dungeon_mage_beam', 'the Beam output is on screen'],
-      [page({ useDungeonizedStats: true, mageMode: true, dpsMode: false, dpsKind: 'beam' }), ['Undead'], 'dungeon_mage_ability', 'a remembered beam choice only counts while DPS is showing'],
-    ];
-    const ids = new Set(OPTIMIZER_MODES.map((m) => m.id));
-    for (const [toggles, types, expected, why] of cases) {
-      const got = resolveOptimizerMode(toggles, types);
-      assert.equal(got, expected, why);
-      assert.ok(ids.has(got), `${got} must be a real optimizer mode`);
-    }
   });
   // 37. Item buffs (lib/buffs.js): flat grants in every mode. Ragnarock
   // copies 1.5x the axe's own Strength (so nothing without an axe), Sword of Bad Health is its +100

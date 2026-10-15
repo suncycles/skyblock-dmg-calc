@@ -127,6 +127,8 @@ export function TooltipProvider({ children }) {
 const CURSOR_OFFSET_X = 12;
 const CURSOR_OFFSET_Y = -12;
 const EDGE_MARGIN = 4;
+// TopBar's h-12, fixed above every tooltip: a tooltip pinned higher than this hid its first lines.
+const TOP_BAR_HEIGHT = 48;
 
 // index.css zooms the whole page (html { zoom: var(--page-zoom) }). Pointer coordinates arrive in
 // zoomed screen pixels, but a position: fixed element's left/top are CSS pixels the zoom scales
@@ -149,14 +151,22 @@ function TooltipEl({ lines, point }) {
     function place(clientX, clientY) {
       const x = clientX / zoom;
       const y = clientY / zoom;
-      const width = el.offsetWidth;
-      const height = el.offsetHeight;
+      const viewWidth = window.innerWidth / zoom;
+      const viewHeight = window.innerHeight / zoom;
+      const minTop = TOP_BAR_HEIGHT + EDGE_MARGIN;
+      // Too big for the visible area (a long enchant list, a narrow phone): scale down to fit rather
+      // than run off an edge. offsetWidth/offsetHeight ignore the transform, so this stays stable.
+      const scale = Math.min(1, (viewHeight - minTop - EDGE_MARGIN) / el.offsetHeight, (viewWidth - 2 * EDGE_MARGIN) / el.offsetWidth);
+      el.style.transformOrigin = 'top left';
+      el.style.transform = scale < 1 ? `scale(${scale})` : '';
+      const width = el.offsetWidth * scale;
+      const height = el.offsetHeight * scale;
       let left = x + CURSOR_OFFSET_X;
-      if (left + width > window.innerWidth / zoom - EDGE_MARGIN) left = x - width - CURSOR_OFFSET_X;
+      if (left + width > viewWidth - EDGE_MARGIN) left = x - width - CURSOR_OFFSET_X;
       let top = y + CURSOR_OFFSET_Y;
-      if (top + height > window.innerHeight / zoom - EDGE_MARGIN) top = window.innerHeight / zoom - height - EDGE_MARGIN;
+      if (top + height > viewHeight - EDGE_MARGIN) top = viewHeight - height - EDGE_MARGIN;
       el.style.left = `${Math.max(EDGE_MARGIN, left)}px`;
-      el.style.top = `${Math.max(EDGE_MARGIN, top)}px`;
+      el.style.top = `${Math.max(minTop, top)}px`;
     }
     // Before paint, so the tooltip never flashes at its unplaced position.
     place(point.x, point.y);

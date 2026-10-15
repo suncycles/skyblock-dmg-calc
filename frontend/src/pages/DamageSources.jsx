@@ -1691,21 +1691,23 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
       {/* Bottom-LEFT, not a full-width bar: keeps clear of GlobalFooter's bottom-right cluster. Only
           on Landing (`embedded`) - the standalone
           /damage-sources page already has these numbers at the top of the viewport. */}
+      {/* Above the bottom-left Ko-fi link, level with Landing's Upgrades button on the right. Below md
+          it stacks its label over the number and stops short of that button. */}
       {embedded && stickyHeadline && !hideSticky && (
         <button
           type="button"
           onClick={() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          className="opaque-panel fixed bottom-2 left-2 z-30 max-w-[calc(100vw-1rem)] flex items-baseline gap-2 px-3 py-2 text-left cursor-pointer bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black hover:brightness-110"
+          className="opaque-panel fixed bottom-10 left-2 z-30 max-w-[calc(100vw/var(--page-zoom)-8rem)] md:max-w-[calc(100vw-1rem)] flex flex-col md:flex-row items-start md:items-baseline gap-x-2 px-3 py-2 text-left cursor-pointer bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black hover:brightness-110"
           title="Jump to the full damage breakdown"
         >
-          <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-700 shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-700 md:shrink-0">
             {stickyHeadline.label}
             <span className="block font-normal normal-case tracking-normal truncate">vs {stickyHeadline.mob}</span>
           </span>
           <span className="text-lg font-mono font-bold text-black whitespace-nowrap">{stickyHeadline.value}</span>
           {/* The offensive stats a player actually checks while swapping gear. Dropped below `sm`
               where the pill has no room; the full (Base) Stats panel is one tap away regardless. */}
-          <span className="hidden sm:flex items-baseline gap-2 pl-2 ml-1 border-l border-neutral-500/50 text-[10px] font-mono text-neutral-700">
+          <span className="hidden sm:flex items-baseline gap-2 md:pl-2 md:ml-1 md:border-l border-neutral-500/50 text-[10px] font-mono text-neutral-700">
             {STICKY_STAT_KEYS.map(({ key, symbolName }) => {
               const meta = STAT_SYMBOLS[symbolName];
               return (

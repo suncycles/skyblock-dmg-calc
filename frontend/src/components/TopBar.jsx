@@ -188,8 +188,9 @@ export default function TopBar() {
       )}
 
       <aside
-        className={`fixed left-0 top-0 z-[1110] h-full w-72 max-w-[80vw] bg-[rgb(16,17,22)] border-r border-white/10 shadow-[8px_0_24px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-out ${
-          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        // The shadow only while open: parked off-screen it still fell across the page's left edge.
+        className={`fixed left-0 top-0 z-[1110] h-full w-72 max-w-[80vw] bg-[rgb(16,17,22)] border-r border-white/10 transition-transform duration-300 ease-out ${
+          menuOpen ? 'translate-x-0 shadow-[8px_0_24px_rgba(0,0,0,0.4)]' : '-translate-x-full'
         }`}
       >
         <div className="h-12 px-4 flex items-center justify-between border-b border-white/10">

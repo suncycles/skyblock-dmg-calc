@@ -98,43 +98,23 @@ export const OPTIMIZER_MODES = [
   { id: 'dungeon_healer_tank', label: 'Dungeon / Healer-Tank' },
 ];
 
-// Auto mode follows the page's own toggles and target: inside a dungeon Mage picks Beam while DPS
-// is shown and Ability otherwise; outside one a Mythological target is Diana, anything else Slayer.
-export const AUTO_OPTIMIZER_MODE = 'auto';
-
-// Inside a dungeon the picked class chooses the mode. Mage is absent: it routes through the two
-// existing mage modes above, which the Mage/DPS toggles already pick between.
-const DUNGEON_MODE_BY_CLASS = {
-  archer: 'dungeon_archer',
-  berserk: 'dungeon_berserk',
-  healer_tank: 'dungeon_healer_tank',
-};
-
-export function resolveOptimizerMode({ useDungeonizedStats, mageMode, dpsMode, dpsKind, dungeonClass }, mobTypes) {
-  if (useDungeonizedStats) {
-    if (!mageMode) return DUNGEON_MODE_BY_CLASS[dungeonClass] || 'dungeon_archer';
-    return dpsMode && dpsKind === 'beam' ? 'dungeon_mage_beam' : 'dungeon_mage_ability';
-  }
-  if (mageMode) return 'mage';
-  return mobTypes?.includes('Mythological') ? 'diana' : 'slayer';
-}
-
-// A pinned mode persists across reloads; any unrecognized value reads as auto.
-const OPTIMIZER_MODE_OVERRIDE_KEY = 'hexOptimizerModeOverride';
+// The picked mode persists across reloads. Nothing is picked until the player chooses one, and an
+// unrecognized value (including the retired 'auto') reads as unpicked.
+const OPTIMIZER_MODE_KEY = 'hexOptimizerModeOverride';
 const SELECTABLE_MODE_IDS = new Set(OPTIMIZER_MODES.filter((m) => !m.disabled).map((m) => m.id));
 
-export function loadOptimizerModeOverride() {
+export function loadOptimizerMode() {
   try {
-    const stored = localStorage.getItem(OPTIMIZER_MODE_OVERRIDE_KEY);
-    return stored && SELECTABLE_MODE_IDS.has(stored) ? stored : AUTO_OPTIMIZER_MODE;
+    const stored = localStorage.getItem(OPTIMIZER_MODE_KEY);
+    return stored && SELECTABLE_MODE_IDS.has(stored) ? stored : null;
   } catch {
-    return AUTO_OPTIMIZER_MODE;
+    return null;
   }
 }
 
-export function saveOptimizerModeOverride(mode) {
+export function saveOptimizerMode(mode) {
   try {
-    localStorage.setItem(OPTIMIZER_MODE_OVERRIDE_KEY, mode);
+    localStorage.setItem(OPTIMIZER_MODE_KEY, mode);
   } catch {
     // Storage blocked - the pick still holds for this visit.
   }

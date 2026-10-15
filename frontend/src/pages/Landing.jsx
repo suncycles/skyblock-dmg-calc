@@ -38,6 +38,27 @@ import { ENTRY_DISMISSED_KEY, SHOW_ENTRY_EVENT } from '../lib/entryScreen';
 import WeaponIcon from '../components/WeaponIcon';
 import EntryScreen from '../components/EntryScreen';
 import UpgradesPanel from '../components/UpgradesPanel';
+
+// Recommended Upgrades opens docked (the right-hand column on wide screens, an overlay sheet below
+// that) or minimized to a floating button, like a chat widget. Remembered per browser; with no choice
+// yet it opens on wide screens and starts minimized on phones.
+const UPGRADES_MINIMIZED_KEY = 'hexUpgradesCollapsed';
+function loadUpgradesOpen() {
+  try {
+    const stored = localStorage.getItem(UPGRADES_MINIMIZED_KEY);
+    if (stored != null) return stored !== 'true';
+  } catch {
+    // Storage blocked - fall through to the screen-size default.
+  }
+  return window.matchMedia('(min-width: 1280px)').matches;
+}
+function saveUpgradesOpen(open) {
+  try {
+    localStorage.setItem(UPGRADES_MINIMIZED_KEY, String(!open));
+  } catch {
+    // Storage blocked - the choice still holds for this visit.
+  }
+}
 import { DUNGEON_BLESSINGS, computeBlessingMultiplier } from '../lib/dungeonBlessing';
 import { hasAnyDebuff, mobDefenseDebuffMultiplier, finalDamageDebuffMultiplier } from '../lib/mobDebuffs';
 import { BUFF_ITEMS } from '../lib/buffs';
@@ -141,6 +162,11 @@ export default function Landing() {
   // screen. Observed here rather than inside DamageSources because a ref passed into a lazy child is
   // read before the child's effect sees it attached; a callback ref into state fires when the node
   // lands.
+  const [upgradesOpen, setUpgradesOpenState] = useState(loadUpgradesOpen);
+  const setUpgradesOpen = (open) => {
+    setUpgradesOpenState(open);
+    saveUpgradesOpen(open);
+  };
   const [jumpButtonEl, setJumpButtonEl] = useState(null);
   const [jumpButtonVisible, setJumpButtonVisible] = useState(false);
   // A rect check on scroll rather than IntersectionObserver: same result, and an IO callback never
@@ -1151,12 +1177,16 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 relative">
-      {/* Below xl everything stacks in DOM order - toolbar, board, Recommended Upgrades, the jump
-          button, the breakdown - so the panel lands under the board. At xl the panel moves into its
-          own right-hand column, spanning every row and sticky, so it stays beside whatever you are
-          reading and can't cover the board. 700 + 340 + gap clears the edges at 1280px even with
-          index.css's site-wide 1.15 zoom. */}
-      <div className="w-full flex flex-col items-center xl:grid xl:grid-cols-[minmax(0,700px)_340px] xl:justify-center xl:items-start xl:gap-x-4">
+      {/* Below xl everything stacks in DOM order - toolbar, board, the jump button, the breakdown -
+          and an open Recommended Upgrades floats over it as a sheet. At xl an open panel takes its own
+          right-hand column, everything from the board's edge to the window's, spanning every row and
+          sticky, so it stays beside whatever you are reading and can't cover the board. Minimized,
+          the board column centres again. */}
+      <div
+        className={`w-full flex flex-col items-center xl:grid xl:items-start xl:gap-x-4 ${
+          upgradesOpen ? 'xl:grid-cols-[minmax(0,700px)_minmax(340px,1fr)]' : 'xl:grid-cols-[minmax(0,700px)] xl:justify-center'
+        }`}
+      >
       {/* Combined Loadout panel (Export/Import plus saved Loadouts), in normal document flow above the
           grid rather than pinned over content, so it can never overlap the GUI at any viewport size.
           Centred to match the grid below. */}
@@ -1282,14 +1312,33 @@ export default function Landing() {
         </div>
       </div>
 
-      <aside className="w-full max-w-[700px] mt-4 xl:mt-0 xl:max-w-none xl:col-start-2 xl:row-start-1 xl:row-span-4 xl:self-stretch">
+      {/* Hidden rather than unmounted when minimized, so its sort, filters and skipped rows survive. */}
+      <aside
+        className={
+          upgradesOpen
+            ? 'fixed z-40 inset-x-2 top-16 bottom-2 sm:left-auto sm:w-[440px] xl:static xl:inset-auto xl:z-auto xl:w-auto xl:col-start-2 xl:row-start-1 xl:row-span-4 xl:self-stretch'
+            : 'hidden'
+        }
+      >
         {/* Height divides by --page-zoom: with index.css's site-wide zoom, 100vh is the unzoomed
             viewport, so an undivided cap was ~15% taller than the screen and the panel's title slid
             up under the top bar while stuck. */}
-        <div className="xl:sticky xl:top-16 xl:max-h-[calc(100vh/var(--page-zoom)_-_5.5rem)] xl:overflow-y-auto">
-          <UpgradesPanel variant="column" />
+        <div className="h-full overflow-y-auto shadow-[0_8px_24px_rgba(0,0,0,0.5)] xl:shadow-none xl:sticky xl:top-16 xl:h-[calc(100vh/var(--page-zoom)_-_5.5rem)]">
+          <UpgradesPanel variant="column" onMinimize={() => setUpgradesOpen(false)} />
         </div>
       </aside>
+      {/* Just above the bottom-right build-info button. Styled like the site's other dark pills, with
+          the zone theme's accent (--glass-tint) so it matches whatever backdrop is showing. */}
+      {!upgradesOpen && (
+        <button
+          type="button"
+          onClick={() => setUpgradesOpen(true)}
+          className="fixed right-2 bottom-10 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white bg-[rgb(16,17,22)]/90 backdrop-blur-md border border-[rgba(var(--glass-tint),0.45)] shadow-[0_4px_14px_rgba(0,0,0,0.5)] transition-colors hover:bg-[rgba(var(--glass-tint),0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white cursor-pointer"
+        >
+          <img src="/images/manual/arrowup.webp" alt="" className="w-4 h-4 pixelated" />
+          Upgrades
+        </button>
+      )}
 
       <button
         ref={setJumpButtonEl}

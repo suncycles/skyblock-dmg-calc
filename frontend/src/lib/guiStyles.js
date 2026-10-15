@@ -4,12 +4,11 @@
 //
 // Shared by the potion menu on Landing and the class picker on Damage Sources: the two are the
 // same control to a reader, and two copies of this string would drift.
-export const dropdownPanel =
-  'bg-[#2f2f2f] border-[3px] border-t-[#5e5e5e] border-l-[#5e5e5e] border-b-[#151515] border-r-[#151515] outline outline-2 outline-black';
+export const dropdownPanel = 'opaque-panel rounded-xl border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.5)]';
 
 // The matching option/row colours. `dropdownOptionBg` also goes on each <option> of a native
 // <select>: the OS popup takes its colours from the options themselves, not the closed control.
-export const dropdownOptionBg = 'bg-[#2f2f2f]';
+export const dropdownOptionBg = 'bg-[rgb(30,32,38)]';
 export const dropdownItem = 'text-white';
 export const dropdownItemMuted = 'text-white/80';
-export const dropdownItemActive = 'bg-white/20 text-white';
+export const dropdownItemActive = 'bg-[rgba(var(--glass-tint),0.18)] text-white';
