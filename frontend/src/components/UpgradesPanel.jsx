@@ -91,6 +91,8 @@ const SMART_CATEGORY_WEIGHTS = {
   'Perfect Gemstones': 1,
   'Magical Power (generic)': 1,
   'Power Stone': 1,
+  // Attributes are the same kind of upgrade: permanent, account-wide, never lost to a gear swap.
+  Attribute: 1,
 
   Armor: 0.95,
   'Full Set': 0.95,
@@ -114,7 +116,6 @@ const SMART_CATEGORY_WEIGHTS = {
   Gemstone: 0.35,
   Recombobulator: 0.35,
   'Potato Books': 0.35,
-  Attribute: 0.35,
   'Essence Perk': 0.35,
   Skill: 0.35,
   Potion: 0.35,
