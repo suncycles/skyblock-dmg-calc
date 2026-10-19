@@ -74,51 +74,46 @@ const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slo
 // with a token guarding against a stale run landing after a newer one.
 const RUN_DEBOUNCE_MS = 200;
 
-// "smart" scales each result's % increase by what its category is worth long-term, ranking
-// MP >= Armor >= Pet > Weapon > enchantments. Magical Power, armor and pets carry the whole build
-// and keep paying out across every target; a weapon only pays out where its conditional bonus
-// applies, and an enchant is the narrowest of the three.
+// "smart" scales each result's % increase by what its category is worth long-term. The weights are
+// user-set (2026-10-19): account-wide progression (Magical Power, attributes, skills, potions) on
+// top, then armor and pets, the per-item upgrades that carry over (Potato Books, reforges), then
+// weapon and equipment swaps, with enchantments and stars last.
 //
 // Every category lib/optimizer.js and lib/accessoryOptimizer.js emit is listed. Anything
 // unlisted takes SMART_DEFAULT_WEIGHT, the lowest weight here, so a category added later can
 // never outrank a named one by default.
 const SMART_CATEGORY_WEIGHTS = {
-  // Magical Power - every accessory candidate raises the same account-wide stat pool, and the bag
-  // Power is the multiplier that pool feeds (see lib/accessoryPowers.js).
   'New Accessory': 1,
   'Accessory Upgrade': 1,
   Recombobulate: 1,
-  'Perfect Gemstones': 1,
   'Magical Power (generic)': 1,
   'Power Stone': 1,
-  // Attributes are the same kind of upgrade: permanent, account-wide, never lost to a gear swap.
   Attribute: 1,
+  Skill: 1,
+  Potion: 1,
 
   Armor: 0.95,
   'Full Set': 0.95,
+  Pet: 0.95,
+  'Pet Item': 0.95,
 
-  Pet: 0.9,
-  'Pet Item': 0.9,
+  'Potato Books': 0.9,
+  Reforge: 0.9,
 
-  Weapon: 0.6,
-  // Equipment is gear, but a necklace/cloak/belt/gloves swap moves far less than an armor one.
-  Equipment: 0.5,
+  'Essence Perk': 0.85,
+
+  Weapon: 0.75,
+  'Perfect Gemstones': 0.75,
+
+  Equipment: 0.65,
 
   Enchant: 0.35,
   'Ultimate Enchant': 0.35,
   'Enchant Set': 0.35,
-
-  // Unranked by the weighting above: per-item modifiers and account-wide progression, all scoped
-  // narrower than the five ranked buckets, so they sit at the enchantment weight.
-  Reforge: 0.35,
   Stars: 0.35,
   'Master Stars': 0.35,
   Gemstone: 0.35,
   Recombobulator: 0.35,
-  'Potato Books': 0.35,
-  'Essence Perk': 0.35,
-  Skill: 0.35,
-  Potion: 0.35,
 };
 const SMART_DEFAULT_WEIGHT = 0.35;
 function smartScore(result) {
