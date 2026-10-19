@@ -1831,6 +1831,34 @@ try {
     assert.equal(pricing.lookupCandidateCost(ultimate(5, null), itemData), 16_000_000, 'a fresh Swarm V');
   });
 
+  // 50j. The ultimate search offers, per enchant, the cheapest level that beats the current setup plus
+  // the max level, nothing for one that can't beat it, and only the next level of the equipped one.
+  // Swarm (+2%/mob per level) and Combo (+1%/kill per level) are flat additive, so the winners are
+  // known: Combo II at 10 kills is +20%, and at 6 mobs Swarm II (+24%) is the first level past it.
+  await check('Ultimate search offers the cheapest winning level, the max, and the next equipped level', async () => {
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const enchantEffects = await server.ssrLoadModule('/src/lib/enchantEffects.js');
+    const levels = [1, 2, 3, 4, 5].map((level) => ({ level, lore: [] }));
+    const itemData = { ...EMPTY_ITEM_DATA, enchants: { levelData: { ultimate_swarm: levels, ultimate_combo: levels } } };
+    const loadout = {
+      weapon: {
+        item: { id: 'TEST_SWORD', name: 'Test Sword', tier: 'LEGENDARY', category: 'SWORD', lore: ['§7Damage: §c+100', '§7Strength: §c+200'] },
+        modifiers: { ...defaults.emptyModifiers(), ultimateEnchantment: { id: 'ultimate_combo', level: 2, maxLevel: 5 } },
+      },
+    };
+    const modeConfig = optimizer.getModeConfig('slayer');
+    const mob = { name: 'Zombie', types: ['Undead'] };
+    const rowsAt = async (swarmMobs) => {
+      const build = { playerStats: {}, attributes: {}, miscStats: {}, essencePerks: {}, bestiaryMaxedMobs: [], swarmMobs, comboKills: 10 };
+      const { value } = await optimizer.computeModeScore(loadout, itemData, build, modeConfig, mob);
+      const rows = await optimizer.evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, value, 'weapon', ['ultimate_swarm', 'ultimate_combo']);
+      return rows.map((r) => [r.label, r.fromLevel]);
+    };
+    assert.deepEqual(await rowsAt(6), [['Swarm II', null], ['Swarm V', null], ['Combo III', 2]]);
+    assert.deepEqual(await rowsAt(1), [['Combo III', 2]], 'Swarm V at 1 mob (+10%) never beats Combo II');
+    assert.equal(enchantEffects.getEnchantCaption('ultimate_wise'), 'wis', 'badge and swap tag skip "Ultimate "');
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

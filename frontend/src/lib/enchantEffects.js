@@ -328,11 +328,12 @@ export function isUltimateEnchant(id) {
   return id.toLowerCase().startsWith('ultimate_');
 }
 
-// Short 3-letter badge for an enchant slot on EnchantList.jsx - first 3 letters of its display name, lowercased.
+// Short 3-letter badge for an enchant slot on EnchantList.jsx - first 3 letters of its display name
+// without "Ultimate ", lowercased. Also the tag on optimizer.js's item swap labels.
 export function getEnchantCaption(id) {
   const key = id.toLowerCase();
   if (key === 'ultimate_one_for_all') return 'ofa';
-  return titleCaseEnchantId(id).replace(/[^A-Za-z]/g, '').slice(0, 3).toLowerCase();
+  return titleCaseEnchantId(id).replace(/^Ultimate /, '').replace(/[^A-Za-z]/g, '').slice(0, 3).toLowerCase();
 }
 
 // Normalizes an enchant's own "Conflicts:" lore names to the canonical display name titleCaseEnchantId produces.

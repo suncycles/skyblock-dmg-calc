@@ -43,6 +43,7 @@ import {
   fetchEnchantLevels,
   isUltimateEnchant,
   titleCaseEnchantId,
+  getEnchantCaption,
   toRoman,
   getCategoryEnchantIds,
   resolveEnchantCategory,
@@ -881,9 +882,9 @@ export function carriedReforgeName(currentModifiers, item, itemData) {
 }
 
 // An item swap's label names what it carries over from the current piece: "Ancient Warden Helmet
-// [HAB 5]", the reforge and the ultimate enchant's first three letters and level.
+// [HAB 5]", the reforge and the ultimate enchant's Enchants-page badge and level.
 function upgradedItemLabel(name, reforge, ultimate) {
-  const ultimateTag = ultimate ? ` [${titleCaseEnchantId(ultimate.id).replace(/^Ultimate /, '').slice(0, 3).toUpperCase()} ${ultimate.level}]` : '';
+  const ultimateTag = ultimate ? ` [${getEnchantCaption(ultimate.id).toUpperCase()} ${ultimate.level}]` : '';
   return `${reforge ? `${reforge} ` : ''}${name}${ultimateTag}`;
 }
 
@@ -1650,7 +1651,7 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
 // the current setup at all costs one run rather than one per level. Removes whatever
 // computeConflictingEntries says the item would lose - most importantly One For All's "removes every
 // other enchant" rule, which both the damage number and the swap-in action's removeIds depend on.
-async function evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slot, ids, labelPrefix = '') {
+export async function evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slot, ids, labelPrefix = '') {
   const equipped = loadout[slot];
   const current = equipped.modifiers.ultimateEnchantment;
   const currentId = current?.id?.toLowerCase() || null;
