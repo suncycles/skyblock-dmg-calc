@@ -1818,6 +1818,19 @@ try {
     assert.ok(candidates.filter((c) => !families.dungeon_accessory_ids.includes(c.id)).every((c) => c.dungeonMpGain === 0));
   });
 
+  // 50i. An ultimate enchant's level N costs 2^(N-1) tier I books, and a tier-up of the equipped one
+  // only buys the books it lacks (user-set). The One has no tier I book and keeps its own prices.
+  await check('Ultimate enchants price as doubled tier I books, tier-ups as the books they lack', async () => {
+    const pricing = await server.ssrLoadModule('/src/lib/pricing.js');
+    const itemPrices = { ENCHANTMENT_ULTIMATE_SWARM_1: 1_000_000, ENCHANTMENT_ULTIMATE_THE_ONE_4: 60_000_000, ENCHANTMENT_ULTIMATE_THE_ONE_5: 150_000_000 };
+    [1, 2, 4, 8, 16].forEach((books, i) => assert.equal(pricing.enchantPrice(itemPrices, 'ultimate_swarm', i + 1), books * 1_000_000));
+    assert.equal(pricing.enchantPrice(itemPrices, 'ultimate_the_one', 5), 150_000_000);
+    const itemData = { costs: { itemPrices } };
+    const ultimate = (level, fromLevel) => ({ category: 'Ultimate Enchant', fromLevel, apply: [{ type: 'applyEnchant', slot: 'weapon', id: 'ultimate_swarm', level }] });
+    assert.equal(pricing.lookupCandidateCost(ultimate(3, 2), itemData), 2_000_000, 'Swarm II to III is two more Swarm I');
+    assert.equal(pricing.lookupCandidateCost(ultimate(5, null), itemData), 16_000_000, 'a fresh Swarm V');
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

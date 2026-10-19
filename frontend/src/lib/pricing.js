@@ -71,9 +71,16 @@ const SPECIAL_ENCHANT_LEVEL_ITEMS = {
 // Real coin price for one enchant at one level - the single source of truth both this file's own
 // Enchant/Ultimate Enchant candidate pricing below and loadoutCost.js's Setup Cost breakdown call
 // through, so the special-item exceptions above only ever need handling in one place.
+// An ultimate enchant's level N is 2^(N-1) tier I books combined, so it costs that many tier I books
+// (user-set 2026-10-19). Falls back to the level's own price when tier I has none - The One only
+// exists at IV and V.
 export function enchantPrice(itemPrices, id, level) {
   const specialItemId = SPECIAL_ENCHANT_LEVEL_ITEMS[id.toLowerCase()]?.[level];
   if (specialItemId) return priceOf(itemPrices, specialItemId);
+  if (id.toLowerCase().startsWith('ultimate_')) {
+    const tierOne = priceOf(itemPrices, `ENCHANTMENT_${id.toUpperCase()}_1`);
+    if (tierOne != null) return tierOne * 2 ** (level - 1);
+  }
   return priceOf(itemPrices, `ENCHANTMENT_${id.toUpperCase()}_${level}`);
 }
 
@@ -148,10 +155,18 @@ export function lookupCandidateCost(result, itemData) {
       }
       return total;
     }
-    case 'Enchant':
-    case 'Ultimate Enchant': {
+    case 'Enchant': {
       const step = findStep(result.apply, 'applyEnchant');
       return step ? enchantPrice(itemPrices, step.id, step.level) : null;
+    }
+    case 'Ultimate Enchant': {
+      const step = findStep(result.apply, 'applyEnchant');
+      if (!step) return null;
+      const price = enchantPrice(itemPrices, step.id, step.level);
+      // A tier-up of the equipped ultimate only buys the books it lacks: Swarm II to III is two more
+      // Swarm I, the books Swarm II already holds subtracted.
+      const held = result.fromLevel ? enchantPrice(itemPrices, step.id, result.fromLevel) : 0;
+      return price == null || held == null ? price : price - held;
     }
     case 'Enchant Set': {
       // The One-For-All-alternative bundle (lib/optimizer.js's evaluateCheapestOneForAllAlternative)

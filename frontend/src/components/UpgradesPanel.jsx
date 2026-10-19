@@ -349,8 +349,10 @@ export default function UpgradesPanel({ variant = 'column', onMinimize }) {
     .filter(withinBudget)
     .filter((r) => !skippedKeys.has(resultKey(r)));
   const availableCategories = [...new Set(unfilteredResults.map((r) => r.category))].sort();
-  // A real numeric 0 is free; '?' is unpriced and stays with the paid list.
-  const isFree = (r) => r.cost === 0;
+  // A real numeric 0 is free; '?' is unpriced and stays with the paid list. The set that replaces One
+  // For All shows either way: when the free enchanting-table tiers alone beat it, it costs nothing,
+  // and that is exactly the answer it exists to give.
+  const isFree = (r) => r.cost === 0 && r.category !== 'Enchant Set';
   const freeCount = unfilteredResults.filter(isFree).length;
   const combinedResults = unfilteredResults
     .filter((r) => (showFree ? true : !isFree(r)))

@@ -880,6 +880,13 @@ export function carriedReforgeName(currentModifiers, item, itemData) {
   return isReforgeApplicable(meta, item) ? name : null;
 }
 
+// An item swap's label names what it carries over from the current piece: "Ancient Warden Helmet
+// [HAB 5]", the reforge and the ultimate enchant's first three letters and level.
+function upgradedItemLabel(name, reforge, ultimate) {
+  const ultimateTag = ultimate ? ` [${titleCaseEnchantId(ultimate.id).replace(/^Ultimate /, '').slice(0, 3).toUpperCase()} ${ultimate.level}]` : '';
+  return `${reforge ? `${reforge} ` : ''}${name}${ultimateTag}`;
+}
+
 export function carriedUltimateEnchantment(currentModifiers, item, itemData) {
   const ultimate = currentModifiers?.ultimateEnchantment;
   if (!ultimate?.id) return null;
@@ -1008,7 +1015,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         return {
           category,
           slot,
-          label: candidate.label || formatItemName(resolved.name),
+          label: upgradedItemLabel(candidate.label || formatItemName(resolved.name), carriedReforge, carriedUltimate),
           itemId: resolved.id,
           material: resolved.material,
           special: candidate.special,
@@ -1229,7 +1236,7 @@ async function evaluateWeaponProgressionCandidates(loadout, itemData, build, mod
       return {
         category: 'Weapon',
         slot: 'weapon',
-        label: formatItemName(resolved.name),
+        label: upgradedItemLabel(formatItemName(resolved.name), reforgeName, carriedUltimate),
         itemId: resolved.id,
         material: resolved.material,
         special: specialValue,
@@ -1328,7 +1335,8 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
     {
       category: 'Pet',
       slot: 'pet',
-      label: `${derivePetDisplayName('GOLDEN_DRAGON')} [Max]`,
+      // SHINING_SCALES_MAX_GOLD_COLLECTION and MAX_GOLDEN_DRAGON_BANK_COINS, the two inputs it maxes.
+      label: `${derivePetDisplayName('GOLDEN_DRAGON')} [100M Gold, 1B Bank]`,
       itemId: 'GOLDEN_DRAGON',
       material: 'BONE',
       value,
@@ -1635,89 +1643,92 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
   ];
 }
 
-// Brute-forces every ultimate enchant applicable to the weapon's category, at its max level, as an
-// alternative to the equipped one. Removes whatever computeConflictingEntries says the item would
-// lose - most importantly One For All's "removes every other enchant" rule, which both the damage
-// number and the swap-in action's removeIds depend on.
-async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode) {
-  const weapon = loadout.weapon;
-  if (!weapon) return [];
-  const category = resolveEnchantCategory(weapon.item.category);
-  const ids = getCategoryEnchantIds(itemData.enchants, category).filter(isUltimateEnchant);
-  const currentId = weapon.modifiers.ultimateEnchantment?.id?.toLowerCase() || null;
+// Ultimate enchant rows for one slot's item, shared by the weapon, armor and equipment searches. Per
+// enchant: the cheapest level that beats the current setup plus the max level (two rows at most,
+// since every level between them costs more and gains more than the last), and for the enchant
+// already equipped just its next level. The max level is scored first, so an enchant that can't beat
+// the current setup at all costs one run rather than one per level. Removes whatever
+// computeConflictingEntries says the item would lose - most importantly One For All's "removes every
+// other enchant" rule, which both the damage number and the swap-in action's removeIds depend on.
+async function evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slot, ids, labelPrefix = '') {
+  const equipped = loadout[slot];
+  const current = equipped.modifiers.ultimateEnchantment;
+  const currentId = current?.id?.toLowerCase() || null;
   const results = [];
   for (const id of ids) {
-    if (id.toLowerCase() === currentId) continue;
-    // One For All is never recommended for Diana.
-    if (mode === 'diana' && id.toLowerCase() === 'ultimate_one_for_all') continue;
-    // Combo is never recommended in any mode: its value depends on a per-fight kill streak this app
-    // has no fixed assumption for.
-    if (id.toLowerCase() === 'ultimate_combo') continue;
-    const levels = await fetchEnchantLevels(id, itemData.enchants);
+    const levels = (await fetchEnchantLevels(id, itemData.enchants)).map((l) => l.level).sort((a, b) => a - b);
     if (levels.length === 0) continue;
-    const maxLevel = Math.max(...levels.map((l) => l.level));
-    const removeIds = computeConflictingEntries(id, weapon.item.lore, weapon.modifiers).map((e) => e.id);
-    const candidateLoadout = {
-      ...loadout,
-      weapon: {
-        ...weapon,
-        modifiers: {
-          ...weapon.modifiers,
-          ultimateEnchantment: { id, level: maxLevel, maxLevel },
-          hexEnchantments: (weapon.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
-        },
-      },
-    };
-    const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
-    results.push({
-      category: 'Ultimate Enchant',
-      slot: 'weapon',
-      label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
-      value,
-      perHit,
-      apply: [{ type: 'applyEnchant', slot: 'weapon', id, level: maxLevel, maxLevel, removeIds }],
-    });
-  }
-  return results;
-}
-
-// The same brute force as evaluateUltimateEnchantCandidates, for equipment (Necklace/Cloak/Belt/
-// Gloves) rather than the weapon. Covers every equipment ultimate enchant, not just "The One".
-async function evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob) {
-  const results = [];
-  for (const slot of EQUIPMENT_SLOTS) {
-    const equipped = loadout[slot];
-    if (!equipped?.item) continue;
-    const category = resolveEnchantCategory(equipped.item.category);
-    const ids = getCategoryEnchantIds(itemData.enchants, category).filter(isUltimateEnchant);
-    const currentId = equipped.modifiers.ultimateEnchantment?.id?.toLowerCase() || null;
-    for (const id of ids) {
-      if (id.toLowerCase() === currentId) continue;
-      const levels = await fetchEnchantLevels(id, itemData.enchants);
-      if (levels.length === 0) continue;
-      const maxLevel = Math.max(...levels.map((l) => l.level));
-      const removeIds = computeConflictingEntries(id, equipped.item.lore, equipped.modifiers).map((e) => e.id);
+    const maxLevel = levels[levels.length - 1];
+    const isEquipped = id.toLowerCase() === currentId;
+    const removeIds = computeConflictingEntries(id, equipped.item.lore, equipped.modifiers).map((e) => e.id);
+    const score = async (level) => {
       const candidateLoadout = {
         ...loadout,
         [slot]: {
           ...equipped,
           modifiers: {
             ...equipped.modifiers,
-            ultimateEnchantment: { id, level: maxLevel, maxLevel },
+            ultimateEnchantment: { id, level, maxLevel },
             hexEnchantments: (equipped.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
           },
         },
       };
-      const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
-      results.push({
-        category: 'Ultimate Enchant',
-        slot,
-        label: `${titleCaseEnchantId(id)} ${toRoman(maxLevel)}`,
-        value,
-        perHit,
-        apply: [{ type: 'applyEnchant', slot, id, level: maxLevel, maxLevel, removeIds }],
-      });
+      return { level, ...(await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob)) };
+    };
+    const row = ({ level, value, perHit }) => ({
+      category: 'Ultimate Enchant',
+      slot,
+      label: `${labelPrefix}${titleCaseEnchantId(id)} ${toRoman(level)}`,
+      value,
+      perHit,
+      // A tier-up of the equipped enchant only buys the books it lacks (lib/pricing.js).
+      fromLevel: isEquipped ? current.level : null,
+      apply: [{ type: 'applyEnchant', slot, id, level, maxLevel, removeIds }],
+    });
+    if (isEquipped) {
+      const next = levels.find((level) => level > current.level);
+      if (next != null) results.push(row(await score(next)));
+      continue;
     }
+    const top = await score(maxLevel);
+    if (!(top.value > baselineValue)) continue;
+    let cheapest = top;
+    for (const level of levels) {
+      if (level === maxLevel) break;
+      const scored = await score(level);
+      if (scored.value > baselineValue) {
+        cheapest = scored;
+        break;
+      }
+    }
+    results.push(row(cheapest));
+    if (cheapest.level !== maxLevel) results.push(row(top));
+  }
+  return results;
+}
+
+// Every ultimate enchant applicable to the weapon's category.
+async function evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
+  const weapon = loadout.weapon;
+  if (!weapon) return [];
+  const category = resolveEnchantCategory(weapon.item.category);
+  const ids = getCategoryEnchantIds(itemData.enchants, category)
+    .filter(isUltimateEnchant)
+    // One For All is never recommended for Diana, and Combo in no mode: its value depends on a
+    // per-fight kill streak this app has no fixed assumption for.
+    .filter((id) => !(mode === 'diana' && id.toLowerCase() === 'ultimate_one_for_all') && id.toLowerCase() !== 'ultimate_combo');
+  return evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, 'weapon', ids);
+}
+
+// The same search for equipment (Necklace/Cloak/Belt/Gloves). Covers every equipment ultimate
+// enchant, not just "The One".
+async function evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, baselineValue) {
+  const results = [];
+  for (const slot of EQUIPMENT_SLOTS) {
+    const equipped = loadout[slot];
+    if (!equipped?.item) continue;
+    const ids = getCategoryEnchantIds(itemData.enchants, resolveEnchantCategory(equipped.item.category)).filter(isUltimateEnchant);
+    results.push(...(await evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slot, ids)));
   }
   return results;
 }
@@ -2306,47 +2317,16 @@ async function evaluatePotatoBookCandidates(loadout, itemData, build, modeConfig
   ];
 }
 
-async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode) {
+// The same search per armor piece, labelled with the piece since four can carry one each.
+async function evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue) {
   const results = [];
   for (const slot of ARMOR_SLOTS) {
     const equipped = loadout[slot];
     if (!equipped?.item) continue;
-    const category = resolveEnchantCategory(equipped.item.category);
-    let ids = getCategoryEnchantIds(itemData.enchants, category).filter(isUltimateEnchant);
+    let ids = getCategoryEnchantIds(itemData.enchants, resolveEnchantCategory(equipped.item.category)).filter(isUltimateEnchant);
     if (mode === 'slayer') ids = ids.filter((id) => SLAYER_ARMOR_ULTIMATE_IDS.has(id.toLowerCase()));
-    const current = equipped.modifiers.ultimateEnchantment;
-    for (const id of ids) {
-      const levels = await fetchEnchantLevels(id, itemData.enchants);
-      if (levels.length === 0) continue;
-      const maxLevel = Math.max(...levels.map((l) => l.level));
-      for (const levelData of levels) {
-        const level = levelData.level;
-        if (current && current.id.toLowerCase() === id.toLowerCase() && level <= current.level) continue;
-        // Same conflict resolution as the weapon evaluator: a no-op while Habanero Tactics is armor's
-        // only ultimate, but correct if that changes.
-        const removeIds = computeConflictingEntries(id, equipped.item.lore, equipped.modifiers).map((e) => e.id);
-        const candidateLoadout = {
-          ...loadout,
-          [slot]: {
-            ...equipped,
-            modifiers: {
-              ...equipped.modifiers,
-              ultimateEnchantment: { id, level, maxLevel },
-              hexEnchantments: (equipped.modifiers.hexEnchantments || []).filter((e) => !removeIds.includes(e.id)),
-            },
-          },
-        };
-        const { value, perHit } = await computeModeScore(candidateLoadout, itemData, build, modeConfig, mob);
-        results.push({
-          category: 'Ultimate Enchant',
-          slot,
-          label: `${formatItemName(equipped.item.name)} - ${titleCaseEnchantId(id)} ${toRoman(level)}`,
-          value,
-          perHit,
-          apply: [{ type: 'applyEnchant', slot, id, level, maxLevel, removeIds }],
-        });
-      }
-    }
+    const prefix = `${formatItemName(equipped.item.name)} - `;
+    results.push(...(await evaluateSlotUltimateCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, slot, ids, prefix)));
   }
   return results;
 }
@@ -2459,9 +2439,9 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateMissingTypeBaneEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMissingEnchantCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateCheapestOneForAllAlternative(loadout, itemData, build, modeConfig, mob, baselineValue),
-    evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
-    evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode),
-    evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+    evaluateArmorUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
+    evaluateEquipmentUltimateEnchantCandidates(loadout, itemData, build, modeConfig, mob, baselineValue),
     evaluatePowerStoneCandidates(loadout, itemData, build, modeConfig, mob, mode),
     evaluateStarsCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateMasterStarsCandidates(loadout, itemData, build, modeConfig, mob),
