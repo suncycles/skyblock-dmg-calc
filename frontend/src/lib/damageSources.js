@@ -236,15 +236,16 @@ const DAGGER_MOB_MULTIPLIERS = {
   END_SWORD: [{ multiplier: 2, condition: 'Ender' }],
   SPIDER_SWORD: [{ multiplier: 2, condition: 'Arthropod' }],
   PRISMARINE_BLADE: [{ multiplier: 3 }],
+  // Undead bows (user-set 2026-10-20): Death Bow and Super Undead Bow 4x, Undead Bow 2x vs Undead.
+  DEATH_BOW: [{ multiplier: 4, condition: 'Undead' }],
+  SUPER_UNDEAD_BOW: [{ multiplier: 4, condition: 'Undead' }],
+  UNDEAD_BOW: [{ multiplier: 2, condition: 'Undead' }],
 };
 
 // Flat additive mob-type bonuses, hardcoded like the multiplicative table above. Prismarine Bow's
 // condition names Squid/Guardian/Elder Guardian in full; only Squid resolves in this app's mob
 // catalog today, and the others take effect automatically if they are added.
 const ADDITIVE_MOB_MULTIPLIERS = {
-  DEATH_BOW: [{ value: 100, condition: 'Undead' }],
-  SUPER_UNDEAD_BOW: [{ value: 100, condition: 'Undead' }],
-  UNDEAD_BOW: [{ value: 100, condition: 'Undead' }],
   UNDEAD_SWORD: [{ value: 100, condition: 'Undead' }],
   WITHER_BOW: [{ value: 100, condition: 'Wither' }],
   PRISMARINE_BOW: [{ value: 300, condition: 'Squid, Guardian, Elder Guardian' }],
