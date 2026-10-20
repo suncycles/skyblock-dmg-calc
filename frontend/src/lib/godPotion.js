@@ -3,7 +3,7 @@
 //   Strength VIII  -> +75 Strength
 //   Critical IV    -> +25% Crit Chance, +40% Crit Damage
 //   Spirit IV      -> +40 Speed (untracked), +40% Crit Damage
-//   Archery IV     -> +75% bow damage, bow weapons only
+//   Archery IV     -> +80% bow damage, bow weapons only
 //   Jerry Candy    -> +100 Health, +20 Strength, +2 Ferocity, +100 Intelligence, +3 Magic Find
 //
 // Only the Strength/Crit Chance/Crit Damage pieces are wired into Damage Sources - this app
@@ -15,7 +15,7 @@ export const GOD_POTION_STRENGTH_POTION = 78.75; // Strength Potion VIII
 export const GOD_POTION_CRIT_CHANCE = 25; // Critical Potion IV
 export const GOD_POTION_CRIT_DAMAGE = 40; // Critical Potion IV
 export const GOD_POTION_SPIRIT_CRIT_DAMAGE = 40; // Spirit Potion IV
-export const GOD_POTION_ARCHERY_DAMAGE = 75; // Archery Potion IV, bow weapons only
+export const GOD_POTION_ARCHERY_DAMAGE = 80; // Archery Potion IV, bow weapons only (user-set 2026-10-19)
 
 export const JERRY_CANDY_STRENGTH = 20;
 
