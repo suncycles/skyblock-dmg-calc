@@ -79,7 +79,7 @@ import { isMiningIslandMob } from './miningIslands';
 // Essence-shop perks that grant something, for the candidate loop below.
 const ALL_ESSENCE_PERKS = [...FLAT_STAT_PERKS, BANE_PERK, INFUSED_DRAGON_PERK, TWO_HEADED_STRIKE_PERK];
 import { derivePetDisplayName, getMaxPetLevel, MAX_GOLDEN_DRAGON_BANK_COINS, SHINING_SCALES_MAX_GOLD_COLLECTION } from './petData';
-import { formatItemName } from './mcText';
+import { formatItemName, formatCoinsShorthand } from './mcText';
 import { canRecombobulate } from './recombobulator';
 import { MAX_POTATO_BOOKS } from './books';
 import { getApplicableReforges, isReforgeApplicable } from './reforgeData';
@@ -646,8 +646,13 @@ export function dominanceGroupKey(result) {
       return `Skill:${result.skillKey}`;
     case 'Potion':
       return `Potion:${result.potionKind}`;
-    // No slot-level or single-choice groups: every group above compares levels or tiers of the same
-    // option, so nothing here prunes independent alternatives.
+    // One reforge per piece and one Power at a time, so only the best free one (a Blacksmith reforge,
+    // a default Power) survives, along with any paid one that beats it.
+    case 'Reforge':
+      return `Reforge:${result.slot}`;
+    case 'Power Stone':
+      return 'Power Stone';
+    // Everything else is independent of each other (two different enchants, two skills): no group.
     default:
       return null;
   }
@@ -1331,8 +1336,38 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
   };
   const { value, perHit } = await computeModeScore({ ...loadout, pet: { item: petItem, modifiers } }, itemData, build, modeConfig, mob);
   const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : value * 100;
-  if (!(percentIncrease > 0.001)) return [];
+  const results = [];
+  // Already on a Golden Dragon: topping the bank up to 1B is its own row. Banked coins aren't spent,
+  // so it's unpriced like the max row.
+  const current = loadout.pet;
+  const bankCoins = current?.modifiers?.bankCoins || 0;
+  if (current?.item?.petId === 'GOLDEN_DRAGON' && bankCoins < MAX_GOLDEN_DRAGON_BANK_COINS) {
+    const banked = await computeModeScore(
+      { ...loadout, pet: { ...current, modifiers: { ...current.modifiers, bankCoins: MAX_GOLDEN_DRAGON_BANK_COINS } } },
+      itemData,
+      build,
+      modeConfig,
+      mob,
+    );
+    const bankedIncrease = baselineValue > 0 ? ((banked.value - baselineValue) / baselineValue) * 100 : banked.value * 100;
+    if (bankedIncrease > 0.001) {
+      results.push({
+        category: 'Pet',
+        slot: 'pet',
+        label: `${derivePetDisplayName('GOLDEN_DRAGON')} - Put ${formatCoinsShorthand(MAX_GOLDEN_DRAGON_BANK_COINS - bankCoins)} more coins in the bank`,
+        itemId: 'GOLDEN_DRAGON',
+        material: 'BONE',
+        value: banked.value,
+        perHit: banked.perHit,
+        percentIncrease: bankedIncrease,
+        unpriced: true,
+        apply: [{ type: 'setPetBankCoins', slot: 'pet', value: MAX_GOLDEN_DRAGON_BANK_COINS }],
+      });
+    }
+  }
+  if (!(percentIncrease > 0.001)) return results;
   return [
+    ...results,
     {
       category: 'Pet',
       slot: 'pet',
