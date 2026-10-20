@@ -1859,6 +1859,21 @@ try {
     assert.equal(enchantEffects.getEnchantCaption('ultimate_wise'), 'wis', 'badge and swap tag skip "Ultimate "');
   });
 
+  // 50k. Beastslayer's Codex is never recombobulated; its next rarity comes from Bestiary Milestones,
+  // offered as an unpriced Accessory Upgrade one tier at a time, with the stats that tier adds.
+  await check("Beastslayer's Codex offers its next Bestiary rarity, never a Recombobulator", async () => {
+    const accessoryOptimizer = await server.ssrLoadModule('/src/lib/accessoryOptimizer.js');
+    const families = JSON.parse(readFileSync(new URL('../../worker/src/data/accessoryFamilies.json', import.meta.url), 'utf8'));
+    const codexRows = (tier) =>
+      accessoryOptimizer.buildAccessoryCandidates([{ id: 'BEASTSLAYERS_CODEX', tier, recombobulated: false }], families).filter((c) => c.id === 'BEASTSLAYERS_CODEX');
+    assert.deepEqual(
+      codexRows('EPIC').map((c) => [c.kind, c.rarity, c.mpGain, c.statDelta]),
+      [['bestiary-upgrade', 'LEGENDARY', 4, { strength: 1, intelligence: 1, crit_damage: 1, ability_damage: 1 }]],
+    );
+    assert.deepEqual(codexRows('COMMON')[0].statDelta, { strength: 1, intelligence: 1 }, 'Uncommon adds its first Intelligence');
+    assert.deepEqual(codexRows('MYTHIC'), [], 'nothing past Mythic');
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

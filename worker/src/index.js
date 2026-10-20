@@ -1176,6 +1176,9 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
     let itemStats = null;
     if (id === "GRAVITY_TALISMAN") {
       itemStats = { strength: GRAVITY_TALISMAN_AVERAGE_STRENGTH };
+    } else if (id === "BEASTSLAYERS_CODEX") {
+      // Its stat line includes Intelligence and Ability Damage, which the lore parsers don't track.
+      itemStats = accessoryFamilies.beastslayers_codex_stats[tier] || null;
     } else if (PARSABLE_ACCESSORY_STAT_IDS.has(id)) {
       const lore = raw?.tag?.display?.Lore;
       itemStats = { ...parseNarrativeStatGrants(lore), ...parseLeadingStatLines(lore) };

@@ -13,6 +13,7 @@
 // Known scope limits:
 // - Recombobulate, Perfect-Gemstone and Accessory-Upgrade candidates don't model the tier-up's own
 //   stat delta, which would need a family+rarity -> item-id lookup this data doesn't provide.
+//   Beastslayer's Codex is the exception: its stats by rarity are in accessoryFamilies.json.
 // - non_recombobulatable_ids is a curated list of 4 ids, not a check of all ~280 accessories.
 
 import { emptyAccessoryModifiers } from './defaultModifiers';
@@ -141,8 +142,9 @@ function canonicalizeOwned(owned, families) {
 }
 
 // Builds every real MP-gaining candidate for this account: missing family-best accessories
-// (`kind: 'missing'`), recombobulating an owned-but-not-maxed one (`kind: 'recombobulate'`), and
-// the "of Power" family's own Perfect Gemstone rarity upgrade (`kind: 'gemstone-upgrade'`) - no
+// (`kind: 'missing'`), recombobulating an owned-but-not-maxed one (`kind: 'recombobulate'`), the
+// "of Power" family's own Perfect Gemstone rarity upgrade (`kind: 'gemstone-upgrade'`), and
+// Beastslayer's Codex's next Bestiary rarity (`kind: 'bestiary-upgrade'`, unpriced) - no
 // DPS number yet, just the real id/name/target rarity/mpGain. `owned` is the worker's
 // `accessory.owned` array (`[{id, tier, recombobulated}]`) from a Hypixel import.
 export function buildAccessoryCandidates(owned, families) {
@@ -189,6 +191,7 @@ export function buildAccessoryCandidates(owned, families) {
 
   const recombobulate = [];
   const gemstoneUpgrade = [];
+  const bestiaryUpgrade = [];
   for (const [id, { tier, recombobulated }] of ownedByCanonical.entries()) {
     const gem = gemUpgrades[id];
     if (gem && gem.from === tier) {
@@ -207,6 +210,18 @@ export function buildAccessoryCandidates(owned, families) {
       }
       continue; // Recombobulator doesn't apply to these two rarity jumps - real mechanic is gemstones only.
     }
+    // Beastslayer's Codex rises one rarity every 50 Bestiary Milestones (its own lore), not for coins.
+    if (id === 'BEASTSLAYERS_CODEX') {
+      const nextTier = bumpRarity(tier);
+      const mpGain = (MAGICAL_POWER_BY_RARITY[nextTier] || 0) - (MAGICAL_POWER_BY_RARITY[tier] || 0);
+      if (mpGain > 0) {
+        const codexStats = families.beastslayers_codex_stats || {};
+        const statDelta = { ...codexStats[nextTier] };
+        for (const [key, value] of Object.entries(codexStats[tier] || {})) statDelta[key] = (statDelta[key] || 0) - value;
+        bestiaryUpgrade.push({ id, name: "Beastslayer's Codex (50 Bestiary Milestones)", rarity: nextTier, mpGain, fromTier: tier, kind: 'bestiary-upgrade', statDelta, nextRecombobulated: recombobulated });
+      }
+      continue;
+    }
     // Recombobulator use is a one-time per-item flag independent of tier: an item's current tier
     // already reflects any past bump, so canRecombobulate(tier) alone can't tell a never-recombed
     // EPIC from a recombed RARE. Anything the account's copy has already used it on is skipped.
@@ -222,7 +237,7 @@ export function buildAccessoryCandidates(owned, families) {
   // their share. An upgrade can cross the line: Wither Artifact is not one, its Wither Relic is.
   const dungeonIds = new Set(families.dungeon_accessory_ids || []);
   const dungeonMp = (id, tier) => (dungeonIds.has(id) ? MAGICAL_POWER_BY_RARITY[tier] || 0 : 0);
-  return [...missing, ...upgrade, ...recombobulate, ...gemstoneUpgrade].map((c) => ({
+  return [...missing, ...upgrade, ...recombobulate, ...gemstoneUpgrade, ...bestiaryUpgrade].map((c) => ({
     ...c,
     dungeonMpGain: dungeonMp(c.id, c.rarity) - (c.fromTier ? dungeonMp(c.fromId || c.id, c.fromTier) : 0),
   }));
@@ -233,6 +248,7 @@ const CATEGORY_LABELS = {
   upgrade: 'Accessory Upgrade',
   recombobulate: 'Recombobulate',
   'gemstone-upgrade': 'Perfect Gemstones',
+  'bestiary-upgrade': 'Accessory Upgrade',
   generic: 'Magical Power (generic)',
 };
 
@@ -319,8 +335,9 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
     // Crit Damage) on top of its Magical Power, added onto what the account's other accessories
     // already contribute - individualAccessoryStats is a running sum across the bag, not per item.
     // Recombobulate/Perfect-Gemstone/Accessory-Upgrade candidates upgrade an owned copy whose
-    // current-tier stat is already in that sum, and the tier-up's own delta is not modeled.
-    const innateStats = candidate.kind === 'missing' ? itemData.accessoryInnateStats?.[candidate.id] : null;
+    // current-tier stat is already in that sum, and the tier-up's own delta is not modeled, except
+    // the Codex's (statDelta).
+    const innateStats = candidate.kind === 'missing' ? itemData.accessoryInnateStats?.[candidate.id] : candidate.statDelta;
     const individualAccessoryStats = innateStats
       ? { ...accessorySlot.modifiers.individualAccessoryStats }
       : accessorySlot.modifiers.individualAccessoryStats;

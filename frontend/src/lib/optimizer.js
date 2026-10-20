@@ -1931,9 +1931,10 @@ function hasFabledReforgeEquipped(loadout) {
   return ['weapon', ...EQUIPMENT_SLOTS].some((slot) => loadout[slot]?.modifiers?.reforge === FABLED_REFORGE_NAME);
 }
 
-// Dungeon/Archer narrows equipment reforges to these 4 for speed - ~130 reforges across 4 slots on
-// top of its 26-bow weapon pool is slow. The weapon slot stays fully brute-forced.
-const DUNGEON_ARCHER_EQUIPMENT_REFORGE_NAMES = new Set(['Blended', 'Waxed', 'Menacing', 'Strengthened']);
+// Dungeon/Archer narrows equipment reforges to these for speed - ~130 reforges across 4 slots on
+// top of its 26-bow weapon pool is slow. The weapon slot stays fully brute-forced. Bloodshot is
+// belt-only, the endcap there.
+const DUNGEON_ARCHER_EQUIPMENT_REFORGE_NAMES = new Set(['Blended', 'Waxed', 'Menacing', 'Strengthened', 'Bloodshot']);
 
 async function evaluateWeaponAndEquipmentReforgeCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const results = [];
