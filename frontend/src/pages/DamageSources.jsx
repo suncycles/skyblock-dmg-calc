@@ -1507,6 +1507,19 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   </span>
                 </label>
               )}
+              <label className="flex items-start gap-1.5 text-[12px] leading-tight text-black" htmlFor="jerry-toggle">
+                <input
+                  id="jerry-toggle"
+                  type="checkbox"
+                  checked={!!buffs.jerry}
+                  onChange={(e) => setBuff('jerry', e.target.checked)}
+                  className="mt-0.5 shrink-0"
+                />
+                <span>
+                  Jerry Toggle
+                  <span className="text-neutral-600 italic"> (+10% stats)</span>
+                </span>
+              </label>
               {/* Always rendered, not only while dirty - a button that appears out of nowhere the
                   first time you type is worse than one that's visibly waiting, and a stable slot
                   keeps the panel from reflowing mid-edit. */}

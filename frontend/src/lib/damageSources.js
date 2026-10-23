@@ -1,4 +1,4 @@
-import { computeBuffGrants, computeRagnarockStrength, findRagnarock } from './buffs';
+import { computeBuffGrants, computeRagnarockStrength, findRagnarock, JERRY_STAT_BOOST_PERCENT } from './buffs';
 import { STAT_LABELS } from './reforgeData';
 import { computeItemStatTotals } from './itemStatTotals';
 import { computeCatacombsBoostPercent } from './dungeonize';
@@ -1959,6 +1959,8 @@ export async function collectDamageSources(
   if (renownedPieces) {
     statBoostSources.push({ percent: renownedPieces * RENOWNED_PERCENT_PER_PIECE, label: 'Renowned' });
   }
+
+  if (buffs?.jerry) statBoostSources.push({ percent: JERRY_STAT_BOOST_PERCENT, label: 'Jerry' });
 
   if (out.legionEnchantLevel && legionPlayers) {
     statBoostSources.push({

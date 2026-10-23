@@ -14,6 +14,8 @@ export const SWORD_OF_BAD_HEALTH_STRENGTH = 100;
 export const WEIRDER_TUBA_STATS = { strength: 40, crit_damage: 10, bonus_attack_speed: 5 };
 // Reaper Armor's Enrage (chestplate, leggings and boots). Its Speed does nothing to damage.
 export const REAPER_ENRAGE_STATS = { damage: 100, strength: 100 };
+// Jerry: +10% to every stat, a final-stage boost like Renowned (lib/damageSources.js). User-set.
+export const JERRY_STAT_BOOST_PERCENT = 10;
 
 export const BUFF_ITEMS = [
   { id: 'ragnarock', label: 'Ragnarock' },
