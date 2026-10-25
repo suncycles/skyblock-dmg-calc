@@ -792,7 +792,8 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   }
 
   // The hit-by-hit simulation only matters when something varies hit to hit: Execute/Prosecute,
-  // Venomous, or a class bonus that ramps (Lust for Blood). Without any of them every iteration
+  // Venomous, a class bonus that ramps (Lust for Blood), or an opening-hit bonus (First/Triple
+  // Strike, which the steady number leaves out entirely). Without any of them every iteration
   // sees identical sources and the fight average equals computeDpsBreakdown's steady number, so the
   // per-candidate cost is skipped.
   //
@@ -800,7 +801,8 @@ export async function computeModeDamageAndSources(loadout, itemData, build, mode
   // Prosecute falls, so cutting the fight short systematically favours whichever of the two happens
   // to be ahead at hit 40 instead of over the kill the player actually makes.
   const classRamps = (sources.dungeonClassStats?.lustForBloodMeleePerHitPercent || 0) > 0;
-  if (startingHp && (sources.executeProsecuteRate || sources.venomousProc || classRamps)) {
+  const opensStronger = sources.additiveNonConditional.some((e) => e.firstHitOnly);
+  if (startingHp && (sources.executeProsecuteRate || sources.venomousProc || classRamps || opensStronger)) {
     const sim = simulateHitByHit(
       sources,
       mob,

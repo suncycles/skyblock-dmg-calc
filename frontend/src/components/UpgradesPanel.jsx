@@ -17,6 +17,7 @@ import { buildAccessoryCandidates, buildGenericMpCandidates, evaluateAccessoryCa
 import { ARMOR_SLOT_LABELS } from '../lib/armorSlots';
 import { EQUIPMENT_SLOT_LABELS } from '../lib/equipmentSlots';
 import { MOB_TYPES } from '../lib/mobTypes';
+import { resolveStartingHp } from '../lib/mobHp';
 import { round1, round3Sig, formatCoinsPerPercent, formatCoinsShort } from '../lib/damageFormat';
 import { getItemCornerBadge } from '../lib/itemCornerBadge';
 import { ENCHANTED_BOOK_ICON, getGemstoneIcon } from '../lib/icons';
@@ -166,8 +167,9 @@ function Chip({ active, onClick, title, children }) {
 // One row per candidate, whatever produced it. The figures are the same swap measured three ways: the
 // % against the current build and the flat gain, both in the mode's own metric (`unit`) - without
 // which a big % on a small baseline and a small % on a large one look identical - and the flat change
-// to one hit's Final Damage, which ignores attack speed and procs entirely.
-function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat, showPerHit, unit }) {
+// to one hit's Final Damage, which ignores attack speed and procs entirely. `hitsSaved` is that
+// same hit turned into fewer hits to kill the target.
+function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, showFlat, showPerHit, hitsSaved, unit }) {
   const flatIncrease = typeof result.value === 'number' && typeof baselineValue === 'number' ? result.value - baselineValue : null;
   const cornerBadge = result.itemId && getItemCornerBadge(result.itemId, result.slot, { special: result.special });
   const isEnchant = result.category === 'Enchant' || result.category === 'Ultimate Enchant';
@@ -231,6 +233,11 @@ function UpgradeRow({ result, onSwapIn, onSkip, baselineValue, showPercent, show
             <span className={`text-[11px] font-mono ${result.perHitIncrease >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {result.perHitIncrease >= 0 ? '+' : '-'}
               {Math.abs(Math.round(result.perHitIncrease)).toLocaleString()} per hit
+            </span>
+          )}
+          {hitsSaved > 0 && (
+            <span className="text-[11px] font-mono text-green-400">
+              {hitsSaved} fewer {hitsSaved === 1 ? 'hit' : 'hits'}
             </span>
           )}
         </span>
@@ -323,7 +330,18 @@ export default function UpgradesPanel({ variant = 'column', onMinimize }) {
   const [showPercent, setShowPercent] = useState(true);
   const [showFlat, setShowFlat] = useState(false);
   const [showPerHit, setShowPerHit] = useState(false);
+  const [showHitsSaved, setShowHitsSaved] = useState(false);
   const unit = METRIC_UNITS[getModeConfig(mode).metric] || 'DPS';
+  // Hits to kill the target, offered only when its HP is known.
+  // shortcut: HP divided by one hit, so Execute, Venomous and First Strike ramps are ignored; use the
+  // fight simulation's hit count if that gap ever matters.
+  const startingHp = mobName ? resolveStartingHp(mobName, !!build.useMasterMode, build.mobHpSelections?.[mobName]) : null;
+  const hitsToKill = (hit) => (startingHp && hit > 0 ? Math.ceil(startingHp / hit) : null);
+  const baselineHits = hitsToKill(state.baselinePerHit);
+  const hitsSavedFor = (r) => {
+    const after = r.perHitIncrease != null ? hitsToKill(state.baselinePerHit + r.perHitIncrease) : null;
+    return baselineHits != null && after != null ? baselineHits - after : 0;
+  };
   // Free upgrades cost time rather than coins, so an infinite ratio would pin them to the top of Best
   // Value. Off by default, the common question being what to buy next.
   const [showFree, setShowFree] = useState(false);
@@ -444,6 +462,11 @@ export default function UpgradesPanel({ variant = 'column', onMinimize }) {
           >
             Per Hit
           </Chip>
+          {baselineHits != null && (
+            <Chip active={showHitsSaved} onClick={() => setShowHitsSaved((v) => !v)} title="Show how many fewer hits the target takes to kill">
+              Hits Saved
+            </Chip>
+          )}
         </div>
       </div>
 
@@ -584,6 +607,7 @@ export default function UpgradesPanel({ variant = 'column', onMinimize }) {
                 showPercent={showPercent}
                 showFlat={showFlat}
                 showPerHit={showPerHit}
+                hitsSaved={showHitsSaved ? hitsSavedFor(r) : 0}
                 unit={unit}
                 onSwapIn={(res) => applyOptimizerResult(build, res)}
                 onSkip={(res) => setSkippedKeys((prev) => new Set(prev).add(resultKey(res)))}
