@@ -87,7 +87,10 @@ export const SPECIAL_WEAPON_CONFIG = {
   DAVIDS_CLOAK: {
     kind: 'flatStrength',
     max: 50,
+    // Used while nothing is entered; an import reads the real number from the cloak's lore. User-set.
+    defaultValue: 50,
     inputLabel: 'Base Strength Adjustment',
+    placeholder: 'e.g. 50',
     rarities: ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'],
   },
 };
@@ -103,7 +106,7 @@ function linearBonus(value, cap, maxBonus) {
 
 export function computeSpecialBonus(config, value) {
   if (!config) return 0;
-  const v = Math.max(0, value || 0);
+  const v = Math.max(0, (value ?? config.defaultValue) || 0);
   switch (config.kind) {
     case 'bestiary':
       return +(v * config.perTierDamagePercent).toFixed(1);

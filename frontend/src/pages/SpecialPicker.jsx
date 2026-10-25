@@ -16,7 +16,7 @@ export default function SpecialPicker() {
   const { loadout, setSpecialValue, setRarityOverride } = useBuild();
   const weapon = loadout[slot] && loadout[slot].item;
   const config = weapon ? getSpecialConfig(weapon.id) : null;
-  const value = (loadout[slot] && loadout[slot].modifiers && loadout[slot].modifiers.special) || 0;
+  const value = loadout[slot]?.modifiers?.special ?? config?.defaultValue ?? 0;
   const rarityOverride = (loadout[slot] && loadout[slot].modifiers && loadout[slot].modifiers.rarityOverride) || '';
 
   if (!weapon || !config) {
@@ -78,7 +78,7 @@ export default function SpecialPicker() {
           inputMode="decimal"
           value={value || ''}
           onChange={handleChange}
-          placeholder="e.g. 25m"
+          placeholder={config.placeholder || 'e.g. 25m'}
           className="px-3 py-2 bg-black text-white border-2 border-neutral-700"
         />
         <div className="text-sm text-neutral-800">
