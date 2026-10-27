@@ -90,7 +90,7 @@ import { GEMSTONE_IDS, GEMSTONES, GEMSTONE_TIERS } from './gemstoneData';
 
 export const OPTIMIZER_MODES = [
   { id: 'slayer', label: 'Slayer', icon: '/images/manual/slayer.webp' },
-  { id: 'diana', label: 'Diana', icon: '/images/manual/diana.webp' },
+  { id: 'diana', label: 'Diana', icon: '/images/manual/diana.webp', disabled: true }, // off for now (user, 2026-10-27)
   { id: 'mage', label: 'Mage' },
   { id: 'dungeon_archer', label: 'Dungeon / Archer' },
   { id: 'dungeon_mage_beam', label: 'Dungeon / Mage Beam' },
