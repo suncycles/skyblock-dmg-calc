@@ -214,7 +214,7 @@ export default function PlayerLevels() {
 
         <div className="flex items-center justify-between gap-2">
           <label className="text-sm text-black" htmlFor="vials-of-venom">
-            Vials of Venom <span className="text-xs text-neutral-600">(+1 Crit Damage each)</span>
+            Vials of Venom <span className="text-xs text-neutral-600">(Not in API, +1 Crit Damage each)</span>
           </label>
           <NumberInput
             id="vials-of-venom"

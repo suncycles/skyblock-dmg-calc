@@ -2246,7 +2246,8 @@ const SKILL_LEVEL_CANDIDATES = [
   { key: 'skyblockLevel', name: 'Skyblock Level', max: null },
 ];
 
-// Vials of Venom: drinking the rest of the 5 in one go, priced per vial in lib/pricing.js.
+// Vials of Venom: drinking the rest of the 5 in one go, priced per vial in lib/pricing.js. The API
+// doesn't carry the count, so an imported account reads as 0 until the player enters it; the label says so.
 async function evaluateVialOfVenomCandidate(loadout, itemData, build, modeConfig, mob) {
   const current = Math.max(0, Math.min(MAX_VIALS_OF_VENOM, Math.floor(Number(build.playerStats?.vialsOfVenom) || 0)));
   if (current >= MAX_VIALS_OF_VENOM) return [];
@@ -2256,7 +2257,7 @@ async function evaluateVialOfVenomCandidate(loadout, itemData, build, modeConfig
     {
       category: 'Consumable',
       slot: 'accessory',
-      label: `Vial of Venom ${current} → ${MAX_VIALS_OF_VENOM}`,
+      label: `Vial of Venom (Not in API) ${current} → ${MAX_VIALS_OF_VENOM}`,
       vials: MAX_VIALS_OF_VENOM - current,
       value,
       perHit,
