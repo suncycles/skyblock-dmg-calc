@@ -62,6 +62,7 @@ const CATEGORY_COLORS = {
   'Magical Power (generic)': '#facc15',
   'Full Set': '#fb7185',
   Attribute: '#c084fc',
+  Consumable: '#a3e635',
 };
 
 // Reaching 82% Bonus Attack Speed is Slayer's highest priority, shown as context here rather than
@@ -92,13 +93,14 @@ const SMART_CATEGORY_WEIGHTS = {
   Attribute: 1,
   Skill: 1,
   Potion: 1,
+  Consumable: 1,
+  'Potato Books': 1,
 
   Armor: 0.95,
   'Full Set': 0.95,
   Pet: 0.95,
   'Pet Item': 0.95,
 
-  'Potato Books': 0.9,
   Reforge: 0.9,
 
   'Essence Perk': 0.85,

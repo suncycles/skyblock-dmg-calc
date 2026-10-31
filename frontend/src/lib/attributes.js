@@ -22,6 +22,56 @@ export function getAttributeMaxLevel(id) {
 export const RULER_RATE = 3; // %/level, "+3%-30% more Damage against <Type> mobs"
 // All 17 Ruler shards (from NEU-REPO's constants/attribute_shards.json, every entry templated
 // "<Type> Ruler" at the same rate), matching the mob types damageSymbols.js recognizes.
+// Each attribute's shard, as NEU-REPO's constants/attribute_shards.json names it, shown before the
+// ability name: "Molthorn - Almighty Echo". Display only; nothing matches on these names.
+const SHARD_NAMES = {
+  ruler_airborne: 'Bluebird',
+  ruler_animal: 'Sprawl',
+  ruler_arcane: 'Duplico',
+  ruler_arthropod: 'Flaming Spider',
+  ruler_construct: 'Shrieky Tiki',
+  ruler_elusive: 'Queen Ant',
+  ruler_ender: 'Zealot Bruiser',
+  ruler_frozen: 'Polaris',
+  ruler_humanoid: 'Wetwing',
+  ruler_infernal: 'Flare',
+  ruler_magmatic: 'Stridersurfer',
+  ruler_mythological: 'Minos Hunter',
+  ruler_pest: 'Praying Mantis',
+  ruler_skeletal: 'Chill',
+  ruler_subterranean: 'Driftling',
+  ruler_undead: 'Zombie Soldier',
+  ruler_woodland: 'Ent',
+  echo_of_ruler: 'Caiman',
+  echo_of_echoes: 'Tiamat',
+  echo_of_elemental: 'Starborn',
+  echo_of_boxes: 'Cuboa',
+  light_elemental: 'Flash',
+  stone_elemental: 'Quake',
+  lightning_elemental: 'Bolt',
+  wind_elemental: 'Aero',
+  storm_elemental: 'Tempest',
+  fog_elemental: 'Mist',
+  water_elemental: 'Tide',
+  torrent_elemental: 'Cascade',
+  frost_elemental: 'Cryo',
+  snow_elemental: 'Blizzard',
+  deadeye: 'Skeletor',
+  warrior: 'Barbarian Duke X',
+  elite: 'Power Dragon',
+  unlimited_power: 'Jormung',
+  unlimited_energy: 'Etherdrake',
+  maximal_torment: 'Taurus',
+  almighty: 'Molthorn',
+  tuning_box: 'Hideonbox',
+  dominance: 'Thorn',
+  attack_speed: 'Inferno Demonlord',
+  mimic: 'Mimic',
+  fortitude: 'End Stone Protector',
+  accessory_size: 'Hideonring',
+};
+const shardName = (id, ability) => `${SHARD_NAMES[id]} - ${ability}`;
+
 export const RULER_ATTRIBUTES = [
   'Airborne',
   'Animal',
@@ -40,7 +90,7 @@ export const RULER_ATTRIBUTES = [
   'Subterranean',
   'Undead',
   'Woodland',
-].map((mobType) => ({ id: `ruler_${mobType.toLowerCase()}`, name: `${mobType} Ruler`, mobType }));
+].map((mobType) => ({ id: `ruler_${mobType.toLowerCase()}`, name: shardName(`ruler_${mobType.toLowerCase()}`, `${mobType} Ruler`), mobType }));
 
 export const ECHO_OF_RULER_RATE = 2; // %/level, boosts every attribute whose name contains "Ruler"
 export const ECHO_OF_ECHOES_RATE = 5; // %/level, boosts every attribute whose name contains "Echo"
@@ -53,14 +103,21 @@ export const ECHO_OF_BOXES_RATE = 2; // %/level, boosts Tuning Box's point grant
 export const ELEMENTAL_STRENGTH_RATE = 1; // Strength/level, "Grants Strength +1-10"
 export const STRENGTH_ELEMENTAL_ATTRIBUTES = ['Light', 'Stone', 'Lightning', 'Wind', 'Storm'].map((prefix) => ({
   id: `${prefix.toLowerCase()}_elemental`,
-  name: `${prefix} Elemental`,
+  name: shardName(`${prefix.toLowerCase()}_elemental`, `${prefix} Elemental`),
 }));
 
 export const ELEMENTAL_INTELLIGENCE_RATE = 1; // Intelligence/level, "Grants Intelligence +1-10"
 export const INTELLIGENCE_ELEMENTAL_ATTRIBUTES = ['Fog', 'Water', 'Torrent', 'Frost', 'Snow'].map((prefix) => ({
   id: `${prefix.toLowerCase()}_elemental`,
-  name: `${prefix} Elemental`,
+  name: shardName(`${prefix.toLowerCase()}_elemental`, `${prefix} Elemental`),
 }));
+
+export const ECHO_ATTRIBUTES = [
+  { id: 'echo_of_ruler', name: shardName('echo_of_ruler', 'Echo of Ruler') },
+  { id: 'echo_of_echoes', name: shardName('echo_of_echoes', 'Echo of Echoes') },
+  { id: 'echo_of_elemental', name: shardName('echo_of_elemental', 'Echo of Elemental') },
+  { id: 'echo_of_boxes', name: shardName('echo_of_boxes', 'Echo of Boxes') },
+];
 
 export const DEADEYE_RATE = 2.5; // %/level, "+2.5%-25% damage from ranged weapons" (bow only)
 export const WARRIOR_RATE = 2.5; // %/level, "Increases melee damage dealt by +2.5%-25%" (non-bow only)
@@ -97,14 +154,14 @@ export const OTHER_ATTRIBUTES = [
   { id: 'unlimited_power', name: 'Unlimited Power', rate: UNLIMITED_POWER_RATE, unit: '%' },
   { id: 'unlimited_energy', name: 'Unlimited Energy', rate: UNLIMITED_ENERGY_RATE, unit: '%' },
   { id: 'maximal_torment', name: 'Unlimited Torment', rate: MAXIMAL_TORMENT_RATE, unit: '%' },
-  { id: 'almighty', name: 'Almighty', rate: ALMIGHTY_RATE, unit: '%' },
+  { id: 'almighty', name: 'Almighty Echo', rate: ALMIGHTY_RATE, unit: '%' },
   { id: 'tuning_box', name: 'Tuning Box', rate: TUNING_BOX_RATE, unit: ' pts' },
   { id: 'dominance', name: 'Dominance', rate: DOMINANCE_RATE, unit: '%' },
   { id: 'attack_speed', name: 'Attack Speed', rate: ATTACK_SPEED_SHARD_RATE, unit: '%' },
-  { id: 'mimic', name: 'Mimic', rate: MIMIC_SHARD_RATE, unit: '% blessings' },
+  { id: 'mimic', name: 'Faker', rate: MIMIC_SHARD_RATE, unit: '% blessings' },
   { id: 'fortitude', name: 'Unlimited Fortitude', rate: UNLIMITED_FORTITUDE_RATE, unit: '% defense' },
   { id: 'accessory_size', name: 'Accessory Size', rate: ACCESSORY_SIZE_RATE, unit: ' bag slots' },
-];
+].map((a) => ({ ...a, name: shardName(a.id, a.name) }));
 
 export const ATTRIBUTE_IDS = [
   ...RULER_ATTRIBUTES.map((a) => a.id),

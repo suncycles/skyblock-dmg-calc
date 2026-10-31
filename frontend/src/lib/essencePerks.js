@@ -15,7 +15,8 @@ export const FLAT_STAT_PERKS = [
   { key: 'permanent_intelligence', name: 'Forbidden Intelligence', maxLevel: 5, perLevel: 2, stats: ['intelligence'], dungeonOnly: false },
   // Not in essenceshops.json, but it is in the
   // same member.player_data.perks map and grants a real stat, so it rides along here. 3 levels.
-  { key: 'blessing_of_time', name: 'Blessing of Time', maxLevel: 3, perLevel: 2, stats: ['strength', 'intelligence'], dungeonOnly: false },
+  // Named with the Sun Gecko shard it comes from (user-set).
+  { key: 'blessing_of_time', name: 'Sun Gecko - Blessing of Time', maxLevel: 3, perLevel: 2, stats: ['strength', 'intelligence'], dungeonOnly: false },
   { key: 'catacombs_strength', name: 'Strength Essence', maxLevel: 5, perLevel: 10, stats: ['strength'], dungeonOnly: true },
   { key: 'catacombs_intelligence', name: 'Intelligence Essence', maxLevel: 5, perLevel: 15, stats: ['intelligence'], dungeonOnly: true },
   { key: 'catacombs_crit_damage', name: 'Critical Essence', maxLevel: 5, perLevel: 10, stats: ['crit_damage'], dungeonOnly: true },

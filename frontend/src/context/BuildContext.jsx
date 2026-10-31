@@ -388,6 +388,7 @@ function loadInitialPlayerStats() {
     lonesomeMinerLevel: 0,
     generalsMedallionDigits: 0,
     blazetekkHamRadio: false,
+    vialsOfVenom: 0,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
@@ -408,6 +409,7 @@ function loadInitialPlayerStats() {
       lonesomeMinerLevel: typeof parsed.lonesomeMinerLevel === 'number' ? parsed.lonesomeMinerLevel : 0,
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
       blazetekkHamRadio: typeof parsed.blazetekkHamRadio === 'boolean' ? parsed.blazetekkHamRadio : false,
+      vialsOfVenom: typeof parsed.vialsOfVenom === 'number' ? parsed.vialsOfVenom : 0,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -1578,6 +1580,7 @@ export function BuildProvider({ children }) {
       lonesomeMinerLevel: 0,
       generalsMedallionDigits: 0,
       blazetekkHamRadio: false,
+      vialsOfVenom: 0,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);

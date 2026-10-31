@@ -5,6 +5,7 @@ import {
   STRENGTH_ELEMENTAL_ATTRIBUTES,
   INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
   OTHER_ATTRIBUTES,
+  ECHO_ATTRIBUTES,
   getAttributeMaxLevel,
 } from '../lib/attributes';
 import { MOB_TYPE_SYMBOLS } from '../lib/damageSymbols';
@@ -13,13 +14,6 @@ import PageHeader from '../components/PageHeader';
 
 const panel =
   'bg-[#c6c6c6] border-[3px] border-t-white border-l-white border-b-[#555555] border-r-[#555555] outline outline-2 outline-black';
-
-const ECHO_ATTRIBUTES = [
-  { id: 'echo_of_ruler', name: 'Echo of Ruler' },
-  { id: 'echo_of_echoes', name: 'Echo of Echoes' },
-  { id: 'echo_of_elemental', name: 'Echo of Elemental' },
-  { id: 'echo_of_boxes', name: 'Echo of Boxes' },
-];
 
 // Small bracketed text button - sets a single attribute, one section, or every attribute to its
 // min/max depending on call site.

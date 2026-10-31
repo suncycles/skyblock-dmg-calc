@@ -83,6 +83,7 @@ import {
   computeSkyblockLevelMultiplier,
   computeSkyblockLevelStrengthBonus,
   computeForagingStrengthBonus,
+  MAX_VIALS_OF_VENOM,
   computeAlchemyIntelligenceBonus,
   computeEnchantingIntelligenceBonus,
   computeEnchantingAbilityDamageBonus,
@@ -1378,6 +1379,7 @@ export async function collectDamageSources(
     addBaseStat(out, 'strength', armoredTank, 'Ankylosaurus (Armored Tank)');
   }
   addBaseStat(out, 'strength', computeForagingStrengthBonus(playerStats?.foragingLevel), 'Foraging Level');
+  addBaseStat(out, 'crit_damage', Math.min(MAX_VIALS_OF_VENOM, playerStats?.vialsOfVenom || 0), 'Vial of Venom');
   addBaseStat(out, 'strength', computeSkyblockLevelStrengthBonus(playerStats?.skyblockLevel), 'Skyblock Level');
   addBaseStat(out, 'intelligence', computeAlchemyIntelligenceBonus(playerStats?.alchemyLevel), 'Alchemy Level');
   addBaseStat(out, 'intelligence', computeEnchantingIntelligenceBonus(playerStats?.enchantingLevel), 'Enchanting Level');

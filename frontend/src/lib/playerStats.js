@@ -54,9 +54,12 @@ export function getSkyblockLevelColor(level) {
   return MC_COLORS[code];
 }
 
-export const MAX_FORAGING_LEVEL = 54;
+// Vial of Venom: a consumable worth +1 Crit Damage for good, drinkable 5 times (its own lore).
+export const MAX_VIALS_OF_VENOM = 5;
 
-// Foraging skill Strength reward: +1/level for 1-14, +2/level for 15-54.
+export const MAX_FORAGING_LEVEL = 57;
+
+// Foraging skill Strength reward: +1/level for 1-14, +2/level for 15-57 (55-57 user-confirmed).
 export function computeForagingStrengthBonus(level) {
   const clamped = Math.max(0, Math.min(MAX_FORAGING_LEVEL, level || 0));
   return Math.min(clamped, 14) * 1 + Math.max(0, clamped - 14) * 2;

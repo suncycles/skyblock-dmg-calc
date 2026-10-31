@@ -141,6 +141,8 @@ export function lookupCandidateCost(result, itemData) {
       return priceOf(itemPrices, step.item.id);
     }
     case 'Pet': {
+      // Topping up a Golden Dragon's bank costs exactly the coins put in.
+      if (result.bankDeposit != null) return result.bankDeposit;
       const step = findStep(result.apply, 'selectItem');
       return step ? priceOf(petCosts, step.item.petId) : null;
     }
@@ -229,6 +231,10 @@ export function lookupCandidateCost(result, itemData) {
         total += price * count;
       }
       return total;
+    }
+    case 'Consumable': {
+      const price = priceOf(itemPrices, 'VIAL_OF_VENOM');
+      return price == null ? null : price * result.vials;
     }
     case 'Pet Item': {
       const step = findStep(result.apply, 'setPetItem');

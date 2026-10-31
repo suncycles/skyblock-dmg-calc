@@ -570,8 +570,8 @@ try {
     const max = at(99, true);
     assert.equal(max['Forbidden Strength 5|strength'], 5, '1-5 Strength');
     assert.equal(max['Forbidden Intelligence 5|intelligence'], 10, '2-10 Intelligence');
-    assert.equal(max['Blessing of Time 3|strength'], 6, '2/4/6 Strength');
-    assert.equal(max['Blessing of Time 3|intelligence'], 6, '2/4/6 Intelligence');
+    assert.equal(max['Sun Gecko - Blessing of Time 3|strength'], 6, '2/4/6 Strength');
+    assert.equal(max['Sun Gecko - Blessing of Time 3|intelligence'], 6, '2/4/6 Intelligence');
     assert.equal(max['Strength Essence 5|strength'], 50, '10-50 Strength');
     assert.equal(max['Intelligence Essence 5|intelligence'], 75, '15-75 Intelligence');
     assert.equal(max['Critical Essence 5|crit_damage'], 50, '10-50 Crit Damage');

@@ -56,6 +56,7 @@ import {
   STRENGTH_ELEMENTAL_ATTRIBUTES,
   INTELLIGENCE_ELEMENTAL_ATTRIBUTES,
   OTHER_ATTRIBUTES,
+  ECHO_ATTRIBUTES,
   getAttributeMaxLevel,
 } from './attributes';
 import { ARMOR_VARIANT_FAMILIES } from './armorVariants';
@@ -73,6 +74,7 @@ import {
   MAX_WOLF_SLAYER_LEVEL,
   MAX_TARANTULA_SLAYER_LEVEL,
   MAX_BLAZE_SLAYER_LEVEL,
+  MAX_VIALS_OF_VENOM,
 } from './playerStats';
 import { isMiningIslandMob } from './miningIslands';
 
@@ -1339,8 +1341,8 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
   const { value, perHit } = await computeModeScore({ ...loadout, pet: { item: petItem, modifiers } }, itemData, build, modeConfig, mob);
   const percentIncrease = baselineValue > 0 ? ((value - baselineValue) / baselineValue) * 100 : value * 100;
   const results = [];
-  // Already on a Golden Dragon: topping the bank up to 1B is its own row. Banked coins aren't spent,
-  // so it's unpriced like the max row.
+  // Already on a Golden Dragon: topping the bank up to 1B is its own row, costing the coins deposited
+  // (lib/pricing.js reads `bankDeposit`).
   const current = loadout.pet;
   const bankCoins = current?.modifiers?.bankCoins || 0;
   if (current?.item?.petId === 'GOLDEN_DRAGON' && bankCoins < MAX_GOLDEN_DRAGON_BANK_COINS) {
@@ -1362,7 +1364,7 @@ async function evaluateMaxGoldenDragonCandidate(loadout, itemData, build, modeCo
         value: banked.value,
         perHit: banked.perHit,
         percentIncrease: bankedIncrease,
-        unpriced: true,
+        bankDeposit: MAX_GOLDEN_DRAGON_BANK_COINS - bankCoins,
         apply: [{ type: 'setPetBankCoins', slot: 'pet', value: MAX_GOLDEN_DRAGON_BANK_COINS }],
       });
     }
@@ -2244,6 +2246,25 @@ const SKILL_LEVEL_CANDIDATES = [
   { key: 'skyblockLevel', name: 'Skyblock Level', max: null },
 ];
 
+// Vials of Venom: drinking the rest of the 5 in one go, priced per vial in lib/pricing.js.
+async function evaluateVialOfVenomCandidate(loadout, itemData, build, modeConfig, mob) {
+  const current = Math.max(0, Math.min(MAX_VIALS_OF_VENOM, Math.floor(Number(build.playerStats?.vialsOfVenom) || 0)));
+  if (current >= MAX_VIALS_OF_VENOM) return [];
+  const candidateBuild = { ...build, playerStats: { ...build.playerStats, vialsOfVenom: MAX_VIALS_OF_VENOM } };
+  const { value, perHit } = await computeModeScore(loadout, itemData, candidateBuild, modeConfig, mob);
+  return [
+    {
+      category: 'Consumable',
+      slot: 'accessory',
+      label: `Vial of Venom ${current} → ${MAX_VIALS_OF_VENOM}`,
+      vials: MAX_VIALS_OF_VENOM - current,
+      value,
+      perHit,
+      apply: [{ type: 'setPlayerLevel', key: 'vialsOfVenom', value: MAX_VIALS_OF_VENOM }],
+    },
+  ];
+}
+
 async function evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob) {
   const results = [];
   for (const skill of SKILL_LEVEL_CANDIDATES) {
@@ -2266,14 +2287,7 @@ async function evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig
   return results;
 }
 
-// Every damage-relevant Attribute with a display name: attributes.js's four sources plus the four
-// Echo ids, which attributes.js carries only as bare ATTRIBUTE_IDS strings.
-const ECHO_ATTRIBUTES = [
-  { id: 'echo_of_ruler', name: 'Echo of Ruler' },
-  { id: 'echo_of_echoes', name: 'Echo of Echoes' },
-  { id: 'echo_of_elemental', name: 'Echo of Elemental' },
-  { id: 'echo_of_boxes', name: 'Echo of Boxes' },
-];
+// Every damage-relevant Attribute with a display name (lib/attributes.js).
 const ALL_ATTRIBUTES = [
   ...RULER_ATTRIBUTES,
   ...ECHO_ATTRIBUTES,
@@ -2296,7 +2310,7 @@ async function evaluateAttributeCandidates(loadout, itemData, build, modeConfig,
     results.push({
       category: 'Attribute',
       slot: 'attribute',
-      label: `${attribute.name} - ${maxLevel}`,
+      label: `${attribute.name} ${maxLevel}`,
       value,
       perHit,
       apply: [{ type: 'setAttributeLevel', id: attribute.id, level: maxLevel }],
@@ -2457,6 +2471,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     attributes,
     essencePerkUpgrades,
     skillLevels,
+    vialOfVenom,
     dungeonPotion,
   ] = await Promise.all([
     evaluateWeaponProgressionCandidates(loadout, itemData, build, modeConfig, mob, mode, baselineValue),
@@ -2494,6 +2509,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
     evaluateAttributeCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateEssencePerkCandidates(loadout, itemData, build, modeConfig, mob),
     evaluateSkillLevelCandidates(loadout, itemData, build, modeConfig, mob),
+    evaluateVialOfVenomCandidate(loadout, itemData, build, modeConfig, mob),
     evaluatePotionCandidates(loadout, itemData, build, modeConfig, mob, baselineValue, baselinePerHit),
   ]);
 
@@ -2541,6 +2557,7 @@ export async function runOptimizer(loadout, itemData, build, mode, mob) {
       ...attributes,
       ...essencePerkUpgrades,
       ...skillLevels,
+      ...vialOfVenom,
       ...dungeonPotion.filter((r) => r.percentIncrease == null),
     ]),
     ...withPercentUsing(weaponAndEquipmentReforges, reforgeBaselineValue, baselinePerHit * reforgeFabledFactor),

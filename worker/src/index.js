@@ -118,6 +118,10 @@ const PRICED_EXTRA_IDS = [
   // Hand), Venomous 7 (Fateful Stinger), Bane of Arthropods 7 (Ensnared Snail). See
   // lib/pricing.js's SPECIAL_ENCHANT_LEVEL_ITEMS.
   "ENDSTONE_IDOL", "SEVERED_HAND", "FATEFUL_STINGER", "ENSNARED_SNAIL",
+  // Potato Books: 1-10 are Hot, 11-15 Fuming (lib/pricing.js's 'Potato Books' case).
+  "HOT_POTATO_BOOK", "FUMING_POTATO_BOOK",
+  // Vial of Venom, a 5-use +1 Crit Damage consumable (lib/pricing.js's 'Consumable' case).
+  "VIAL_OF_VENOM",
 ];
 
 // The 6 combat gemstones x 5 tiers: evaluateGemstoneCandidates brute-forces all 30 per socket, so
@@ -1346,6 +1350,9 @@ function computeAttributeLevels(stacks, rarityMap, thresholds) {
   return result;
 }
 
+const FORAGING_BASE_CAP = 50;
+const FORAGING_CAP_COLLECTIONS = ["FIG_LOG", "MANGROVE_LOG", "HELIX_LOG"];
+
 function computeSkillLevel(xp, leveling_xp, cap) {
   let cum = 0;
   let level = 0;
@@ -1558,11 +1565,20 @@ async function handleHypixelImport(url, env) {
     const skillCap = (key, staticCap) => skillsResource?.skills?.[key.toUpperCase()]?.maxLevel || staticCap;
 
     const experience = member.player_data?.experience || {};
+    // Foraging's own cap: 50, +1 for each tier-9 Fig, Mangrove and Helix Log collection, +1 per extra
+    // cap bought, never past the live max (user-confirmed 2026-10-30). XP alone overstates it.
+    const unlockedCollTiers = new Set(member.player_data?.unlocked_coll_tiers || []);
+    const foragingCap = Math.min(
+      skillCap("foraging", leveling.leveling_caps.foraging),
+      FORAGING_BASE_CAP +
+        FORAGING_CAP_COLLECTIONS.filter((id) => unlockedCollTiers.has(`${id}_9`)).length +
+        (experience.SKILL_FORAGING_extra_level_cap || 0),
+    );
     const skills = {
       alchemy: computeSkillLevel(experience.SKILL_ALCHEMY || 0, leveling.leveling_xp, skillCap("alchemy", leveling.leveling_caps.alchemy)),
       enchanting: computeSkillLevel(experience.SKILL_ENCHANTING || 0, leveling.leveling_xp, skillCap("enchanting", leveling.leveling_caps.enchanting)),
       combat: computeSkillLevel(experience.SKILL_COMBAT || 0, leveling.leveling_xp, skillCap("combat", leveling.leveling_caps.combat)),
-      foraging: computeSkillLevel(experience.SKILL_FORAGING || 0, leveling.leveling_xp, skillCap("foraging", leveling.leveling_caps.foraging)),
+      foraging: computeSkillLevel(experience.SKILL_FORAGING || 0, leveling.leveling_xp, foragingCap),
       // Mining feeds the player's Defense, which only the Ankylosaurus pet reads - see
       // frontend/src/lib/playerDefense.js.
       mining: computeSkillLevel(experience.SKILL_MINING || 0, leveling.leveling_xp, skillCap("mining", leveling.leveling_caps.mining)),

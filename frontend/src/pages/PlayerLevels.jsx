@@ -10,6 +10,7 @@ import {
   MAX_ALCHEMY_LEVEL,
   MAX_ENCHANTING_LEVEL,
   MAX_MINING_LEVEL,
+  MAX_VIALS_OF_VENOM,
 } from '../lib/playerStats';
 import { MAX_GENERALS_MEDALLION_DIGITS } from '../lib/dungeonize';
 import { LONESOME_MINER_MAX_LEVEL, MINING_ISLANDS_LABEL } from '../lib/miningIslands';
@@ -62,6 +63,7 @@ export default function PlayerLevels() {
     toggleBlazetekkHamRadio,
     maxedCollectionsCount,
     setMaxedCollectionsCount,
+    setPlayerLevel,
   } = useBuild();
 
   return (
@@ -208,6 +210,19 @@ export default function PlayerLevels() {
             Maxed Collections <span className="text-xs text-neutral-600">(The One enchant only)</span>
           </label>
           <NumberInput id="maxed-collections" value={maxedCollectionsCount} onChange={setMaxedCollectionsCount} className={inputClass} />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-sm text-black" htmlFor="vials-of-venom">
+            Vials of Venom <span className="text-xs text-neutral-600">(+1 Crit Damage each)</span>
+          </label>
+          <NumberInput
+            id="vials-of-venom"
+            max={MAX_VIALS_OF_VENOM}
+            value={playerStats.vialsOfVenom || 0}
+            onChange={(value) => setPlayerLevel('vialsOfVenom', value)}
+            className={inputClass}
+          />
         </div>
 
         <div className="flex items-center justify-between gap-2">
