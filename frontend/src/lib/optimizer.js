@@ -28,8 +28,6 @@ import { EQUIPMENT_SLOTS } from './equipmentSlots';
 import {
   VANQUISHED_SET,
   FINAL_DESTINATION_SET,
-  MYTHOS_ARMOR_SET,
-  CHALLENGER_ARMOR_SET,
   hasFullSet,
   countSetPieces,
   INFERNAL_CRIMSON_SET,
@@ -278,22 +276,49 @@ const SLAYER_WEAPON_PROGRESSION = {
   wolf: [[{ id: 'SHAMAN_SWORD' }], [{ id: 'POOCH_SWORD' }]],
 };
 
-// Diana armor and equipment: Slayer's chains with Challenger's/Mythos gear appended per slot.
-// Mythos' Might doubles a piece's stats against Mythological targets (armorSetBonuses.js's
-// MYTHOLOGICAL_STAT_DOUBLE_IDS). Appended to every family chain rather than standing alone, so an
-// already-owned Kuudra piece reaches it - resolveChainsToWalk only walks matching chains.
-function appendTierToEachChain(chainsByFamily, tier) {
-  return Object.fromEntries(Object.entries(chainsByFamily).map(([family, chain]) => [family, [...chain, tier]]));
+// Diana armor (user-set 2026-10-30), one chain per Kuudra family so a worn Kuudra piece walks its
+// own. Mythos' Might doubles Challenger's/Mythos stats against Mythological targets
+// (armorSetBonuses.js's MYTHOLOGICAL_STAT_DOUBLE_IDS).
+// Helmet: the family's base helmet, Primordial, Challenger's and Mythos are one tier, the Kuudra
+// power tiers follow, and Crown of Avarice at any Coins Consumed is the endcap. No Warden Helmet.
+function dianaHelmetChain(family) {
+  return [
+    [{ id: 'TARANTULA_HELMET' }],
+    [{ id: `${family}_HELMET` }, { id: 'PRIMORDIAL_HELMET' }, { id: 'CHALLENGER_HELMET' }, { id: 'MYTHOS_HELMET' }],
+    [{ id: `HOT_${family}_HELMET` }],
+    [{ id: `BURNING_${family}_HELMET` }],
+    [{ id: `FIERY_${family}_HELMET` }],
+    [{ id: `INFERNAL_${family}_HELMET` }],
+    [
+      { id: 'CROWN_OF_AVARICE', special: 10_000_000, label: 'Crown of Avarice (10m Coins Consumed)' },
+      { id: 'CROWN_OF_AVARICE', special: 100_000_000, label: 'Crown of Avarice (100m Coins Consumed)' },
+      { id: 'CROWN_OF_AVARICE', special: 1_000_000_000, label: 'Crown of Avarice (1b Coins Consumed)' },
+    ],
+  ];
 }
-const MYTHOLOGICAL_ARMOR_TIER = {
-  helmet: [{ id: 'CHALLENGER_HELMET' }, { id: 'MYTHOS_HELMET' }],
-  chestplate: [{ id: 'CHALLENGER_CHESTPLATE' }, { id: 'MYTHOS_CHESTPLATE' }],
-  leggings: [{ id: 'CHALLENGER_LEGGINGS' }, { id: 'MYTHOS_LEGGINGS' }],
-  boots: [{ id: 'CHALLENGER_BOOTS' }, { id: 'MYTHOS_BOOTS' }],
-};
+// Chestplate, leggings, boots: Challenger's sits with the base Kuudra piece; Infernal and Mythos
+// are the endcap.
+function dianaArmorChain(slot, family) {
+  const suffix = slot.toUpperCase();
+  return [
+    [{ id: `SHADOW_ASSASSIN_${suffix}` }],
+    [{ id: `POWER_WITHER_${suffix}` }],
+    [{ id: `${family}_${suffix}` }, { id: `CHALLENGER_${suffix}` }],
+    [{ id: `HOT_${family}_${suffix}` }],
+    [{ id: `BURNING_${family}_${suffix}` }],
+    [{ id: `FIERY_${family}_${suffix}` }],
+    [{ id: `INFERNAL_${family}_${suffix}` }, { id: `MYTHOS_${suffix}` }],
+  ];
+}
 const DIANA_ARMOR_PROGRESSION = Object.fromEntries(
-  ARMOR_SLOTS.map((slot) => [slot, appendTierToEachChain(SLAYER_ARMOR_PROGRESSION[slot], MYTHOLOGICAL_ARMOR_TIER[slot])]),
+  ARMOR_SLOTS.map((slot) => [
+    slot,
+    Object.fromEntries(
+      SLAYER_KUUDRA_FAMILIES.map((family) => [family, slot === 'helmet' ? dianaHelmetChain(family) : dianaArmorChain(slot, family)]),
+    ),
+  ]),
 );
+// Diana equipment: Slayer's chains with Challenger's/Mythos appended per slot.
 const MYTHOLOGICAL_EQUIPMENT_TIER = {
   necklace: [{ id: 'CHALLENGER_NECKLACE' }, { id: 'MYTHOS_NECKLACE' }],
   cloak: [{ id: 'CHALLENGER_CLOAK' }, { id: 'MYTHOS_CLOAK' }],
@@ -305,16 +330,11 @@ const DIANA_EQUIPMENT_PROGRESSION = Object.fromEntries(
   EQUIPMENT_SLOTS.map((slot) => [slot, [...SLAYER_EQUIPMENT_PROGRESSION[slot], MYTHOLOGICAL_EQUIPMENT_TIER[slot]]]),
 );
 
-// Diana weapons: Sword of Revelations/Giant's Sword/Dark Claymore/Midas Sword sidegrades ->
-// Daedalus Blade -> Starred Daedalus Blade. Midas Sword carries its forced Gilded reforge and
-// Price Paid cap. Daedalus Blade's "Combined Mythological Bestiary Tiers" is live account data, so
-// evaluateWeaponProgressionCandidates stamps it from build.combinedMythologicalBestiaryTiers.
+// Diana weapons: Sword of Revelations -> Daedalus Blade -> Starred Daedalus Blade. Daedalus Blade's
+// "Combined Mythological Bestiary Tiers" is live account data, so evaluateWeaponProgressionCandidates
+// stamps it from build.combinedMythologicalBestiaryTiers.
 const DIANA_WEAPON_PROGRESSION = {
-  sword: [
-    [{ id: 'SWORD_OF_REVELATIONS' }, { id: 'GIANTS_SWORD' }, { id: 'DARK_CLAYMORE' }, { id: 'MIDAS_SWORD', forcedReforge: 'Gilded', special: 50_000_000 }],
-    [{ id: 'DAEDALUS_AXE' }],
-    [{ id: 'STARRED_DAEDALUS_AXE' }],
-  ],
+  sword: [[{ id: 'SWORD_OF_REVELATIONS' }], [{ id: 'DAEDALUS_AXE' }], [{ id: 'STARRED_DAEDALUS_AXE' }]],
 };
 
 // Slayer weapon suggestions are limited to the chains matching the target mob's type
@@ -1094,22 +1114,6 @@ const FULL_SET_CANDIDATES = [
     setIds: FINAL_DESTINATION_SET,
     slayerOnly: true,
   },
-  {
-    category: 'Full Set',
-    label: "Challenger's Armor (Full Set)",
-    slots: ARMOR_SLOTS,
-    idsBySlot: { helmet: 'CHALLENGER_HELMET', chestplate: 'CHALLENGER_CHESTPLATE', leggings: 'CHALLENGER_LEGGINGS', boots: 'CHALLENGER_BOOTS' },
-    setIds: CHALLENGER_ARMOR_SET,
-    dianaOnly: true,
-  },
-  {
-    category: 'Full Set',
-    label: 'Mythos Armor (Full Set)',
-    slots: ARMOR_SLOTS,
-    idsBySlot: { helmet: 'MYTHOS_HELMET', chestplate: 'MYTHOS_CHESTPLATE', leggings: 'MYTHOS_LEGGINGS', boots: 'MYTHOS_BOOTS' },
-    setIds: MYTHOS_ARMOR_SET,
-    dianaOnly: true,
-  },
 ];
 
 // `mode` is the raw id rather than modeConfig, since 'diana' and 'slayer' resolve to an identical
@@ -1117,7 +1121,6 @@ const FULL_SET_CANDIDATES = [
 async function evaluateFullSetCandidates(loadout, itemData, build, modeConfig, mob, mode) {
   const results = [];
   for (const set of FULL_SET_CANDIDATES) {
-    if (set.dianaOnly && mode !== 'diana') continue;
     if (set.slayerOnly && mode !== 'slayer') continue;
     if (hasFullSet(loadout, set.slots, set.setIds)) continue; // already wearing it - nothing to suggest
     const candidateLoadout = { ...loadout };
