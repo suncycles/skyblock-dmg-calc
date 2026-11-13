@@ -76,10 +76,11 @@ const EMPTY_STATE = { status: 'idle', baselineValue: 0, bonusAttackSpeed: 0, slo
 // with a token guarding against a stale run landing after a newer one.
 const RUN_DEBOUNCE_MS = 200;
 
-// "smart" scales each result's % increase by what its category is worth long-term. The weights are
-// user-set (2026-10-19): account-wide progression (Magical Power, attributes, skills, potions) on
-// top, then armor and pets, the per-item upgrades that carry over (Potato Books, reforges), then
-// weapon and equipment swaps, with enchantments and stars last.
+// "smart" is Best Value with each category's long-term worth on top: % gained per coin, times the
+// category's weight (user-set 2026-11-12; it ranked by raw % before, which floated the priciest
+// accessories). The weights are user-set: account-wide progression (Magical Power, attributes,
+// skills, potions, essence perks) on top, then armor and pets, the per-item upgrades that carry over
+// (Potato Books, reforges), then weapon and equipment swaps, with enchantments and stars last.
 //
 // Every category lib/optimizer.js and lib/accessoryOptimizer.js emit is listed. Anything
 // unlisted takes SMART_DEFAULT_WEIGHT, the lowest weight here, so a category added later can
@@ -95,6 +96,7 @@ const SMART_CATEGORY_WEIGHTS = {
   Potion: 1,
   Consumable: 1,
   'Potato Books': 1,
+  'Essence Perk': 1,
 
   Armor: 0.95,
   'Full Set': 0.95,
@@ -102,8 +104,6 @@ const SMART_CATEGORY_WEIGHTS = {
   'Pet Item': 0.95,
 
   Reforge: 0.9,
-
-  'Essence Perk': 0.85,
 
   Weapon: 0.75,
   'Perfect Gemstones': 0.75,
@@ -119,9 +119,16 @@ const SMART_CATEGORY_WEIGHTS = {
   Recombobulator: 0.35,
 };
 const SMART_DEFAULT_WEIGHT = 0.35;
-function smartScore(result) {
-  const weight = SMART_CATEGORY_WEIGHTS[result.category] ?? SMART_DEFAULT_WEIGHT;
-  return (result.percentIncrease || 0) * weight;
+const smartWeight = (result) => SMART_CATEGORY_WEIGHTS[result.category] ?? SMART_DEFAULT_WEIGHT;
+// Unpriced rows have no ratio and sink below every priced one, as in Best Value; equal scores (free
+// rows are all Infinity) fall back to weighted %.
+function compareSmart(a, b) {
+  const sa = a.ratio == null ? null : a.ratio * smartWeight(a);
+  const sb = b.ratio == null ? null : b.ratio * smartWeight(b);
+  if (sa == null && sb != null) return 1;
+  if (sb == null && sa != null) return -1;
+  if (sa !== sb) return sb > sa ? 1 : -1;
+  return (b.percentIncrease || 0) * smartWeight(b) - (a.percentIncrease || 0) * smartWeight(a);
 }
 
 // What each mode's number measures, named on every row so a % never reads as the wrong thing.
@@ -131,7 +138,7 @@ const METRIC_UNITS = { dps: 'DPS', beam: 'Beam', ability: 'Ability' };
 // rather than treating them as worthless; "increase" ignores cost and ranks by raw % gained; "hit"
 // ranks by the flat change to one hit, sinking rows with no per-hit figure.
 function compareResults(a, b, sortBy) {
-  if (sortBy === 'smart') return smartScore(b) - smartScore(a);
+  if (sortBy === 'smart') return compareSmart(a, b);
   if (sortBy === 'hit') {
     if (a.perHitIncrease == null && b.perHitIncrease == null) return b.percentIncrease - a.percentIncrease;
     if (a.perHitIncrease == null) return 1;
