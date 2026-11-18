@@ -1945,6 +1945,13 @@ try {
     assert.deepEqual([unknown.strength.nonDungeonStarred, unknown.intelligence.nonDungeonStarred], [25, 85], 'no count reads as the 8/8 catalog item');
     assert.ok(specialWeapons.applySpecialToLore(riftLore, 'RIFT_NECKLACE_OUTSIDE', 3).includes('§7Obtained: §c3/8 Timecharms'));
 
+    // Golden Dragon's Attack Speed is ATTACK_SPEED in NEU-REPO, Griffin's BONUS_ATTACK_SPEED: either is
+    // the one stat, on the Pet line and in a Chimera copy.
+    const gdLevels = { 1: { statNums: { ATTACK_SPEED: 25, STRENGTH: 25 } }, 100: { statNums: { ATTACK_SPEED: 50, STRENGTH: 50 } } };
+    assert.equal(petData.computeAllPetStats(gdLevels, 100).BONUS_ATTACK_SPEED, 50);
+    const chimeraSword = { item: { id: 'TEST_SWORD' }, modifiers: { ultimateEnchantment: { id: 'ultimate_chimera', level: 5 } } };
+    assert.equal(petData.computeItemChimeraBonus(chimeraSword, petData.computeAllPetStats(gdLevels, 100)).bonus_attack_speed, 50);
+
     for (const [id, type] of [['smite', 'Undead'], ['bane_of_arthropods', 'Arthropod'], ['ender_slayer', 'Ender'], ['cubism', 'Cubic'], ['smoldering', 'Infernal']]) {
       assert.ok(mobTypes.ENCHANT_ID_MOB_TYPES[id]?.includes(type), `${id} counts against ${type} mobs`);
     }

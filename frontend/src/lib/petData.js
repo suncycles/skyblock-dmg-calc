@@ -191,6 +191,10 @@ export function computeAllPetStats(levels, level, maxLevel = MAX_PET_LEVEL) {
     if (level100Val === undefined) continue;
     result[key] = interpolateValue(level1Val, level100Val, level, maxLevel);
   }
+  // NEU-REPO names Attack Speed two ways (Golden Dragon and Black Cat say ATTACK_SPEED, Griffin and
+  // Hound BONUS_ATTACK_SPEED). It's one stat, so either fills BONUS_ATTACK_SPEED, the key the Pet
+  // line, Chimera and Manticore Claw read; ATTACK_SPEED stays for the tooltip's {ATTACK_SPEED}.
+  if (result.BONUS_ATTACK_SPEED === undefined && result.ATTACK_SPEED !== undefined) result.BONUS_ATTACK_SPEED = result.ATTACK_SPEED;
   return result;
 }
 
