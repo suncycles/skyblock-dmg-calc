@@ -29,9 +29,9 @@ const MENU_SECTIONS = [
 // "check the menu/Tutorial" nudge below only ever shows once, on a genuinely first visit.
 const FIRST_LAUNCH_KEY = 'skydmgFirstLaunchSeen';
 
-// The game-version notice stays until dismissed, once per browser. Its own key, so people who closed
-// the earlier new-domain bubble still see it.
-const NOTICE_SEEN_KEY = 'skydmgNotice0273Seen';
+// The game-version notice stays until dismissed, once per browser. A new key per notice, so people who
+// closed an earlier one still see it.
+const NOTICE_SEEN_KEY = 'skydmgNotice0273UpdatedSeen';
 
 // Stacking: the bar (z-[1100]), the drawer's scrim (z-[1100]) and the drawer itself (z-[1110]) sit
 // above everything on the page, the Armor/Equipment Options dialogs (z-[999]) included - the app
@@ -255,8 +255,7 @@ function NoticeBubble({ onDismiss }) {
       <span className="absolute left-[21px] top-[10px] w-2.5 h-2.5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.5)]" />
       <div className="pointer-events-auto absolute left-[18px] top-[21px] flex items-start gap-2 whitespace-nowrap rounded-[20px] bg-white px-3.5 py-2 text-neutral-900 shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
         <div className="flex flex-col leading-tight">
-          <span className="text-[12px] font-semibold">Not currently updated to 0.27.3.</span>
-          <span className="text-[12px]">Check back soon!</span>
+          <span className="text-[12px] font-semibold">Updated to 0.27.3 (MF Rework)!</span>
         </div>
         <button
           type="button"
