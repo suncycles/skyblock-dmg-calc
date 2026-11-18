@@ -1661,6 +1661,36 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
     }
   }
 
+  // Phase 5: the set always carries First Strike or Triple Strike (user-set 2026-11-17). The walk
+  // above skips both whenever their opening-hit bonus is worth little over the fight, so one is
+  // added here: the cheapest level (a free Enchanting Table level first), then the one adding more,
+  // then the higher level, with Triple Strike winning a full tie.
+  const STRIKE_IDS = ['triple_strike', 'first_strike'];
+  if (!currentModifiers.hexEnchantments.some((e) => STRIKE_IDS.includes(e.id.toLowerCase()))) {
+    let bestStrike = null;
+    for (const strikeId of STRIKE_IDS) {
+      const id = allIds.find((x) => x.toLowerCase() === strikeId);
+      if (!id) continue;
+      const levels = await fetchEnchantLevels(id, itemData.enchants);
+      if (levels.length === 0) continue;
+      const maxLevel = Math.max(...levels.map((l) => l.level));
+      for (const l of levels) {
+        const testModifiers = applyPick(currentModifiers, { id, level: l.level, maxLevel, lore: l.lore, isUltimate: false });
+        const value = await computeModeDamage({ ...loadout, weapon: { ...weapon, modifiers: testModifiers } }, itemData, build, modeConfig, mob);
+        const cost = enchantPrice(itemPrices, id, l.level) || 0;
+        const better =
+          !bestStrike ||
+          cost < bestStrike.cost ||
+          (cost === bestStrike.cost && (value > bestStrike.value || (value === bestStrike.value && l.level > bestStrike.level)));
+        if (better) bestStrike = { testModifiers, value, cost, level: l.level };
+      }
+    }
+    if (bestStrike) {
+      currentModifiers = bestStrike.testModifiers;
+      currentValue = bestStrike.value;
+    }
+  }
+
   if (currentValue <= baselineValue) return []; // exhausted every real candidate - nothing beats it here
   const { perHit } = await computeModeScore({ ...loadout, weapon: { ...weapon, modifiers: currentModifiers } }, itemData, build, modeConfig, mob);
 
