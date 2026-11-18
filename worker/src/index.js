@@ -869,8 +869,9 @@ const RARITY_MAGICAL_POWER = {
   EPIC: 12,
   LEGENDARY: 16,
   MYTHIC: 22,
-  SPECIAL: 3,
-  VERY_SPECIAL: 5,
+  // SPECIAL and VERY_SPECIAL give no Magical Power since 0.27.3.
+  SPECIAL: 0,
+  VERY_SPECIAL: 0,
 };
 
 // Longest first, so "VERY SPECIAL" matches before "SPECIAL".
@@ -1043,18 +1044,8 @@ function parseGeneralsMedallionDigits(lore) {
 // bag. Two dedup rules:
 // - Several copies of one accessory id count once, at the best copy.
 // - Hat accessories are mutually exclusive as a group: only the highest-Magical-Power hat counts.
-// Enrichments: ExtraAttributes.talisman_enrichment names the stat (e.g. "critical_chance", matching
-// the TALISMAN_ENRICHMENT_<STAT> item id suffix). They are tallied per stat (ENRICHMENT_STAT_MAP)
-// and the dominant tracked stat becomes enrichmentType, with enrichmentCount set to that stat's own
-// count, since the UI represents one stat and one count. With no enrichment on a tracked stat it
-// falls back to type 'none' and the flat total.
-const ENRICHMENT_STAT_MAP = {
-  strength: "strength",
-  critical_damage: "crit_damage",
-  critical_chance: "crit_chance",
-  intelligence: "intelligence",
-  attack_speed: "bonus_attack_speed",
-};
+// Enrichments: ExtraAttributes.talisman_enrichment marks an enriched accessory. Since 0.27.3 each one
+// is a flat +1 Tuning Point whatever stat it names, so only the total is reported.
 // `abiphoneContactCount` (the Abiphone's contact_data key count) adds floor(count/2) Magical Power,
 // but only while an Abicase accessory is owned.
 // Bestiary tier caps this app models (frontend/src/lib/bestiaryStrength.js): only mobs whose cap is
@@ -1197,26 +1188,12 @@ function computeLiveAccessoryStats(items, abiphoneContactCount) {
   if (hasAbicase) magicalPower += Math.floor((abiphoneContactCount || 0) / 2);
   const dungeonMagicalPower = active.dungeonMagicalPower;
   // Only an active family member's enrichment counts (sumActiveAccessories).
-  const enrichmentCountByStat = active.enrichments; // real Hypixel stat id -> count
-  let enrichmentCount = Object.values(enrichmentCountByStat).reduce((sum, n) => sum + n, 0);
+  const enrichmentCount = Object.values(active.enrichments).reduce((sum, n) => sum + n, 0);
 
   const itemStats = {};
   for (const [statKey, total] of Object.entries(active.stats)) itemStats[statKey] = Math.round(total * 10) / 10;
 
-  // Pre-selects the tracked stat (ENRICHMENT_STAT_MAP) with the most enrichments, falling back to
-  // 'none' with the flat total when no enrichment sits on a tracked stat.
-  let enrichmentType = "none";
-  let bestTrackedCount = 0;
-  for (const [rawStat, count] of Object.entries(enrichmentCountByStat)) {
-    const mapped = ENRICHMENT_STAT_MAP[rawStat];
-    if (mapped && count > bestTrackedCount) {
-      enrichmentType = mapped;
-      bestTrackedCount = count;
-    }
-  }
-  if (enrichmentType !== "none") enrichmentCount = bestTrackedCount;
-
-  return { magicalPower, dungeonMagicalPower, itemStats, enrichmentCount, enrichmentType, generalsMedallionDigits, masterSkullTier };
+  return { magicalPower, dungeonMagicalPower, itemStats, enrichmentCount, generalsMedallionDigits, masterSkullTier };
 }
 
 // Inventory array index -> our slot name, for the 4-piece flat lists Hypixel returns.
@@ -1646,7 +1623,6 @@ async function handleHypixelImport(url, env) {
       masterSkullTier: liveAccessoryStats.masterSkullTier,
       // The account's dominant tracked enrichment stat, with enrichmentCount already narrowed to that
       // stat's own count; 'none' plus the flat total when no enrichment sits on a tracked stat.
-      enrichmentType: liveAccessoryStats.enrichmentType,
       // slot_0 is the account's currently active Stat Tuning allocation; slots 1-4 are saved
       // presets and aren't imported.
       tuning: member.accessory_bag_storage?.tuning?.slot_0 || null,
@@ -1700,6 +1676,8 @@ async function handleHypixelImport(url, env) {
       equipment: equipmentResult,
       forbiddenBlessingLevel,
       lonesomeMinerLevel,
+      // Rift Timecharms secured (0-8): a Rift Necklace's stats scale with them.
+      riftTimecharms: (member.rift?.gallery?.secured_trophies || []).length,
       essencePerks,
       wardrobeSets,
       wardrobeEquipmentSets,

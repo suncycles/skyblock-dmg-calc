@@ -16,15 +16,6 @@ export function computeCombatLevelBonus(level) {
   return 50 * 4 + (clamped - 50) * 1;
 }
 
-// Skyblock Level damage bonus: linear multiplicative, +0.01%/level, capped at 1.05x (level 500).
-const SKYBLOCK_LEVEL_PERCENT_PER_LEVEL = 4.93 / 493;
-const MAX_SKYBLOCK_LEVEL_FOR_DAMAGE = 500;
-
-export function computeSkyblockLevelMultiplier(level) {
-  const clamped = Math.max(0, Math.min(MAX_SKYBLOCK_LEVEL_FOR_DAMAGE, level || 0));
-  return 1 + (clamped * SKYBLOCK_LEVEL_PERCENT_PER_LEVEL) / 100;
-}
-
 // Every 5 Skyblock Levels grants +1 Strength.
 export function computeSkyblockLevelStrengthBonus(level) {
   const clamped = Math.max(0, level || 0);

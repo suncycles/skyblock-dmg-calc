@@ -263,6 +263,8 @@ const SPECIAL_LORE_LABELS = {
   midasStaff: /^Price paid:/i,
   crownOfAvarice: /^Coins Consumed:/i,
   bestiary: /Bestiary Tiers:/i,
+  // Rift Necklace's "Obtained: 6/8 Timecharms" - the leading number is the count.
+  riftTimecharms: /^Obtained:.*Timecharms/i,
 };
 
 // Whether this specific copy is dungeonized. Three signals, in order:
@@ -490,7 +492,6 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
         dungeonMagicalPower: raw.accessory.dungeonMagicalPower || 0,
         tuning: mapHypixelTuning(raw.accessory.tuning),
         enrichmentCount: raw.accessory.enrichmentCount || 0,
-        enrichmentType: raw.accessory.enrichmentType || 'none',
         // Each owned accessory's own stat line, summed by the worker from Accessory Bag lore - see
         // worker/src/index.js's computeLiveAccessoryStats.
         individualAccessoryStats: raw.accessory.itemStats || {},
@@ -523,6 +524,8 @@ export async function mapHypixelImportToLoadout(raw, itemData, selection = {}) {
   // Heart of the Mountain's Lonesome Miner perk level, off the account's selected mining skill tree
   // (worker/src/index.js's hotmNodeLevel) - see lib/miningIslands.js.
   if (typeof raw.lonesomeMinerLevel === 'number') playerStats.lonesomeMinerLevel = raw.lonesomeMinerLevel;
+  // Account Timecharms, for a Rift Necklace the Optimizer suggests to someone not wearing one.
+  if (typeof raw.riftTimecharms === 'number') playerStats.riftTimecharms = raw.riftTimecharms;
 
   // The Catacombs class the account last picked in-game, and that class's own level.
   const dungeonClass = resolveDungeonClassFromImport(raw.dungeonClasses);

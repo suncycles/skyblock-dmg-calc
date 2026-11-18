@@ -405,11 +405,12 @@ export function computeTuningPoints(mp) {
 // Total spendable Tuning Points: Magical Power-derived points, plus the Tuning Box attribute's
 // own flat grant - which Echo of Boxes boosts (itself boosted by Echo of Echoes, same chained-
 // boost mechanism as Echo of Ruler/Echo of Elemental - see lib/attributes.js's computeEchoBoost).
-// The Magical Power-derived points are NOT affected by Echo of Boxes.
-export function computeTotalTuningPoints(mp, tuningBoxLevel, echoOfBoxesLevel, echoOfEchoesLevel) {
+// The Magical Power-derived points are NOT affected by Echo of Boxes. Each enrichment adds a flat
+// +1 on top (0.27.3, user-confirmed: not boosted either).
+export function computeTotalTuningPoints(mp, tuningBoxLevel, echoOfBoxesLevel, echoOfEchoesLevel, enrichments = 0) {
   const echoOfBoxesBoost = computeEchoBoost(ECHO_OF_BOXES_RATE, echoOfBoxesLevel, echoOfEchoesLevel);
   const tuningBoxPoints = TUNING_BOX_RATE * (tuningBoxLevel || 0) * (1 + echoOfBoxesBoost / 100);
-  return computeTuningPoints(mp) + Math.floor(tuningBoxPoints);
+  return computeTuningPoints(mp) + Math.floor(tuningBoxPoints) + (enrichments || 0);
 }
 
 export const TUNING_STATS = [

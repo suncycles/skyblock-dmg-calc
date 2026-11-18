@@ -84,6 +84,26 @@ export const SPECIAL_WEAPON_CONFIG = {
   // David's Cloak has no published Strength formula, so it is a directly entered value. Its rarity
   // isn't fixed either - it upgrades through Hunting milestones rather than a recomb - so it also
   // gets a rarity picker, which corrects the tooltip tier and the gemstone and reforge scaling.
+  // Rift Necklace: its stats grow with the account's Timecharms (user-provided table, 2026-11-17; 8 is
+  // the catalog's own 8/8 line). Defaults to 8, the catalog item, when nothing is known.
+  RIFT_NECKLACE_OUTSIDE: {
+    kind: 'riftTimecharms',
+    max: 8,
+    defaultValue: 8,
+    inputLabel: 'Timecharms',
+    placeholder: 'e.g. 8',
+    statsByCharms: [
+      null,
+      { true_defense: 4, intelligence: 10 },
+      { true_defense: 4, health: 20, intelligence: 20 },
+      { true_defense: 4, strength: 5, health: 40, intelligence: 30 },
+      { true_defense: 4, strength: 10, health: 60, intelligence: 40 },
+      { true_defense: 4, strength: 15, health: 80, defense: 15, intelligence: 50 },
+      { true_defense: 4, strength: 20, health: 100, defense: 25, intelligence: 65 },
+      { true_defense: 4, strength: 25, health: 100, defense: 30, intelligence: 75 },
+      { true_defense: 4, strength: 25, health: 150, defense: 30, intelligence: 85 },
+    ],
+  },
   DAVIDS_CLOAK: {
     kind: 'flatStrength',
     max: 50,
@@ -120,6 +140,8 @@ export function computeSpecialBonus(config, value) {
       return v === 0 ? 0 : Math.floor(Math.log10(v)) + 1;
     case 'flatStrength':
       return Math.min(v, config.max);
+    case 'riftTimecharms':
+      return Math.min(Math.max(v, 1), config.max);
     default:
       return 0;
   }
@@ -154,6 +176,13 @@ export function computeSpecialStatBonus(weaponId, value) {
   if (!bonus) return {};
   if (config.kind === 'midasSword') return { damage: bonus, strength: bonus };
   if (config.kind === 'flatStrength') return { strength: bonus };
+  // The catalog lore already carries the 8/8 stats, so this is the difference down to `bonus` charms.
+  if (config.kind === 'riftTimecharms') {
+    const have = config.statsByCharms[bonus];
+    const full = config.statsByCharms[config.max];
+    const keys = new Set([...Object.keys(have), ...Object.keys(full)]);
+    return Object.fromEntries([...keys].map((key) => [key, (have[key] || 0) - (full[key] || 0)]).filter(([, delta]) => delta));
+  }
   return {};
 }
 
@@ -195,6 +224,10 @@ export function applySpecialToLore(lore, weaponId, value) {
     const line = `§7Ability Damage Bonus: §${SPECIAL_COLOR}+${bonus}`;
     if (insertIdx === -1) return [...withCounter, line];
     return [...withCounter.slice(0, insertIdx), line, ...withCounter.slice(insertIdx)];
+  }
+
+  if (config.kind === 'riftTimecharms') {
+    return lore.map((line) => line.replace(/\d+\/8 Timecharms/, `${bonus}/8 Timecharms`));
   }
 
   // flatStrength (David's Cloak) needs no lore rewrite: its Strength reaches the leading number

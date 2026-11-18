@@ -60,6 +60,8 @@ export default function SpecialPicker() {
               })()
             : config.kind === 'flatStrength'
               ? `+${bonus} Strength (max ${config.max})`
+              : config.kind === 'riftTimecharms'
+                ? `${bonus}/${config.max} Timecharms`
               : `Current Damage and Strength Bonus: +${bonus}`;
 
   return (

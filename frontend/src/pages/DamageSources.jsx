@@ -69,16 +69,6 @@ const STICKY_STAT_KEYS = [
   { key: 'bonus_attack_speed', symbolName: 'Attack Speed' },
 ];
 
-// Which stat the Enrichments count currently applies to - see damageSources.js's Enrichments source line.
-const ENRICHMENT_TYPES = [
-  { key: 'strength', label: 'Strength', ...STAT_SYMBOLS.Strength },
-  { key: 'crit_damage', label: 'Crit Damage', ...STAT_SYMBOLS['Crit Damage'] },
-  { key: 'crit_chance', label: 'Crit Chance', ...STAT_SYMBOLS['Crit Chance'] },
-  { key: 'intelligence', label: 'Intelligence', ...STAT_SYMBOLS.Intelligence },
-  { key: 'bonus_attack_speed', label: 'Attack Speed', ...STAT_SYMBOLS['Attack Speed'] },
-  { key: 'none', label: 'None', symbol: '✕', color: '#666666' },
-];
-
 // The mob's Defense stat and the multiplier it applies (lib/mobDefenses.js), shown only when
 // non-zero - the handful of Catacombs mobs with a published number, mostly in Master Mode.
 function MobDefenseNote({ name, types, masterMode, debuffs }) {
@@ -342,7 +332,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
     importedWeapons,
     setAccessoryMagicalPower,
     setAccessoryEnrichmentCount,
-    setAccessoryEnrichmentType,
     loadFullState,
   } = useBuild();
 
@@ -1558,6 +1547,7 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
           <div className={`${panel} p-3 flex flex-col gap-2`}>
             <div className="flex items-center gap-3">
               <div className="text-[13px] font-bold text-black uppercase tracking-wide">Enrichments</div>
+              <span className="text-[11px] text-neutral-700">+1 Tuning Point each</span>
               <span className="font-mono text-[13px] text-black">{loadout.accessory?.modifiers?.enrichmentCount || 0}</span>
               <div className="flex gap-1.5 ml-auto">
                 {[1, 5].map((amount) => (
@@ -1571,26 +1561,6 @@ export default function DamageSources({ embedded = false, hideSticky = false }) 
                   </button>
                 ))}
               </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {ENRICHMENT_TYPES.map(({ key, label, symbol, color }) => {
-                const active = (loadout.accessory?.modifiers?.enrichmentType || 'none') === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    title={label}
-                    aria-label={label}
-                    onClick={() => setAccessoryEnrichmentType(key)}
-                    className={`w-8 h-8 flex items-center justify-center text-base font-bold rounded border-2 cursor-pointer transition-[filter] ${
-                      active ? 'border-black bg-white' : 'border-neutral-600 bg-neutral-300 brightness-75 hover:brightness-90'
-                    }`}
-                    style={{ color }}
-                  >
-                    {symbol}
-                  </button>
-                );
-              })}
             </div>
           </div>
 

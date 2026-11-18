@@ -389,6 +389,7 @@ function loadInitialPlayerStats() {
     generalsMedallionDigits: 0,
     blazetekkHamRadio: false,
     vialsOfVenom: 0,
+    riftTimecharms: null,
   };
   const stored = localStorage.getItem(PLAYER_STATS_KEY);
   if (!stored) return defaults;
@@ -410,6 +411,7 @@ function loadInitialPlayerStats() {
       generalsMedallionDigits: typeof parsed.generalsMedallionDigits === 'number' ? parsed.generalsMedallionDigits : 0,
       blazetekkHamRadio: typeof parsed.blazetekkHamRadio === 'boolean' ? parsed.blazetekkHamRadio : false,
       vialsOfVenom: typeof parsed.vialsOfVenom === 'number' ? parsed.vialsOfVenom : 0,
+      riftTimecharms: typeof parsed.riftTimecharms === 'number' ? parsed.riftTimecharms : null,
     };
   } catch (err) {
     console.error('Failed to parse saved player stats:', err);
@@ -1485,15 +1487,6 @@ export function BuildProvider({ children }) {
     });
   }, []);
 
-  const setAccessoryEnrichmentType = useCallback((type) => {
-    setLoadout((prev) => {
-      const prevSlot = prev.accessory || { item: null, modifiers: emptyAccessoryModifiers() };
-      const next = { ...prev, accessory: { ...prevSlot, modifiers: { ...prevSlot.modifiers, enrichmentType: type } } };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
   // Clamped so the sum of every stat's assigned points never exceeds the current Magical Power's total.
   const setAccessoryTuningPoint = useCallback(
     (statKey, points) => {
@@ -1581,6 +1574,7 @@ export function BuildProvider({ children }) {
       generalsMedallionDigits: 0,
       blazetekkHamRadio: false,
       vialsOfVenom: 0,
+      riftTimecharms: null,
       ...(state.playerStats || {}),
     };
     setPlayerStats(nextPlayerStats);
@@ -1820,7 +1814,6 @@ export function BuildProvider({ children }) {
         setAccessoryMagicalPower,
         setAccessoryDungeonMagicalPower,
         setAccessoryEnrichmentCount,
-        setAccessoryEnrichmentType,
         setAccessoryTuningPoint,
         setAccessoryTuning,
         setOwnedAccessory,

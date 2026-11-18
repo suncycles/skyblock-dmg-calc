@@ -54,6 +54,11 @@ import {
   REAPER_ARMOR_SET,
   REAPER_ARMOR_UNDEAD_PERCENT,
   MYTHOLOGICAL_STAT_DOUBLE_IDS,
+  MYTHOS_PIECES,
+  CHALLENGER_PIECES,
+  unearthedMultiplier,
+  SORROW_SET,
+  gravekeeperMultiplier,
   hasFullSet,
   countSetPieces,
   MAXOR_SET,
@@ -80,7 +85,6 @@ import { combinePlayerDefense } from './playerDefense';
 import { fetchNeuItem } from './neuItems';
 import {
   computeCombatLevelBonus,
-  computeSkyblockLevelMultiplier,
   computeSkyblockLevelStrengthBonus,
   computeForagingStrengthBonus,
   MAX_VIALS_OF_VENOM,
@@ -394,8 +398,10 @@ const ENDER_DRAGON_SUPERIOR_PERCENT = 10;
 // equipped piece with this reforge.
 const RENOWNED_PERCENT_PER_PIECE = 1;
 const RENOWNED_REFORGE_NAME = 'Renowned';
-// Ultimate Legion: boost% = legionPlayers × 0.07 × enchant level (max level 5 → 0.35%/player).
-const LEGION_PERCENT_PER_PLAYER_PER_LEVEL = 0.07;
+// Ultimate Legion: boost% = legionPlayers × 0.1 × enchant level (0.1%-0.5%/player at I-V, 0.27.3,
+// user-confirmed).
+const LEGION_PERCENT_PER_PLAYER_PER_LEVEL = 0.1;
+const SPIDER_PET_ARTHROPOD_PERCENT_PER_LEVEL = 1.5;
 // Ultimate Swarm/Combo: per-enchant-level additive-damage-per-stack percentages.
 const SWARM_PERCENT_BY_LEVEL = [null, 2, 4, 6, 8, 10];
 const COMBO_PERCENT_BY_LEVEL = [null, 1, 2, 3, 4, 5];
@@ -548,6 +554,18 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
     // Strength, and Defense isn't known until the gear loop below has run. It's added in
     // collectDamageSources instead, as its own base-stat line - see computeAnkylosaurusStrength.
     out.petOtherNums = otherNums;
+
+    // Spider's One With the Spider (0.27.3, user-confirmed): +1.5% additive damage to Arthropods per
+    // pet level, +150% at 100. Was Strength on Arachnal gear, a tag the update removed.
+    if (pet.petId === 'SPIDER') {
+      out.additiveConditional.push({
+        id: 'spider-pet-arthropod',
+        label: 'Spider Pet (One With the Spider)',
+        source: 'Pet',
+        value: SPIDER_PET_ARTHROPOD_PERCENT_PER_LEVEL * (modifiers.level || 0),
+        condition: 'Arthropod',
+      });
+    }
 
     // Lion's First Pounce: multiplies First Strike/Triple Strike's bonus - Rare 1.8x, Epic/Legendary 2x.
     if (pet.petId === 'LION') {
@@ -772,17 +790,8 @@ async function collectBaseStats(loadout, itemData, catacombsLevel, tamingLevel, 
       if (value) addBaseStat(out, statKey, value, 'Accessories');
     }
   }
-
-  // Enrichments: a manually tracked count of bag items enriched for one stat, since the stat can be
-  // re-rolled per item (BuildContext's setAccessoryEnrichmentCount/setAccessoryEnrichmentType).
-  // Applies without an Accessory Power selected. Rates: +1 Strength/Crit Damage/Crit Chance, +2
-  // Intelligence, +0.5 Bonus Attack Speed. 'none' and untracked stats contribute nothing.
-  const enrichmentCount = loadout.accessory?.modifiers?.enrichmentCount || 0;
-  const enrichmentType = loadout.accessory?.modifiers?.enrichmentType;
-  const ENRICHMENT_RATE_PER_STAT = { strength: 1, crit_damage: 1, crit_chance: 1, intelligence: 2, bonus_attack_speed: 0.5 };
-  if (enrichmentCount > 0 && ENRICHMENT_RATE_PER_STAT[enrichmentType]) {
-    addBaseStat(out, enrichmentType, enrichmentCount * ENRICHMENT_RATE_PER_STAT[enrichmentType], 'Enrichments');
-  }
+  // Enrichments grant no stats since 0.27.3: each is +1 Tuning Point instead
+  // (lib/accessoryPowers.js's computeTotalTuningPoints), spent through the tuning allocation above.
 }
 
 // ---------------------------------------------------------------------
@@ -843,7 +852,7 @@ async function collectEnchantEntries(entries, itemLabel, slotLabel, enchantsMeta
       continue;
     }
 
-    // Ultimate Legion: boost% = legionPlayers × 0.07 × enchant level - final multiplier, not additive.
+    // Ultimate Legion: boost% = legionPlayers × LEGION_PERCENT_PER_PLAYER_PER_LEVEL × enchant level - final multiplier, not additive.
     if (key === 'ultimate_legion') {
       out.legionEnchantLevel = entry.level;
       continue;
@@ -1461,13 +1470,6 @@ export async function collectDamageSources(
     });
   }
 
-  const skyblockLevelMultiplier = computeSkyblockLevelMultiplier(playerStats?.skyblockLevel);
-  if (skyblockLevelMultiplier !== 1) {
-    const skyblockLevelEntry = { id: 'skyblock-level', label: 'Skyblock Level', source: 'Player', value: skyblockLevelMultiplier };
-    out.multiplicative.push(skyblockLevelEntry);
-    // Applies identically to Ability Damage.
-    out.abilityMultiplicative.push(skyblockLevelEntry);
-  }
 
   // Dungeon class bonuses (lib/dungeonClass.js), already gated on the Dungeon toggle by
   // dungeonClassStats. A loadout holds one weapon, so melee and arrow are mutually exclusive by
@@ -1837,6 +1839,32 @@ export async function collectDamageSources(
       source: 'Armor',
       value: REAPER_ARMOR_UNDEAD_PERCENT,
       condition: 'Undead',
+    });
+  }
+
+  // Tiered set multipliers from 0.27.3: Sorrow vs Ghosts, Mythos/Challenger's vs Mythological mobs.
+  const wornIds = new Set([...ARMOR_SLOTS, ...EQUIPMENT_SLOTS].map((slot) => loadout[slot]?.item?.id).filter(Boolean));
+  const countWorn = (ids) => ids.filter((id) => wornIds.has(id)).length;
+  const sorrowPieces = countWorn(SORROW_SET);
+  if (sorrowPieces >= 2) {
+    out.multiplicative.push({
+      id: 'sorrow-gravekeeper',
+      label: `Sorrow Armor (${sorrowPieces} pieces, Gravekeeper)`,
+      source: 'Armor',
+      value: gravekeeperMultiplier(sorrowPieces),
+      condition: 'Ghost',
+    });
+  }
+  const mythos = countWorn(MYTHOS_PIECES);
+  const challenger = countWorn(CHALLENGER_PIECES);
+  const unearthedPieces = Math.max(mythos, challenger);
+  if (unearthedPieces >= 2) {
+    out.multiplicative.push({
+      id: 'unearthed',
+      label: `${mythos >= challenger ? 'Mythos' : "Challenger's"} (${unearthedPieces} pieces, Unearthed)`,
+      source: 'Armor',
+      value: unearthedMultiplier(unearthedPieces),
+      condition: 'Mythological',
     });
   }
 

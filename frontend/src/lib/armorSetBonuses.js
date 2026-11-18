@@ -40,6 +40,20 @@ export const VANQUISHED_SET_CONDITION = 'Inferno Demonlord';
 export const MYTHOS_ARMOR_SET = ['MYTHOS_HELMET', 'MYTHOS_CHESTPLATE', 'MYTHOS_LEGGINGS', 'MYTHOS_BOOTS'];
 export const CHALLENGER_ARMOR_SET = ['CHALLENGER_HELMET', 'CHALLENGER_CHESTPLATE', 'CHALLENGER_LEGGINGS', 'CHALLENGER_BOOTS'];
 
+// Mythos and Challenger's "Unearthed" (0.27.3, user-confirmed): armor and equipment both count, each
+// set on its own; 2 pieces deal 1.1x to Mythological mobs, +0.05x per piece up to 1.4x at 8.
+export const MYTHOS_PIECES = [...MYTHOS_ARMOR_SET, 'MYTHOS_NECKLACE', 'MYTHOS_CLOAK', 'MYTHOS_BELT', 'MYTHOS_BRACELET'];
+export const CHALLENGER_PIECES = [...CHALLENGER_ARMOR_SET, 'CHALLENGER_NECKLACE', 'CHALLENGER_CLOAK', 'CHALLENGER_BELT', 'CHALLENGER_BRACELET'];
+export function unearthedMultiplier(pieces) {
+  return pieces >= 2 ? 1 + 0.05 * pieces : 1;
+}
+
+// Sorrow Armor's "Gravekeeper" (0.27.3, user-confirmed): 1.1x/1.2x/1.3x damage to Ghosts at 2/3/4 pieces.
+export const SORROW_SET = ['SORROW_HELMET', 'SORROW_CHESTPLATE', 'SORROW_LEGGINGS', 'SORROW_BOOTS'];
+export function gravekeeperMultiplier(pieces) {
+  return pieces >= 2 ? 1 + 0.1 * (pieces - 1) : 1;
+}
+
 // Monster Hunter/Monster Raider: undocumented hidden set bonuses. The two sets share their
 // first 3 pieces and differ only in boots, so they're mutually exclusive by construction.
 export const MONSTER_HUNTER_SET = ['SKELETON_HELMET', 'GUARDIAN_CHESTPLATE', 'CREEPER_LEGGINGS', 'SPIDER_BOOTS'];

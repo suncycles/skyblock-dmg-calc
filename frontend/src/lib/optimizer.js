@@ -985,7 +985,10 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         const resolved = resolveGearSummary({ id: candidate.id }, itemData);
         if (!resolved) return null; // catalog lookup failed - skip rather than guess
         const modifiers = withDungeonizedIfRelevant(emptyModifiers(), modeConfig);
-        if (candidate.special != null) modifiers.special = candidate.special;
+        // A Rift Necklace is valued at the account's own imported Timecharms (lib/specialWeapons.js).
+        const special =
+          candidate.special ?? (getSpecialConfig(resolved.id)?.kind === 'riftTimecharms' ? (build.playerStats?.riftTimecharms ?? null) : null);
+        if (special != null) modifiers.special = special;
         if (candidate.rarityOverride != null) modifiers.rarityOverride = candidate.rarityOverride;
         const carriedReforge = carriedReforgeName(currentModifiers, resolved, itemData);
         const carriedUltimate = carriedUltimateEnchantment(currentModifiers, resolved, itemData);
@@ -1014,7 +1017,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
         const apply = [{ type: 'selectItem', slot, item: resolved }];
         // Keeps the applied outcome matching what the ranked value assumed (withDungeonizedIfRelevant).
         if (modifiers.dungeonized) apply.push({ type: 'setDungeonized', slot, value: true });
-        if (candidate.special != null) apply.push({ type: 'setSpecialValue', slot, value: candidate.special });
+        if (special != null) apply.push({ type: 'setSpecialValue', slot, value: special });
         if (candidate.rarityOverride != null) apply.push({ type: 'setRarityOverride', slot, tier: candidate.rarityOverride });
         if (carriedReforge) apply.push({ type: 'applyReforge', slot, name: carriedReforge });
         if (modifiers.gemstones.length) {
@@ -1048,7 +1051,7 @@ async function evaluateItemSlotCandidates(loadout, itemData, build, modeConfig, 
           label: upgradedItemLabel(candidate.label || formatItemName(resolved.name), carriedReforge, carriedUltimate),
           itemId: resolved.id,
           material: resolved.material,
-          special: candidate.special,
+          special,
           value,
           perHit,
           replaces,
@@ -1572,7 +1575,8 @@ async function evaluateCheapestOneForAllAlternative(loadout, itemData, build, mo
 
     // A level with no market price is treated as free rather than excluded. Per-level effects only
     // grow, so only the highest free level is worth testing; every paid level is tested on its own.
-    const priced = levels.map((l) => ({ ...l, cost: enchantPrice(itemPrices, id, l.level) }));
+    // An Enchanting Table level prices at 0, which counts as free here too.
+    const priced = levels.map((l) => ({ ...l, cost: enchantPrice(itemPrices, id, l.level) || null }));
     const freeLevels = priced.filter((l) => l.cost == null);
     const highestFree = freeLevels.length > 0 ? freeLevels.reduce((a, b) => (b.level > a.level ? b : a)) : null;
     const testLevels = [...(highestFree ? [highestFree] : []), ...priced.filter((l) => l.cost != null)];
@@ -2245,7 +2249,7 @@ const SKILL_LEVEL_CANDIDATES = [
   { key: 'wolfSlayerLevel', name: 'Wolf Slayer', max: MAX_WOLF_SLAYER_LEVEL },
   { key: 'tarantulaSlayerLevel', name: 'Tarantula Slayer', max: MAX_TARANTULA_SLAYER_LEVEL },
   { key: 'blazeSlayerLevel', name: 'Blaze Slayer', max: MAX_BLAZE_SLAYER_LEVEL },
-  // No cap - Skyblock Level keeps going, and it feeds a real Ability Damage multiplier.
+  // No cap - Skyblock Level keeps going, +1 Strength every 5 levels.
   { key: 'skyblockLevel', name: 'Skyblock Level', max: null },
 ];
 

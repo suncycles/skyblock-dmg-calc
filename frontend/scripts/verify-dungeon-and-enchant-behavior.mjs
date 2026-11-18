@@ -1874,6 +1874,82 @@ try {
     assert.deepEqual(codexRows('MYTHIC'), [], 'nothing past Mythic');
   });
 
+  // 50l. 0.27.3's damage changes, every number user-confirmed: Sorrow and Mythos/Challenger's tiers,
+  // Spider pet, Legion, Shining Scales, enrichments as Tuning Points, SPECIAL accessories without
+  // Magical Power, Smoldering I-V free and VI at 40%, no Book of Progression damage, bane coverage.
+  await check('0.27.3 damage changes', async () => {
+    const damageSources = await server.ssrLoadModule('/src/lib/damageSources.js');
+    const defaults = await server.ssrLoadModule('/src/lib/defaultModifiers.js');
+    const accessoryPowers = await server.ssrLoadModule('/src/lib/accessoryPowers.js');
+    const accessoryOptimizer = await server.ssrLoadModule('/src/lib/accessoryOptimizer.js');
+    const enchantEffects = await server.ssrLoadModule('/src/lib/enchantEffects.js');
+    const mobTypes = await server.ssrLoadModule('/src/lib/mobTypes.js');
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+
+    assert.deepEqual([1, 2, 3, 4].map(armorSetBonuses.gravekeeperMultiplier).map((m) => +m.toFixed(2)), [1, 1.1, 1.2, 1.3]);
+    assert.deepEqual([1, 2, 3, 8].map(armorSetBonuses.unearthedMultiplier).map((m) => +m.toFixed(2)), [1, 1.1, 1.15, 1.4]);
+
+    const piece = (id, category = 'HELMET', lore = []) => ({ item: { id, name: id, tier: 'LEGENDARY', category, lore }, modifiers: defaults.emptyModifiers() });
+    const sets = await damageSources.collectDamageSources(
+      {
+        helmet: piece('MYTHOS_HELMET'),
+        chestplate: piece('MYTHOS_CHESTPLATE', 'CHESTPLATE'),
+        necklace: piece('CHALLENGER_NECKLACE', 'NECKLACE'),
+        cloak: piece('CHALLENGER_CLOAK', 'CLOAK'),
+        belt: piece('CHALLENGER_BELT', 'BELT'),
+      },
+      EMPTY_ITEM_DATA,
+      { attributes: {} },
+    );
+    const unearthed = sets.multiplicative.find((e) => e.id === 'unearthed');
+    assert.ok(unearthed && near(unearthed.value, 1.15) && unearthed.condition === 'Mythological', "each set counts alone: 3 Challenger's beats 2 Mythos");
+    const sorrow = await damageSources.collectDamageSources(
+      Object.fromEntries(armorSlots.ARMOR_SLOTS.map((slot, i) => [slot, piece(armorSetBonuses.SORROW_SET[i], slot.toUpperCase())])),
+      EMPTY_ITEM_DATA,
+      { attributes: {} },
+    );
+    const gravekeeper = sorrow.multiplicative.find((e) => e.id === 'sorrow-gravekeeper');
+    assert.ok(gravekeeper && near(gravekeeper.value, 1.3) && gravekeeper.condition === 'Ghost');
+
+    const legionAt = async (players) =>
+      (await damageSources.collectDamageSources(
+        { helmet: { ...piece('TEST_HELMET', 'HELMET', ['§7Strength: §c+100']), modifiers: { ...defaults.emptyModifiers(), ultimateEnchantment: { id: 'ultimate_legion', level: 5, maxLevel: 5 } } } },
+        EMPTY_ITEM_DATA,
+        { attributes: {}, legionPlayers: players },
+      )).baseStats.strength;
+    assert.ok(near((await legionAt(10)) / (await legionAt(0)), 1.05), 'Legion V: 0.5% per player');
+
+    assert.equal(petData.SHINING_SCALES_STRENGTH_PER_DIGIT, 15);
+    assert.equal(accessoryPowers.computeTotalTuningPoints(1000, 0, 0, 0, 7), 107, 'each enrichment is a flat Tuning Point');
+    assert.equal(accessoryOptimizer.MAGICAL_POWER_BY_RARITY.SPECIAL, 0);
+    assert.equal(accessoryOptimizer.MAGICAL_POWER_BY_RARITY.VERY_SPECIAL, 0);
+
+    const prices = { ENCHANTMENT_SMOLDERING_5: 41_000_000, ENCHANTMENT_SMOLDERING_6: 60_000_000 };
+    assert.equal(pricing.enchantPrice(prices, 'smoldering', 5), 0, 'Smoldering V comes off the Enchanting Table');
+    assert.equal(pricing.enchantPrice(prices, 'smoldering', 6), 60_000_000);
+    const fiveLore = ['§9Smoldering V', '§7Increases damage dealt to §4♨', '§4Infernal§7 mobs by §a30%§7.'];
+    const smoldering = await enchantEffects.fetchEnchantLevels('smoldering', { levelData: { smoldering: [{ level: 5, lore: fiveLore }] } });
+    assert.deepEqual(smoldering.at(-1), { level: 6, lore: ['§9Smoldering VI', '§7Increases damage dealt to §4♨', '§4Infernal§7 mobs by §a40%§7.'] });
+
+    const player = await damageSources.collectDamageSources({}, EMPTY_ITEM_DATA, { attributes: {}, playerStats: { skyblockLevel: 500 } });
+    assert.ok(!player.multiplicative.some((e) => e.id === 'skyblock-level'), 'Book of Progression damage is gone');
+
+    // Rift Necklace: the catalog lore is 8/8; fewer Timecharms means the user's table, not 8/8 stats.
+    const specialWeapons = await server.ssrLoadModule('/src/lib/specialWeapons.js');
+    const riftLore = ['§7Health: §c+150', '§7Defense: §a+30', '§7True Defense: §f+4', '§7Strength: §c+25', '§7Intelligence: §b+85', '', '§7Obtained: §c8/8 Timecharms', '', '§d§lMYTHIC NECKLACE'];
+    const rift = { id: 'RIFT_NECKLACE_OUTSIDE', name: 'Rift Necklace', tier: 'LEGENDARY', category: 'NECKLACE', lore: riftLore };
+    const riftAt = async (charms) => itemStatTotals.computeItemStatTotals(rift, { ...defaults.emptyModifiers(), special: charms }, EMPTY_ITEM_DATA, {});
+    const three = await riftAt(3);
+    assert.deepEqual([three.strength.nonDungeonStarred, three.intelligence.nonDungeonStarred, three.health.nonDungeonStarred], [5, 30, 40]);
+    const unknown = await riftAt(null);
+    assert.deepEqual([unknown.strength.nonDungeonStarred, unknown.intelligence.nonDungeonStarred], [25, 85], 'no count reads as the 8/8 catalog item');
+    assert.ok(specialWeapons.applySpecialToLore(riftLore, 'RIFT_NECKLACE_OUTSIDE', 3).includes('§7Obtained: §c3/8 Timecharms'));
+
+    for (const [id, type] of [['smite', 'Undead'], ['bane_of_arthropods', 'Arthropod'], ['ender_slayer', 'Ender'], ['cubism', 'Cubic'], ['smoldering', 'Infernal']]) {
+      assert.ok(mobTypes.ENCHANT_ID_MOB_TYPES[id]?.includes(type), `${id} counts against ${type} mobs`);
+    }
+  });
+
   const loadoutCode = await server.ssrLoadModule('/src/lib/loadoutCode.js');
 
   // 51. A share link or saved loadout carries the Dungeon class and its level. Before this, only the

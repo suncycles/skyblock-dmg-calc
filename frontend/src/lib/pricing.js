@@ -74,7 +74,12 @@ const SPECIAL_ENCHANT_LEVEL_ITEMS = {
 // An ultimate enchant's level N is 2^(N-1) tier I books combined, so it costs that many tier I books
 // (user-set 2026-10-19). Falls back to the level's own price when tier I has none - The One only
 // exists at IV and V.
+// Levels the Enchanting Table gives for free, so they cost nothing even though their books trade.
+// Smoldering I-V joined the table in 0.27.3.
+const ENCHANTING_TABLE_MAX_LEVEL = { smoldering: 5 };
+
 export function enchantPrice(itemPrices, id, level) {
+  if (level <= (ENCHANTING_TABLE_MAX_LEVEL[id.toLowerCase()] || 0)) return 0;
   const specialItemId = SPECIAL_ENCHANT_LEVEL_ITEMS[id.toLowerCase()]?.[level];
   if (specialItemId) return priceOf(itemPrices, specialItemId);
   if (id.toLowerCase().startsWith('ultimate_')) {

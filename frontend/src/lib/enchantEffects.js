@@ -152,6 +152,25 @@ function buildVenomousLevels() {
 // the Worker's server-side cache first (instant, no network) before falling back to live probing.
 export function fetchEnchantLevels(id, enchantsMeta) {
   if (id.toLowerCase() === 'venomous') return Promise.resolve(buildVenomousLevels());
+  const levels = fetchCatalogEnchantLevels(id, enchantsMeta);
+  return id.toLowerCase() === 'smoldering' ? levels.then(withSmolderingSix) : levels;
+}
+
+// Smoldering VI (0.27.3, user-confirmed 40%) isn't in NEU-REPO yet: built from V's lore with the new
+// number. Once the catalog carries VI it is used as-is.
+// shortcut: the 40% is hardcoded here, drop this when NEU-REPO has Smoldering VI.
+function withSmolderingSix(levels) {
+  const five = levels.find((l) => l.level === 5);
+  if (!five || levels.some((l) => l.level === 6)) return levels;
+  const lore = five.lore.map((line) => {
+    const plain = line.replace(/§./g, '').trim();
+    if (plain === 'Smoldering V') return line.replace('Smoldering V', 'Smoldering VI');
+    return line.replace('30%', '40%');
+  });
+  return [...levels, { level: 6, lore }];
+}
+
+function fetchCatalogEnchantLevels(id, enchantsMeta) {
 
   // A server entry is only trustworthy when the worker finished probing it - an id on the
   // incomplete list is served short, so fall through to a live probe instead of capping the

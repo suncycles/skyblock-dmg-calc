@@ -185,6 +185,12 @@ export async function computeOptimalTuning(loadout, itemData, build, modeConfig,
 // Derives the total point budget (Magical Power's 1-per-10 rate plus the Tuning Box attribute's flat
 // grant, see lib/accessoryPowers.js's computeTotalTuningPoints) and runs the search.
 export async function computeOptimalTuningForMp(loadout, itemData, build, modeConfig, mob, magicalPower) {
-  const totalPoints = computeTotalTuningPoints(magicalPower, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
+  const totalPoints = computeTotalTuningPoints(
+    magicalPower,
+    build.attributes?.tuning_box,
+    build.attributes?.echo_of_boxes,
+    build.attributes?.echo_of_echoes,
+    loadout.accessory?.modifiers?.enrichmentCount,
+  );
   return computeOptimalTuning(loadout, itemData, build, modeConfig, mob, totalPoints);
 }

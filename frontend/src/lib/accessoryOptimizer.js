@@ -32,8 +32,9 @@ export const MAGICAL_POWER_BY_RARITY = {
   EPIC: 12,
   LEGENDARY: 16,
   MYTHIC: 22,
-  SPECIAL: 3,
-  VERY_SPECIAL: 5,
+  // SPECIAL and VERY_SPECIAL give no Magical Power since 0.27.3.
+  SPECIAL: 0,
+  VERY_SPECIAL: 0,
 };
 
 // Coin cost per accessory candidate, mirroring lib/optimizer.js's withCost/lookupCandidateCost for
@@ -300,7 +301,8 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
   const currentDungeonMp = accessorySlot.modifiers.dungeonMagicalPower || 0;
   // Includes the Tuning Box attribute's flat point grant (computeTotalTuningPoints) for an accurate
   // absolute total; that portion cancels out of `extraPoints`, being added to both sides.
-  const currentPoints = computeTotalTuningPoints(currentMp, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes);
+  const enrichments = accessorySlot.modifiers.enrichmentCount || 0;
+  const currentPoints = computeTotalTuningPoints(currentMp, build.attributes?.tuning_box, build.attributes?.echo_of_boxes, build.attributes?.echo_of_echoes, enrichments);
 
   const { allocation: baselineTuning, nextStat: baselineNextStat } = await computeOptimalTuning(loadout, itemData, build, modeConfig, mob, currentPoints);
   const tunedLoadout = { ...loadout, accessory: { ...accessorySlot, modifiers: { ...accessorySlot.modifiers, tuning: baselineTuning } } };
@@ -328,6 +330,7 @@ async function evaluateAccessoryCandidatesUncached(loadout, itemData, build, mod
       build.attributes?.tuning_box,
       build.attributes?.echo_of_boxes,
       build.attributes?.echo_of_echoes,
+      enrichments,
     );
     const extraPoints = newPoints - currentPoints;
     const candidateTuning = extraPoints > 0 ? await topUpTuning(tunedLoadout, itemData, candidateBuild, modeConfig, mob, baselineTuning, extraPoints, tunedCritChance, hasOverload, baselineNextStat) : baselineTuning;

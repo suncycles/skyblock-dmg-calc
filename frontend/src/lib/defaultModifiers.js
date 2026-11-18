@@ -54,7 +54,6 @@ export function emptyAccessoryModifiers() {
     },
     // Enrichment count and the stat they are all set to; 'none' = a stat this app doesn't track.
     enrichmentCount: 0,
-    enrichmentType: 'none',
     // Each owned accessory's own stat line, summed as {statKey: value}, filled by Hypixel import.
     individualAccessoryStats: {},
     // Owned accessory id/tier/recombobulated records from the last Hypixel import.

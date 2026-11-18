@@ -60,8 +60,8 @@ export default function AccessoryTuning() {
     );
   }
 
-  const { magicalPower, tuning } = loadout.accessory.modifiers;
-  const totalPoints = computeTotalTuningPoints(magicalPower, attributes.tuning_box, attributes.echo_of_boxes, attributes.echo_of_echoes);
+  const { magicalPower, tuning, enrichmentCount } = loadout.accessory.modifiers;
+  const totalPoints = computeTotalTuningPoints(magicalPower, attributes.tuning_box, attributes.echo_of_boxes, attributes.echo_of_echoes, enrichmentCount);
   const spentPoints = TUNING_STATS.reduce((sum, key) => sum + (tuning[key] || 0), 0);
 
   return (
