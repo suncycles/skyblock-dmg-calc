@@ -80,6 +80,11 @@ const EXCLUDED_IDS = new Set([
   'ARGOFAY_THREEBROTHER_2_RIFT_NPC',
   'ARGOFAY_THREEBROTHER_3_RIFT_NPC',
   'TIME_KNIFE', // "Time Shuriken" - Rift cosmetic throwable, not a weapon
+  // Personal Compactor 4000-7000: removed from the game in 0.27.3, still listed in NEU-REPO.
+  'PERSONAL_COMPACTOR_4000',
+  'PERSONAL_COMPACTOR_5000',
+  'PERSONAL_COMPACTOR_6000',
+  'PERSONAL_COMPACTOR_7000',
 ]);
 
 // Items whose lore matches the /rift/i scan below but are kept anyway - exceptions to that filter
