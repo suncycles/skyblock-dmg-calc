@@ -252,6 +252,8 @@ const DAGGER_MOB_MULTIPLIERS = {
 // catalog today, and the others take effect automatically if they are added.
 const ADDITIVE_MOB_MULTIPLIERS = {
   UNDEAD_SWORD: [{ value: 100, condition: 'Undead' }],
+  // "Deals +200% Damage to Ghosts" - plain additive (user-confirmed 2026-11-19).
+  POLTERGEIST_PITCHFORK: [{ value: 200, condition: 'Ghost' }],
   WITHER_BOW: [{ value: 100, condition: 'Wither' }],
   PRISMARINE_BOW: [{ value: 300, condition: 'Squid, Guardian, Elder Guardian' }],
 };
