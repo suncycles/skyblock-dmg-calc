@@ -351,9 +351,9 @@ export default function UpgradesPanel({ variant = 'column', onMinimize }) {
     const after = r.perHitIncrease != null ? hitsToKill(state.baselinePerHit + r.perHitIncrease) : null;
     return baselineHits != null && after != null ? baselineHits - after : 0;
   };
-  // Free upgrades cost time rather than coins, so an infinite ratio would pin them to the top of Best
-  // Value. Off by default, the common question being what to buy next.
-  const [showFree, setShowFree] = useState(false);
+  // Free upgrades cost time rather than coins. On by default (user-set 2026-11-19); the toggle hides
+  // them when the question is only what to buy next.
+  const [showFree, setShowFree] = useState(true);
   // ✕ hides a suggestion for the rest of this visit; not persisted.
   const [skippedKeys, setSkippedKeys] = useState(() => new Set());
   // Empty = no filter.
