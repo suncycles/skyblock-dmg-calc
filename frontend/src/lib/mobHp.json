@@ -58,9 +58,6 @@
  "Ashfang": {
   "hp": 50000000
  },
- "Atoll Croaker": {
-  "hp": 15000
- },
  "Atoned Champion": {
   "hp": 600000
  },
@@ -85,14 +82,8 @@
  "Bat": {
   "hp": 6
  },
- "Bat Piñata": {
-  "hp": 5
- },
  "Bayou Sludge": {
   "hp": 20000
- },
- "Beetle": {
-  "hp": 600
  },
  "Bezal": {
   "hp": 1000000
@@ -102,9 +93,6 @@
  },
  "Blaze": {
   "hp": 250000
- },
- "Blue Jerry": {
-  "hp": 4
  },
  "Blue Ringed Octopus": {
   "hp": 4000000
@@ -164,18 +152,6 @@
  "Cow": {
   "hp": 50
  },
- "Crazy Witch": {
-  "tiers": [
-   {
-    "hp": 11,
-    "label": "Witch"
-   },
-   {
-    "hp": 1,
-    "label": "Bat"
-   }
-  ]
- },
  "Creeper": {
   "hp": 80
  },
@@ -202,9 +178,6 @@
     "label": "Mythic"
    }
   ]
- },
- "Cricket": {
-  "hp": 600
  },
  "Crypt Dreadlord": {
   "dungeon": {
@@ -302,17 +275,8 @@
  "Diamond Goblin": {
   "hp": 5
  },
- "Dragonfly": {
-  "hp": 600
- },
- "Drowned Captain": {
-  "hp": 60000
- },
  "Dumpster Diver": {
   "hp": 2500
- },
- "Earthworm": {
-  "hp": 600
  },
  "Emerald Slime": {
   "hp": 80
@@ -355,17 +319,11 @@
    }
   }
  },
- "Field Mouse": {
-  "hp": 600
- },
  "Fiery Scuttler": {
   "hp": 10000000
  },
  "Fire Eel": {
   "hp": 2000000
- },
- "Firefly": {
-  "hp": 600
  },
  "Fireproof Witch": {
   "hp": 75000
@@ -385,20 +343,11 @@
  "Flint Skeleton": {
   "hp": 100
  },
- "Flipflopper": {
-  "hp": 500
- },
- "Fly": {
-  "hp": 600
- },
  "Fried Chicken": {
   "hp": 65000
  },
  "Frog Man": {
   "hp": 2500
- },
- "Frog Prince": {
-  "hp": 10000000
  },
  "Frosty": {
   "hp": 250
@@ -472,9 +421,6 @@
  "Golden Goblin": {
   "hp": 3
  },
- "Golden Jerry": {
-  "hp": 6
- },
  "Goldor": {
   "dungeon": {
    "master": {
@@ -503,9 +449,6 @@
  },
  "Great White Shark": {
   "hp": 1500000
- },
- "Green Jerry": {
-  "hp": 3
  },
  "Grim Reaper": {
   "hp": 3000000
@@ -538,9 +481,6 @@
     "label": "Mythic"
    }
   ]
- },
- "Headless Horseman": {
-  "hp": 3000000
  },
  "Howling Spirit": {
   "hp": 7000
@@ -625,9 +565,6 @@
    }
   }
  },
- "Locust": {
-  "hp": 600
- },
  "Lonely Spider": {
   "dungeon": {
    "master": {
@@ -673,12 +610,6 @@
    }
   }
  },
- "Lotus Guardian": {
-  "hp": 25000
- },
- "Lunar Moth": {
-  "hp": 600
- },
  "Mage Outlaw": {
   "hp": 70000000
  },
@@ -715,9 +646,6 @@
     "VII": 100000000
    }
   }
- },
- "Mega Bat": {
-  "hp": 100
  },
  "Millennia-Aged Blaze": {
   "hp": 30000000
@@ -830,9 +758,6 @@
    }
   ]
  },
- "Mite": {
-  "hp": 600
- },
  "Mithril Grubber": {
   "tiers": [
    {
@@ -855,12 +780,6 @@
  },
  "Moogma": {
   "hp": 750000
- },
- "Mosquito": {
-  "hp": 600
- },
- "Moth": {
-  "hp": 600
  },
  "Mushroom Bull": {
   "hp": 2500000
@@ -923,9 +842,6 @@
  "Phantom Fisher": {
   "hp": 1000000
  },
- "Phantom Spirit": {
-  "hp": 10
- },
  "Pig": {
   "hp": 50
  },
@@ -938,17 +854,8 @@
  "Powder Ghast": {
   "hp": 100
  },
- "Praying Mantis": {
-  "hp": 600
- },
  "Protector Dragon": {
   "hp": 15000000
- },
- "Puddle Jumper": {
-  "hp": 5
- },
- "Purple Jerry": {
-  "hp": 5
  },
  "Pyroclastic Worm": {
   "hp": 1200000
@@ -981,9 +888,6 @@
  },
  "Rain Slime": {
   "hp": 200
- },
- "Rat": {
-  "hp": 600
  },
  "Redstone Pigman": {
   "hp": 250
@@ -1072,9 +976,6 @@
    }
   }
  },
- "Scary Jerry": {
-  "hp": 12
- },
  "Scatha": {
   "hp": 10
  },
@@ -1092,9 +993,6 @@
  },
  "Sea Witch": {
   "hp": 6000
- },
- "Seashine": {
-  "hp": 1000
  },
  "Seer": {
   "hp": 9500
@@ -1118,9 +1016,6 @@
  },
  "Sheep": {
   "hp": 120
- },
- "Shiny Pig": {
-  "hp": 1000000000
  },
  "Siamese Lynxes": {
   "tiers": [
@@ -1243,9 +1138,6 @@
  },
  "Sludge": {
   "hp": 5000
- },
- "Slug": {
-  "hp": 600
  },
  "Smoldering Blaze": {
   "hp": 5500000
@@ -1531,9 +1423,6 @@
  "Tiger Shark": {
   "hp": 250000
  },
- "Timestalk Clone": {
-  "hp": 20
- },
  "Titanoboa": {
   "hp": 45000000
  },
@@ -1542,9 +1431,6 @@
  },
  "Treasure Hoarder": {
   "hp": 22000
- },
- "Trick or Treater": {
-  "hp": 10
  },
  "Typhoeus": {
   "tiers": [
@@ -1694,9 +1580,6 @@
    }
   }
  },
- "Wither Gourd": {
-  "hp": 11
- },
  "Wither Guard": {
   "dungeon": {
    "master": {
@@ -1751,9 +1634,6 @@
  },
  "Worm": {
   "hp": 5
- },
- "Wraith": {
-  "hp": 15
  },
  "Yeti": {
   "hp": 2000000
@@ -1867,11 +1747,5 @@
  },
  "Zombie Villager": {
   "hp": 120
- },
- "Zombuddy": {
-  "hp": 5
- },
- "gorF": {
-  "hp": 40000
  }
 }
